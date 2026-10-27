@@ -1,0 +1,12 @@
+# Supabase CLI 가 만드는 로컬 연결 정보
+supabase/.temp/
+
+# 예전 작업 폴더의 사본 (실제 코드는 supabase/functions/ 에 있음)
+mnt/
+/index.ts
+
+# 에디터 · OS
+.vscode/
+.DS_Store
+Thumbs.db
+node_modules/

@@ -1,0 +1,117 @@
+// 나의 시간표 — 서비스 워커
+// 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
+const CACHE = 'dshs-study-v4';
+
+const SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './config.js',
+  './dshs-study.js',
+  './icon-144.png',
+  './icon-192.png',
+  './icon-256.png',
+  './icon-384.png',
+  './icon-512.png',
+  './icon-maskable-192.png',
+  './icon-maskable-512.png',
+  './apple-touch-icon.png',
+  './favicon-32.png'
+];
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => Promise.allSettled(SHELL.map(u => c.add(u))))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('message', e => {
+  if (e.data === 'skip-waiting') self.skipWaiting();
+});
+
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+
+  // 폰트 등 외부 리소스: 캐시 우선, 없으면 네트워크 후 저장
+  if (url.origin !== location.origin) {
+    e.respondWith(
+      caches.match(req).then(hit => hit || fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return res;
+      }).catch(() => hit))
+    );
+    return;
+  }
+
+  // 설정 파일: 항상 최신을 먼저 (키를 바꿔도 바로 반영되도록)
+  if (url.pathname.endsWith('/config.js')) {
+    e.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // 앱 문서: 네트워크 우선(최신 시간표), 실패하면 캐시로 오프라인 동작
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
+    e.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put('./index.html', copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match('./index.html').then(hit => hit || caches.match('./')))
+    );
+    return;
+  }
+
+  // 그 외 정적 파일: 캐시 우선
+  e.respondWith(
+    caches.match(req).then(hit => hit || fetch(req).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+      return res;
+    }))
+  );
+});
+
+// ---------- 웹 푸시 ----------
+self.addEventListener('push', e => {
+  let d = { title: 'dshs.study', body: '새 알림이 있어요', url: './' };
+  try { if (e.data) d = { ...d, ...e.data.json() }; } catch (err) { if (e.data) d.body = e.data.text(); }
+  e.waitUntil(self.registration.showNotification(d.title, {
+    body: d.body,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: d.tag || 'dshs-study',
+    renotify: true,
+    data: { url: d.url || './' }
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const target = new URL(e.notification.data?.url || './', self.location.origin).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) {
+      if (c.url.startsWith(self.location.origin)) return c.focus();
+    }
+    return self.clients.openWindow(target);
+  }));
+});
