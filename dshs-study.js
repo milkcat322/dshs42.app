@@ -11,6 +11,7 @@ let me = null;          // { id, username, student_id, name, is_admin }
 let myClasses = [];     // 로컬 시간표 데이터에서 가져온 내 수강 분반 [{ subject, ban }]
 let current = null;     // 박스에서 고른 분반 (null 이면 전체 공지)
 let cache = { items: [], pending: [] };
+let view = "feed";      // studyBody 에 떠 있는 화면: feed | admin | form
 
 // ---------- 유틸 ----------
 const $ = (id) => document.getElementById(id);
@@ -274,6 +275,7 @@ function signupStep3(sid, name) {
 // cls 를 주면 그 분반 공지만, 없으면 내 전체 공지
 function openStudy(cls) {
   current = cls && cls.subject ? cls : null;
+  view = "feed";
   $("result").classList.remove("show");
   $("welcomeState").style.display = "none";
   $("studyView").style.display = "block";
@@ -291,7 +293,8 @@ function closeStudy() {
 window.closeStudyView = closeStudy;
 
 function renderStudy() {
-  const pushState = Notification.permission === "granted" ? "on" : "off";
+  // iOS Safari(홈 화면 추가 전) 등은 Notification 자체가 없습니다
+  const pushState = typeof Notification !== "undefined" && Notification.permission === "granted" ? "on" : "off";
   $("studyView").innerHTML = `
     <div class="study-head">
       <div>
@@ -333,7 +336,8 @@ async function loadAssignments() {
   const pc = $("pendCount");
   if (pc) pc.textContent = cache.pending.length;
   renderBoard();
-  if ($("studyView").style.display === "block") renderList("feed");
+  // 작성 중인 공지 추가 폼은 덮어쓰지 않습니다
+  if ($("studyView").style.display === "block" && view !== "form") renderList(view);
 }
 
 function card(a, opts = {}) {
@@ -358,6 +362,7 @@ function card(a, opts = {}) {
 
 function renderList(mode) {
   const body = $("studyBody");
+  view = mode;
   if (mode === "admin") {
     body.innerHTML = `<div class="study-section">승인 대기 ${cache.pending.length}건</div>` +
       (cache.pending.length
@@ -396,6 +401,13 @@ function openNewForm() {
     ? mySubjects().flatMap((s) => [{ subject: s, ban: null },
         ...myClasses.filter((c) => c.subject === s)])
     : myClasses;
+  view = "form";
+  if (!opts.length) {
+    body.innerHTML = `<div class="study-empty">수강 과목 정보를 찾지 못해 공지를 올릴 수 없어요.</div>
+      <button class="study-btn wide" id="backFeed">← 목록으로</button>`;
+    $("backFeed").onclick = () => renderList("feed");
+    return;
+  }
   const sel = Math.max(0, opts.findIndex((o) => sameClass(o, current)));
   body.innerHTML = `
     <div class="study-section">공지 추가</div>
@@ -439,6 +451,7 @@ function openNewForm() {
     $("nSave").disabled = false;
     if (error) { err.textContent = "올리지 못했어요: " + error.message; err.classList.add("show"); return; }
     toast(me.is_admin ? "바로 공지했어요" : "제출했어요. 승인되면 분반에 공지돼요");
+    view = "feed";
     await loadAssignments();
   };
 }
