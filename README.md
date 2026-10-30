@@ -15,7 +15,10 @@ bans.sql                  ★ 수강 정보에 분반 채우기 + 분반별 공�
 admins.sql                ★ 관리자 계정 연결
 supabase/functions/signup/index.ts          회원가입 (학번당 1계정 강제)
 supabase/functions/send-reminders/index.ts  기한 알림 발송
+DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일)
 ```
+
+작업을 시작하기 전에 [DEVLOG.md](DEVLOG.md) 의 최근 기록과 **남은 일** 을 먼저 확인해 주세요.
 
 `config.js`를 비워 두면 로그인 버튼이 숨겨지고 **시간표 기능만** 동작합니다. 먼저 그대로 올려서 시간표만 쓰다가, 준비되면 백엔드를 붙여도 됩니다.
 

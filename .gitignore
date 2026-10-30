@@ -10,3 +10,6 @@ mnt/
 .DS_Store
 Thumbs.db
 node_modules/
+
+# Claude Code 개인 설정 (훅 등)
+.claude/settings.local.json
