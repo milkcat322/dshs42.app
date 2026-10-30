@@ -15,10 +15,11 @@ bans.sql                  ★ 수강 정보에 분반 채우기 + 분반별 공�
 admins.sql                ★ 관리자 계정 연결
 supabase/functions/signup/index.ts          회원가입 (학번당 1계정 강제)
 supabase/functions/send-reminders/index.ts  기한 알림 발송
-DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일)
+DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일 · 최신이 맨 아래)
+.claude/                  Claude Code 공용 설정 · 자동 git pull/push 훅
 ```
 
-작업을 시작하기 전에 [DEVLOG.md](DEVLOG.md) 의 최근 기록과 **남은 일** 을 먼저 확인해 주세요.
+작업을 시작하기 전에 [DEVLOG.md](DEVLOG.md) 맨 아래의 최근 기록과 **남은 일** 을 먼저 확인해 주세요.
 
 `config.js`를 비워 두면 로그인 버튼이 숨겨지고 **시간표 기능만** 동작합니다. 먼저 그대로 올려서 시간표만 쓰다가, 준비되면 백엔드를 붙여도 됩니다.
 
@@ -118,4 +119,43 @@ update public.profiles set is_admin = true where student_id = 2113;
 
 ```js
 const CACHE = 'dshs-study-v1';  →  'dshs-study-v2';
+```
+
+---
+
+## 개발 흐름 (자동 git pull / push · 개발 로그)
+
+이 저장소를 [Claude Code](https://claude.com/claude-code) 로 열면 아래가 **모든 팀원에게 자동으로** 적용됩니다. 설정은 저장소에 들어 있는 `.claude/settings.json` 과 `.claude/hooks/` 스크립트가 합니다.
+
+| 언제 | 자동으로 하는 일 |
+|---|---|
+| 세션을 열 때 (새 세션 · 이어하기 · `/clear`) | `git pull --rebase --autostash` 로 다른 팀원의 변경을 받아옴 |
+| 세션을 닫을 때 | 대화 내용을 요약해 [DEVLOG.md](DEVLOG.md) 맨 아래에 기록 추가 → 변경 전체 커밋 → `git push` |
+
+### 처음 한 번 준비
+
+1. **Node.js 18 이상** 설치 (`node -v` 로 확인). 훅 스크립트가 Node 로 돌아갑니다.
+2. **git 로그인 정보 저장** — 터미널에서 직접 `git push` 를 한 번 해서 로그인해 두세요. 자동 push 는 비밀번호 창을 띄우지 않으므로, 저장된 정보가 없으면 실패합니다.
+3. 저장소 폴더에서 Claude Code 를 열고, 폴더 신뢰(trust) 확인이 나오면 허용합니다.
+
+### 알아 둘 점
+
+- 세션이 끝나면 **수정한 파일 전체가 지금 브랜치로 push** 됩니다. `main` 에서 작업하면 `main` 에 바로 올라가니, 큰 작업은 `git switch -c feature/이름` 으로 브랜치를 만들어 하고 PR 로 합쳐 주세요. 원격에 없는 브랜치는 첫 push 때 자동으로 만들어집니다.
+- 개발 로그 요약은 세션이 끝난 뒤 **백그라운드에서 1~2분** 걸립니다. 에디터를 닫아도 계속 진행돼요.
+- push 직전에 pull 이 충돌하면 push 를 멈추고 커밋은 내 PC 에만 남깁니다. 직접 충돌을 정리한 뒤 push 해 주세요.
+- 실행 기록과 실패 이유는 `.git/devlog-hook.log` 에 남습니다 (커밋되지 않음).
+- 같은 세션을 이어서 작업하면 DEVLOG 에 새 기록을 추가하지 않고 그 세션의 기록을 갱신합니다.
+- 내 PC 에서만 자동화를 끄려면 `.claude/settings.local.json` 에 `{ "disableAllHooks": true }` 를 넣으세요 (git 에 올라가지 않는 개인 설정).
+
+### Claude Code 없이 작업할 때
+
+1. 시작 전에 `git pull`
+2. 작업 후 [DEVLOG.md](DEVLOG.md) 맨 아래에 같은 형식으로 기록 추가
+3. 커밋하고 `git push`
+
+`git pull` 이 매번 깔끔하게 되도록 한 번 설정해 두면 편합니다.
+
+```bash
+git config pull.rebase true
+git config rebase.autoStash true
 ```

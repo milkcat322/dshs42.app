@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [".claude/hooks/session-start.mjs"],
+            "timeout": 60,
+            "statusMessage": "git pull 중..."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [".claude/hooks/session-end.mjs"],
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

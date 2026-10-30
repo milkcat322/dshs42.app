@@ -1,51 +1,45 @@
 # dshs.study 개발 로그
 
-무엇을 왜 바꿨는지, 무엇이 남았는지를 세션 단위로 기록합니다. **최신 기록이 위에** 옵니다.
+무엇을 왜 바꿨는지, 무엇이 남았는지를 세션 단위로 기록합니다. **시간순으로 쌓이고 최신 기록이 맨 아래**에 있습니다.
+
+## 쓰는 법
 
 - 각 기록은 `## 날짜 시간 · 제목` 으로 시작하고, 목표 · 한 일 · 결정과 이유 · 해결한 문제 · 남은 일 · 배운 점 · 바뀐 파일 순서로 씁니다 (해당 없는 항목은 생략).
-- Claude Code 세션이 끝나면 자동으로 요약되어 추가됩니다. 손으로 써도 같은 형식을 지켜 주세요.
+- **Claude Code 로 작업하면 자동입니다.** 세션을 열면 `git pull`, 세션을 닫으면 대화 내용을 요약해 이 파일 맨 아래에 추가하고 커밋 · `git push` 까지 합니다. 설정 방법은 [README 의 "개발 흐름"](README.md#개발-흐름-자동-git-pull--push--개발-로그) 을 보세요.
 - 같은 세션을 이어서 작업하면 (`session xxxxxxxx` 가 같으면) 새로 추가하지 않고 그 기록을 갱신합니다.
+- Claude Code 없이 작업할 때는 시작 전에 `git pull`, 끝나면 이 파일 맨 아래에 같은 형식으로 기록을 추가한 뒤 커밋 · `git push` 해 주세요.
 
-<!-- 새 기록은 이 줄 아래에 자동으로 추가됩니다 -->
+<!-- 기록은 이 줄 아래에 시간순으로 쌓입니다 (최신이 맨 아래) -->
 
-## 2026-10-30 18:37–20:20 · dshs.app 연동 조사와 개발 로그 자동화
+## 2026-10-27 · 첫 버전: 시간표 + 계정·분반별 수행평가 공지
 
-`session 4977a58f` · 요청 4회
-
-### 목표
-- dshs.app 의 자습실 자리, 급식, 벌점, 특별실·취식 신청을 dshs.study 에 넣을 방법 찾기
-- 개발 기록을 git 으로 팀과 공유하고, 세션마다 자동으로 쌓이게 하기
+커밋 `5afa046` · `4d47122` · `db5c409`
 
 ### 한 일
-- dshs.app 구조 조사: SvelteKit 앱, 로그인은 `id.dshs.app` OIDC 서버 (운영: 레디스쿨, 개발자 콘솔 `dshs.app/dev`)
-- `id.dshs.app/.well-known/openid-configuration` 에서 외부 앱용 scope 확인: `reservations_read`, `penalties_read`, `requests_read`, `outrequests_read` 등
-- 급식은 로그인 없이 `dshs.app/meal/YYYYMMDD/__data.json` 으로 받아짐 확인 (CORS 허용 헤더 없음)
-- `/reserve`, `/penalty` 는 로그인 필요, `/api-doc` (API 문서) 링크는 현재 404
-- 이용약관 확인: 계정 양도·대여 금지, 다른 이용자 개인정보 무단 수집·공개 금지, 봇 방지 조치 운영
-- `DEVLOG.md` 도입, 이전 기록 정리
+- 시간표·분반·교실·선생님 검색 (로그인 없이 사용 가능)
+- 학번 기반 회원가입 (`signup` Edge Function, 학번당 1계정을 서버에서 강제)
+- 분반별 수행평가 공지: 수강 과목에만 올릴 수 있고, 관리자 승인 후 그 과목 수강생에게만 표시 (RLS)
+- 기한 알림: D-3 / D-1 / 당일 웹 푸시 (`send-reminders` + cron)
+- 명단 92명 + 수강 1081행 (`seed.sql`), 분반 정보 (`bans.sql`), 관리자 계정 (`admins.sql`)
+- PWA: `manifest.webmanifest`, 아이콘, `sw.js` (오프라인 + 푸시 수신)
 
 ### 결정과 이유
-- 크롤링 대신 **공식 OAuth 연동** — 학생 아이디·비밀번호로 대신 로그인하는 건 약관상 계정 대여에 해당하고 봇 차단에도 걸림
-- 급식은 **NEIS 교육정보 개방 포털 API** 우선, dshs.app `__data.json` 은 비공식이라 대안으로만
-- dshs.app 호출은 전부 **Supabase Edge Function 경유** — CORS 가 없어 브라우저에서 직접 못 부름
-- 벌점은 OAuth 로 받은 본인 토큰으로만 조회 → 다른 사람이 볼 경로 자체가 없음
-- dshs.app 에서 가져온 신청 일정은 달력에서 **읽기 전용** (원본이 dshs.app 이라 여기서 옮겨도 실제 신청은 안 바뀜)
-- 자습실 자리 검색은 전교생 데이터가 필요해 약관 문제 → "동의한 학생만 공개" 또는 운영자에게 좌석 API 공식 요청 중 선택 필요
-
-### 남은 일
-- [ ] dshs.app 운영자에게 문의: OAuth client_id 발급(redirect URI = Edge Function), API 문서, 취식 신청 scope, 좌석 배치도 API 여부
-- [ ] NEIS 급식 Edge Function + 급식 탭 (운영자 답 없이 바로 가능)
-- [ ] client_id 받은 뒤: `dshs-oauth`(토큰 교환·저장), `dshs-sync`(예약·신청·벌점 동기화) Edge Function
-- [ ] 자습실 자리 검색 방식 결정
-
-### 배운 점
-- dshs.app 은 외부 연동용 OAuth 권한을 이미 공개하고 있어서, 운영자 승인만 받으면 공식 경로로 붙일 수 있음
-- 새 Edge Function 응답도 `sw.js` 캐시 대상에서 빠져 있어야 하고, 배포 시 캐시 버전을 올려야 함
+- `config.js` 를 비워 두면 로그인 없이 시간표만 동작 → 백엔드 없이 먼저 배포 가능
+- 공지 범위 제한은 화면이 아니라 DB 권한(RLS)으로 → 다른 과목 공지는 애초에 내려받아지지 않음
 
 ### 바뀐 파일
-- `DEVLOG.md`
-- `README.md`
-- `.gitignore`
+- 저장소 전체 (22개 파일)
+
+## 2026-10-28 · 공지 추가 버그 수정
+
+커밋 `7e7c247`
+
+### 해결한 문제
+- iOS 에서 `Notification` 관련 오류로 공지 추가가 실패하던 문제 수정
+- 공지 추가 폼이 덮어써지던 문제 수정
+
+### 바뀐 파일
+- `dshs-study.js`, `sw.js`
 
 ## 2026-10-28 13:36–20:06 · 달력 기반 일정관리 앱으로 확장
 
@@ -105,32 +99,46 @@
 - `events.sql`, `share.sql`, `todos.sql`, `school.sql`
 - `dshs-study.js`, `index.html`, `README.md`
 
-## 2026-10-28 · 공지 추가 버그 수정
+## 2026-10-30 18:37–20:40 · dshs.app 연동 조사, 개발 로그와 자동 git pull/push 도입
 
-커밋 `7e7c247`
+`session 4977a58f` · 요청 5회
 
-### 해결한 문제
-- iOS 에서 `Notification` 관련 오류로 공지 추가가 실패하던 문제 수정
-- 공지 추가 폼이 덮어써지던 문제 수정
-
-### 바뀐 파일
-- `dshs-study.js`, `sw.js`
-
-## 2026-10-27 · 첫 버전: 시간표 + 계정·분반별 수행평가 공지
-
-커밋 `5afa046` · `4d47122` · `db5c409`
+### 목표
+- dshs.app 의 자습실 자리, 급식, 벌점, 특별실·취식 신청을 dshs.study 에 넣을 방법 찾기
+- 개발 기록을 git 으로 팀과 공유하고, 모든 팀원의 세션마다 git pull / 개발 로그 / git push 가 자동으로 되게 하기
 
 ### 한 일
-- 시간표·분반·교실·선생님 검색 (로그인 없이 사용 가능)
-- 학번 기반 회원가입 (`signup` Edge Function, 학번당 1계정을 서버에서 강제)
-- 분반별 수행평가 공지: 수강 과목에만 올릴 수 있고, 관리자 승인 후 그 과목 수강생에게만 표시 (RLS)
-- 기한 알림: D-3 / D-1 / 당일 웹 푸시 (`send-reminders` + cron)
-- 명단 92명 + 수강 1081행 (`seed.sql`), 분반 정보 (`bans.sql`), 관리자 계정 (`admins.sql`)
-- PWA: `manifest.webmanifest`, 아이콘, `sw.js` (오프라인 + 푸시 수신)
+- dshs.app 구조 조사: SvelteKit 앱, 로그인은 `id.dshs.app` OIDC 서버 (운영: 레디스쿨, 개발자 콘솔 `dshs.app/dev`)
+- `id.dshs.app/.well-known/openid-configuration` 에서 외부 앱용 scope 확인: `reservations_read`, `penalties_read`, `requests_read`, `outrequests_read` 등
+- 급식은 로그인 없이 `dshs.app/meal/YYYYMMDD/__data.json` 으로 받아짐 확인 (CORS 허용 헤더 없음)
+- `/reserve`, `/penalty` 는 로그인 필요, `/api-doc` (API 문서) 링크는 현재 404
+- 이용약관 확인: 계정 양도·대여 금지, 다른 이용자 개인정보 무단 수집·공개 금지, 봇 방지 조치 운영
+- `DEVLOG.md` 도입, 이전 기록 정리 (시간순, 최신이 맨 아래)
+- 팀 공용 Claude Code 훅 추가 (`.claude/settings.json`, `.claude/hooks/*.mjs`): 세션 시작 시 `git pull`, 종료 시 개발 로그 요약 → 커밋 → `git push`
+- README 에 "개발 흐름" 절 추가
 
 ### 결정과 이유
-- `config.js` 를 비워 두면 로그인 없이 시간표만 동작 → 백엔드 없이 먼저 배포 가능
-- 공지 범위 제한은 화면이 아니라 DB 권한(RLS)으로 → 다른 과목 공지는 애초에 내려받아지지 않음
+- 크롤링 대신 **공식 OAuth 연동** — 학생 아이디·비밀번호로 대신 로그인하는 건 약관상 계정 대여에 해당하고 봇 차단에도 걸림
+- 급식은 **NEIS 교육정보 개방 포털 API** 우선, dshs.app `__data.json` 은 비공식이라 대안으로만
+- dshs.app 호출은 전부 **Supabase Edge Function 경유** — CORS 가 없어 브라우저에서 직접 못 부름
+- 벌점은 OAuth 로 받은 본인 토큰으로만 조회 → 다른 사람이 볼 경로 자체가 없음
+- dshs.app 에서 가져온 신청 일정은 달력에서 **읽기 전용** (원본이 dshs.app 이라 여기서 옮겨도 실제 신청은 안 바뀜)
+- 자습실 자리 검색은 전교생 데이터가 필요해 약관 문제 → "동의한 학생만 공개" 또는 운영자에게 좌석 API 공식 요청 중 선택 필요
+- 훅은 Node 스크립트로 작성 — Windows·Mac 모두에서 돌고, Node 는 이미 프로젝트에 필요한 도구(`npx web-push`, Supabase CLI)
+- 개발 로그 요약은 세션 종료 후 백그라운드에서 실행 — 종료 훅은 시간 제한이 짧고, 에디터를 닫아도 끝까지 돌아야 함
+- 훅 실행 기록은 `.git/devlog-hook.log` 에 남김 — 커밋되지 않는 위치
+
+### 남은 일
+- [ ] dshs.app 운영자에게 문의: OAuth client_id 발급(redirect URI = Edge Function), API 문서, 취식 신청 scope, 좌석 배치도 API 여부
+- [ ] NEIS 급식 Edge Function + 급식 탭 (운영자 답 없이 바로 가능)
+- [ ] client_id 받은 뒤: `dshs-oauth`(토큰 교환·저장), `dshs-sync`(예약·신청·벌점 동기화) Edge Function
+- [ ] 자습실 자리 검색 방식 결정
+- [ ] 다른 팀원 PC(Mac)에서 자동 pull/push 훅 동작 확인
+
+### 배운 점
+- dshs.app 은 외부 연동용 OAuth 권한을 이미 공개하고 있어서, 운영자 승인만 받으면 공식 경로로 붙일 수 있음
+- 새 Edge Function 응답도 `sw.js` 캐시 대상에서 빠져 있어야 하고, 배포 시 캐시 버전을 올려야 함
 
 ### 바뀐 파일
-- 저장소 전체 (22개 파일)
+- `DEVLOG.md`, `README.md`, `.gitignore`
+- `.claude/settings.json`, `.claude/hooks/lib.mjs`, `.claude/hooks/session-start.mjs`, `.claude/hooks/session-end.mjs`, `.claude/hooks/devlog-worker.mjs`
