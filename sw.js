@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v5';
+const CACHE = 'dshs-study-v29';
 
 const SHELL = [
   './',
@@ -18,6 +18,9 @@ const SHELL = [
   './apple-touch-icon.png',
   './favicon-32.png'
 ];
+
+// 캐시해도 되는 외부 정적 파일 서버 (버전이 URL 에 박혀 있어 내용이 바뀌지 않음)
+const STATIC_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net', 'esm.sh'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -45,8 +48,10 @@ self.addEventListener('fetch', e => {
 
   const url = new URL(req.url);
 
-  // 폰트 등 외부 리소스: 캐시 우선, 없으면 네트워크 후 저장
+  // 외부 리소스는 바뀌지 않는 정적 파일(폰트·라이브러리)만 캐시합니다.
+  // Supabase 같은 데이터 요청은 건드리지 않습니다 — 캐시하면 고친 일정 대신 예전 응답이 나옵니다.
   if (url.origin !== location.origin) {
+    if (!STATIC_HOSTS.includes(url.hostname)) return;
     e.respondWith(
       caches.match(req).then(hit => hit || fetch(req).then(res => {
         const copy = res.clone();
@@ -57,8 +62,8 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 설정 파일: 항상 최신을 먼저 (키를 바꿔도 바로 반영되도록)
-  if (url.pathname.endsWith('/config.js')) {
+  // 스크립트·설정 파일: 항상 최신을 먼저 (코드를 고치면 새로고침 한 번에 반영되도록)
+  if (url.pathname.endsWith('.js')) {
     e.respondWith(
       fetch(req).then(res => {
         const copy = res.clone();

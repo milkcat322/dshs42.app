@@ -27,6 +27,10 @@ supabase/functions/send-reminders/index.ts  기한 알림 발송
 2. 왼쪽 **SQL Editor** → `schema.sql` 전체 붙여넣고 **Run**
 3. 이어서 `seed.sql` 붙여넣고 **Run** (명단 92명 + 수강 1081행)
    그다음 `bans.sql` 을 **Run** (수강 정보에 분반을 채우고 분반별 공지 권한을 겁니다)
+   마지막으로 `events.sql` 을 **Run** (개인 일정 + 수행평가 완료 체크)
+   이어서 `share.sql` 을 **Run** (친구와 일정 공유)
+   이어서 `todos.sql` 을 **Run** (할 일)
+   이어서 `school.sql` 을 **Run** (학교 일정 · 관리자 전용)
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
 

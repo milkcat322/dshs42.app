@@ -181,9 +181,10 @@ create policy assignments_update on public.assignments
     public.is_admin() or (created_by = auth.uid() and status = 'pending')
   );
 
+-- 삭제: 관리자, 또는 작성자가 아직 분반 공지가 아닌(대기·반려) 자기 수행평가를 지울 때
 drop policy if exists assignments_delete on public.assignments;
 create policy assignments_delete on public.assignments
-  for delete using (public.is_admin() or (created_by = auth.uid() and status = 'pending'));
+  for delete using (public.is_admin() or (created_by = auth.uid() and status in ('pending', 'rejected')));
 
 -- push_subscriptions: 본인 것만
 drop policy if exists push_own on public.push_subscriptions;
