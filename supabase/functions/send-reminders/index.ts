@@ -5,7 +5,7 @@
 //
 // 배포:   supabase functions deploy send-reminders
 // 비밀값: supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:you@example.com
-// 실행:   아래 "주기 실행" 주석 참고 (5분마다)
+// 실행:   아래 "주기 실행" 주석 참고 (1분마다)
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
@@ -122,13 +122,13 @@ function json(body: unknown) {
 }
 
 /* ------------------------------------------------------------
-   주기 실행 — SQL Editor 에서 한 번만 실행해 두면 5분마다 돌아갑니다.
+   주기 실행 — SQL Editor 에서 한 번만 실행해 두면 1분마다 돌아갑니다.
 
    create extension if not exists pg_cron;
    create extension if not exists pg_net;
 
    select cron.schedule(
-     'dshs-study-reminders', '*/5 * * * *',
+     'dshs-study-reminders', '* * * * *',
      $$
      select net.http_post(
        url     := 'https://<프로젝트>.supabase.co/functions/v1/send-reminders',

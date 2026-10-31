@@ -64,7 +64,7 @@ supabase secrets set \
   VAPID_SUBJECT=mailto:본인메일@example.com
 ```
 
-알림을 주기적으로 보내려면 `send-reminders/index.ts` 맨 아래 주석의 `cron.schedule` SQL 을 한 번 실행하세요. 5분마다 돌면서 **동작 방식**의 알림을 보냅니다.
+알림을 주기적으로 보내려면 `send-reminders/index.ts` 맨 아래 주석의 `cron.schedule` SQL 을 한 번 실행하세요. 1분마다 돌면서 **동작 방식**의 알림을 보냅니다.
 
 ## 4. config.js 채우기
 
