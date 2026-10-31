@@ -142,3 +142,29 @@
 ### 바뀐 파일
 - `DEVLOG.md`, `README.md`, `.gitignore`
 - `.claude/settings.json`, `.claude/hooks/lib.mjs`, `.claude/hooks/session-start.mjs`, `.claude/hooks/session-end.mjs`, `.claude/hooks/devlog-worker.mjs`
+
+## 2026-10-31 · 알림 켜기/끄기와 필수 학교 일정 알림
+
+### 한 일
+- 기기별 알림 켜기/끄기 버튼 (`내 일정`·`수행평가 공지` 탭), 로그아웃하면 그 기기 알림도 해제
+- `send-reminders` 재작성: 수행평가 마감 1일·6시간 전, 내 일정·공유 일정·필수 학교 일정 시작 30분 전, 5분마다 실행
+- 학교 일정 폼에 `필수 일정` 체크박스 추가 (`school_events.notify`)
+- 라이브 적용: `notify_log` 테이블, Edge Function, 크론, 귀가일 2건 필수 표시
+
+### 결정과 이유
+- 시간표 수업은 알리지 않음 — 매일 여러 번 오면 정작 필요한 알림이 묻힘
+- 하루 종일 일정은 시작 시각이 없어 그날 07:50 에 알림
+- 알림 키에 시작·마감 시각을 넣음 — 일정을 옮기면 다시 알리고, 같은 알림은 두 번 가지 않음
+- 알림 계산은 `plan.ts` 순수 함수로 분리 — DB·푸시 없이 테스트 가능
+
+### 남은 일
+- [ ] 실제 폰에서 알림 켜기 → 일정 알림 수신 확인 (아이폰은 홈 화면 추가 후)
+- [ ] 라이브에 남은 미사용 테이블 정리: `notify.sql` 마지막 두 줄 (`reminder_log`, `class_slots`)
+
+### 배운 점
+- 사이트는 Netlify 가 GitHub `main` 에서 자동 배포함 — 드래그 업로드 아님
+- 전역 스코프 파일을 고칠 때 맨 끝 `init();` 이 빠지지 않았는지 확인할 것. 빠지면 로그인이 통째로 사라짐
+
+### 바뀐 파일
+- `dshs-study.js`, `sw.js`, `schema.sql`, `notify.sql`, `README.md`, `DEVLOG.md`
+- `supabase/functions/send-reminders/index.ts`, `supabase/functions/send-reminders/plan.ts`

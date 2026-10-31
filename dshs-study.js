@@ -122,8 +122,10 @@ async function init() {
     if (evt === "SIGNED_OUT") { me = null; myClasses = []; renderNav(); }
   });
 
-  // 기한 알림을 누르고 들어오면 수행평가 공지 탭으로
-  if (new URLSearchParams(location.search).get("view") === "assignments" && me) openStudy("notice");
+  // 알림을 누르고 들어오면 그 탭으로
+  const opened = new URLSearchParams(location.search).get("view");
+  if (me && opened === "assignments") openStudy("notice");
+  if (me && opened === "cal") openStudy("cal");
 }
 
 async function loadProfile() {
@@ -178,6 +180,7 @@ function renderNav() {
 }
 
 async function logout() {
+  await disablePush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 지웁니다
   await sb.auth.signOut();
   me = null; myClasses = []; closeStudy(); renderNav();
   toast("로그아웃했어요");
@@ -341,8 +344,6 @@ function rerender() {
 window.closeStudyView = closeStudy;
 
 function renderStudy() {
-  // iOS Safari(홈 화면 추가 전) 등은 Notification 자체가 없습니다
-  const pushState = typeof Notification !== "undefined" && Notification.permission === "granted" ? "on" : "off";
   const who = me.student_id ? esc(me.name) : `관리자 (${esc(me.username)})`;
   const subjects = me.student_id ? `${myClasses.length}과목` : `전체 ${mySubjects().length}과목`;
   const [title, sub] = {
@@ -350,9 +351,7 @@ function renderStudy() {
     notice: ["수행평가 공지", `${who} · 내 분반 공지 ${subjects}`],
     todo: ["할 일", `${who} · 체크하면서 하나씩 끝내요`],
   }[page];
-  const pushBtn = `<button class="study-btn${pushState === "on" ? " on" : ""}" id="btnPush">
-        ${pushState === "on" ? "🔔 알림 켜짐" : "🔔 기한 알림 받기"}
-      </button>`;
+  const pushBtn = `<button class="study-btn" id="btnPush"></button>`;
   $("studyView").innerHTML = `
     <div class="study-head">
       <div>
@@ -372,7 +371,7 @@ function renderStudy() {
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
   if ($("btnSchool")) $("btnSchool").onclick = () => openSchoolForm(null);
-  if ($("btnPush")) $("btnPush").onclick = enablePush;
+  if ($("btnPush")) { $("btnPush").onclick = togglePush; paintPush(); refreshPush(); }
   if ($("btnNew")) $("btnNew").onclick = openNewForm;
   if ($("btnAdmin")) $("btnAdmin").onclick = () => renderList("admin");
 }
@@ -1261,6 +1260,7 @@ function openSchoolForm(e, seed) {
     <label class="study-label">끝</label>
     <div class="ev-when"><input class="study-input" type="date" id="sEd" value="${dayKey(end)}"><input class="study-input" type="time" id="sEt" step="300" value="${hm(end)}"></div>
     <label class="ev-allday sch-noclass"><input type="checkbox" id="sNo"${e?.no_class ? " checked" : ""}> 수업 없는 날 <span class="ev-hint">(이 기간엔 달력에 시간표를 깔지 않아요)</span></label>
+    <label class="ev-allday"><input type="checkbox" id="sNotify"${e?.notify ? " checked" : ""}> <span style="white-space:nowrap">필수 일정</span> <span class="ev-hint">(30분 전 알림 · 하루 종일은 07:50)</span></label>
     <label class="study-label">메모 (선택)</label>
     <textarea class="study-input" id="sMemo" rows="2" maxlength="2000" placeholder="장소, 준비물 등">${esc(e?.memo || "")}</textarea>
 
@@ -1359,7 +1359,7 @@ function openSchoolForm(e, seed) {
     }
     if (audience === "some" && !picked.size) return showErr("보여줄 사람을 한 명 이상 골라 주세요.");
     const row = {
-      title, memo: $("sMemo").value.trim(), all_day: all, no_class: all && $("sNo").checked, audience,
+      title, memo: $("sMemo").value.trim(), all_day: all, no_class: all && $("sNo").checked, notify: $("sNotify").checked, audience,
       starts_at: starts.toISOString(), ends_at: ends ? ends.toISOString() : null,
     };
     $("sSave").disabled = true;
@@ -1383,7 +1383,7 @@ function openSchoolForm(e, seed) {
   if (e) $("sDel").onclick = async () => {
     if (!confirm("이 학교 일정을 모두의 달력에서 지울까요?")) return;
     const snap = { id: e.id, title: e.title, memo: e.memo, starts_at: e.starts_at, ends_at: e.ends_at,
-      all_day: e.all_day, no_class: e.no_class, audience: e.audience };
+      all_day: e.all_day, no_class: e.no_class, notify: e.notify, audience: e.audience };
     const targets = before.map((sid) => ({ event_id: e.id, student_id: sid }));
     const { error } = await sb.from("school_events").delete().eq("id", e.id);
     if (error) return showErr("삭제하지 못했어요.");
@@ -1648,6 +1648,59 @@ function urlB64ToUint8Array(base64String) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+// 켜짐/꺼짐은 기기마다 따로입니다. 이 기기의 구독이 서버에 등록되어 있으면 켜진 것으로 봅니다.
+let pushOn = false;
+
+async function deviceSub() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+
+function paintPush() {
+  const b = $("btnPush");
+  if (!b) return;
+  b.classList.toggle("on", pushOn);
+  b.textContent = pushOn ? "🔔 알림 켜짐" : "🔕 알림 꺼짐";
+  b.setAttribute("aria-pressed", pushOn);
+}
+
+async function refreshPush() {
+  const sub = await deviceSub().catch(() => null);
+  if (!sub) { pushOn = false; return paintPush(); }
+  const { data, error } = await sb.from("push_subscriptions").select("endpoint").eq("endpoint", sub.endpoint).maybeSingle();
+  if (error) return;
+  pushOn = !!data;
+  paintPush();
+}
+
+async function togglePush() {
+  const b = $("btnPush");
+  b.disabled = true;
+  try {
+    if (pushOn) {
+      if (await disablePush()) toast("알림을 껐어요");
+      else toast("알림을 끄지 못했어요", true);
+    } else {
+      await enablePush();
+    }
+  } catch {
+    toast("알림 설정을 바꾸지 못했어요", true);
+  }
+  if ($("btnPush")) $("btnPush").disabled = false;
+  paintPush();
+}
+
+async function disablePush() {
+  const sub = await deviceSub().catch(() => null);
+  if (!sub) { pushOn = false; return true; }
+  const { error } = await sb.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+  if (error) return false;
+  await sub.unsubscribe().catch(() => {});
+  pushOn = false;
+  return true;
+}
+
 async function enablePush() {
   if (!CFG.VAPID_PUBLIC_KEY) return toast("알림 키가 아직 설정되지 않았어요", true);
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -1673,8 +1726,8 @@ async function enablePush() {
     endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_id: me.id,
   });
   if (error) return toast("알림 등록에 실패했어요", true);
-  toast("기한이 가까워지면 알려드릴게요");
-  renderStudy(); loadAssignments();
+  pushOn = true;
+  toast("수행평가는 1일·6시간 전, 일정은 30분 전에 알려드릴게요");
 }
 
 init();

@@ -70,17 +70,6 @@ create table if not exists public.push_subscriptions (
 );
 create index if not exists push_user_idx on public.push_subscriptions (user_id);
 
--- ------------------------------------------------------------
--- 6. 알림 발송 기록 (같은 알림 중복 발송 방지)
--- ------------------------------------------------------------
-create table if not exists public.reminder_log (
-  assignment_id uuid not null references public.assignments(id) on delete cascade,
-  user_id       uuid not null references public.profiles(id) on delete cascade,
-  kind          text not null,           -- 'd3' | 'd1' | 'd0'
-  sent_at       timestamptz not null default now(),
-  primary key (assignment_id, user_id, kind)
-);
-
 -- ============================================================
 -- 헬퍼 함수
 -- ============================================================
@@ -117,7 +106,6 @@ alter table public.enrollments        enable row level security;
 alter table public.profiles           enable row level security;
 alter table public.assignments        enable row level security;
 alter table public.push_subscriptions enable row level security;
-alter table public.reminder_log       enable row level security;
 
 -- roster / enrollments: 서버(서비스 롤)와 함수만 사용. 일반 조회는 막습니다.
 drop policy if exists roster_none on public.roster;
@@ -190,8 +178,6 @@ create policy assignments_delete on public.assignments
 drop policy if exists push_own on public.push_subscriptions;
 create policy push_own on public.push_subscriptions
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
-
--- reminder_log: 서비스 롤 전용 (정책 없음 = 접근 불가)
 
 -- ============================================================
 -- 관리자 계정은 admins.sql 로 연결합니다 (README 6단계).

@@ -14,7 +14,9 @@ seed.sql                  ★ 92명 명단 + 수강 과목 1081행
 bans.sql                  ★ 수강 정보에 분반 채우기 + 분반별 공지 권한
 admins.sql                ★ 관리자 계정 연결
 supabase/functions/signup/index.ts          회원가입 (학번당 1계정 강제)
-supabase/functions/send-reminders/index.ts  기한 알림 발송
+notify.sql                ★ 필수 학교 일정 표시 + 알림 발송 기록
+supabase/functions/send-reminders/index.ts  알림 발송
+supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼지 계산
 DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일 · 최신이 맨 아래)
 .claude/                  Claude Code 공용 설정 · 자동 git pull/push 훅
 ```
@@ -35,6 +37,7 @@ DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일 
    이어서 `share.sql` 을 **Run** (친구와 일정 공유)
    이어서 `todos.sql` 을 **Run** (할 일)
    이어서 `school.sql` 을 **Run** (학교 일정 · 관리자 전용)
+   이어서 `notify.sql` 을 **Run** (알림)
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
 
@@ -61,7 +64,7 @@ supabase secrets set \
   VAPID_SUBJECT=mailto:본인메일@example.com
 ```
 
-알림을 주기적으로 보내려면 `send-reminders/index.ts` 맨 아래 주석의 `cron.schedule` SQL 을 한 번 실행하세요. 10분마다 돌면서 **D-3 / D-1 / 당일** 세 번 알려줍니다.
+알림을 주기적으로 보내려면 `send-reminders/index.ts` 맨 아래 주석의 `cron.schedule` SQL 을 한 번 실행하세요. 5분마다 돌면서 **동작 방식**의 알림을 보냅니다.
 
 ## 4. config.js 채우기
 
@@ -77,7 +80,7 @@ window.DSHS_CONFIG = {
 
 ## 5. Netlify 배포
 
-폴더를 통째로 드래그해서 올립니다 (`supabase/` 폴더는 올라가도 무해하지만 빼도 됩니다).
+GitHub 저장소(`milkcat322/dshs-study`)에 연결되어 있어서, `main` 에 푸시하면 자동으로 배포됩니다.
 
 ## 6. 관리자 계정 만들기
 
@@ -111,7 +114,7 @@ update public.profiles set is_admin = true where student_id = 2113;
 
 **수행평가 공지** — 자기가 듣는 과목에만 올릴 수 있고, 올리면 `승인 대기` 상태입니다. 관리자가 승인해야 **그 과목을 듣는 학생에게만** 보입니다. 이 범위 제한은 화면이 아니라 DB 권한(RLS)으로 걸려 있어서, 다른 과목 공지는 애초에 내려받아지지 않습니다.
 
-**알림** — D-3 / D-1 / 당일에 웹 푸시가 갑니다. 같은 알림은 두 번 가지 않고, 만료된 구독은 자동으로 정리됩니다. 아이폰은 **홈 화면에 추가한 뒤에만** 알림을 받을 수 있습니다(iOS 제한). 안드로이드는 설치 없이도 됩니다.
+**알림** — `내 일정`·`수행평가 공지` 탭의 버튼으로 기기마다 켜고 끕니다. 수행평가는 마감 **1일 전·6시간 전**, 내 일정·공유 일정·`필수 일정`으로 표시한 학교 일정은 시작 **30분 전**에 웹 푸시가 갑니다. 시간표 수업은 알리지 않고, 완료 표시한 일은 빠집니다. 하루 종일 일정은 시작 시각이 없어서 그날 07:50 에 알립니다. 로그아웃하면 그 기기의 알림도 꺼집니다. 같은 알림은 두 번 가지 않고, 만료된 구독은 자동으로 정리됩니다. 아이폰은 **홈 화면에 추가한 뒤에만** 알림을 받을 수 있습니다(iOS 제한). 안드로이드는 설치 없이도 됩니다.
 
 ## 내용을 고친 뒤에
 
