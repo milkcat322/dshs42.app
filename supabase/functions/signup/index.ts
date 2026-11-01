@@ -1,4 +1,4 @@
-// dshs.study — 회원가입 Edge Function
+// dshs42.app — 회원가입 Edge Function
 // 한 학번당 계정 하나를 서버에서 강제합니다.
 // 배포:  supabase functions deploy signup --no-verify-jwt
 

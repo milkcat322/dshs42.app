@@ -149,7 +149,7 @@ ${digest.text}
 }
 
 function writeSection(section, sid) {
-  let text = readDevlog() || `# dshs.study 개발 로그\n\n${MARKER}\n`;
+  let text = readDevlog() || `# dshs42.app 개발 로그\n\n${MARKER}\n`;
   if (!text.includes(MARKER)) text = `${text.trimEnd()}\n\n${MARKER}\n`;
 
   const at = text.indexOf(MARKER) + MARKER.length;

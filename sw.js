@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v35';
+const CACHE = 'dshs-study-v36';
 
 const SHELL = [
   './',
@@ -99,7 +99,7 @@ self.addEventListener('fetch', e => {
 
 // ---------- 웹 푸시 ----------
 self.addEventListener('push', e => {
-  let d = { title: 'dshs.study', body: '새 알림이 있어요', url: './' };
+  let d = { title: 'dshs42.app', body: '새 알림이 있어요', url: './' };
   try { if (e.data) d = { ...d, ...e.data.json() }; } catch (err) { if (e.data) d.body = e.data.text(); }
   e.waitUntil(self.registration.showNotification(d.title, {
     body: d.body,

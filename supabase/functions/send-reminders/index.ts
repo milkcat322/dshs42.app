@@ -1,4 +1,4 @@
-// dshs.study — 알림 발송 Edge Function
+// dshs42.app — 알림 발송 Edge Function
 // 수행평가 기한 · 내 일정 · 필수 학교 일정 알림을 웹 푸시로 보냅니다.
 // 누구에게 무엇을 보낼지는 plan.ts 가 정하고, 여기서는 불러오고 보내고 기록만 합니다.
 // 같은 (사람, 알림) 조합은 notify_log 때문에 두 번 가지 않습니다.

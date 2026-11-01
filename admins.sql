@@ -1,5 +1,5 @@
 -- ============================================================
--- dshs.study — 관리자 계정 연결
+-- dshs42.app — 관리자 계정 연결
 --
 -- 먼저 대시보드에서 두 계정을 만들어 주세요 (README 6단계):
 --   Authentication → Users → Add user → Create new user

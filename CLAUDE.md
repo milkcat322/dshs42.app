@@ -1,6 +1,6 @@
 # dshs-study — Claude Code 작업 안내
 
-대전과학고 42기 종합 웹서비스(dshs.study). 정적 PWA(`index.html` + `dshs-study.js`) + Supabase(DB·RLS·Edge Function). 설치·배포 절차와 파일 구성은 [README.md](README.md) 에 있다.
+대전과학고 42기 종합 웹서비스 **dshs42.app** (옛 이름 dshs.study). 정적 PWA(`index.html` + `dshs-study.js`) + Supabase(DB·RLS·Edge Function). 설치·배포 절차와 파일 구성은 [README.md](README.md) 에 있다.
 
 이 파일은 저장소에 커밋되어 **모든 팀원의 Claude Code 세션이 시작할 때 자동으로 읽는다.** 답변은 한국어로 한다.
 
@@ -60,6 +60,7 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - 교시 시각은 `dshs-study.js` 의 `PERIOD_TIME` 한 곳에서만 관리한다.
 - 공지·일정의 접근 범위는 화면이 아니라 DB 권한(RLS)으로 막는다. 권한 관련 변경은 SQL 파일에 반영한다.
 - DB 를 바꾸면 해당 `.sql` 파일에도 반영하고, 새 파일이면 README 1단계 실행 순서에 추가한다.
+- 로그인 이메일 도메인 `EMAIL_DOMAIN = "dshs.study"` (dshs-study.js · signup Edge Function)는 서비스 이름이 바뀌어도 바꾸지 않는다. 계정이 `아이디@dshs.study` 로 저장돼 있어 바꾸면 모두 로그인이 안 된다. 로그인 유지 키(`dshs-study-auth`)·캐시 이름도 그대로 둔다.
 - `config.js` 에는 anon 키만. service_role 키·VAPID 비밀키는 Edge Function secrets 에만 둔다.
 - 외부 서비스(dshs.app 등) 호출은 브라우저가 아니라 Edge Function 을 거친다 (CORS). 크롤링·대리 로그인은 하지 않고 공식 OAuth/API 만 쓴다.
 - 알림 계산은 `supabase/functions/send-reminders/plan.ts` 순수 함수에 둔다 (DB·푸시 없이 테스트 가능하게).
