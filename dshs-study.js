@@ -402,7 +402,7 @@ function renderStudy() {
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
   if ($("btnSchool")) $("btnSchool").onclick = () => openSchoolForm(null);
   if ($("btnPush")) { $("btnPush").onclick = togglePush; paintPush(); refreshPush(); }
-  if ($("btnNew")) $("btnNew").onclick = openNewForm;
+  if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
   if ($("btnAdmin")) $("btnAdmin").onclick = () => renderList("admin");
 }
 
@@ -440,8 +440,16 @@ async function loadAssignments() {
   if ($("studyView").style.display === "block" && view !== "form") rerender();
 }
 
+// 마감 일시는 선택입니다. 없으면 D-? 로 보이고, 달력·알림·급한 공지에서는 빠집니다.
+const dueMs = (a) => (a.due_at ? Date.parse(a.due_at) : Infinity);
+const byDue = (a, b) => (dueMs(a) > dueMs(b)) - (dueMs(a) < dueMs(b));   // 마감 없는 공지는 맨 뒤
+const asgDue = (a) => (a.due_at ? dueInfo(a.due_at) : { label: "D-?", tone: "ok", when: null });
+// 수정: 작성자·관리자. 삭제: 관리자, 또는 작성자가 아직 분반 공지가 아닌(대기·반려) 자기 공지를
+const canEditAsg = (a) => me.is_admin || a.created_by === me.id;
+const canDelAsg = (a) => me.is_admin || (a.created_by === me.id && a.status !== "approved");
+
 function card(a, opts = {}) {
-  const d = dueInfo(a.due_at);
+  const d = asgDue(a);
   const stBadge = `<span class="st-badge ${a.status}">${a.status === "pending" ? "승인 대기" : "반려됨"}</span>`;
   const dueBadge = `<span class="due-badge ${d.tone}">${d.label}</span>`;
   // 공지 탭(check)에서는 내 미승인 공지도 D-day 와 함께 "나만 보여요" 를 붙여 보여줍니다
@@ -450,23 +458,24 @@ function card(a, opts = {}) {
     : stBadge;
   const done = opts.check && cache.done.has(a.id);
   const ownOnly = a.created_by === me.id && a.status !== "approved";
+  const editBtn = canEditAsg(a) ? `<button class="study-btn small" data-aedit="${a.id}">수정</button>` : "";
+  const delBtn = canDelAsg(a) ? `<button class="study-btn small no" data-del="${a.id}">삭제</button>` : "";
   return `<div class="asg-card${done ? " done" : ""}${opts.check && ownOnly ? " own" : ""}">
     <div class="asg-top"><span class="asg-subject">${esc(a.subject)} · ${esc(banLabel(a.ban))}</span>${badge}</div>
     <div class="asg-title">${esc(a.title)}</div>
     ${a.body ? `<div class="asg-body">${esc(a.body)}</div>` : ""}
-    <div class="asg-due">🗓 ${d.when} 마감</div>
+    <div class="asg-due"><span>🗓 ${d.when ? `${d.when} 마감` : "마감 일시 미정"}</span>${a.author_name ? `<span class="asg-by">${esc(a.author_name)} 작성</span>` : ""}</div>
     ${a.submit_to ? `<div class="asg-due">📮 제출: ${esc(a.submit_to)}</div>` : ""}
     ${opts.check ? `<div class="asg-actions">
       <button class="study-btn small${done ? " on" : ""}" data-adone="${a.id}">${done ? "✓ 완료함" : "완료 표시"}</button>
-      ${ownOnly ? `<button class="study-btn small no" data-del="${a.id}">삭제</button>` : ""}
+      ${editBtn}${delBtn}
     </div>` : ""}
     ${opts.admin ? `<div class="asg-actions">
       <button class="study-btn small ok" data-ok="${a.id}">승인</button>
       <button class="study-btn small no" data-no="${a.id}">반려</button>
+      ${editBtn}${delBtn}
     </div>` : ""}
-    ${opts.mine && a.status !== "approved" ? `<div class="asg-actions">
-      <button class="study-btn small no" data-del="${a.id}">삭제</button>
-    </div>` : ""}
+    ${opts.mine && a.status !== "approved" ? `<div class="asg-actions">${editBtn}${delBtn}</div>` : ""}
   </div>`;
 }
 
@@ -482,6 +491,7 @@ function renderList(mode) {
       `<button class="study-btn wide" id="backFeed">← 목록으로</button>`;
     body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
     body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
+    bindRows(body);
     $("backFeed").onclick = renderNotice;
     return;
   }
@@ -530,9 +540,11 @@ function bindRows(root) {
   root.querySelectorAll("[data-chk]").forEach((b) => b.onclick = () => toggleDone(...b.dataset.chk.split(":")));
   root.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => openItem(...b.dataset.open.split(":")));
   root.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => removeItem(b.dataset.del));
+  root.querySelectorAll("[data-aedit]").forEach((b) => b.onclick = () => openNewForm(findAsg(b.dataset.aedit)));
 }
+const findAsg = (id) => cache.items.find((a) => a.id === id) || cache.mine.find((a) => a.id === id) || cache.pending.find((a) => a.id === id);
 function openItem(kind, id) {
-  if (kind === "asg") openAsgDetail(cache.items.find((a) => a.id === id) || cache.mine.find((a) => a.id === id));
+  if (kind === "asg") openAsgDetail(findAsg(id));
   else if (kind === "sch") {
     const se = cache.school.find((x) => x.id === id);
     me.is_admin ? openSchoolForm(se) : openSchoolDetail(se);
@@ -772,7 +784,8 @@ function agenda() {
   // 승인은 "분반 전체에 공지할지"만 정합니다.
   const own = (cache.mine || []).filter((a) => a.status !== "approved");
   const now = new Date();
-  const asgs = [...cache.items, ...own].map((a) => ({
+  // 마감 일시가 없는 공지는 날짜가 없어 달력·목록에 놓을 수 없으므로 수행평가 공지 탭에서만 보여 줍니다
+  const asgs = [...cache.items, ...own].filter((a) => a.due_at).map((a) => ({
     kind: "asg", id: a.id, title: a.title, at: new Date(a.due_at), end: null, allDay: false,
     color: "asg", done: cache.done.has(a.id) || new Date(a.due_at) < now, status: a.status,
     auto: !cache.done.has(a.id) && new Date(a.due_at) < now,
@@ -883,9 +896,11 @@ function openAsgDetail(a) {
       ? "아직 나만 보여요. 관리자가 승인하면 같은 분반 친구들에게도 보여요."
       : "승인되지 않아 분반 친구들에게는 보이지 않아요. 내 일정에는 그대로 남아 있어요."}</div>` : ""}
     <button class="study-submit${done ? " ghost" : ""}" id="aDone">${done ? "완료 취소" : "✓ 완료로 표시"}</button>
-    ${ownOnly ? '<button class="study-submit ghost danger" id="aDel">삭제</button>' : ""}`);
+    ${canEditAsg(a) ? '<button class="study-submit ghost" id="aEdit">수정</button>' : ""}
+    ${canDelAsg(a) ? '<button class="study-submit ghost danger" id="aDel">삭제</button>' : ""}`);
   $("aDone").onclick = async () => { closeModal(); await toggleDone("asg", a.id); };
-  if (ownOnly) $("aDel").onclick = async () => { if (await removeItem(a.id)) closeModal(); };
+  if ($("aEdit")) $("aEdit").onclick = () => { closeModal(); openStudy("notice"); openNewForm(a); };
+  if ($("aDel")) $("aDel").onclick = async () => { if (await removeItem(a.id)) closeModal(); };
 }
 
 // 길이 버튼: 누르면 끝 = 시작 + 길이
@@ -1104,13 +1119,19 @@ function openSharedEvent(ev) {
 // 수행평가 제출처 (고르지 않아도 됩니다. 그 밖의 곳은 폼의 "그 외" 에 직접 적습니다)
 const SUBMIT_PLACES = ["클래스룸", "dshs앱", "패들렛", "메일"];
 
-function openNewForm() {
+// a: 고칠 수행평가 (없으면 새로 추가). 고칠 때는 과목·분반은 바꿀 수 없고 제목·마감·제출처만 고칩니다.
+function openNewForm(a) {
   const body = $("studyBody");
   // 기본 마감: 일주일 뒤 그날 자정 (23:59 — 00:00 으로 두면 달력에서 다음 날로 넘어가 보입니다)
   const dueDay = new Date();
   dueDay.setDate(dueDay.getDate() + 7);
+  const dueVal = a ? (a.due_at ? `${dayKey(new Date(a.due_at))}T${hm(new Date(a.due_at))}` : "") : `${dayKey(dueDay)}T23:59`;
+  const noDue = !!a && !a.due_at;
+  // 고칠 때 제출처: 목록에 있으면 그걸 고르고, 없으면 "그 외" 에 적어 둡니다
+  const place = a?.submit_to ? (SUBMIT_PLACES.includes(a.submit_to) ? a.submit_to : "etc") : "";
   // 학생은 자기 분반만, 관리자는 과목마다 "전체 분반" + 각 분반
-  const opts = me.is_admin
+  const opts = a ? [{ subject: a.subject, ban: a.ban }]
+    : me.is_admin
     ? mySubjects().flatMap((s) => [{ subject: s, ban: null },
         ...myClasses.filter((c) => c.subject === s)])
     : myClasses;
@@ -1122,26 +1143,29 @@ function openNewForm() {
     return;
   }
   body.innerHTML = `
-    <div class="study-section">수행평가 추가</div>
+    <div class="study-section">${a ? "수행평가 수정" : "수행평가 추가"}</div>
     <div class="asg-card">
       <label class="study-label">과목 · 분반</label>
-      <select class="study-input" id="nClass">
+      <select class="study-input" id="nClass"${a ? " disabled" : ""}>
         ${opts.map((o, i) => `<option value="${i}">${esc(o.subject)} · ${esc(banLabel(o.ban))}</option>`).join("")}
       </select>
       <label class="study-label">제목</label>
-      <input class="study-input" id="nTitle" maxlength="120" placeholder="예: 3단원 실험 보고서 제출">
+      <input class="study-input" id="nTitle" maxlength="120" placeholder="예: 3단원 실험 보고서 제출" value="${esc(a?.title ?? "")}">
       <label class="study-label">마감 일시</label>
-      <input class="study-input" id="nDue" type="datetime-local" value="${dayKey(dueDay)}T23:59">
+      <input class="study-input" id="nDue" type="datetime-local" value="${dueVal}"${noDue ? " disabled" : ""}>
+      <label class="ev-allday"><input type="checkbox" id="nNoDue"${noDue ? " checked" : ""}> 마감 일시 없음 <span class="ev-hint">(아직 안 정해졌으면 · D-? 로 보여요)</span></label>
       <label class="study-label">제출 (선택)</label>
       <select class="study-input" id="nSubmit">
         <option value="">선택 안 함</option>
-        ${SUBMIT_PLACES.map((p) => `<option value="${p}">${p}</option>`).join("")}
-        <option value="etc">그 외 (입력)</option>
+        ${SUBMIT_PLACES.map((p) => `<option value="${p}"${place === p ? " selected" : ""}>${p}</option>`).join("")}
+        <option value="etc"${place === "etc" ? " selected" : ""}>그 외 (입력)</option>
       </select>
-      <input class="study-input" id="nSubmitEtc" maxlength="30" placeholder="제출처를 적어 주세요" style="display:none;margin-top:8px">
+      <input class="study-input" id="nSubmitEtc" maxlength="30" placeholder="제출처를 적어 주세요" value="${place === "etc" ? esc(a.submit_to) : ""}" style="display:${place === "etc" ? "block" : "none"};margin-top:8px">
       <div class="study-err" id="nErr"></div>
-      <button class="study-submit" id="nSave">추가하기</button>
-      <div class="study-foot">${me.is_admin
+      <button class="study-submit" id="nSave">${a ? "저장하기" : "추가하기"}</button>
+      <div class="study-foot">${a
+        ? a.status === "approved" ? "고치면 분반 친구들에게도 바로 바뀐 내용으로 보여요." : "과목·분반은 바꿀 수 없어요. 바꾸려면 지우고 다시 추가해 주세요."
+        : me.is_admin
         ? "관리자가 추가하면 승인 없이 바로 그 분반 수강생에게 보여요."
         : "처음에는 나만 보이고, 관리자가 승인하면 같은 분반 친구들에게도 보여요."}</div>
     </div>
@@ -1150,30 +1174,47 @@ function openNewForm() {
   $("nSubmit").onchange = () => {
     $("nSubmitEtc").style.display = $("nSubmit").value === "etc" ? "block" : "none";
   };
+  $("nNoDue").onchange = () => {
+    $("nDue").disabled = $("nNoDue").checked;
+    if (!$("nNoDue").checked && !$("nDue").value) $("nDue").value = `${dayKey(dueDay)}T23:59`;
+  };
   $("nSave").onclick = async () => {
     const { subject, ban } = opts[+$("nClass").value];
     const title = $("nTitle").value.trim();
+    const noDueNow = $("nNoDue").checked;
     const due = $("nDue").value;
-    const place = $("nSubmit").value;
-    const submitTo = place === "etc" ? $("nSubmitEtc").value.trim() : place;
+    const placeNow = $("nSubmit").value;
+    const submitTo = placeNow === "etc" ? $("nSubmitEtc").value.trim() : placeNow;
     const err = $("nErr");
     if (!title) { err.textContent = "제목을 입력해 주세요."; err.classList.add("show"); return; }
-    if (!due) { err.textContent = "마감 일시를 정해 주세요."; err.classList.add("show"); return; }
-    if (place === "etc" && !submitTo) { err.textContent = "제출처를 적어 주세요."; err.classList.add("show"); return; }
+    if (!noDueNow && !due) { err.textContent = "마감 일시를 정하거나 \"마감 일시 없음\" 을 골라 주세요."; err.classList.add("show"); return; }
+    if (placeNow === "etc" && !submitTo) { err.textContent = "제출처를 적어 주세요."; err.classList.add("show"); return; }
     $("nSave").disabled = true;
-    const row = {
-      subject, ban, title, submit_to: submitTo || null,
-      due_at: new Date(due).toISOString(), created_by: me.id, status: "pending",
-    };
-    if (me.is_admin) {           // 관리자가 올린 공지는 바로 전체 공지
-      row.status = "approved";
-      row.reviewed_by = me.id;
-      row.reviewed_at = new Date().toISOString();
+    // 내용(body) 칸은 폼에서 뺐지만, 예전에 적힌 내용은 고쳐도 그대로 둡니다
+    const fields = { title, submit_to: submitTo || null, due_at: noDueNow ? null : new Date(due).toISOString() };
+    let error;
+    if (a) {
+      // RLS 로 막히면 에러 없이 0행이 바뀌므로 바뀐 행을 돌려받아 확인합니다
+      const res = await sb.from("assignments").update(fields).eq("id", a.id).select("id");
+      error = res.error || (!res.data?.length && { message: "수정 권한이 없어요" });
+    } else {
+      const row = { subject, ban, ...fields, created_by: me.id, status: "pending" };
+      if (me.is_admin) {           // 관리자가 올린 수행평가는 바로 분반 전체에 보입니다
+        row.status = "approved";
+        row.reviewed_by = me.id;
+        row.reviewed_at = new Date().toISOString();
+      }
+      ({ error } = await sb.from("assignments").insert(row));
     }
-    const { error } = await sb.from("assignments").insert(row);
     $("nSave").disabled = false;
-    if (error) { err.textContent = "추가하지 못했어요: " + error.message; err.classList.add("show"); return; }
-    toast(me.is_admin ? "바로 추가했어요" : "나만 보이게 추가했어요. 승인되면 분반 친구들에게도 보여요");
+    if (error) {
+      // notice.sql 을 아직 실행하지 않은 DB: 마감 없는 수행평가·승인된 수행평가 수정이 막힙니다
+      const needSql = /due_at|null value/.test(error.message || "");
+      err.textContent = `${a ? "저장하지" : "추가하지"} 못했어요: ${needSql ? "마감 일시 없이 추가하는 기능은 아직 준비 중이에요. 마감 일시를 정해 주세요." : error.message}`;
+      err.classList.add("show");
+      return;
+    }
+    toast(a ? "고쳤어요" : me.is_admin ? "바로 추가했어요" : "나만 보이게 추가했어요. 승인되면 분반 친구들에게도 보여요");
     view = "notice";
     await loadAssignments();
   };
@@ -1190,7 +1231,10 @@ async function review(id, status) {
 }
 
 async function removeItem(id) {
-  if (!confirm("이 수행평가를 삭제할까요? 내 일정에서도 사라져요.")) return false;
+  const a = findAsg(id);
+  if (!confirm(a?.status === "approved"
+    ? "이 수행평가를 삭제할까요? 이 분반 친구들 모두에게서 사라져요."
+    : "이 수행평가를 삭제할까요? 내 일정에서도 사라져요.")) return false;
   // RLS 로 막히면 에러 없이 0행이 지워지므로 지운 행을 돌려받아 확인합니다
   const { data, error } = await sb.from("assignments").delete().eq("id", id).select("id");
   if (error || !data?.length) { toast("삭제하지 못했어요", true); return false; }
@@ -1541,8 +1585,7 @@ function openSchoolForm(e, seed) {
 
 // ---------- 수행평가 공지 탭 ----------
 // 분반에 공지된 것 + 내가 올렸지만 아직 승인 안 된(또는 반려된) 것. 내 것은 승인과 상관없이 나에게 보입니다.
-const noticeItems = () => [...cache.items, ...(cache.mine || []).filter((a) => a.status !== "approved")]
-  .sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+const noticeItems = () => [...cache.items, ...(cache.mine || []).filter((a) => a.status !== "approved")].sort(byDue);
 // 위: 곧 마감인(3일 안) 아직 안 끝낸 공지. 아래: 과목 블록을 누르면 그 아래에 그 과목 공지.
 const URGENT_DAYS = 3;
 let openSubj = null;    // 고른 과목 이름
@@ -1554,8 +1597,8 @@ function renderNotice() {
   const now = new Date();
   const soon = new Date(+now + URGENT_DAYS * 86400000);
   const urgent = noticeItems().filter((a) => {
-    const d = new Date(a.due_at);
-    return d >= now && d <= soon && !cache.done.has(a.id);
+    const d = dueMs(a);   // 마감 일시가 없으면 Infinity → 급한 공지에 들지 않음
+    return d >= +now && d <= +soon && !cache.done.has(a.id);
   });
   const subjects = noticeSubjects(now);
   const picked = subjects.find((sj) => sj.name === openSubj);
@@ -1580,22 +1623,22 @@ function renderNotice() {
 function noticeSubjects(now) {
   return mySubjects().map((name) => {
     const items = noticeItems().filter((a) => a.subject === name);
-    const up = items.filter((a) => new Date(a.due_at) >= now);
+    const up = items.filter((a) => dueMs(a) >= +now);   // 마감 일시 없는 공지는 끝나지 않은 것으로
     const left = up.filter((a) => !cache.done.has(a.id));
     const bans = [...new Set(myClasses.filter((c) => c.subject === name).map((c) => c.ban))];
     return {
       name, up, left,
-      past: items.filter((a) => new Date(a.due_at) < now).reverse().slice(0, 5),
+      past: items.filter((a) => dueMs(a) < +now).reverse().slice(0, 5),
       ban: me.student_id ? bans.join(", ") : `${bans.length}개 분반`,
     };
   }).sort((x, y) =>
     (!x.left.length - !y.left.length) ||
-    (x.left.length ? new Date(x.left[0].due_at) - new Date(y.left[0].due_at) : 0) ||
+    (x.left.length ? byDue(x.left[0], y.left[0]) : 0) ||
     x.name.localeCompare(y.name, "ko"));
 }
 
 function subjBlock(sj) {
-  const next = sj.left[0] ? dueInfo(sj.left[0].due_at) : null;
+  const next = sj.left[0] ? asgDue(sj.left[0]) : null;
   return `<button class="subj-box${sj.left.length ? " has" : ""}${openSubj === sj.name ? " on" : ""}" data-subj="${esc(sj.name)}" aria-pressed="${openSubj === sj.name}">
     <span class="subj-name">${esc(sj.name)}</span>
     <span class="subj-ban">${esc(sj.ban)}</span>
