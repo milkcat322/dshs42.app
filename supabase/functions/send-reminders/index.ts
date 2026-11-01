@@ -37,10 +37,12 @@ Deno.serve(async () => {
   if (!subs?.length) return json({ sent: 0, failed: 0, pruned: 0 });
   const userIds = [...new Set(subs.map((s) => s.user_id))];
 
-  const [users, assignments, asgDone, events, members, school] = await Promise.all([
+  const asgColumns = "id, subject, ban, title, due_at, status, created_by";
+  const [users, assignments, personal, asgDone, events, members, school] = await Promise.all([
     admin.from("profiles").select("id, student_id").in("id", userIds),
-    admin.from("assignments").select("id, subject, ban, title, due_at, status, created_by")
+    admin.from("assignments").select(asgColumns)
       .in("status", ["approved", "pending"]).gt("due_at", iso(now)).lte("due_at", iso(now + DAY)),
+    admin.from("assignment_personal").select("user_id, assignment_id, title, due_at, no_due").in("user_id", userIds),
     admin.from("assignment_done").select("user_id, assignment_id").in("user_id", userIds),
     admin.from("events").select("id, user_id, title, starts_at, all_day, done")
       .gte("starts_at", iso(now - DAY)).lte("starts_at", iso(now + DAY)),
@@ -48,8 +50,18 @@ Deno.serve(async () => {
     admin.from("school_events")
       .select("id, title, starts_at, ends_at, all_day, notify, audience, school_event_targets(student_id)"),
   ]);
-  const failedQuery = [users, assignments, asgDone, events, members, school].find((r) => r.error);
+  const failedQuery = [users, assignments, personal, asgDone, events, members, school].find((r) => r.error);
   if (failedQuery) return new Response(failedQuery.error!.message, { status: 500 });
+
+  // 공지 마감은 멀어도 내 계정에서 고친 마감이 가까운 수행평가를 더합니다
+  const near = new Set(assignments.data!.map((a) => a.id));
+  const movedIds = [...new Set(personal.data!
+    .filter((p) => p.due_at && Date.parse(p.due_at) > now && Date.parse(p.due_at) <= now + DAY && !near.has(p.assignment_id))
+    .map((p) => p.assignment_id))];
+  const moved = movedIds.length
+    ? await admin.from("assignments").select(asgColumns).eq("status", "approved").in("id", movedIds)
+    : { data: [], error: null };
+  if (moved.error) return new Response(moved.error.message, { status: 500 });
 
   // 수강 정보는 1000행을 넘을 수 있어서 나눠서 받습니다
   const studentIds = users.data!.map((u) => u.student_id).filter((id) => id !== null);
@@ -64,7 +76,7 @@ Deno.serve(async () => {
 
   const planned = planNotes(now, {
     users: users.data!, enrollments,
-    assignments: assignments.data!, asgDone: asgDone.data!,
+    assignments: [...assignments.data!, ...moved.data!], asgDone: asgDone.data!, personal: personal.data!,
     events: events.data!, members: members.data!, school: school.data!,
   });
 

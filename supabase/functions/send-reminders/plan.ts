@@ -15,7 +15,12 @@ export type User = { id: string; student_id: number | null };
 export type Enrollment = { student_id: number; subject: string; ban: string };
 export type Assignment = {
   id: string; subject: string; ban: string | null; title: string;
-  due_at: string; status: string; created_by: string;
+  due_at: string | null; status: string; created_by: string;
+};
+// 학생이 내 계정에서만 고친 제목·마감 (비어 있는 칸은 공지 값을 따라갑니다)
+export type Personal = {
+  user_id: string; assignment_id: string;
+  title: string | null; due_at: string | null; no_due: boolean;
 };
 export type AsgDone = { user_id: string; assignment_id: string };
 export type CalEvent = {
@@ -30,7 +35,7 @@ export type SchoolEvent = {
 };
 export type Input = {
   users: User[]; enrollments: Enrollment[];
-  assignments: Assignment[]; asgDone: AsgDone[];
+  assignments: Assignment[]; asgDone: AsgDone[]; personal: Personal[];
   events: CalEvent[]; members: Member[]; school: SchoolEvent[];
 };
 export type Note = {
@@ -60,6 +65,7 @@ export function planNotes(now: number, d: Input): Note[] {
   const notes: Note[] = [];
   const banOf = new Map(d.enrollments.map((e) => [`${e.student_id}|${e.subject}`, e.ban]));
   const asgDone = new Set(d.asgDone.map((r) => `${r.user_id}|${r.assignment_id}`));
+  const personal = new Map(d.personal.map((p) => [`${p.user_id}|${p.assignment_id}`, p]));
   const leftAt = (at: number) => (at - now) / MIN;
   const startsSoon = (at: number) => leftAt(at) > LEAD - GRACE && leftAt(at) <= LEAD;
   const push = (userId: string, n: Omit<Note, "userId">) => notes.push({ userId, ...n });
@@ -77,11 +83,6 @@ export function planNotes(now: number, d: Input): Note[] {
 
   // 수행평가
   for (const a of d.assignments) {
-    const due = Date.parse(a.due_at);
-    const left = leftAt(due);
-    const stage = asgStage(left);
-    if (!stage) continue;
-    const when = `${Number(kstDay(due).slice(5, 7))}/${Number(kstDay(due).slice(8))} ${kstHm(due)}`;
     for (const u of d.users) {
       // 승인 전 공지는 올린 사람에게만 보입니다
       const mine = a.status === "approved"
@@ -89,10 +90,18 @@ export function planNotes(now: number, d: Input): Note[] {
           (!a.ban || banOf.get(`${u.student_id}|${a.subject}`) === a.ban)
         : a.status === "pending" && a.created_by === u.id;
       if (!mine || asgDone.has(`${u.id}|${a.id}`)) continue;
+      const p = a.status === "approved" ? personal.get(`${u.id}|${a.id}`) : undefined;
+      const dueAt = p?.no_due ? null : p?.due_at ?? a.due_at;
+      if (!dueAt) continue;
+      const due = Date.parse(dueAt);
+      const left = leftAt(due);
+      const stage = asgStage(left);
+      if (!stage) continue;
+      const when = `${Number(kstDay(due).slice(5, 7))}/${Number(kstDay(due).slice(8))} ${kstHm(due)}`;
       push(u.id, {
         key: `asg:${a.id}:${stage}:${due}`,
         title: `${a.subject}${a.ban ? ` ${a.ban}` : ""} 수행평가 ${leftLabel(left)}`,
-        body: `${a.title}\n마감 ${when}`,
+        body: `${p?.title ?? a.title}\n마감 ${when}`,
         url: "/?view=assignments",
         ttl: Math.ceil(left * 60),
       });

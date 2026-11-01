@@ -407,8 +407,9 @@ function renderStudy() {
 }
 
 async function loadAssignments() {
-  const [asg, evs, done, people, todos, school] = await Promise.all([
+  const [asg, personal, evs, done, people, todos, school] = await Promise.all([
     sb.from("assignments").select("*").order("due_at", { ascending: true }),
+    sb.from("assignment_personal").select("*"),
     sb.from("events").select("*").order("starts_at", { ascending: true }),   // 내 일정 + 친구가 공유한 일정
     sb.from("assignment_done").select("assignment_id"),
     sb.rpc("my_event_people"),
@@ -431,9 +432,11 @@ async function loadAssignments() {
     if (body) body.innerHTML = `<div class="study-empty">불러오지 못했어요.</div>`;
     return;
   }
-  cache.items = (data || []).filter((a) => a.status === "approved");
-  cache.mine = (data || []).filter((a) => a.created_by === me.id);
-  cache.pending = (data || []).filter((a) => a.status === "pending");
+  const mineOnly = new Map((personal.data || []).map((p) => [p.assignment_id, p]));
+  const rows = (data || []).map((a) => withPersonal(a, mineOnly.get(a.id)));
+  cache.items = rows.filter((a) => a.status === "approved");
+  cache.mine = rows.filter((a) => a.created_by === me.id);
+  cache.pending = rows.filter((a) => a.status === "pending");
   const pc = $("pendCount");
   if (pc) pc.textContent = cache.pending.length;
   // 작성 중인 공지 추가 폼은 덮어쓰지 않습니다
@@ -441,11 +444,24 @@ async function loadAssignments() {
 }
 
 // 마감 일시는 선택입니다. 없으면 D-? 로 보이고, 달력·알림·급한 공지에서는 빠집니다.
+// 내 계정에서만 고친 내용을 덮어씌웁니다. 안 고친 칸은 공지 값을 따라갑니다. shared 가 원래 공지입니다.
+function withPersonal(a, p) {
+  if (!p || a.status !== "approved") return a;
+  return {
+    ...a, personal: true, shared: a,
+    title: p.title ?? a.title,
+    due_at: p.no_due ? null : p.due_at ?? a.due_at,
+    submit_to: p.no_submit ? null : p.submit_to ?? a.submit_to,
+  };
+}
+
 const dueMs = (a) => (a.due_at ? Date.parse(a.due_at) : Infinity);
 const byDue = (a, b) => (dueMs(a) > dueMs(b)) - (dueMs(a) < dueMs(b));   // 마감 없는 공지는 맨 뒤
 const asgDue = (a) => (a.due_at ? dueInfo(a.due_at) : { label: "D-?", tone: "ok", when: null });
-// 수정: 작성자·관리자. 삭제: 관리자, 또는 작성자가 아직 분반 공지가 아닌(대기·반려) 자기 공지를
-const canEditAsg = (a) => me.is_admin || a.created_by === me.id;
+// 수정: 승인된 수행평가는 누구나 (학생은 내 계정에서만 바뀝니다), 아직 나만 보이는 것은 작성자, 관리자는 전체.
+// 삭제: 관리자, 또는 작성자가 아직 분반 공지가 아닌(대기·반려) 자기 공지를
+const editsOnlyForMe = (a) => !me.is_admin && a.status === "approved";
+const canEditAsg = (a) => me.is_admin || a.status === "approved" || a.created_by === me.id;
 const canDelAsg = (a) => me.is_admin || (a.created_by === me.id && a.status !== "approved");
 
 function card(a, opts = {}) {
@@ -453,7 +469,7 @@ function card(a, opts = {}) {
   const stBadge = `<span class="st-badge ${a.status}">${a.status === "pending" ? "승인 대기" : "반려됨"}</span>`;
   const dueBadge = `<span class="due-badge ${d.tone}">${d.label}</span>`;
   // 공지 탭(check)에서는 내 미승인 공지도 D-day 와 함께 "나만 보여요" 를 붙여 보여줍니다
-  const badge = a.status === "approved" ? dueBadge
+  const badge = a.status === "approved" ? `${a.personal ? '<span class="own-tag">내가 수정함</span>' : ""}${dueBadge}`
     : opts.check ? `<span class="own-tag">나만 보여요 · ${a.status === "pending" ? "승인 대기" : "반려됨"}</span>${dueBadge}`
     : stBadge;
   const done = opts.check && cache.done.has(a.id);
@@ -1164,13 +1180,22 @@ function openNewForm(a) {
       <div class="study-err" id="nErr"></div>
       <button class="study-submit" id="nSave">${a ? "저장하기" : "추가하기"}</button>
       <div class="study-foot">${a
-        ? a.status === "approved" ? "고치면 분반 친구들에게도 바로 바뀐 내용으로 보여요." : "과목·분반은 바꿀 수 없어요. 바꾸려면 지우고 다시 추가해 주세요."
+        ? editsOnlyForMe(a) ? "고친 내용은 내 계정에만 보여요. 분반 친구들에게는 그대로예요."
+        : a.status === "approved" ? "고치면 분반 친구들에게도 바로 바뀐 내용으로 보여요." : "과목·분반은 바꿀 수 없어요. 바꾸려면 지우고 다시 추가해 주세요."
         : me.is_admin
         ? "관리자가 추가하면 승인 없이 바로 그 분반 수강생에게 보여요."
         : "처음에는 나만 보이고, 관리자가 승인하면 같은 분반 친구들에게도 보여요."}</div>
     </div>
+    ${a?.personal ? '<button class="study-btn wide" id="nReset">↩ 원래 내용으로 되돌리기</button>' : ""}
     <button class="study-btn wide" id="backFeed">← 목록으로</button>`;
   $("backFeed").onclick = renderNotice;
+  if ($("nReset")) $("nReset").onclick = async () => {
+    const { error } = await clearPersonal(a.id);
+    if (error) return toast("되돌리지 못했어요", true);
+    toast("원래 내용으로 되돌렸어요");
+    view = "notice";
+    await loadAssignments();
+  };
   $("nSubmit").onchange = () => {
     $("nSubmitEtc").style.display = $("nSubmit").value === "etc" ? "block" : "none";
   };
@@ -1193,7 +1218,9 @@ function openNewForm(a) {
     // 내용(body) 칸은 폼에서 뺐지만, 예전에 적힌 내용은 고쳐도 그대로 둡니다
     const fields = { title, submit_to: submitTo || null, due_at: noDueNow ? null : new Date(due).toISOString() };
     let error;
-    if (a) {
+    if (a && editsOnlyForMe(a)) {
+      ({ error } = await savePersonal(a, fields));
+    } else if (a) {
       // RLS 로 막히면 에러 없이 0행이 바뀌므로 바뀐 행을 돌려받아 확인합니다
       const res = await sb.from("assignments").update(fields).eq("id", a.id).select("id");
       error = res.error || (!res.data?.length && { message: "수정 권한이 없어요" });
@@ -1214,10 +1241,29 @@ function openNewForm(a) {
       err.classList.add("show");
       return;
     }
-    toast(a ? "고쳤어요" : me.is_admin ? "바로 추가했어요" : "나만 보이게 추가했어요. 승인되면 분반 친구들에게도 보여요");
+    toast(a ? editsOnlyForMe(a) ? "내 계정에서만 고쳤어요" : "고쳤어요" : me.is_admin ? "바로 추가했어요" : "나만 보이게 추가했어요. 승인되면 분반 친구들에게도 보여요");
     view = "notice";
     await loadAssignments();
   };
+}
+
+const clearPersonal = (id) => sb.from("assignment_personal").delete().eq("user_id", me.id).eq("assignment_id", id);
+
+// 원래 공지와 달라진 칸만 저장합니다. 달라진 게 없으면 저장해 둔 것을 지웁니다.
+function savePersonal(a, f) {
+  const b = a.shared || a;
+  const minute = (t) => (t ? Math.floor(Date.parse(t) / 60000) : null);   // 입력칸에는 초가 없습니다
+  const p = {
+    title: f.title !== b.title ? f.title : null,
+    due_at: f.due_at && minute(f.due_at) !== minute(b.due_at) ? f.due_at : null,
+    no_due: !f.due_at && !!b.due_at,
+    submit_to: f.submit_to && f.submit_to !== b.submit_to ? f.submit_to : null,
+    no_submit: !f.submit_to && !!b.submit_to,
+  };
+  if (!Object.values(p).some(Boolean)) return clearPersonal(a.id);
+  return sb.from("assignment_personal").upsert({
+    ...p, user_id: me.id, assignment_id: a.id, updated_at: new Date().toISOString(),
+  });
 }
 
 async function review(id, status) {

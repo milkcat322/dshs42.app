@@ -18,6 +18,7 @@ admins.sql                ★ 관리자 계정 연결
 supabase/functions/signup/index.ts          회원가입 (학번당 1계정 강제)
 notify.sql                ★ 필수 학교 일정 표시 + 알림 발송 기록
 submit.sql                ★ 수행평가 제출처
+personal.sql              ★ 수행평가 개인 수정
 supabase/functions/send-reminders/index.ts  알림 발송
 supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼지 계산
 updates.js                업데이트 소식 (주요 업데이트는 접속 시 한 번 팝업 · 좌측 상단 📢 업데이트에서 전체 내역)
@@ -47,6 +48,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `school.sql` 을 **Run** (학교 일정 · 관리자 전용)
    이어서 `notify.sql` 을 **Run** (알림)
    이어서 `submit.sql` 을 **Run** (수행평가 제출처)
+   이어서 `personal.sql` 을 **Run** (수행평가 개인 수정)
    이어서 `notice.sql` 을 **Run** (수행평가 공지: 마감 일시 없이 올리기 · 작성자 표시 · 작성자/관리자 수정)
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
