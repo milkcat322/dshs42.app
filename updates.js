@@ -9,6 +9,11 @@
 // ============================================================
 window.DSHS_UPDATES = [
   {
+    id: "2026-11-01-push-btn", date: "2026-11-01", major: false,
+    title: "알림 켜기/끄기는 내 일정 탭에서 할 수 있어요",
+    items: [],
+  },
+  {
     id: "2026-11-01-notice-edit", date: "2026-11-01", major: true,
     title: "수행평가를 고칠 수 있어요",
     items: [

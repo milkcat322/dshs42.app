@@ -381,7 +381,6 @@ function renderStudy() {
     notice: ["수행평가", `${who} · 내 분반 수행평가 ${subjects}`],
     todo: ["할 일", `${who} · 체크하면서 하나씩 끝내요`],
   }[page];
-  const pushBtn = `<button class="study-btn" id="btnPush"></button>`;
   $("studyView").innerHTML = `
     <div class="study-head">
       <div>
@@ -392,10 +391,11 @@ function renderStudy() {
     </div>
     ${page === "cal" ? `<div class="study-row">
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
-      ${me.is_admin ? '<button class="study-btn admin" id="btnSchool">🏫 학교 일정 추가</button>' : ""}${pushBtn}
+      ${me.is_admin ? '<button class="study-btn admin" id="btnSchool">🏫 학교 일정 추가</button>' : ""}
+      <button class="study-btn" id="btnPush"></button>
     </div>` : ""}
     ${page === "notice" ? `<div class="study-row">
-      <button class="study-btn primary" id="btnNew">+ 수행평가 추가</button>${pushBtn}
+      <button class="study-btn primary" id="btnNew">+ 수행평가 추가</button>
       ${me.is_admin ? '<button class="study-btn admin" id="btnAdmin">⭐ 승인 대기 <span id="pendCount">0</span></button>' : ""}
     </div>` : ""}
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
