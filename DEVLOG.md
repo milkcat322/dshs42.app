@@ -517,3 +517,61 @@
 - 승인된 수행평가를 학생이 고치면 내 계정에서만 바뀌게 함: 바꾼 칸만 `assignment_personal` 에 저장, 알림도 내가 고친 마감 기준, 원래 내용으로 되돌리기 (`b05f7a1`, `personal.sql` 라이브 실행 필요)
 
 <!-- flow: - **2026-11-01** 학생 수강 과목·분반별 수행평가 일괄 등록, 지필평가 기간·목요일 귀가일 R&E 시간표 제외, 수행평가 탭 문구 완화와 제출처 선택 도입, 승인된 수행평가를 내 계정에서만 고치는 개인 수정 -->
+
+## 2026-11-01 14:51 · dev-journey 사이트 제작과 dshs.study 공지·제출처 정리
+
+### 목표
+- 민지가 진행한 6개 프로젝트(dshs.study, Personal Hub, productivity, OJ 제출 기록기, hwp-mcp, 실험보고서 학습 보조 Agent)의 개발 과정을 시각화하는 사이트를 만든다. 개발할 때마다 자동으로 갱신되고, 새 프로젝트도 자동으로 추가되게 한다.
+- `dshs.study`의 수행평가 공지 현황을 파악하고 정리한다.
+- 공지에서 상세내용을 빼고 이름, 날짜, 제출처만 남긴다. 제출처는 메일, dshs앱, 클래스룸, padlet, 기타 중에서 고른다.
+
+### 한 일
+- 데스크톱, 홈 폴더, Git 저장소, 메모리를 훑어 코드 프로젝트 9개와 탐구/연구 프로젝트 3개를 정리했다.
+- `~/Desktop/agents/dev-journey`에 사이트와 수집기를 만들었다. 커밋 기록과 Claude 작업 기록을 합쳐 주별 활동, 프로젝트 카드, 이정표를 보여준다.
+  - 라이트, 다크, 모바일 화면을 렌더링해서 확인했다.
+  - 공개될 파일에서 이름, 메일, 로컬 경로가 나오는지 검사했고, 나오지 않았다.
+  - 새 프로젝트 자동 등록은 테스트 저장소 3개로 확인했다. 오늘 처음 커밋한 내 저장소만 등록됐다.
+  - 현재 기록은 프로젝트 6개, 본인 커밋 170개다.
+- `dshs.study` 공지 30건을 과목별, 분반별로 정리했다. 개인이나 소수 대상으로 올린 공지는 없었다.
+- 민지의 요청으로 공지 3건(매체언어 D반 `테스트`, `문화 보고서 제출`, 일반물리2 E반 `물리 탐구 보고서 제출`)을 지웠다. 공지 ID를 지정해서 삭제했고, 함께 지워진 건 완료 표시 1건과 알림 기록 3건이다.
+- 제출처 기능을 만들어 로컬 브랜치 `feature/submit-place`에 커밋했다. 이후 폐기했다(아래 참고).
+
+### 결정과 이유
+- dev-journey는 기존 `agents/hook`의 작업 기록 도구를 활용하는 방향으로 만들었다.
+- 공개 저장소 생성과 자동 갱신 등록은 Claude Code 권한 설정에서 막혀서, 민지가 직접 `! bash ~/Desktop/agents/dev-journey/setup.sh`를 실행하게 했다.
+- 공개 전 확인 사항: productivity 표시 여부, dshs.study 팀원 동의. 둘 다 아직 정해지지 않았다.
+- 비공개 저장소는 커밋 제목을 사이트에 싣지 않는다. 공개 저장소인 OJ 제출 기록기와 hwp-mcp만 싣는다.
+- 공지 삭제는 복구 기능이 없어서, 삭제 전에 대상이 정확히 3건인지와 연결 데이터를 확인했다.
+- `feature/submit-place` 브랜치는 쓰지 않고 합치지도 않기로 했다. 팀원이 같은 기능을 이미 `main`에 올렸기 때문이다.
+
+### 해결한 문제
+- 제출처 작업이 팀원 작업과 겹침 → 작업하는 사이 팀원이 `main`에 제출처 기능과 `submit.sql`을 올렸고, 운영 DB에도 제출처 칸이 이미 있었다 → 내 브랜치를 버리고, 민지에게 요청했던 Supabase SQL 실행도 취소했다.
+- 앞서 낸 정보 두 가지가 틀렸다 → 기존 내용은 "숨김"이 아니라 이미 비워진 상태였다(공지 81건 모두 내용이 비어 있음). 공지 수도 27건이 아니라 81건이었다 → 정정했다. 제출처가 입력된 공지는 아직 없어서 과목별 제출처를 알려줄 필요는 없고, 수정 화면에서 필요한 것만 넣으면 된다.
+
+### 남은 일
+- [ ] 공개 전 결정: productivity 표시 여부, dshs.study 팀원 동의
+- [ ] `! bash ~/Desktop/agents/dev-journey/setup.sh` 실행. `sxcrxta/dev-journey` 공개 저장소 생성, GitHub Pages 켜기, 30분 주기 자동 갱신 등록이 이루어진다. 되돌리려면 명령 끝에 `uninstall`을 붙인다.
+- [ ] 설치 후 `Desktop` 폴더 읽기와 push가 되는지 확인한다. 막히면 `~/Desktop/agents/dev-journey/sync.log`에 오류가 남는다.
+- [ ] `https://sxcrxta.github.io/dev-journey/`가 실제로 열리는지 확인한다.
+- [ ] 로컬에서 먼저 보려면 `python3 -m http.server 8765 --bind 127.0.0.1 --directory ~/Desktop/dev-journey`를 실행하고 `http://localhost:8765`로 연다. `index.html`을 더블클릭하면 `data.json`을 못 불러와 기록이 나오지 않는다.
+- [ ] `dshs42.app`이 SSL 인증서 오류 없이 열리는지 브라우저로 확인한다. `curl`에서는 오류가 났고, 배포 여부는 확인하지 못했다.
+- [ ] 숨기고 싶은 저장소는 `agents/dev-journey/config.json`의 `ignore_paths`에 추가한다. 비공개 저장소의 이정표 문구도 같은 파일에 직접 넣는다.
+- [ ] `dshs.study` 공지 81건 중 필요한 것의 제출처를 수정 화면에서 입력한다.
+
+### 배운 점
+- dev-journey의 한계: 맥이 켜져 있어야 갱신되고, 잠든 동안의 작업은 깨어난 뒤에 반영된다. 2026-11-01 이후 내 커밋이 처음 생긴 Git 저장소만 자동 등록되므로 `goblin`, `mac-rug`처럼 Git을 쓰지 않는 프로젝트는 잡히지 않는다.
+- 자동 등록되면 저장소나 폴더 이름이 공개된다.
+- 팀 프로젝트는 작업 전에 `main`과 운영 DB 상태를 먼저 확인해야 한다. 이번에는 확인 없이 같은 기능을 만들어서 작업이 겹쳤다.
+
+### 바뀐 파일
+- `/Users/banminji/Desktop/agents/dev-journey/config.json`
+- `/Users/banminji/Desktop/agents/dev-journey/collect.py`
+- `/Users/banminji/Desktop/dev-journey/index.html`
+- `/Users/banminji/Desktop/dev-journey/README.md`
+- `/Users/banminji/Library/LaunchAgents/com.sxcrxta.dev-journey.plist`
+- `/Users/banminji/Desktop/agents/dev-journey/setup.sh`
+- `submit.sql`
+- `dshs-study.js`
+- `sw.js`
+- `updates.js`
+- `README.md`
