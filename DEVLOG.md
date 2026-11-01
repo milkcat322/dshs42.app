@@ -11,7 +11,7 @@
 - **2026-10-28** 달력 기반 일정관리로 확장: 내 일정·수행평가 공지·할 일 탭, 일정 공유, 시간표 배경 연동, 관리자 학교 일정
 - **2026-10-30** dshs.app 연동 방향 결정(크롤링 대신 공식 OAuth, 급식은 NEIS API), DEVLOG와 팀 공용 자동 git pull/push 훅 도입
 - **2026-10-31** 알림 개편: 기기별 켜기/끄기, 수행평가 마감 1일·6시간 전, 일정·필수 학교 일정 30분 전
-- **2026-11-01** 서비스 표시 이름을 dshs.study에서 dshs42.app으로 변경(로그인 이메일 도메인 등 내부 식별자는 유지) <!-- session a12519e2 -->
+- **2026-11-01** 수행평가 공지에 마감 없는 공지(D-? 표시)와 작성자 표시, 작성자/관리자 수정·관리자 삭제 기능 추가(notice.sql 반영 필요) <!-- session a12519e2 -->
 - **2026-11-01** 학사일정(NEIS) 연동, 업데이트 소식 팝업, 로그인 시 내 시간표 바로 보기 기능을 추가하고, 팀원 간 push 충돌을 자동 병합하는 Check Push 체계를 도입함 <!-- session a12519e2 -->
 - **2026-11-01** 수행평가 공지를 "수행평가 추가"로 바꾸고 내용 대신 제출처(클래스룸·dshs앱·패들렛·메일·기타) 선택을 도입, 과목·분반별 수행평가 일괄 등록 <!-- session cfda7dec -->
 - **2026-11-01** Check Push(원격 확인 후 자동 병합·push) 체계 도입, NEIS 학사일정 캘린더 연동, 로그인 시 내 시간표 바로가기 추가 <!-- session a12519e2 -->
@@ -228,49 +228,72 @@
 - `dshs-study.js`
 - `DEVLOG.md`
 
-## 2026-11-01 14:11–16:13 · 세션 간 연속성(CLAUDE.md·DEVLOG)과 Check Push 체계 구축, NEIS 학사일정 연동
+## 2026-11-01 14:11–17:01 · 세션 연속성(CLAUDE.md·Check Push) 구축, NEIS 학사일정 연동, 수행평가 공지 개선
 
-`session a12519e2` · 요청 16회
+`session a12519e2` · 요청 17회
 
 ### 목표
-- 세션이 바뀌어도 팀 규칙과 진행 상황이 이어지도록 체계 마련
-- 동시 작업 시 git 충돌을 줄이고, push 전 자동으로 원격과 맞추는 방법 도입
-- 학교 공식 학사일정을 캘린더에 연동하고, 업데이트 안내·내 시간표 바로가기 등 사용성 개선
+- 세션이 바뀌어도 팀 규칙과 진행 상황이 유지되게 하고, 여러 개발자가 동시에 push해도 충돌 없이 합쳐지게 함
+- 학교 공식 학사일정을 달력에 연동하고, 수행평가 공지 기능을 보강함
 
 ### 한 일
-- CLAUDE.md 신설(세션마다 읽는 팀 공용 규칙), DEVLOG.md를 모든 세션마다 자동 기록하도록 바꾸고 맨 앞에 "개발 흐름" 요약 추가
-- `.gitattributes`(DEVLOG union 병합, LF 통일), `session-start` 훅 개선으로 pull 충돌 시 되돌리고 Claude가 먼저 처리하게 함
-- `pre-push` 훅으로 "Check Push" 도입: push 직전 원격을 확인해 팀원의 새 커밋이 있으면 막고 pull·병합 후 재시도
-- `stop` 훅 보강: 기능이 완성되면 묻지 않고 자동 Check Push, 미완성이면 건너뜀
-- `/check-push` 스킬 추가, Check Push 시마다 DEVLOG도 함께 갱신하도록 보강
-- NEIS 학사일정 API 연동(`scripts/fetch-academic.mjs`, `.github/workflows/academic.yml`)으로 매일 자동 갱신, 캘린더에 종류별 on/off 버튼 추가
-- `academic-extra.json`으로 NEIS에 없는 카톡 공지 일정(학술동아리·문화예술동아리·재능나눔체험전) 추가
-- 업데이트 소식 팝업(`updates.js`)과 좌측 상단 전체 내역 보기 추가, 기존 "새로고침 안내" 제거
-- 로그인 시 기본 화면을 내 시간표로, 탭 맨 왼쪽에 "내 시간표" 바로가기 탭 추가
-- 서비스 표시 이름을 dshs.study → dshs42.app으로 변경
-- 중간고사 탭 삭제(시험 종료), "평균 학점" 탭 이름을 "학점 계산"으로 변경
+- 팀 공용 `CLAUDE.md` 작성(세션 이어가기, 기억 저장 위치, DB·캐시·init() 주의사항)
+- DEVLOG를 모든 세션마다 자동 기록하도록 훅 재구성(Stop/SessionEnd 분리, 개발 흐름 요약 추가)
+- `.gitattributes`로 DEVLOG union 병합 설정, `session-start.mjs`가 pull 충돌 시 되돌리고 알리도록 수정
+- push 직전 원격을 확인하는 `pre-push.mjs` 훅과 `/check-push` 스킬 도입, 기능 완성 시 자동 Check Push하는 `stop.mjs` 보강
+- Check Push 시 DEVLOG도 함께 갱신해 올리도록 수정(누락 원인 해결)
+- NEIS 학사일정 API 연동: `scripts/fetch-academic.mjs`로 `academic.json` 생성, GitHub Actions 매일 자동 갱신, 달력에 종류별 켜기/끄기 UI 추가
+- 카톡 공지(학술동아리·문화예술동아리·재능나눔체험전)를 `academic-extra.json`에 추가해 NEIS 데이터와 병합되게 함, 동아리 이름 오타 정정
+- 업데이트 소식 팝업·전체 내역 탭(`updates.js`) 추가, 기존 "새로고침 안내" 제거
+- 로그인 시 내 시간표로 시작, 탭 맨 왼쪽에 "내 시간표" 탭 추가
+- 서비스 표시 이름을 dshs.study → dshs42.app으로 변경(로그인 이메일 도메인 등 내부 식별자는 유지)
+- 중간고사 탭 삭제, "평균 학점" 탭 이름을 "학점 계산"으로 변경
+- 수행평가 공지에 마감 일시 없이 올리기(D-? 표시), 작성자 표시, 작성자/관리자 수정, 관리자 삭제 기능 추가(`notice.sql` 작성)
 
 ### 결정과 이유
-- DEVLOG 기록 시점을 "10분 무응답"에서 "Check Push 시마다"로 변경: 연속 요청 시 기록이 계속 밀려 누락됐기 때문
-- `academic-extra.json`을 따로 둠: `academic.json`은 매일 NEIS로 덮어써져서 수동 추가분이 사라지는 걸 막기 위함
-- 서비스 이름 변경 시 로그인 이메일 도메인(@dshs.study) 등 내부 식별자는 그대로 유지: 바꾸면 전체 계정 로그인이 끊김
+- Check Push(push 직전 원격 확인 후 자동 병합) 도입: 같은 파일을 동시에 고쳐도 Claude가 내용을 이해한 상태에서 합치게 하기 위함
+- DEVLOG는 union 병합 대상으로 지정: 여러 개발자가 같은 위치(파일 끝)에 동시에 추가해도 충돌 없이 양쪽 기록이 남게 하기 위함
+- 학사일정 원본은 NEIS 공식 API 사용(학교 홈페이지도 NEIS 연계이므로 데이터 동일)
+- 카톡 공지처럼 NEIS에 없는 일정은 `academic.json`을 직접 고치지 않고 `academic-extra.json`에 분리: 매일 자동 갱신 시 덮어써지는 것을 막기 위함
 
 ### 해결한 문제
-- 증상: Check Push, 학사일정, 업데이트 팝업 등 최근 작업이 DEVLOG에서 빠짐 → 원인: 연속 요청으로 "10분 무응답" 기록 조건이 계속 밀림 → 해결: Check Push할 때마다 DEVLOG를 함께 갱신, push 전 훅이 기록 누락을 감지해 막도록 보강
-- 증상: 두 개발자가 동시에 push하면 DEVLOG.md 병합 충돌 발생 → 원인: 같은 파일 맨 끝에 동시에 줄을 추가 → 해결: union 병합 지정, session-start에서 충돌 시 안전하게 되돌리도록 변경
-- 증상: 학사일정 자동 갱신 커밋이 매번 순서만 바뀜 → 원인: Windows와 GitHub Actions의 문자열 정렬 기준 차이 → 해결: 정렬을 글자 코드 순으로 고정
+- DEVLOG 자동 기록 누락 → 답변 뒤 10분간 다음 요청이 없을 때만 기록하는데 연속 요청이 이어져 기록 시점이 계속 밀림 → Check Push할 때마다 DEVLOG도 함께 갱신하도록 변경
+- 동시 push 충돌 → 같은 날 DEVLOG 끝에 서로 다른 내용을 동시에 추가해 git이 병합 못함 → union 병합 설정과 pre-push 확인 훅으로 해결
+- 학사일정 파일이 순서만 바뀐 채 매번 재커밋됨 → Windows와 GitHub Actions의 한글 정렬 순서가 달라서 발생 → 정렬을 글자 코드 순으로 통일
 
 ### 남은 일
-- [ ] 귀사일 표시 방법 결정(NEIS·학교 홈페이지 모두 데이터 없음)
-- [ ] 관리자 등록 귀가일과 학사일정 귀가일 중복 표시 정리
-- [ ] 배포 사이트에서 로그인 후 "내 시간표 탭" 실동작 확인
-- [ ] NEIS 공식 인증키 발급 후 GitHub Secrets에 등록(현재 무인증 상태라 하루 일정 많은 날 일부 누락 가능)
-- [ ] 다른 팀원(Mac 등) 환경에서 훅 정상 동작 확인
+- [ ] `notice.sql`을 실제 서비스 DB에 실행
+- [ ] 귀사일 표시 방법 결정(NEIS·학교 사이트 모두 미등록)
+- [ ] 관리자가 직접 넣은 귀가일과 NEIS 귀가일 중복 표시 정리
+- [ ] 배포된 사이트에서 모바일 화면 실제 확인
+- [ ] NEIS 공식 인증키 발급받아 GitHub Secrets에 등록
 
 ### 배운 점
-- VS Code에서는 세션 종료(SessionEnd) 훅이 보통 실행되지 않아 DEVLOG 자동 기록이 한 번도 안 될 수 있음
-- VS Code에서는 세션 종료 시 SessionEnd 훅이 대개 실행되지 않아 DEVLOG 자동 기록에 의존할 수 없음 — Stop 훅(답변 후 대기) 또는 Check Push 시점에 기록하는 방식이 더 안정적
-- NEIS 공개 API는 인증키 없이 페이지네이션이 항상 첫 5건만 반환함 — 기간을 잘게 나눠 요청해야 전체 데이터를 받을 수 있음
+- VS Code에서는 세션을 닫아도 SessionEnd 훅이 대개 실행되지 않아 DEVLOG 자동 기록이 동작하지 않을 수 있음
+
+### 바뀐 파일
+- `.claude/hooks/devlog-worker.mjs`
+- `.claude/hooks/lib.mjs`
+- `.claude/hooks/pre-push.mjs`
+- `.claude/hooks/session-end.mjs`
+- `.claude/hooks/session-start.mjs`
+- `.claude/hooks/stop.mjs`
+- `.claude/settings.json`
+- `.claude/skills/check-push/SKILL.md`
+- `.gitattributes`
+- `.github/workflows/academic.yml`
+- `.gitignore`
+- `CLAUDE.md`
+- `README.md`
+- `academic-extra.json`
+- `academic.json`
+- `dshs-study.js`
+- `index.html`
+- `manifest.webmanifest`
+- `notice.sql`
+- `scripts/fetch-academic.mjs`
+- `sw.js`
+- `updates.js`
 
 ## 2026-10-30 20:13–14:27 · 알림 켜기/끄기와 필수 학교 일정 알림 구현·배포, 크론 1분 간격으로 조정
 
