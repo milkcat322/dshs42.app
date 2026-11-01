@@ -140,7 +140,7 @@ const CACHE = 'dshs-study-v1';  →  'dshs-study-v2';
 
 ### Check Push
 
-**push 직전에 원격을 확인하고, 다른 팀원의 새 커밋이 있으면 먼저 받아 합친 뒤 push 하는** 이 팀의 push 방식입니다. Claude 는 한 작업을 마칠 때마다 알아서 Check Push 합니다. 직접 시키려면 Claude Code 에 `/check-push` 를 입력하거나 "Check Push 해줘" 라고 하면 됩니다. 충돌이 나면 Claude 가 양쪽 기능을 모두 살려 합치고, 판단이 어려우면 물어봅니다.
+**push 직전에 원격을 확인하고, 다른 팀원의 새 커밋이 있으면 먼저 받아 합친 뒤 push 하는** 이 팀의 push 방식입니다. **기능 하나가 완성되면 Claude 가 묻지 않고 자동으로 Check Push 합니다** (답변마다 훅이 올리지 않은 변경이 있는지 확인해, 완성된 기능이면 올리고 개발 중이면 그대로 둡니다). 직접 시키려면 Claude Code 에 `/check-push` 를 입력하거나 "Check Push 해줘" 라고 하면 됩니다. 충돌이 나면 Claude 가 양쪽 기능을 모두 살려 합치고, 판단이 어려우면 물어봅니다.
 
 Claude 없이 push 할 때도 같은 순서로 해 주세요: `git pull --rebase --autostash` → 충돌 정리 → `git push`.
 
