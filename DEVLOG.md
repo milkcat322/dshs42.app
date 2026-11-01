@@ -226,79 +226,86 @@
 - `dshs-study.js`
 - `DEVLOG.md`
 
-## 2026-11-01 14:11–17:07 · CLAUDE.md·Check Push 체계 구축, 학사일정(NEIS) 연동, 서비스 이름 변경, 수행평가 공지 개선
+## 2026-11-01 14:11–17:09 · CLAUDE.md·세션 연속성 구축, 학사일정(NEIS) 달력 연동, 업데이트 팝업, 내 시간표 탭, 서비스 이름 변경, 수행평가 공지 개편
 
 `session a12519e2` · 요청 17회
 
 ### 목표
-- 세션이 바뀌어도 개발 맥락과 팀 규칙이 유지되게 하고, 두 개발자가 동시에 작업해도 git push가 충돌 없이 합쳐지게 한다
-- 학교 공식 학사일정을 달력에 반영하고, 서비스 이름 변경·탭 정리·수행평가 공지 기능을 개선한다
+- 세션이 바뀌어도 작업 맥락과 팀 규칙이 유지되게 하기
+- 같은 시간대에 팀원과 동시 개발할 때 git push 충돌 문제 해결
+- 학교 공식 학사일정을 캘린더에 종류별로 켜고 끌 수 있게 연동
+- 주요 업데이트를 접속 시 팝업으로 안내하고 전체 내역을 볼 수 있게 하기
+- 로그인 시 내 시간표로 바로 진입, 서비스 이름 변경, 탭 정리
+- 수행평가 공지에 마감 미정·작성자 표시·수정/삭제 권한 추가
 
 ### 한 일
-- CLAUDE.md 신설: 세션 이어가기 규칙, 개인 취향은 CLAUDE.local.md에 저장하도록 분리
-- DEVLOG 자동 기록을 모든 세션(특히 VS Code에서 SessionEnd가 안 불리는 경우)으로 확장, 맨 앞에 "개발 흐름" 요약 추가
-- `.gitattributes`(DEVLOG union 병합), `pre-push.mjs`(push 전 원격 확인·자동 병합), `/check-push` 스킬로 "Check Push" 체계 구축
-- 기능 완성 시 Stop 훅이 올리지 않은 변경을 감지해 자동으로 Check Push하도록 보강
-- NEIS 학사일정 API 연동(`scripts/fetch-academic.mjs`, `academic.json`, GitHub Actions 일일 갱신), 달력에 종류별 on/off 버튼 추가
-- 카톡 공지 기반 동아리·행사 일정(`academic-extra.json`)을 NEIS 데이터와 병합해 추가, "문예예술동아리" → "문화예술동아리" 오타 수정
-- 업데이트 소식 팝업(`updates.js`) 추가: 접속 시 한 번 노출, 좌측 상단에서 전체 내역 열람
-- 로그인 시 "내 시간표" 탭을 맨 왼쪽에 추가하고 기본 진입 화면으로 설정
-- 서비스 표시 이름을 dshs.study → dshs42.app으로 변경(로그인 이메일 도메인 등 내부 값은 유지)
-- 중간고사 탭 삭제, "평균 학점" 탭을 "학점 계산"으로 이름 변경
-- 수행평가 공지에 마감 미정(D-?), 작성자 표시, 작성자/관리자 수정, 관리자 삭제 기능 추가(`notice.sql` 신설)
+- CLAUDE.md 신설: 세션 이어가기, 기억 저장 위치(CLAUDE.md/DEVLOG/CLAUDE.local.md), 개발 주의점 정리
+- DEVLOG 자동 기록을 모든 세션으로 확장(Stop 훅·SessionEnd 훅), 맨 앞에 "개발 흐름" 요약 추가
+- `.gitattributes`로 DEVLOG union 병합 설정, session-start 훅이 pull 충돌 시 되돌리고 알리도록 수정
+- pre-push 훅 도입: push 직전 원격을 fetch해 팀원의 새 커밋이 있으면 막고 먼저 합치게 함("Check Push")
+- `/check-push` 스킬과 CLAUDE.md 동시 작업 절차 작성, 기능 완성 시 자동 Check Push하도록 Stop 훅 보강
+- NEIS 학사일정 API로 `academic.json` 생성 스크립트와 GitHub Actions 일일 갱신 추가, 캘린더에 🎓 학사일정 종류별 on/off 버튼 구현
+- `academic-extra.json` 신설로 NEIS에 없는 카톡 공지 일정(학술동아리·문화예술동아리·재능나눔체험전) 수동 추가
+- `updates.js` 신설: 접속 시 주요 업데이트 팝업, 좌측 상단 업데이트 탭으로 전체 내역 보기
+- 로그인 시 내 시간표를 기본 화면으로, 탭 맨 왼쪽에 "📅 내 시간표" 탭 추가
+- 서비스 표시 이름을 dshs.study → dshs42.app으로 변경(로그인 이메일 도메인 등 내부 이름은 유지)
+- 중간고사 탭 삭제, "평균 학점" 탭 이름을 "학점 계산"으로 변경
+- `notice.sql` 작성: 수행평가 공지 마감 미정(D-?), 작성자 표시, 작성자/관리자 수정, 관리자 삭제 구현
 
 ### 결정과 이유
-- Check Push를 완전 자동화하지 않고 Claude 판단에 맡김: `main` push 시 바로 배포되므로, 쉬었다는 이유만으로 미완성 코드가 배포되는 것을 막기 위함
-- DEVLOG는 Check Push할 때마다 함께 갱신하도록 변경: 짧은 간격으로 요청이 이어지면 10분 대기 조건으로는 기록이 계속 밀리는 문제가 있었음
-- NEIS에 없는 자체 공지 일정은 `academic.json`을 직접 고치지 않고 `academic-extra.json`에 별도 저장: 매일 자동 갱신 시 NEIS 데이터로 덮어써져 사라지는 것을 방지
-- 서비스 이름은 화면 표시만 변경하고 로그인 이메일 도메인(`@dshs.study`)과 내부 파일/저장소 이름은 유지: 바꾸면 기존 계정 로그인이 깨지거나 배포 연결이 끊김
+- Check Push는 DEVLOG 기록은 완전 자동, 코드 push는 Claude가 "기능 완성" 여부를 판단해 처리하기로 함. main이 바로 배포되므로 덜 끝난 코드가 자동으로 올라가는 걸 막기 위함
+- 귀사일은 NEIS·학교 홈페이지 어디에도 없어 자동 연동 보류, 관리자 수동 등록 또는 규칙 기반 자동화는 추후 논의
+- 수행평가 작성자가 승인된 공지를 수정해도 재검토 없이 승인 상태 유지(재검토 필요 여부는 추후 확인 필요)
 
 ### 해결한 문제
-- DEVLOG 자동 기록이 안 됨 → VS Code에서 세션을 닫아도 SessionEnd 훅이 호출되지 않음 → Stop 훅 기반으로 10분 무응답 시 기록, Check Push 시에도 함께 갱신하도록 변경
-- 두 개발자가 동시에 DEVLOG 끝부분에 기록을 추가해 push 충돌 발생 → git이 같은 위치의 동시 추가를 병합하지 못함 → `.gitattributes`에 union 병합 지정, `pre-push.mjs`로 push 전 원격 확인·자동 병합 도입
-- 학사일정 자동 갱신 커밋이 매번 순서만 바뀐 채 생성됨 → Windows와 GitHub Actions 서버의 한글 정렬 순서가 다름 → 정렬을 글자 코드 순으로 고정
+- DEVLOG가 누락됨 → Claude 응답 후 10분 내 다음 요청이 계속 들어와 자동 기록 시점이 밀리고 그 사이 Check Push로 코드만 먼저 올라감 → Check Push할 때마다 DEVLOG도 함께 갱신해서 올리도록 변경, pre-push 훅이 기록 누락을 감지해 막도록 함
+- 같은 시간대 팀원과 DEVLOG.md 같은 위치에 동시 기록해 push 충돌 발생 → git이 같은 줄 동시 추가를 자동 병합 못함 → `.gitattributes`로 union 병합 지정, pre-push 훅으로 push 전 원격 확인·병합을 구조화
+- 학사일정 정렬 순서가 Windows와 GitHub Actions에서 다르게 나와 순서만 바뀐 커밋이 매번 생김 → 로케일별 문자열 정렬 차이 → 정렬 기준을 글자 코드 순으로 통일
+- 테스트용 로컬 서버가 즉시 종료됨 → 한글이 포함된 경로가 URL 인코딩됨 → `fileURLToPath`로 디코딩 처리
 
 ### 남은 일
-- [ ] `notice.sql`을 실제 서비스 DB에 실행
-- [ ] 귀사일 일정 추가(NEIS·학교 홈페이지 어디에도 없어 자동 수집 불가, 규칙 또는 수동 등록 필요)
-- [ ] 관리자가 수동 등록한 귀가일과 학사일정 귀가일이 중복 표시되는 문제 정리
-- [ ] NEIS 인증키(`NEIS_KEY`)를 GitHub Secrets에 등록해 일정 누락 가능성 제거
-- [ ] 실제 배포 사이트에서 모바일 화면·실 로그인으로 전체 기능 재확인
+- [ ] `notice.sql`을 실제 Supabase DB에 실행해야 마감 미정·작성자 표시·작성자 수정 기능이 실제로 동작함
+- [ ] 팀원의 `submit.sql`(제출처) 실행 여부 확인
+- [ ] 관리자가 넣은 기존 귀가일 2건이 학사일정 귀가일과 중복 표시(🏫/🎓)되는 문제 정리
+- [ ] NEIS 인증키(`NEIS_KEY`)를 GitHub Secrets에 등록하면 일일 6건 이상 일정 누락 방지
+- [ ] 실제 로그인 환경에서 내 시간표 기본 진입, 모바일 화면 확인
+- [ ] 수행평가 작성자 수정 시 재검토 필요 여부 결정
 
 ### 배운 점
-- VS Code 확장에서는 세션 종료 시 SessionEnd 훅이 대개 실행되지 않는다
-- Windows와 GitHub Actions(Linux) 환경은 한글이 섞인 문자열 정렬 순서가 다를 수 있어, 자동 생성 파일은 정렬 기준을 명시적으로 고정해야 한다
+- VS Code에서 세션을 닫아도 SessionEnd 훅이 실행되지 않아 DEVLOG 자동 기록이 전혀 동작하지 않았음
+- 작업 중인 파일(CRLF)과 생성한 텍스트(LF)의 줄바꿈 차이로 문자열 경계 탐색이 실패할 수 있음
 
 ### 바뀐 파일
+- `.claude/hooks/devlog-worker.mjs`
+- `.claude/hooks/lib.mjs`
+- `.claude/hooks/pre-push.mjs`
+- `.claude/hooks/session-end.mjs`
+- `.claude/hooks/session-start.mjs`
+- `.claude/hooks/stop.mjs`
+- `.claude/settings.json`
+- `.claude/skills/check-push/SKILL.md`
+- `.gitattributes`
+- `.github/workflows/academic.yml`
+- `.gitignore`
 - `CLAUDE.md`
 - `README.md`
-- `DEVLOG.md`
-- `.gitattributes`
-- `.gitignore`
-- `.claude/settings.json`
-- `.claude/hooks/lib.mjs`
-- `.claude/hooks/session-start.mjs`
-- `.claude/hooks/session-end.mjs`
-- `.claude/hooks/stop.mjs`
-- `.claude/hooks/pre-push.mjs`
-- `.claude/hooks/devlog-worker.mjs`
-- `.claude/skills/check-push/SKILL.md`
-- `scripts/fetch-academic.mjs`
-- `academic.json`
 - `academic-extra.json`
-- `.github/workflows/academic.yml`
-- `updates.js`
-- `notice.sql`
-- `schema.sql`
-- `dshs-study.js`
-- `index.html`
-- `sw.js`
-- `manifest.webmanifest`
+- `academic.json`
 - `config.js`
-- `admins.sql`, `bans.sql`, `events.sql`, `notify.sql`, `school.sql`, `seed.sql`, `share.sql`, `submit.sql`, `todos.sql`
+- `dshs-study.js`
+- `events.sql`
+- `index.html`
+- `manifest.webmanifest`
+- `notice.sql`
+- `notify.sql`
+- `schema.sql`
+- `school.sql`
+- `scripts/fetch-academic.mjs`
+- `submit.sql`
 - `supabase/functions/send-reminders/index.ts`
-- `supabase/functions/send-reminders/plan.ts`
 - `supabase/functions/signup/index.ts`
+- `sw.js`
+- `updates.js`
 
 <!-- flow: - **2026-11-01** Check Push 체계(push 전 원격 확인·병합, DEVLOG 함께 갱신)와 팀 공용 CLAUDE.md, 학사일정(NEIS) 달력 연동, 업데이트 소식 팝업, 로그인 시 내 시간표, 서비스 이름 dshs42.app, 수행평가 마감 미정(D-?)·작성자 표시·작성자/관리자 수정 -->
 
