@@ -21,6 +21,9 @@ const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
 const iso = (s) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+// 날짜 → 이름 순. localeCompare 는 Windows 와 GitHub Actions(Linux)의 순서가 달라 실행할 때마다 파일이 바뀌므로 글자 코드로 비교합니다
+const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+const byDate = (a, b) => cmp(a.start, b.start) || cmp(a.name, b.name);
 
 async function query(from, to, pIndex = 1) {
   const params = new URLSearchParams({
@@ -90,7 +93,7 @@ function merge(rows) {
       start = prev = day;
     }
   }
-  return out.sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
+  return out.sort(byDate);
 }
 
 // academic-extra.json 의 일정을 하루씩 더합니다. NEIS 에 같은 이름의 일정이 그날 있으면 건너뜁니다.
@@ -104,7 +107,7 @@ function withExtras(events) {
       out.push({ name: x.name, type: '해당없음', grades: x.grades ?? [1, 2, 3], memo: x.memo ?? '', from: x.from ?? '', start: day, end: day });
     }
   }
-  return out.sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
+  return out.sort(byDate);
 }
 
 // 이번 학년도(3월~다음 해 2월)와 다음 학년도를 받습니다
