@@ -146,7 +146,7 @@ ${digest.text}
   }
 
   log(`worker: 요약 실패 (exit ${r.status}): ${limit(`${out}${r.stderr ?? ''}${r.error ?? ''}`, 500)}`);
-  return { section: `## ${range} · (자동 요약 실패)\n\n\`session ${sid}\` · 요청 ${digest.requests}회\n\n${gitInfo}` };
+  return { failed: true, section: `## ${range} · (자동 요약 실패)\n\n\`session ${sid}\` · 요청 ${digest.requests}회\n\n${gitInfo}` };
 }
 
 // 세션의 개발 흐름 한 줄은 그 세션 기록 끝에 <!-- flow: … --> 로 넣어 둔다.
@@ -261,8 +261,15 @@ function main() {
   const digest = readDigest(transcriptPath);
   if (digest.requests === 0) { log('worker: 요청 없는 세션이라 건너뜀'); return; }
 
-  const { section, flowLine } = summarize(digest, sid, gitSummary(digest.first));
+  const { section, flowLine, failed } = summarize(digest, sid, gitSummary(digest.first));
   if (dryRun) { process.stdout.write(`${section}\n\n===흐름===\n${flowLine ?? '없음'}\n`); return; }
+  // 요약에 실패했는데 이 세션 기록이 이미 있으면 잘 쓴 기록을 git 정보로 덮어쓰지 않고 다음에 다시 시도한다
+  if (failed && readDevlog().includes(`\`session ${sid}\``)) {
+    log('worker: 요약 실패 — 기존 기록을 그대로 둠');
+    if (mode === 'write') process.stdout.write('요약에 실패해 DEVLOG.md 는 그대로 뒀어요 (.git/devlog-hook.log 참고)\n');
+    else if (all) withLock(() => publish('세션 종료 자동 커밋', true));
+    return;
+  }
   withLock(() => {
     writeSection(section, sid, flowLine);
     writeFlow();
