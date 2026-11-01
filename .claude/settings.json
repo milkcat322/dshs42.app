@@ -14,6 +14,31 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [".claude/hooks/pre-push.mjs"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [".claude/hooks/stop.mjs"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [

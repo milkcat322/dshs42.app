@@ -18,6 +18,7 @@ notify.sql                ★ 필수 학교 일정 표시 + 알림 발송 기록
 supabase/functions/send-reminders/index.ts  알림 발송
 supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼지 계산
 DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일 · 최신이 맨 아래)
+CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공용 규칙
 .claude/                  Claude Code 공용 설정 · 자동 git pull/push 훅
 ```
 
@@ -132,8 +133,16 @@ const CACHE = 'dshs-study-v1';  →  'dshs-study-v2';
 
 | 언제 | 자동으로 하는 일 |
 |---|---|
-| 세션을 열 때 (새 세션 · 이어하기 · `/clear`) | `git pull --rebase --autostash` 로 다른 팀원의 변경을 받아옴 |
-| 세션을 닫을 때 | 대화 내용을 요약해 [DEVLOG.md](DEVLOG.md) 맨 아래에 기록 추가 → 변경 전체 커밋 → `git push` |
+| 세션을 열 때 (새 세션 · 이어하기 · `/clear`) | `git pull --rebase --autostash` 로 다른 팀원의 변경을 받아옴. 지난 세션 중 기록을 놓친 것이 있으면 지금 기록 |
+| Claude 가 `git push` 하기 직전 (**Check Push**) | 원격을 확인해 다른 팀원의 새 커밋이 있으면 push 를 막고, 먼저 받아서 합친 뒤 push 하게 함 |
+| Claude 의 답변 뒤 10분 동안 다음 요청이 없을 때 | 대화 내용을 요약해 [DEVLOG.md](DEVLOG.md) 맨 아래에 기록 추가(주요 개발이면 맨 앞 "개발 흐름" 에도 한 줄) → **DEVLOG.md 만** 커밋 → `git push` |
+| 세션을 닫을 때 (터미널 CLI 에서 종료할 때. VS Code 에서는 대개 실행되지 않음) | 위와 같이 기록 → **변경 전체** 커밋 → `git push` |
+
+### Check Push
+
+**push 직전에 원격을 확인하고, 다른 팀원의 새 커밋이 있으면 먼저 받아 합친 뒤 push 하는** 이 팀의 push 방식입니다. Claude 는 한 작업을 마칠 때마다 알아서 Check Push 합니다. 직접 시키려면 Claude Code 에 `/check-push` 를 입력하거나 "Check Push 해줘" 라고 하면 됩니다. 충돌이 나면 Claude 가 양쪽 기능을 모두 살려 합치고, 판단이 어려우면 물어봅니다.
+
+Claude 없이 push 할 때도 같은 순서로 해 주세요: `git pull --rebase --autostash` → 충돌 정리 → `git push`.
 
 ### 처음 한 번 준비
 
@@ -143,8 +152,9 @@ const CACHE = 'dshs-study-v1';  →  'dshs-study-v2';
 
 ### 알아 둘 점
 
-- 세션이 끝나면 **수정한 파일 전체가 지금 브랜치로 push** 됩니다. `main` 에서 작업하면 `main` 에 바로 올라가니, 큰 작업은 `git switch -c feature/이름` 으로 브랜치를 만들어 하고 PR 로 합쳐 주세요. 원격에 없는 브랜치는 첫 push 때 자동으로 만들어집니다.
-- 개발 로그 요약은 세션이 끝난 뒤 **백그라운드에서 1~2분** 걸립니다. 에디터를 닫아도 계속 진행돼요.
+- 작업 중간의 자동 기록은 DEVLOG.md 만 올립니다. 코드 변경은 Claude 가 작업을 마칠 때 Check Push 로 올립니다. (CLI 에서 세션을 종료하면 수정한 파일 전체가 지금 브랜치로 push 됩니다.) `main` 에 올리면 바로 배포되니, 큰 작업은 `git switch -c feature/이름` 으로 브랜치를 만들어 하고 PR 로 합쳐 주세요. 원격에 없는 브랜치는 첫 push 때 자동으로 만들어집니다.
+- 개발 로그 요약은 **백그라운드에서 1~2분** 걸립니다. 에디터를 닫아도 계속 진행돼요. 요약에는 `claude` 명령이 필요합니다 (`npm i -g @anthropic-ai/claude-code`, 터미널에서 `claude` 로 한 번 로그인). 없으면 요약 대신 git 정보만 기록됩니다.
+- PC 가 꺼지는 등으로 기록을 놓치면 다음 세션을 열 때 기록됩니다.
 - push 직전에 pull 이 충돌하면 push 를 멈추고 커밋은 내 PC 에만 남깁니다. 직접 충돌을 정리한 뒤 push 해 주세요.
 - 실행 기록과 실패 이유는 `.git/devlog-hook.log` 에 남습니다 (커밋되지 않음).
 - 같은 세션을 이어서 작업하면 DEVLOG 에 새 기록을 추가하지 않고 그 세션의 기록을 갱신합니다.

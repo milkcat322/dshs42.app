@@ -1,0 +1,6 @@
+# 저장소에는 줄바꿈을 LF 로 저장한다 (Windows·Mac 이 섞여도 파일 전체가 바뀐 것처럼 보이지 않게)
+* text=auto
+*.png binary
+
+# DEVLOG.md 는 여러 사람이 동시에 맨 아래에 기록을 추가하므로, 충돌 대신 양쪽 내용을 모두 남긴다
+DEVLOG.md merge=union

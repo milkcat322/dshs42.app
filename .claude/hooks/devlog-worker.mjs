@@ -1,23 +1,30 @@
 // 세션 기록을 요약해 DEVLOG.md 맨 아래에 추가하고(같은 세션이면 그 자리를 교체), 커밋한 뒤 push 한다.
-// session-end.mjs 가 백그라운드로 실행한다.
+// 주요 개발이면 DEVLOG.md 앞부분의 "개발 흐름" 에도 한 줄을 추가한다.
+//
+// --mode idle    stop.mjs 가 매 답변 뒤 실행. IDLE_MS 동안 다음 답변이 없을 때만 기록하고 DEVLOG.md 만 커밋한다.
+// --mode catchup session-start.mjs 가 놓친 세션에 대해 실행. 바로 기록하고 DEVLOG.md 만 커밋한다.
+// --mode final   session-end.mjs 가 실행. 기록하고 바뀐 파일 전체를 커밋한다.
 // 직접 시험: node .claude/hooks/devlog-worker.mjs --transcript <기록.jsonl> --dry-run
 import { spawnSync } from 'node:child_process';
 import { closeSync, existsSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { git, log, repoRoot } from './lib.mjs';
+import { git, IDLE_MS, log, readState, repoRoot, writeState } from './lib.mjs';
 
 // 아래에서 부르는 claude -p 세션이 다시 이 훅들을 실행하지 않게 막는 표시
 process.env.DSHS_DEVLOG_CHILD = '1';
 
 const DEVLOG = path.join(repoRoot, 'DEVLOG.md');
 const MARKER = '<!-- 기록은 이 줄 아래에 시간순으로 쌓입니다 (최신이 맨 아래) -->';
+const FLOW_START = '<!-- 개발 흐름 시작: 세션이 기록될 때 주요 개발이면 자동으로 한 줄 추가됩니다 -->';
+const FLOW_END = '<!-- 개발 흐름 끝 -->';
 
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const hm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const limit = (s, max) => (s.length <= max ? s : `${s.slice(0, max)} …(생략)`);
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const readDevlog = () => (existsSync(DEVLOG) ? readFileSync(DEVLOG, 'utf8').replace(/\r\n/g, '\n') : '');
 
 function readDigest(transcriptPath) {
   const lines = [];
@@ -58,13 +65,21 @@ function gitSummary(since) {
   const commits = git('log', sinceArg, '--pretty=format:%h %s').out;
   const files = new Set([
     ...git('log', sinceArg, '--name-only', '--pretty=format:').out.split('\n'),
-    ...git('status', '--porcelain').out.split('\n').map((l) => l.slice(3)),
+    // git() 이 출력 앞뒤 공백을 지워 첫 줄의 상태 칸 너비가 달라지므로, 상태 코드를 글자 수가 아니라 패턴으로 떼어 낸다
+    ...git('status', '--porcelain').out.split('\n').map((l) => l.replace(/^\s*\S{1,2}\s+/, '').split(' -> ').pop()),
   ].map((f) => f.trim()).filter((f) => f && f !== 'DEVLOG.md'));
   return `세션 중 커밋:\n${commits}\n\n바뀐 파일(커밋 + 커밋 안 된 것):\n${[...files].sort().join('\n')}`;
 }
 
+function flowLines(text) {
+  const s = text.indexOf(FLOW_START), e = text.indexOf(FLOW_END);
+  if (s < 0 || e < s) return null;
+  return text.slice(s + FLOW_START.length, e).split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
 function summarize(digest, sid, gitInfo) {
   const range = `${ymd(digest.first)} ${hm(digest.first)}–${hm(digest.last)}`;
+  const flow = (flowLines(readDevlog()) ?? []).map((l) => l.replace(/\s*<!--.*?-->/g, '')).join('\n');
   const prompt = `아래는 dshs-study 저장소에서 진행한 Claude Code 개발 세션 기록과 git 정보다.
 이 세션의 개발 로그 한 항목을 한국어 마크다운으로 써라. 읽는 사람은 이 프로젝트를 같이 개발하는 팀원이다.
 설명이나 인사 없이 본문만 출력하고, 첫 줄은 반드시 \`## \` 로 시작한다.
@@ -89,6 +104,9 @@ function summarize(digest, sid, gitInfo) {
 ### 바뀐 파일
 - \`파일 경로\`
 
+===흐름===
+(개발 흐름 한 줄 또는 없음)
+
 규칙:
 - 내용이 없는 소제목은 통째로 뺀다. 바뀐 파일은 아래 git 정보를 기준으로 쓴다.
 - 기록에 있는 사실만 쓰고 추측하지 않는다.
@@ -96,6 +114,12 @@ function summarize(digest, sid, gitInfo) {
 - 비밀번호, 토큰, API 키 값은 절대 적지 않는다.
 - 각 항목은 한 줄로 짧게 쓴다.
 - 팀원에게 의미 없는 개인 환경 이야기(로컬 경로, 포트, 개인 PC 설정)는 쓰지 않는다.
+- 마지막 \`===흐름===\` 아래에는, 이 세션이 프로젝트의 큰 흐름에서 눈여겨볼 개발(새 기능, 큰 구조 변경, 방향을 정한 결정)이면
+  \`- **${ymd(digest.first)}** 무엇이 생겼거나 바뀌었는지 한 줄\` 형식으로 한 줄을 쓰고, 작은 수정·조사·잡일뿐이면 \`없음\` 이라고만 쓴다.
+  아래 "지금까지의 개발 흐름" 과 같은 내용을 되풀이하지 않는다.
+
+===== 지금까지의 개발 흐름 =====
+${flow}
 
 ===== git 정보 =====
 ${gitInfo}
@@ -105,22 +129,27 @@ ${digest.text}
 `;
 
   // 저장소 밖에서 실행해 프로젝트 훅이 다시 걸리지 않게 한다 (Windows 의 claude.cmd 는 shell 이 필요)
+  // Claude Code 안에서 띄운 경우 그 세션의 환경 변수를 넘기지 않는다
+  const env = Object.fromEntries(Object.entries(process.env)
+    .filter(([k]) => !/^(CLAUDECODE$|CLAUDE_CODE_|CLAUDE_AGENT_|CLAUDE_PID$)/.test(k)));
   const r = spawnSync('claude', ['-p', '--model', 'sonnet'], {
-    input: prompt, cwd: os.tmpdir(), encoding: 'utf8', shell: process.platform === 'win32',
+    input: prompt, cwd: os.tmpdir(), encoding: 'utf8', shell: process.platform === 'win32', env,
     maxBuffer: 20 * 1024 * 1024, timeout: 10 * 60 * 1000, windowsHide: true,
   });
   const out = r.stdout ?? '';
   const start = out.indexOf('## ');
-  if (r.status === 0 && start >= 0) return out.slice(start).trim();
+  if (r.status === 0 && start >= 0) {
+    const [section, flowPart = ''] = out.slice(start).split('===흐름===');
+    const flowLine = flowPart.split('\n').map((l) => l.trim()).find((l) => l.startsWith('- '));
+    return { section: section.trim(), flowLine };
+  }
 
   log(`worker: 요약 실패 (exit ${r.status}): ${limit(`${out}${r.stderr ?? ''}${r.error ?? ''}`, 500)}`);
-  return `## ${range} · (자동 요약 실패)\n\n\`session ${sid}\` · 요청 ${digest.requests}회\n\n${gitInfo}`;
+  return { section: `## ${range} · (자동 요약 실패)\n\n\`session ${sid}\` · 요청 ${digest.requests}회\n\n${gitInfo}` };
 }
 
 function writeSection(section, sid) {
-  let text = existsSync(DEVLOG)
-    ? readFileSync(DEVLOG, 'utf8').replace(/\r\n/g, '\n')
-    : `# dshs.study 개발 로그\n\n${MARKER}\n`;
+  let text = readDevlog() || `# dshs.study 개발 로그\n\n${MARKER}\n`;
   if (!text.includes(MARKER)) text = `${text.trimEnd()}\n\n${MARKER}\n`;
 
   const at = text.indexOf(MARKER) + MARKER.length;
@@ -131,14 +160,30 @@ function writeSection(section, sid) {
   writeFileSync(DEVLOG, `${text.slice(0, at)}\n\n${entries.join('\n\n')}\n`);
 }
 
-function publish(section) {
-  git('add', '-A');
-  if (git('diff', '--cached', '--quiet').code === 0) { log('worker: 커밋할 변경 없음'); return; }
+// 같은 세션의 줄이 있으면 바꾸고, 없으면 맨 아래에 추가한다 (이번에 "없음" 이어도 이전 줄은 그대로 둔다)
+function writeFlow(flowLine, sid) {
+  const text = readDevlog();
+  const lines = flowLines(text);
+  if (!flowLine || !lines) return;
+  const tag = `<!-- session ${sid} -->`;
+  const i = lines.findIndex((l) => l.includes(tag));
+  if (i >= 0) lines[i] = `${flowLine} ${tag}`;
+  else lines.push(`${flowLine} ${tag}`);
+  const s = text.indexOf(FLOW_START) + FLOW_START.length, e = text.indexOf(FLOW_END);
+  writeFileSync(DEVLOG, `${text.slice(0, s)}\n${lines.join('\n')}\n${text.slice(e)}`);
+}
 
-  const title = section.split('\n')[0].replace(/^##\s*[^·]*·\s*/, '').trim();
+function publish(title, all) {
+  if (all) git('add', '-A');
+  const changed = all
+    ? git('diff', '--cached', '--quiet').code !== 0
+    : git('diff', '--quiet', 'HEAD', '--', 'DEVLOG.md').code !== 0;
+  if (!changed) { log('worker: 커밋할 변경 없음'); return; }
+
   const msgFile = path.join(os.tmpdir(), `dshs-devlog-msg-${Date.now()}.txt`);
-  writeFileSync(msgFile, `${title}\n\n세션 종료 시 자동 커밋 · DEVLOG.md\n`);
-  const commit = git('commit', '-q', '-F', msgFile);
+  writeFileSync(msgFile, `${title}\n\n${all ? '세션 종료 시 자동 커밋' : '개발 로그 자동 기록'} · DEVLOG.md\n`);
+  // 세션 중간 기록은 작업 중인 코드를 건드리지 않도록 DEVLOG.md 만 커밋한다
+  const commit = git('commit', '-q', '-F', msgFile, ...(all ? [] : ['--', 'DEVLOG.md']));
   unlinkSync(msgFile);
   if (commit.code !== 0) { log(`worker: 커밋 실패: ${commit.out}`); return; }
 
@@ -171,25 +216,40 @@ function withLock(fn) {
 
 function main() {
   const args = process.argv.slice(2);
+  const opt = (name) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
   const dryRun = args.includes('--dry-run');
-  let transcriptPath, sessionId = '';
-  if (args[0] === '--transcript') {
-    transcriptPath = args[1];
-  } else {
-    const hook = JSON.parse(readFileSync(args[0], 'utf8').replace(/^﻿/, ''));
-    unlinkSync(args[0]);
-    transcriptPath = hook.transcript_path;
-    sessionId = hook.session_id ?? '';
-  }
+  const mode = opt('mode') ?? 'final';
+  const sessionId = opt('session') ?? '';
+  const transcriptPath = opt('transcript');
   if (!transcriptPath || !existsSync(transcriptPath)) { log(`worker: 대화 기록 파일 없음 (${transcriptPath})`); return; }
   const sid = (sessionId || path.basename(transcriptPath, '.jsonl')).slice(0, 8);
+
+  if (mode === 'idle') {
+    sleep(IDLE_MS);
+    if (readState(sessionId).nonce !== opt('nonce')) return; // 그사이 다음 답변이 있었음
+  }
+
+  const size = statSync(transcriptPath).size;
+  const fresh = dryRun || !sessionId || size > (readState(sessionId).done ?? 0);
+  const all = mode === 'final';
+  if (!fresh) {
+    // 이미 기록한 세션: 종료 때는 남은 코드 변경만 커밋한다
+    if (all && !dryRun) withLock(() => publish('세션 종료 자동 커밋', true));
+    return;
+  }
 
   const digest = readDigest(transcriptPath);
   if (digest.requests === 0) { log('worker: 요청 없는 세션이라 건너뜀'); return; }
 
-  const section = summarize(digest, sid, gitSummary(digest.first));
-  if (dryRun) { process.stdout.write(`${section}\n`); return; }
-  withLock(() => { writeSection(section, sid); publish(section); });
+  const { section, flowLine } = summarize(digest, sid, gitSummary(digest.first));
+  if (dryRun) { process.stdout.write(`${section}\n\n===흐름===\n${flowLine ?? '없음'}\n`); return; }
+  withLock(() => {
+    writeSection(section, sid);
+    writeFlow(flowLine, sid);
+    const title = section.split('\n')[0].replace(/^##\s*[^·]*·\s*/, '').trim();
+    publish(title, all);
+    if (sessionId) writeState(sessionId, { done: size });
+  });
 }
 
 try { main(); } catch (err) { log(`worker 오류: ${err.stack ?? err}`); }
