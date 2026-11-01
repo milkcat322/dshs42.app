@@ -11,13 +11,13 @@
 - **2026-10-28** 달력 기반 일정관리로 확장: 내 일정·수행평가 공지·할 일 탭, 일정 공유, 시간표 배경 연동, 관리자 학교 일정
 - **2026-10-30** dshs.app 연동 방향 결정(크롤링 대신 공식 OAuth, 급식은 NEIS API), DEVLOG와 팀 공용 자동 git pull/push 훅 도입
 - **2026-10-31** 알림 개편: 기기별 켜기/끄기, 수행평가 마감 1일·6시간 전, 일정·필수 학교 일정 30분 전
-- **2026-11-01** DEVLOG 자동 기록을 모든 세션(VS Code 포함)으로 확장하고, 팀 공용 CLAUDE.md로 세션 간 규칙·진행상황 공유 체계를 갖춤 <!-- session a12519e2 -->
+- **2026-11-01** 학사일정(NEIS) 연동과 업데이트 소식 팝업을 추가하고, Check Push로 팀원 간 push 충돌을 자동 병합하는 체계를 도입함 <!-- session a12519e2 -->
 <!-- 개발 흐름 끝 -->
 
 ## 쓰는 법
 
 - 각 기록은 `## 날짜 시간 · 제목` 으로 시작하고, 목표 · 한 일 · 결정과 이유 · 해결한 문제 · 남은 일 · 배운 점 · 바뀐 파일 순서로 씁니다 (해당 없는 항목은 생략).
-- **Claude Code 로 작업하면 모든 세션이 자동으로 기록됩니다.** 세션을 열면 `git pull`, Claude 의 마지막 답변 뒤 **10분 동안 다음 요청이 없으면** 그때까지의 대화를 요약해 이 파일 맨 아래에 추가하고 커밋 · `git push` 합니다. 주요 개발이면 위 "개발 흐름" 에도 한 줄이 추가됩니다. 설정 방법은 [README 의 "개발 흐름"](README.md#개발-흐름-자동-git-pull--push--개발-로그) 을 보세요.
+- **Claude Code 로 작업하면 모든 세션이 자동으로 기록됩니다.** 세션을 열면 `git pull`, **Check Push 할 때마다** 그때까지의 대화를 요약해 이 파일 맨 아래에 기록하고 코드와 함께 올립니다. push 없이 끝난 세션은 Claude 의 마지막 답변 뒤 10분 동안 다음 요청이 없으면 기록해 커밋 · `git push` 합니다. 주요 개발이면 위 "개발 흐름" 에도 한 줄이 추가됩니다. 설정 방법은 [README 의 "개발 흐름"](README.md#개발-흐름-자동-git-pull--push--개발-로그) 을 보세요.
 - 같은 세션을 이어서 작업하면 (`session xxxxxxxx` 가 같으면) 새로 추가하지 않고 그 기록을 갱신합니다.
 - Claude Code 없이 작업할 때는 시작 전에 `git pull`, 끝나면 이 파일 맨 아래에 같은 형식으로 기록을 추가한 뒤 커밋 · `git push` 해 주세요. 주요 개발이면 "개발 흐름" 에도 한 줄 추가해 주세요.
 
@@ -224,49 +224,67 @@
 ### 바뀐 파일
 - `dshs-study.js`
 - `DEVLOG.md`
-## 2026-11-01 14:11–14:26 · DEVLOG 자동화를 모든 세션으로 확장, 팀 공용 CLAUDE.md 추가
 
-`session a12519e2` · 요청 3회
+## 2026-11-01 14:11–15:21 · 팀 협업 자동화(CLAUDE.md·Check Push)와 학사일정·업데이트 알림 기능 추가
+
+`session a12519e2` · 요청 13회
 
 ### 목표
-- 예전 세션 내용이 새 세션에 이어지는지 확인하고, 팀원도 자동으로 이어받을 수 있게 설정
-- DEVLOG를 모든 세션마다 작성되게 고치고, 앞부분에 개발 흐름 요약 추가
+- 팀원과 세션이 바뀌어도 규칙·진행 상황이 이어지도록 CLAUDE.md·DEVLOG 체계를 만든다
+- 여러 명이 동시에 개발해도 git push 충돌을 자동으로 풀 수 있게 한다
+- 학교 공식 사이트(djshs.djsch.kr)의 학사일정을 달력에 켜고 끌 수 있게 보여준다
+- 사이트에 주요 업데이트가 생기면 팝업과 업데이트 탭으로 안내한다
 
 ### 한 일
-- Claude Code 세션 간 기억 유지 방식(세션 파일, CLAUDE.md, 메모리 폴더)을 설명
-- CLAUDE.md 신규 작성: DEVLOG 선행 확인 규칙, "기억해줘" 저장 위치(CLAUDE.md/DEVLOG/CLAUDE.local.md) 구분, 주의사항(로컬에서도 실제 DB 연결, `sw.js` 캐시 버전, `dshs-study.js`의 `init()` 등) 정리
-- `.gitignore`에 `CLAUDE.local.md` 추가, README에 CLAUDE.md 안내 추가
-- `.claude/hooks/session-end.mjs`, `lib.mjs`, `session-start.mjs` 재작성, `stop.mjs` 신규 추가
-- `devlog-worker.mjs`를 대기/누락 보충/세션 종료 세 가지 실행 상황별로 동작 분리, DEVLOG 맨 앞 "개발 흐름" 갱신 로직 추가
-- `.claude/settings.json`에 새 훅 등록
-- DEVLOG.md 맨 앞에 지금까지의 개발 흐름(5줄) 추가, 작성 방식 설명을 새 구조에 맞게 수정
-- 훅 스크립트 전체 `node --check` 문법 검사, 이번 세션 대화로 dry-run 요약 실행해 동작 확인
+- CLAUDE.md 신설: 세션 이어가기, "기억해줘" 저장 위치(CLAUDE.md/DEVLOG/CLAUDE.local.md) 규칙 정리
+- DEVLOG 자동 기록을 SessionEnd 훅에서 Stop 훅 기반(10분 무응답 시 기록)으로 전면 재작성, DEVLOG 맨 앞에 "개발 흐름" 요약 추가
+- `.gitattributes` 추가: DEVLOG.md union 병합 + LF 통일로 동시 기록 충돌 방지
+- `session-start.mjs`: pull 충돌 시 rebase 상태를 되돌리고 Claude가 먼저 처리하도록 변경
+- `pre-push.mjs` 신설: push 직전 원격을 fetch해 팀원의 새 커밋이 있으면 막고 pull·병합 후 재시도하게 함("Check Push")
+- `.claude/skills/check-push/SKILL.md` 신설: 팀원 누구나 `/check-push`로 같은 절차 실행 가능
+- `stop.mjs`: 기능 완성 시 올리지 않은 변경을 감지해 Claude가 판단 후 자동 Check Push하도록 보강
+- NEIS Open API 연동(`scripts/fetch-academic.mjs`, `academic.json`, GitHub Actions 매일 갱신)으로 학사일정 수집
+- 달력에 🎓 학사일정 버튼: 귀가일/시험/방학·개학/공휴일·휴업일/학교행사/동아리·꿈지락 종류별 on-off, 학년 필터
+- `academic-extra.json` 신설: NEIS에 없는 카톡 공지 일정(학술동아리 7건, 문화예술동아리 5건, 재능나눔체험전 1건) 수동 추가 후 자동 병합
+- `updates.js` + index.html: 접속 시 주요 업데이트 팝업(한 번 닫으면 다음 주요 업데이트까지 숨김), 좌측 상단 업데이트 탭 추가, 기존 "새로고침 안내" 제거
+- 동아리 이름 오타 수정: 문예예술동아리 → 문화예술동아리 (5개 일정 + 문구 전체)
 
 ### 결정과 이유
-- VS Code에서는 SessionEnd 훅이 보통 실행되지 않아 DEVLOG가 쌓이지 않았으므로, 응답 후 10분 무응답 시 Stop 훅으로 요약·기록하는 방식을 추가
-- 평소 자동 기록 시점에는 DEVLOG.md만 커밋·push하도록 제한해, 작업 중인 코드가 의도치 않게 `main`에 배포되는 것을 방지
-- 터미널에서 세션을 직접 종료할 때는 기존처럼 바뀐 파일 전체를 커밋
+- VS Code에서는 SessionEnd 훅이 실행되지 않아 Stop 훅으로 전환함
+- 코드 변경은 자동 커밋하지 않고 DEVLOG만 자동 커밋함. `main`이 바로 배포되므로 작업 중 코드가 올라가는 걸 막기 위함
+- 기능 완성 판단은 Claude에게 맡기고, 완성됐을 때만 자동 Check Push하도록 함(개발 편의 요청에 따름)
+- 학사일정 정렬 기준을 로케일 비교 대신 글자 코드 순으로 바꿈. Windows와 GitHub Actions의 정렬 결과가 달라 내용 변화 없이 순서만 바뀌는 커밋이 반복해서 생겼기 때문
+- 카톡 공지처럼 NEIS에 없는 일정은 `academic-extra.json`에 별도 보관함. `academic.json`은 매일 자동 갱신으로 덮어써지므로 직접 수정하면 다음 날 사라짐
 
 ### 해결한 문제
-- 증상: DEVLOG 자동 기록이 한 번도 되지 않음 → 원인: `.git/devlog-hook.log`에 세션 종료 기록이 전혀 없어, VS Code에서 SessionEnd 훅이 실행되지 않는 것으로 확인 → 해결: Stop 훅 기반의 10분 무응답 자동 기록 방식 도입
-- 부수적으로 dry-run 테스트 중 바뀐 파일 목록에서 경로 앞 `.`이 잘리는 기존 버그 발견 후 수정
+- 증상: 같은 시간대에 두 사람이 개발하면 push 시 병합이 안 됨 → 원인: DEVLOG.md 같은 위치(맨 끝)에 동시에 기록 추가 → 해결: union 병합 설정 + push 직전 원격 확인 훅(Check Push) 도입
+- 증상: 학사일정 자동 갱신 커밋이 내용 변화 없이 순서만 계속 바뀜 → 원인: Windows와 GitHub Actions 서버의 로케일 정렬 차이 → 해결: 정렬 기준을 글자 코드 순으로 통일
 
 ### 남은 일
-- [ ] CLAUDE.md·훅 변경사항 커밋 및 `main` push 여부 확인
-- [ ] 실제로 10분 뒤 자동 기록과 push가 정상 동작하는지 확인
-- [ ] 자동 요약이 세부 원인을 틀리게 적는 경우가 있어, 중요한 기록은 사람이 한 번 검토 필요
-
-### 배운 점
-- VS Code 확장에서는 세션 종료 시 SessionEnd 훅이 대개 실행되지 않음
-- 자동 요약 내용(특히 "해결한 문제"의 원인 서술)이 실제와 다르게 생성될 수 있어 검증이 필요함
+- [ ] 방금 개발한 내용이 DEVLOG에 누락된 원인을 조사하며 `devlog-worker.mjs`/`lib.mjs`/`pre-push.mjs`를 수정 중이며, 세션 로그상 아직 최종 확인·커밋 전임
+- [ ] 귀사일 표시 방법 결정(관리자가 직접 입력할지, 규칙 기반 자동 표시로 만들지)
+- [ ] 관리자가 기존에 넣은 귀가일(학교 일정)과 학사일정 귀가일이 중복 표시되는 문제 정리
+- [ ] 학사일정 화면을 실제 브라우저(특히 모바일)에서 팀원이 직접 확인
+- [ ] NEIS 인증키(`NEIS_KEY`)를 GitHub Secrets에 등록해 하루 6건 넘는 일정 누락 방지
 
 ### 바뀐 파일
 - `.claude/hooks/devlog-worker.mjs`
 - `.claude/hooks/lib.mjs`
+- `.claude/hooks/pre-push.mjs`
 - `.claude/hooks/session-end.mjs`
 - `.claude/hooks/session-start.mjs`
 - `.claude/hooks/stop.mjs`
 - `.claude/settings.json`
+- `.claude/skills/check-push/SKILL.md`
+- `.gitattributes`
+- `.github/workflows/academic.yml`
 - `.gitignore`
 - `CLAUDE.md`
 - `README.md`
+- `academic-extra.json`
+- `academic.json`
+- `dshs-study.js`
+- `index.html`
+- `scripts/fetch-academic.mjs`
+- `sw.js`
+- `updates.js`

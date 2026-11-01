@@ -4,12 +4,14 @@
 // --mode idle    stop.mjs 가 매 답변 뒤 실행. IDLE_MS 동안 다음 답변이 없을 때만 기록하고 DEVLOG.md 만 커밋한다.
 // --mode catchup session-start.mjs 가 놓친 세션에 대해 실행. 바로 기록하고 DEVLOG.md 만 커밋한다.
 // --mode final   session-end.mjs 가 실행. 기록하고 바뀐 파일 전체를 커밋한다.
+// --mode write   Check Push 직전에 Claude 가 실행. DEVLOG.md 에 기록만 하고 커밋·push 는 Check Push 에 맡긴다.
+//                --session 을 빼면 CLAUDE_CODE_SESSION_ID, --transcript 를 빼면 세션 id 로 대화 기록을 찾는다.
 // 직접 시험: node .claude/hooks/devlog-worker.mjs --transcript <기록.jsonl> --dry-run
 import { spawnSync } from 'node:child_process';
 import { closeSync, existsSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { git, IDLE_MS, log, readState, repoRoot, writeState } from './lib.mjs';
+import { findTranscript, git, IDLE_MS, log, readState, repoRoot, requestText, writeState } from './lib.mjs';
 
 // 아래에서 부르는 claude -p 세션이 다시 이 훅들을 실행하지 않게 막는 표시
 process.env.DSHS_DEVLOG_CHILD = '1';
@@ -38,9 +40,7 @@ function readDigest(transcriptPath) {
     const content = e.message?.content;
     const blocks = Array.isArray(content) ? content : [{ type: 'text', text: content ?? '' }];
     if (e.type === 'user') {
-      // IDE·시스템이 덧붙인 태그와 슬래시 명령 출력은 사용자 요청이 아니다
-      const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n')
-        .replace(/<(system-reminder|ide_[a-z_]+|local-command-[a-z]+|command-[a-z]+)>[\s\S]*?<\/\1>/g, '').trim();
+      const text = requestText(e);
       if (!text) continue;
       requests++;
       lines.push(`\n[사용자] ${limit(text, 3000)}`);
@@ -219,8 +219,8 @@ function main() {
   const opt = (name) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
   const dryRun = args.includes('--dry-run');
   const mode = opt('mode') ?? 'final';
-  const sessionId = opt('session') ?? '';
-  const transcriptPath = opt('transcript');
+  const sessionId = opt('session') ?? process.env.CLAUDE_CODE_SESSION_ID ?? '';
+  const transcriptPath = opt('transcript') ?? (sessionId ? findTranscript(sessionId) : undefined);
   if (!transcriptPath || !existsSync(transcriptPath)) { log(`worker: 대화 기록 파일 없음 (${transcriptPath})`); return; }
   const sid = (sessionId || path.basename(transcriptPath, '.jsonl')).slice(0, 8);
 
@@ -235,6 +235,7 @@ function main() {
   if (!fresh) {
     // 이미 기록한 세션: 종료 때는 남은 코드 변경만 커밋한다
     if (all && !dryRun) withLock(() => publish('세션 종료 자동 커밋', true));
+    if (mode === 'write') process.stdout.write('DEVLOG.md 가 이미 최신이에요\n');
     return;
   }
 
@@ -247,8 +248,10 @@ function main() {
     writeSection(section, sid);
     writeFlow(flowLine, sid);
     const title = section.split('\n')[0].replace(/^##\s*[^·]*·\s*/, '').trim();
+    // requests: pre-push.mjs 가 "마지막 기록 뒤에 새 요청이 있었는지" 비교하는 데 쓴다
+    if (sessionId) writeState(sessionId, { done: size, requests: digest.requests, transcript: transcriptPath });
+    if (mode === 'write') { log(`worker: DEVLOG 기록 (Check Push 용) · ${title}`); process.stdout.write(`DEVLOG.md 에 기록했어요: ${title}\n`); return; }
     publish(title, all);
-    if (sessionId) writeState(sessionId, { done: size });
   });
 }
 

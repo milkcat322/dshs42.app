@@ -1,6 +1,7 @@
 // dshs-study Claude Code 훅 공용 함수
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,6 +24,35 @@ export function git(...args) {
 export function log(msg) {
   const stamp = new Date().toLocaleString('sv-SE');
   try { appendFileSync(path.join(repoRoot, '.git', 'devlog-hook.log'), `[${stamp}] ${msg}\n`); } catch {}
+}
+
+// 대화 기록의 한 항목 → 사용자가 직접 쓴 요청 (IDE·시스템이 덧붙인 태그와 슬래시 명령 출력은 뺀다). 요청이 아니면 ''.
+export function requestText(e) {
+  if (e.type !== 'user' || e.isSidechain || e.isMeta) return '';
+  const content = e.message?.content;
+  const blocks = Array.isArray(content) ? content : [{ type: 'text', text: content ?? '' }];
+  return blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n')
+    .replace(/<(system-reminder|ide_[a-z_]+|local-command-[a-z]+|command-[a-z]+)>[\s\S]*?<\/\1>/g, '').trim();
+}
+
+export function countRequests(transcriptPath) {
+  let n = 0;
+  for (const line of readFileSync(transcriptPath, 'utf8').split('\n')) {
+    try { if (requestText(JSON.parse(line))) n++; } catch {}
+  }
+  return n;
+}
+
+// 세션 id 로 대화 기록 파일을 찾는다 (~/.claude/projects/<폴더>/<세션 id>.jsonl)
+export function findTranscript(sessionId) {
+  const base = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
+  try {
+    for (const dir of readdirSync(base)) {
+      const f = path.join(base, dir, `${sessionId}.jsonl`);
+      if (existsSync(f)) return f;
+    }
+  } catch {}
+  return undefined;
 }
 
 export function readHookInput() {

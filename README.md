@@ -140,7 +140,7 @@ const CACHE = 'dshs-study-v1';  →  'dshs-study-v2';
 | 언제 | 자동으로 하는 일 |
 |---|---|
 | 세션을 열 때 (새 세션 · 이어하기 · `/clear`) | `git pull --rebase --autostash` 로 다른 팀원의 변경을 받아옴. 지난 세션 중 기록을 놓친 것이 있으면 지금 기록 |
-| Claude 가 `git push` 하기 직전 (**Check Push**) | 원격을 확인해 다른 팀원의 새 커밋이 있으면 push 를 막고, 먼저 받아서 합친 뒤 push 하게 함 |
+| Claude 가 `git push` 하기 직전 (**Check Push**) | DEVLOG 에 이번 작업이 아직 없으면 먼저 기록해 함께 올리게 하고, 원격에 다른 팀원의 새 커밋이 있으면 먼저 받아서 합친 뒤 push 하게 함 |
 | Claude 의 답변 뒤 10분 동안 다음 요청이 없을 때 | 대화 내용을 요약해 [DEVLOG.md](DEVLOG.md) 맨 아래에 기록 추가(주요 개발이면 맨 앞 "개발 흐름" 에도 한 줄) → **DEVLOG.md 만** 커밋 → `git push` |
 | 세션을 닫을 때 (터미널 CLI 에서 종료할 때. VS Code 에서는 대개 실행되지 않음) | 위와 같이 기록 → **변경 전체** 커밋 → `git push` |
 
