@@ -226,31 +226,6 @@
   .pick-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; cursor: pointer; text-align: left; font-family: 'Noto Sans KR', sans-serif; color: var(--text); font-size: 14px; font-weight: 600; transition: border-color 0.2s; }
   .pick-item:hover { border-color: var(--accent1); }
   .pick-meta { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; font-weight: 400; }
-  .exam-hero { background: linear-gradient(135deg, rgba(224,111,158,0.16), rgba(124,111,224,0.14)); border: 1px solid rgba(224,111,158,0.35); border-radius: 16px; padding: 16px 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
-  .exam-dday { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 700; color: var(--accent2); line-height: 1; flex-shrink: 0; }
-  .exam-hero-tx { flex: 1; min-width: 0; }
-  .exam-hero-title { font-size: 14px; font-weight: 700; }
-  .exam-hero-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 3px; }
-  .exam-day { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
-  .exam-day.none { opacity: 0.5; }
-  .exam-day-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
-  .exam-date { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; }
-  .exam-dow { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
-  .exam-day-none { font-size: 12.5px; color: var(--text-muted); margin-left: auto; }
-  .exam-slot { display: flex; gap: 11px; padding: 9px 0; border-top: 1px solid var(--border); }
-  .exam-slot:first-of-type { border-top: none; padding-top: 2px; }
-  .exam-band { flex-shrink: 0; width: 66px; }
-  .exam-band .bd { font-size: 11.5px; font-weight: 700; color: var(--text-dim); }
-  .exam-band .tm { font-size: 9.5px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; line-height: 1.3; }
-  .exam-items { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .exam-item { border-radius: 9px; padding: 8px 11px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
-  .exam-item.mine { background: rgba(111,224,196,0.14); border: 1px solid rgba(111,224,196,0.45); color: #6fe0c4; }
-  .exam-item.other { background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); font-weight: 400; }
-  .exam-item .ban { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; opacity: 0.85; }
-  .exam-item .chk { font-size: 11px; }
-  .exam-toggle { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); border-radius: 12px; padding: 11px; font-size: 12.5px; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; margin-bottom: 12px; }
-  .exam-foot { font-size: 11.5px; color: var(--text-muted); line-height: 1.7; margin-top: 12px; padding: 11px 13px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
-  .exam-line { font-size: 12px; color: var(--accent2); margin-top: 6px; font-weight: 600; }
   .late-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
   .late-toggle { background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); border-radius: 9px; padding: 7px 12px; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; font-weight: 600; cursor: pointer; transition: all 0.2s; }
   .late-toggle.on { background: rgba(111,224,196,0.14); border-color: rgba(111,224,196,0.5); color: var(--accent3); }
@@ -1083,8 +1058,7 @@ function renderResult(name, student) {
     </div>
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('timetable',this)">📅 시간표</button>
-      <button class="tab-btn" onclick="switchTab('exam',this)">📝 중간고사</button>
-      <button class="tab-btn" onclick="switchTab('gpa',this)">🎓 평균 학점</button>
+      <button class="tab-btn" onclick="switchTab('gpa',this)">🎓 학점 계산</button>
       <button class="tab-btn" onclick="switchTab('classes',this)">📚 분반 목록</button>
       <button class="tab-btn" onclick="switchTab('overlap',this)">🔗 겹치는 수업</button>
       <button class="tab-btn" onclick="switchTab('compare',this)">⚖️ 비교</button>
@@ -1112,7 +1086,6 @@ function renderResult(name, student) {
     </div>
     <div class="tab-panel" id="panel-overlap">${buildOverlapPanel(name)}</div>
     <div class="tab-panel" id="panel-compare">${buildComparePanel(name)}</div>
-    <div class="tab-panel" id="panel-exam">${buildExamPanel(name)}</div>
     <div class="tab-panel" id="panel-gpa">${buildGpaPanel(name)}</div>
     <div class="tab-panel" id="panel-wallpaper">${buildWallpaperPanel(name)}</div>
   `;
@@ -1279,7 +1252,7 @@ function renderSubject(subject) {
   resultEl.innerHTML = `
     <div class="student-profile">
       <div class="student-avatar subj-avatar">📘</div>
-      <div class="student-info"><h2>${subject}</h2>${SUBJECT_OFFICIAL[subject] && SUBJECT_OFFICIAL[subject] !== subject ? `<div class="subj-official">정식 명칭: ${SUBJECT_OFFICIAL[subject]}</div>` : ''}<div class="student-meta">${info.teacher ? info.teacher + ' 선생님' : '담당 선생님 정보 없음'}${info.room ? ' · ' + info.room : ''}</div>${examOf(subject) ? `<div class="exam-line">📝 중간고사 ${examOf(subject)}</div>` : ''}</div>
+      <div class="student-info"><h2>${subject}</h2>${SUBJECT_OFFICIAL[subject] && SUBJECT_OFFICIAL[subject] !== subject ? `<div class="subj-official">정식 명칭: ${SUBJECT_OFFICIAL[subject]}</div>` : ''}<div class="student-meta">${info.teacher ? info.teacher + ' 선생님' : '담당 선생님 정보 없음'}${info.room ? ' · ' + info.room : ''}</div></div>
     </div>
     <div class="stats-row">
       <div class="stat-chip"><span class="stat-num" style="color:var(--accent3)">${creditOf(subject)}</span><span class="stat-label">학점</span></div>
@@ -1450,116 +1423,6 @@ function buildGpaPanel(name, keepState) {
           return `<tr><td>${r.g}</td><td>${r.p.toFixed(1)}</td><td>${pSci}</td><td>${pLib}</td></tr>`;
         }).join('')}</tbody>
       </table>
-    </div>`;
-}
-
-// ===== 중간고사 =====
-const EXAM_TITLE = '2026학년도 2학기 중간고사';
-const EXAM_SCHEDULE = [
-  { date: '10/19', iso: '2026-10-19', dow: '월', slots: [
-    { band: '2교시', time: '09:20~10:10', items: [
-      { name: '비판적 영어 읽기와 토론', key: '영어토론' },
-      { name: '학술영어 세미나', key: '학술영어' } ] },
-    { band: '3·4교시', time: '10:50~12:10<br>(80분)', items: [
-      { name: '일반생물학', key: '일반생물학' },
-      { name: '일반화학II', key: '일반화학2' } ] }
-  ]},
-  { date: '10/20', iso: '2026-10-20', dow: '화', slots: [
-    { band: '3·4교시', time: '10:50~12:10<br>(80분)', items: [
-      { name: '일반물리학II', key: '일반물리2' } ] }
-  ]},
-  { date: '10/21', iso: '2026-10-21', dow: '수', slots: [
-    { band: '2교시', time: '09:20~10:10', items: [
-      { name: '일반지구과학', key: '일반지구과학' } ] },
-    { band: '3·4교시', time: '10:50~12:10<br>(80분)', items: [
-      { name: '미적분학II', key: '미적분학2' },
-      { name: '응용수학', key: '응용수학' } ] }
-  ]},
-  { date: '10/22', iso: '2026-10-22', dow: '목', slots: [
-    { band: '3·4교시', time: '10:50~12:10<br>(80분)', items: [
-      { name: '일반화학I', key: '일반화학1' } ] }
-  ]},
-  { date: '10/23', iso: '2026-10-23', dow: '금', slots: [
-    { band: '2교시', time: '09:20~10:10', items: [
-      { name: '자료구조와 알고리즘', key: '자료구조와 알고리즘' } ] },
-    { band: '4교시', time: '11:20~12:10', items: [
-      { name: '화법과 의사소통', key: '화법소통' },
-      { name: '매체와 언어생활 탐구', key: '매체언어' } ] }
-  ]}
-];
-const EXAM_DOW_COLOR = { '월': '#a78bfa', '화': '#60a5fa', '수': '#34d399', '목': '#fb923c', '금': '#f472b6' };
-
-function examDDay() {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const first = new Date('2026-10-19T00:00:00');
-  const last = new Date('2026-10-23T00:00:00');
-  const diff = Math.round((first - today) / 86400000);
-  if (diff > 0) return { label: 'D-' + diff, sub: `첫날까지 ${diff}일 남았어요` };
-  if (today <= last) return { label: '진행 중', sub: '시험 기간이에요' };
-  return { label: '종료', sub: '중간고사가 끝났어요' };
-}
-
-// 이 과목이 언제 시험인지 (과목 페이지용)
-function examOf(subject) {
-  for (const d of EXAM_SCHEDULE) {
-    for (const sl of d.slots) {
-      const it = sl.items.find(x => x.key === subject);
-      if (it) return `${d.date}(${d.dow}) ${sl.band} · ${sl.time.replace('<br>', ' ')}`;
-    }
-  }
-  return null;
-}
-
-function buildExamPanel(name) {
-  const student = SCHOOL_DATA[name];
-  const dd = examDDay();
-  const mine = [];
-  EXAM_SCHEDULE.forEach(d => d.slots.forEach(sl => sl.items.forEach(it => {
-    if (student.classes[it.key]) mine.push({ ...it, date: d.date, dow: d.dow, band: sl.band });
-  })));
-
-  const days = EXAM_SCHEDULE.map(d => {
-    const has = d.slots.some(sl => sl.items.some(it => student.classes[it.key]));
-    const slots = d.slots.map(sl => {
-      const items = sl.items.map(it => {
-        const ban = student.classes[it.key];
-        return ban
-          ? `<div class="exam-item mine"><span class="chk">✔</span>${it.name}<span class="ban">${ban}</span></div>`
-          : `<div class="exam-item other">${it.name}</div>`;
-      }).join('');
-      return `<div class="exam-slot"><div class="exam-band"><div class="bd">${sl.band}</div><div class="tm">${sl.time}</div></div><div class="exam-items">${items}</div></div>`;
-    }).join('');
-    return `<div class="exam-day${has ? '' : ' none'}">
-      <div class="exam-day-head">
-        <span class="exam-date">${d.date}</span>
-        <span class="exam-dow" style="background:${EXAM_DOW_COLOR[d.dow]}22;color:${EXAM_DOW_COLOR[d.dow]}">${d.dow}</span>
-        ${has ? '' : '<span class="exam-day-none">내 시험 없음</span>'}
-      </div>${slots}</div>`;
-  }).join('');
-
-  const myList = mine.length
-    ? mine.map(m => `<div class="exam-item mine" style="margin-bottom:6px"><span class="chk">✔</span>${m.name}<span class="ban">${m.date}(${m.dow}) ${m.band}</span></div>`).join('')
-    : '<div style="color:var(--text-dim);font-size:0.83rem">이번 중간고사에 보는 과목이 없어요.</div>';
-
-  return `
-    <div class="exam-hero">
-      <div class="exam-dday">${dd.label}</div>
-      <div class="exam-hero-tx">
-        <div class="exam-hero-title">${EXAM_TITLE}</div>
-        <div class="exam-hero-sub">10월 19일(월) ~ 23일(금) · ${dd.sub}</div>
-      </div>
-    </div>
-    <div class="stats-row">
-      <div class="stat-chip"><span class="stat-num">${mine.length}</span><span class="stat-label">내 시험 과목</span></div>
-      <div class="stat-chip"><span class="stat-num">${new Set(mine.map(m => m.date)).size}</span><span class="stat-label">시험 보는 날</span></div>
-    </div>
-    <div class="section-title">내 시험 과목</div>
-    <div style="margin-bottom:22px">${myList}</div>
-    <div class="section-title">날짜별 시간표 <span style="font-size:11px;color:var(--text-muted);font-weight:400">— 민트색이 내 시험</span></div>
-    ${days}
-    <div class="exam-foot">
-      1교시(08:20~09:10)에는 시험이 없어요. 80분 시험은 10:50에 시작합니다.<br>
-      실기·수행평가는 이 표에 없으며, 최종 일정은 학교 공지를 확인하세요.
     </div>`;
 }
 
