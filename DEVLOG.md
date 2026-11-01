@@ -225,47 +225,48 @@
 - `dshs-study.js`
 - `DEVLOG.md`
 
-## 2026-11-01 14:11–15:51 · 세션 간 연속성(Check Push)과 학사일정·업데이트 소식·내 시간표 탭 추가
+## 2026-11-01 14:11–15:52 · 학사일정 연동, 업데이트 팝업, Check Push 자동화, 서비스 이름 변경
 
 `session a12519e2` · 요청 15회
 
 ### 목표
-- Claude Code 세션이 바뀌어도 팀원들과 작업 맥락과 git 상태가 이어지게 만들기
-- 학교 공식 학사일정(NEIS)을 달력에 종류별 on/off로 표시
-- 접속 시 주요 업데이트 팝업과 전체 업데이트 내역 탭 추가
-- 로그인 시 내 시간표를 기본 화면으로, 탭 맨 왼쪽에 내 시간표 탭 추가
-- 서비스 이름을 dshs.study에서 dshs42.app으로 변경
+- 세션 간 맥락 유지(CLAUDE.md), 팀원과 동시 작업 시 push 충돌 방지
+- 대전과학고 학사일정을 달력에 연동, 업데이트 소식 팝업, 로그인 시 내 시간표 바로 보기
+- 서비스 이름을 dshs42.app으로 변경
 
 ### 한 일
-- CLAUDE.md 신설: 세션 이어가기, 기억 저장 위치(CLAUDE.md/DEVLOG/CLAUDE.local.md), 동시 작업 시 충돌 해결 절차 규정
-- DEVLOG 자동 기록을 모든 세션으로 확장(Stop 훅), DEVLOG 맨 앞에 "개발 흐름" 요약 추가
-- `.gitattributes`로 DEVLOG.md union 병합 설정, LF 줄바꿈 통일
-- pre-push 훅 도입: push 전 원격 확인, 팀원의 새 커밋이 있으면 막고 합친 뒤 재시도
-- `/check-push` 스킬 및 "Check Push" 절차를 팀 공용으로 문서화, 기능 완성 시 자동 실행하도록 Stop 훅 보강
-- NEIS API로 학사일정을 받아 `academic.json`에 저장하는 스크립트와 GitHub Actions 일일 자동 갱신 추가
-- 달력에 🎓 학사일정 버튼(귀가일/시험/방학·개학/공휴일·휴업일/학교 행사/동아리·꿈지락) 추가
-- 카톡 공지 기반 동아리 일정 13건을 `academic-extra.json`에 추가해 NEIS 일정과 자동 병합
-- 접속 시 주요 업데이트 팝업(`updates.js`)과 좌측 상단 업데이트 내역 탭 추가, 기존 "새로고침 안내" 제거
-- 로그인 시 내 시간표 자동 표시, 탭 맨 왼쪽에 "📅 내 시간표" 탭 추가
-- 서비스 표시 이름을 dshs.study → dshs42.app으로 변경(로그인 이메일 도메인 등 내부 값은 유지)
+- CLAUDE.md 신설: 세션 이어가기, 기억 저장 위치(CLAUDE.md/DEVLOG/CLAUDE.local.md), 개발 시 주의점 정리
+- DEVLOG 자동 기록을 모든 세션으로 확장, 맨 앞에 "개발 흐름" 요약 추가
+- `.gitattributes`로 DEVLOG union 병합, LF 통일 설정
+- `pre-push.mjs` 훅으로 push 직전 원격 확인·자동 병합하는 "Check Push" 도입, `/check-push` 스킬 작성
+- Stop 훅이 기능 완성 여부를 판단해 자동 Check Push하도록 보강
+- NEIS API로 학사일정을 받아오는 `scripts/fetch-academic.mjs`와 GitHub Actions 매일 갱신(`academic.yml`) 추가
+- 달력에 🎓 학사일정 버튼으로 종류별(귀가일/시험/방학개학/공휴일/학교행사/동아리) on-off 기능 구현
+- `academic-extra.json` 신설: NEIS에 없는 카톡 공지 일정(학술동아리 등 13건)을 수동 추가해 자동 병합
+- 접속 시 주요 업데이트 요약 팝업(`updates.js`)과 좌측 상단 업데이트 내역 탭 구현
+- 로그인 시 내 시간표로 시작, 탭 맨 왼쪽에 "내 시간표" 탭 추가
+- 서비스 표시 이름을 dshs.study → dshs42.app으로 변경(로그인 이메일 도메인 등 내부 이름은 유지)
 
 ### 결정과 이유
-- Check Push는 DEVLOG 자동 기록과 별개로 유지: `main` push 즉시 배포되므로 미완성 코드가 쉬는 시간만으로 올라가지 않게 함
-- 코드 변경 Check Push는 Claude 판단에 맡기고, DEVLOG·원격 확인은 훅으로 강제: 사람(또는 AI)의 깜빡임보다 훅이 신뢰도가 높음
-- NEIS에 없는 자체 일정은 `academic.json` 대신 `academic-extra.json`에 별도 보관: 자동 갱신 스크립트가 매일 덮어써서 직접 수정이 사라지는 문제를 피함
-- 학사일정 정렬을 로캘 비교 대신 글자 코드 순으로 변경: Windows와 GitHub Actions의 정렬 결과가 달라 매번 순서만 바뀌는 무의미한 커밋이 생기던 문제
+- Check Push는 DEVLOG 자동 기록과 별개로 코드 커밋까지 묶어서 push 직전에 수행 — 기능 완성 판단은 Claude가 하되, 작업 중 상태가 배포되지 않도록 완전 자동화는 보류
+- 학사일정 수정 원본은 NEIS 자동 갱신과 분리된 `academic-extra.json`에 두기로 함 — `academic.json`을 직접 고치면 매일 갱신 때 덮어써짐
+- academic.json 정렬을 localeCompare 대신 글자 코드 순으로 변경 — Windows와 GitHub Actions의 정렬 결과가 달라 순서만 바뀌는 커밋이 반복 생성되던 문제 때문
 
 ### 해결한 문제
-- 증상: DEVLOG에 방금 개발한 내용(학사일정~이름 정정)이 빠짐 → 원인: 10분 무요청 시에만 기록하던 방식인데 요청이 계속 이어져 기록 시점이 계속 밀림, 그사이 Check Push로 코드만 먼저 올라감 → 해결: Check Push 실행 시마다 DEVLOG도 함께 갱신해 올리도록 변경, pre-push 훅이 "마지막 기록 후 새 요청 있음"을 감지해 push를 막도록 보강
-- 증상: SessionEnd 훅이 한 번도 실행된 기록이 없음 → 원인: VS Code에서는 세션 종료 시 SessionEnd 훅이 대개 실행되지 않음 → 해결: Stop 훅(답변 후 10분 무요청) 기반으로 기록 방식 전환
-- 증상: 동시 push로 DEVLOG.md 충돌 발생 → 원인: 두 사람이 같은 파일 끝부분에 동시에 기록을 추가 → 해결: union 병합 설정 추가, pre-push 훅으로 push 직전 원격 확인·병합 체계 도입
+- DEVLOG 자동 기록 누락 → 10분 내 연속 요청이 이어지면 Stop 훅의 기록 조건이 계속 미뤄짐 → Check Push 실행 시마다 DEVLOG도 함께 갱신하도록 변경, pre-push 훅이 기록 누락을 감지해 push를 막도록 보강
+- 테스트 로컬 서버가 즉시 종료 → 한글이 포함된 경로가 URL-인코딩되어 처리됨 → `fileURLToPath`로 수정
+- git push 충돌(팀원과 동시에 DEVLOG 맨 끝에 기록 추가) → union 병합 미설정으로 같은 위치 동시 수정 충돌 → `.gitattributes` union 병합 설정, rebase --autostash로 해소
 
 ### 남은 일
-- [ ] 귀사일 표시 방법 결정(NEIS·학교 홈페이지 모두 데이터 없음, 관리자 수동 입력 또는 규칙 기반 자동 표시 중 택1)
-- [ ] 관리자가 넣은 기존 귀가일과 신규 학사일정 귀가일 중복 표시(🏫/🎓) 정리
-- [ ] 실제 모바일 화면에서 학사일정 버튼과 업데이트 팝업 확인
-- [ ] NEIS 공식 인증키를 GitHub Secrets(`NEIS_KEY`)에 등록해 일부 일정 누락 가능성 제거
-- [ ] 실제 로그인으로 "내 시간표 기본 진입" 동작 확인
+- [ ] 귀사일 표시 방법 결정(NEIS·학교 홈페이지 어디에도 데이터 없음)
+- [ ] 관리자가 직접 넣은 귀가일과 NEIS 귀가일 중복 표시 정리
+- [ ] 실제 모바일 화면에서 학사일정·업데이트 팝업·내 시간표 탭 확인
+- [ ] NEIS 인증키(NEIS_KEY) 등록해 하루 6건 이상 일정 누락 방지
+- [ ] dshs42.app 도메인을 실제 구매해 Netlify에 연결할지 결정
+
+### 배운 점
+- VS Code에서는 세션 종료 시 SessionEnd 훅이 대개 실행되지 않아 DEVLOG 자동 기록에 의존할 수 없음 — Stop 훅(답변 후 대기) 또는 Check Push 시점에 기록하는 방식이 더 안정적
+- NEIS 공개 API는 인증키 없이 페이지네이션이 항상 첫 5건만 반환함 — 기간을 잘게 나눠 요청해야 전체 데이터를 받을 수 있음
 
 ### 바뀐 파일
 - `.claude/hooks/devlog-worker.mjs`
@@ -283,9 +284,11 @@
 - `README.md`
 - `academic-extra.json`
 - `academic.json`
+- `config.js`
+- `dshs-study.js`
 - `index.html`
 - `manifest.webmanifest`
-- `dshs-study.js`
 - `scripts/fetch-academic.mjs`
+- `supabase/functions/send-reminders/index.ts`
 - `sw.js`
 - `updates.js`
