@@ -121,11 +121,15 @@ async function init() {
   sb.auth.onAuthStateChange(async (evt) => {
     if (evt === "SIGNED_OUT") { me = null; myClasses = []; renderNav(); }
   });
+  // 검색으로 다른 시간표를 띄우거나 숨기면 "내 시간표" 탭 강조를 다시 맞춥니다
+  new MutationObserver(() => { if (me) renderNav(); })
+    .observe($("result"), { childList: true, attributes: true, attributeFilter: ["class"] });
 
-  // 알림을 누르고 들어오면 그 탭으로
+  // 알림을 누르고 들어오면 그 탭으로, 아니면 내 시간표로 시작합니다
   const opened = new URLSearchParams(location.search).get("view");
   if (me && opened === "assignments") openStudy("notice");
-  if (me && opened === "cal") openStudy("cal");
+  else if (me && opened === "cal") openStudy("cal");
+  else if (me?.student_id) openMyTimetable();
 }
 
 async function loadProfile() {
@@ -164,13 +168,17 @@ function renderNav() {
   const nav = $("studyNav");
   nav.style.display = "flex";
   const open = $("studyView").style.display === "block";
+  // 학생 계정은 맨 왼쪽에 "내 시간표" (관리자 계정은 학번이 없어 내 시간표가 없음)
+  const tabs = me?.student_id ? [["mytt", "📅 내 시간표"], ...PAGES] : PAGES;
+  const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && page === k);
   nav.innerHTML = me
-    ? PAGES.map(([k, label]) =>
-        `<button class="study-btn${open && page === k ? " primary" : ""}" data-page="${k}">${label}</button>`).join("") +
+    ? tabs.map(([k, label]) =>
+        `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("") +
       `<button class="study-btn" id="btnAcct" title="${esc(me.name)} (${esc(me.username)})">로그아웃</button>`
     : `<button class="study-btn" id="btnLogin">🔑 로그인 / 회원가입</button>`;
   if (me) {
-    nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () => openStudy(b.dataset.page));
+    nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
+      (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
     $("btnAcct").onclick = () => {
       if (confirm(`로그아웃할까요? (${me.name} · ${me.username})`)) logout();
     };
@@ -178,6 +186,28 @@ function renderNav() {
     $("btnLogin").onclick = () => openAuth("login");
   }
 }
+
+// ---------- 내 시간표 ----------
+// 시간표 화면(index.html 의 renderResult)에 내 시간표를 띄웁니다. 로그인하면 이 화면으로 시작합니다.
+function openMyTimetable() {
+  const nm = (window.ID_TO_NAME || {})[String(me?.student_id)];
+  if (!nm || typeof window.renderResult !== "function") return openStudy();
+  destroyCal();
+  $("studyView").style.display = "none";
+  $("errorMsg")?.classList.remove("show");
+  $("welcomeState").style.display = "none";
+  if ($("nameInput")) $("nameInput").value = "";   // 다른 사람을 검색했던 흔적 지우기
+  window.renderResult(nm, window.SCHOOL_DATA[nm]);
+  $("result").classList.add("show");
+  renderNav();
+}
+// 지금 시간표 화면에 떠 있는 게 내 시간표인지 (다른 학생·선생님·과목을 검색했으면 아님)
+function showingMyTimetable() {
+  const r = $("result");
+  return r.classList.contains("show") && !!r.querySelector(".student-profile")?.textContent.includes(`학번 ${me.student_id}`);
+}
+// 로그인 직후 첫 화면: 학생은 내 시간표, 관리자는 내 일정
+const openHome = () => (me.student_id ? openMyTimetable() : openStudy());
 
 async function logout() {
   await disablePush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 지웁니다
@@ -230,7 +260,7 @@ function loginForm() {
       await sb.auth.signOut();
       return showErr("계정 정보(프로필)를 찾지 못했어요. 관리자 계정이라면 admins.sql 을 실행했는지 확인해 주세요.");
     }
-    closeModal(); renderNav(); openStudy();
+    closeModal(); renderNav(); openHome();
     toast(`${me.name}님, 반가워요`);
   };
   $("doLogin").onclick = go;
@@ -304,7 +334,7 @@ function signupStep3(sid, name) {
       if (!res.ok) { $("doSignup").disabled = false; return showErr(out.error || "가입하지 못했어요."); }
       await sb.auth.signInWithPassword({ email: `${u}@${EMAIL_DOMAIN}`, password: p });
       await loadProfile();
-      closeModal(); renderNav(); openStudy();
+      closeModal(); renderNav(); openHome();
       toast(`${name}님, 가입을 환영해요`);
     } catch {
       $("doSignup").disabled = false;
