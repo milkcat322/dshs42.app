@@ -1213,7 +1213,7 @@ function myBlocks() {
   return blocks;
 }
 
-// 학교 일정 중 "수업 없음" 으로 표시된 날짜들 + 학사일정의 공휴일·휴업일(방학 포함)
+// 학교 일정 중 "수업 없음" 으로 표시된 날짜들 + 학사일정의 공휴일·휴업일(방학 포함)·지필평가
 // 학사일정은 달력에서 꺼 두어도 그날 시간표는 깔지 않습니다.
 function noClassDays() {
   const days = new Set();
@@ -1222,7 +1222,7 @@ function noClassDays() {
     const last = new Date(e.ends_at || e.starts_at);
     for (; d <= last; d.setDate(d.getDate() + 1)) days.add(dayKey(d));
   }
-  for (const e of myAcad().filter((x) => x.type === "공휴일" || x.type === "휴업일")) {
+  for (const e of myAcad().filter((x) => x.type === "공휴일" || x.type === "휴업일" || x.name.includes("지필평가"))) {
     for (const d = parseDay(e.start); dayKey(d) <= e.end; d.setDate(d.getDate() + 1)) days.add(dayKey(d));
   }
   return days;
