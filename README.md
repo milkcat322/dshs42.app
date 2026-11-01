@@ -17,6 +17,7 @@ supabase/functions/signup/index.ts          회원가입 (학번당 1계정 강�
 notify.sql                ★ 필수 학교 일정 표시 + 알림 발송 기록
 supabase/functions/send-reminders/index.ts  알림 발송
 supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼지 계산
+updates.js                업데이트 소식 (주요 업데이트는 접속 시 한 번 팝업 · 좌측 상단 📢 업데이트에서 전체 내역)
 academic.json             학사일정 (NEIS 에서 매일 자동 갱신 · 직접 고치지 않음)
 academic-extra.json       NEIS 에 없는 일정(카톡 공지 등)을 직접 적는 곳 → academic.json 에 합쳐짐
 scripts/fetch-academic.mjs  학사일정 받기 (GitHub Actions 가 매일 실행)
