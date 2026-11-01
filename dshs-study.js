@@ -1226,7 +1226,8 @@ const ACAD_CATS = [
   ["exam", "시험", "1·2차 지필평가"],
   ["break", "방학·개학", "방학식 · 개학식 · 방학 기간"],
   ["holiday", "공휴일·휴업일", "공휴일 · 재량휴업일"],
-  ["event", "학교 행사", "입학식 · 졸업식 · 체육대회 · 꿈지락 등"],
+  ["club", "동아리·꿈지락", "학술동아리 · 문예예술동아리 · 꿈지락"],
+  ["event", "학교 행사", "입학식 · 졸업식 · 체육대회 · 여명제 등"],
 ];
 let acadList = null;   // academic.json 의 일정 (처음 달력을 열 때 한 번 받습니다)
 let acadOn = (() => {
@@ -1239,6 +1240,7 @@ function acadCat(e) {
   if (/지필|고사|시험/.test(e.name)) return "exam";
   if (/방학|개학|종업/.test(e.name)) return "break";
   if (e.type === "공휴일" || e.type === "휴업일") return "holiday";
+  if (/동아리|꿈지락/.test(e.name)) return "club";
   return "event";
 }
 
@@ -1278,7 +1280,7 @@ function openAcadDetail(e) {
       <div class="ev-meta">${esc(when)} · ${label}${e.grades.length < 3 ? ` · ${e.grades.join("·")}학년` : ""}</div>
       ${e.memo ? `<div class="asg-body">${esc(e.memo)}</div>` : ""}
     </div>
-    <div class="study-foot">학교 홈페이지 학사일정(NEIS)에서 가져온 일정이에요.</div>`);
+    <div class="study-foot">${e.from ? `${esc(e.from)}로 추가한 일정이에요.` : "학교 홈페이지 학사일정(NEIS)에서 가져온 일정이에요."}</div>`);
 }
 
 const acadBtnLabel = () => `🎓 학사일정 ${acadOn.size}/${ACAD_CATS.length}`;

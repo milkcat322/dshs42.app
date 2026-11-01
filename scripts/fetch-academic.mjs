@@ -1,5 +1,6 @@
 // 대전과학고 학사일정을 NEIS 교육정보 개방 포털에서 받아 academic.json 으로 저장합니다.
 // 학교 홈페이지의 학사일정도 NEIS 에서 가져온 것이라 내용이 같습니다.
+// NEIS 에 없는 일정(카톡 공지 등)은 academic-extra.json 에 적어 두면 함께 합칩니다.
 // GitHub Actions(.github/workflows/academic.yml)가 매일 실행하고, 바뀐 게 있을 때만 커밋합니다.
 //
 // 실행:   node scripts/fetch-academic.mjs
@@ -8,7 +9,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'academic.json');
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = path.join(ROOT, 'academic.json');
+const EXTRA = path.join(ROOT, 'academic-extra.json');
 const API = 'https://open.neis.go.kr/hub/SchoolSchedule';
 const SCHOOL = { ATPT_OFCDC_SC_CODE: 'G10', SD_SCHUL_CODE: '7430032' };   // 대전광역시교육청 · 대전과학고등학교
 const KEY = process.env.NEIS_KEY || '';
@@ -90,12 +93,27 @@ function merge(rows) {
   return out.sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
 }
 
+// academic-extra.json 의 일정을 하루씩 더합니다. NEIS 에 같은 이름의 일정이 그날 있으면 건너뜁니다.
+function withExtras(events) {
+  let extra;
+  try { extra = JSON.parse(readFileSync(EXTRA, 'utf8')).events; } catch { return events; }
+  const out = [...events];
+  for (const x of extra) {
+    for (const day of x.dates) {
+      if (events.some((e) => e.name === x.name && e.start <= day && day <= e.end)) continue;
+      out.push({ name: x.name, type: '해당없음', grades: x.grades ?? [1, 2, 3], memo: x.memo ?? '', from: x.from ?? '', start: day, end: day });
+    }
+  }
+  return out.sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
+}
+
 // 이번 학년도(3월~다음 해 2월)와 다음 학년도를 받습니다
 const now = new Date();
 const ay = now.getMonth() + 1 >= 3 ? now.getFullYear() : now.getFullYear() - 1;
 const from = new Date(ay, 2, 1), to = new Date(ay + 2, 1, 28);
-const events = merge(await fetchRange(from, to));
-if (!events.length) throw new Error('받은 학사일정이 없어요. 학교 코드나 NEIS 응답을 확인해 주세요.');
+const neis = merge(await fetchRange(from, to));
+if (!neis.length) throw new Error('받은 학사일정이 없어요. 학교 코드나 NEIS 응답을 확인해 주세요.');
+const events = withExtras(neis);
 
 // 내용이 같으면 파일을 건드리지 않습니다 (날짜만 바뀐 커밋이 매일 생기지 않게)
 let prev = null;

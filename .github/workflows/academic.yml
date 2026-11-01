@@ -6,6 +6,9 @@ on:
   schedule:
     - cron: '0 18 * * *'   # 매일 03:00 (한국 시간)
   workflow_dispatch:
+  push:                    # academic-extra.json 을 고쳐 올리면 바로 다시 합칩니다
+    branches: [main]
+    paths: [academic-extra.json, scripts/fetch-academic.mjs]
 
 permissions:
   contents: write
