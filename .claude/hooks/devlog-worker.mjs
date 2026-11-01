@@ -116,7 +116,8 @@ function summarize(digest, sid, gitInfo) {
 - 팀원에게 의미 없는 개인 환경 이야기(로컬 경로, 포트, 개인 PC 설정)는 쓰지 않는다.
 - 마지막 \`===흐름===\` 아래에는, 이 세션이 프로젝트의 큰 흐름에서 눈여겨볼 개발(새 기능, 큰 구조 변경, 방향을 정한 결정)이면
   \`- **${ymd(digest.first)}** 무엇이 생겼거나 바뀌었는지 한 줄\` 형식으로 한 줄을 쓰고, 작은 수정·조사·잡일뿐이면 \`없음\` 이라고만 쓴다.
-  아래 "지금까지의 개발 흐름" 과 같은 내용을 되풀이하지 않는다.
+  한 세션에 주요 개발이 여러 개면 마지막 것만 쓰지 말고 세션 전체를 쉼표로 이어 한 줄에 담는다.
+  아래 "지금까지의 개발 흐름" 에서 다른 세션의 내용은 되풀이하지 않는다.
 
 ===== 지금까지의 개발 흐름 =====
 ${flow}
@@ -148,29 +149,47 @@ ${digest.text}
   return { section: `## ${range} · (자동 요약 실패)\n\n\`session ${sid}\` · 요청 ${digest.requests}회\n\n${gitInfo}` };
 }
 
-function writeSection(section, sid) {
+// 세션의 개발 흐름 한 줄은 그 세션 기록 끝에 <!-- flow: … --> 로 넣어 둔다.
+// 위의 "개발 흐름" 목록은 여기서 매번 다시 만든다 (writeFlow). 공용 목록을 직접 고치면 두 사람이 동시에 고칠 때
+// union 병합이 옛 줄과 새 줄을 모두 남겨 겹치지만, 세션 기록은 그 세션만 고치므로 겹치지 않는다.
+const FLOW_RE = /<!-- flow: (.*?) -->/;
+
+function writeSection(section, sid, flowLine) {
   let text = readDevlog() || `# dshs42.app 개발 로그\n\n${MARKER}\n`;
   if (!text.includes(MARKER)) text = `${text.trimEnd()}\n\n${MARKER}\n`;
 
   const at = text.indexOf(MARKER) + MARKER.length;
   const entries = text.slice(at).split(/^(?=## )/m).map((s) => s.trim()).filter(Boolean);
   const i = entries.findIndex((e) => e.includes(`\`session ${sid}\``));
-  if (i >= 0) entries[i] = section.trim();
-  else entries.push(section.trim());
+  // 이번에 "없음" 이어도 이 세션의 이전 흐름 줄은 그대로 둔다
+  const flow = flowLine ?? (i >= 0 ? entries[i].match(FLOW_RE)?.[1] : undefined);
+  const entry = section.trim() + (flow ? `\n\n<!-- flow: ${flow} -->` : '');
+  if (i >= 0) entries[i] = entry;
+  else entries.push(entry);
   writeFileSync(DEVLOG, `${text.slice(0, at)}\n\n${entries.join('\n\n')}\n`);
 }
 
-// 같은 세션의 줄이 있으면 바꾸고, 없으면 맨 아래에 추가한다 (이번에 "없음" 이어도 이전 줄은 그대로 둔다)
-function writeFlow(flowLine, sid) {
+// 개발 흐름 목록 = 세션 태그가 없는 줄(손으로 쓴 초기 기록) + 기록 순서대로 각 세션의 flow 줄.
+// flow 를 아직 기록에 넣지 않은 옛 세션은 목록에 있던 그 세션의 마지막 줄을 쓴다.
+function writeFlow() {
   const text = readDevlog();
   const lines = flowLines(text);
-  if (!flowLine || !lines) return;
-  const tag = `<!-- session ${sid} -->`;
-  const i = lines.findIndex((l) => l.includes(tag));
-  if (i >= 0) lines[i] = `${flowLine} ${tag}`;
-  else lines.push(`${flowLine} ${tag}`);
+  if (!lines) return;
+  const tagOf = (l) => l.match(/<!-- session (\w+) -->/)?.[1];
+  const manual = lines.filter((l) => !tagOf(l));
+  const legacy = new Map(lines.filter(tagOf).map((l) => [tagOf(l), l]));
+  const at = text.indexOf(MARKER) + MARKER.length;
+  const sessions = [];
+  for (const e of text.slice(at).split(/^(?=## )/m)) {
+    const sid = e.match(/`session (\w+)`/)?.[1];
+    if (!sid || sessions.some((x) => x.sid === sid)) continue;
+    const flow = e.match(FLOW_RE)?.[1];
+    const line = flow ? `${flow} <!-- session ${sid} -->` : legacy.get(sid);
+    if (line) sessions.push({ sid, line });
+  }
+  const out = [...manual, ...sessions.map((x) => x.line)];
   const s = text.indexOf(FLOW_START) + FLOW_START.length, e = text.indexOf(FLOW_END);
-  writeFileSync(DEVLOG, `${text.slice(0, s)}\n${lines.join('\n')}\n${text.slice(e)}`);
+  writeFileSync(DEVLOG, `${text.slice(0, s)}\n${out.join('\n')}\n${text.slice(e)}`);
 }
 
 function publish(title, all) {
@@ -245,8 +264,8 @@ function main() {
   const { section, flowLine } = summarize(digest, sid, gitSummary(digest.first));
   if (dryRun) { process.stdout.write(`${section}\n\n===흐름===\n${flowLine ?? '없음'}\n`); return; }
   withLock(() => {
-    writeSection(section, sid);
-    writeFlow(flowLine, sid);
+    writeSection(section, sid, flowLine);
+    writeFlow();
     const title = section.split('\n')[0].replace(/^##\s*[^·]*·\s*/, '').trim();
     // requests: pre-push.mjs 가 "마지막 기록 뒤에 새 요청이 있었는지" 비교하는 데 쓴다
     if (sessionId) writeState(sessionId, { done: size, requests: digest.requests, transcript: transcriptPath });
