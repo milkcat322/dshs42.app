@@ -470,6 +470,7 @@ function renderList(mode) {
       </div>`}
       <div class="cal-right">
         ${me.student_id && tab !== "list" ? `<label class="tt-check"><input type="checkbox" id="ttToggle"${showTT ? " checked" : ""}> 학교 시간표 보이기</label>` : ""}
+        ${tab !== "list" ? `<button class="study-btn small" id="acadBtn">${acadBtnLabel()}</button>` : ""}
         <div class="seg">${VIEWS.map(([k, label]) =>
           `<button class="seg-btn${tab === k ? " on" : ""}" data-seg="${k}">${label}</button>`).join("")}</div>
       </div>
@@ -482,6 +483,7 @@ function renderList(mode) {
     try { localStorage.setItem("dshs-cal-tt", showTT ? "on" : "off"); } catch {}
     fc?.refetchEvents();
   };
+  if ($("acadBtn")) $("acadBtn").onclick = openAcadFilter;
   bindRows(body);
   if (tab !== "list") mountCal();
 }
@@ -504,6 +506,7 @@ function openItem(kind, id) {
     const se = cache.school.find((x) => x.id === id);
     me.is_admin ? openSchoolForm(se) : openSchoolDetail(se);
   } else if (kind === "tt") return;
+  else if (kind === "acad") openAcadDetail(acadList.find((e) => e.id === id));
   else if (kind === "todo") openTodoForm(cache.todos.find((t) => t.id === id));
   else {
     const ev = cache.events.find((e) => e.id === id);
@@ -582,7 +585,7 @@ async function mountCal() {
       : { html: `<span class="fcx-wd">${arg.date.toLocaleDateString("ko-KR", { weekday: "short" })}</span><span class="fcx-daynum">${arg.date.getDate()}</span>` },
     // 월 보기 칸의 "29일" → "29". 주·3일 보기의 종일 칸에는 날짜를 다시 쓰지 않습니다
     dayCellContent: (arg) => arg.view.type === "dayGridMonth" ? String(arg.date.getDate()) : "",
-    events: (info, ok) => ok([...ttEvents(info.start, info.end), ...fcEvents()]),
+    events: (info, ok) => ok([...ttEvents(info.start, info.end), ...acadEvents(info.start, info.end), ...fcEvents()]),
     eventContent: fcContent,
     datesSet: (arg) => { fcDate = arg.view.currentStart; const t = $("calTitle"); if (t) t.textContent = arg.view.title; },
     dateClick: (arg) => {
@@ -607,6 +610,7 @@ async function mountCal() {
     eventResize: (arg) => moveEvent(arg),
   });
   fc.render();
+  loadAcademic();
 }
 
 // agenda() 항목 → FullCalendar 일정. 수행평가는 마감일의 종일 칸에 둡니다.
@@ -639,7 +643,7 @@ function fcContent(arg) {
     : arg.event.allDay ? "" : `${hm(s)}${e ? ` – ${hm(e)}` : ""}`;
   return { html: `<div class="fcx">
     ${time ? `<div class="fcx-time">${time}</div>` : ""}
-    <div class="fcx-title">${p.kind === "asg" ? "📋 " : p.kind === "sch" ? "🏫 " : p.shared ? "👥 " : ""}${esc(arg.event.title)}</div>
+    <div class="fcx-title">${p.kind === "asg" ? "📋 " : p.kind === "sch" ? "🏫 " : p.kind === "acad" ? "🎓 " : p.shared ? "👥 " : ""}${esc(arg.event.title)}</div>
   </div>` };
 }
 
@@ -1179,13 +1183,17 @@ function myBlocks() {
   return blocks;
 }
 
-// 학교 일정 중 "수업 없음" 으로 표시된 날짜들
+// 학교 일정 중 "수업 없음" 으로 표시된 날짜들 + 학사일정의 공휴일·휴업일(방학 포함)
+// 학사일정은 달력에서 꺼 두어도 그날 시간표는 깔지 않습니다.
 function noClassDays() {
   const days = new Set();
   for (const e of cache.school.filter((x) => x.no_class)) {
     const d = new Date(e.starts_at); d.setHours(0, 0, 0, 0);
     const last = new Date(e.ends_at || e.starts_at);
     for (; d <= last; d.setDate(d.getDate() + 1)) days.add(dayKey(d));
+  }
+  for (const e of myAcad().filter((x) => x.type === "공휴일" || x.type === "휴업일")) {
+    for (const d = parseDay(e.start); dayKey(d) <= e.end; d.setDate(d.getDate() + 1)) days.add(dayKey(d));
   }
   return days;
 }
@@ -1208,6 +1216,84 @@ function ttEvents(from, to) {
     });
   }
   return out;
+}
+
+// ---------- 학사일정 (NEIS) ----------
+// 학교 홈페이지의 학사일정을 scripts/fetch-academic.mjs 가 매일 academic.json 으로 받아 둡니다.
+// 종류별로 켜고 끄고, 고른 값은 이 기기에 기억합니다.
+const ACAD_CATS = [
+  ["home", "귀가일", "귀가일"],
+  ["exam", "시험", "1·2차 지필평가"],
+  ["break", "방학·개학", "방학식 · 개학식 · 방학 기간"],
+  ["holiday", "공휴일·휴업일", "공휴일 · 재량휴업일"],
+  ["event", "학교 행사", "입학식 · 졸업식 · 체육대회 · 꿈지락 등"],
+];
+let acadList = null;   // academic.json 의 일정 (처음 달력을 열 때 한 번 받습니다)
+let acadOn = (() => {
+  try { const v = JSON.parse(localStorage.getItem("dshs-cal-acad")); if (Array.isArray(v)) return new Set(v); } catch {}
+  return new Set(ACAD_CATS.map(([k]) => k));
+})();
+
+function acadCat(e) {
+  if (/귀가|귀사/.test(e.name)) return "home";
+  if (/지필|고사|시험/.test(e.name)) return "exam";
+  if (/방학|개학|종업/.test(e.name)) return "break";
+  if (e.type === "공휴일" || e.type === "휴업일") return "holiday";
+  return "event";
+}
+
+async function loadAcademic() {
+  if (acadList) return;
+  try {
+    const res = await fetch("academic.json");
+    acadList = (await res.json()).events.map((e, i) => ({ ...e, id: String(i), cat: acadCat(e) }));
+  } catch { return; }   // 못 받으면 학사일정 없이 달력만 보여 줍니다
+  fc?.refetchEvents();
+}
+
+// 내 학년 일정만 (학번 2113 → 2학년, 관리자는 전부). 토요휴업일은 매주라 뺍니다.
+const myGrade = () => (me.student_id ? Math.floor(me.student_id / 1000) : 0);
+function myAcad() {
+  const g = myGrade();
+  return (acadList || []).filter((e) => e.name !== "토요휴업일" && (!g || e.grades.includes(g)));
+}
+
+function acadEvents(from, to) {
+  const lo = dayKey(from), hi = dayKey(to);
+  return myAcad().filter((e) => acadOn.has(e.cat) && e.end >= lo && e.start < hi).map((e) => {
+    const after = parseDay(e.end); after.setDate(after.getDate() + 1);   // FullCalendar 종일 일정의 끝은 다음 날(미포함)
+    return {
+      id: `acad:${e.id}`, title: e.name, start: e.start, end: dayKey(after), allDay: true, editable: false,
+      classNames: ["fcx-acad", `c-acad-${e.cat}`], extendedProps: { kind: "acad" },
+    };
+  });
+}
+
+function openAcadDetail(e) {
+  const when = e.start === e.end ? `${dayTitle(e.start)} · 하루 종일` : `${dayTitle(e.start)} – ${dayTitle(e.end)}`;
+  const label = ACAD_CATS.find(([k]) => k === e.cat)[1];
+  openSheet("🎓 학사일정", `
+    <div class="shared-card c-acad-${e.cat}">
+      <div class="ev-title">${esc(e.name)}</div>
+      <div class="ev-meta">${esc(when)} · ${label}${e.grades.length < 3 ? ` · ${e.grades.join("·")}학년` : ""}</div>
+      ${e.memo ? `<div class="asg-body">${esc(e.memo)}</div>` : ""}
+    </div>
+    <div class="study-foot">학교 홈페이지 학사일정(NEIS)에서 가져온 일정이에요.</div>`);
+}
+
+const acadBtnLabel = () => `🎓 학사일정 ${acadOn.size}/${ACAD_CATS.length}`;
+function openAcadFilter() {
+  const g = myGrade();
+  openSheet("🎓 학사일정 보기", ACAD_CATS.map(([k, label, hint]) =>
+    `<label class="ev-allday acad-opt c-acad-${k}"><input type="checkbox" data-acad="${k}"${acadOn.has(k) ? " checked" : ""}>
+      <span class="acad-dot"></span><span><b>${label}</b> <span class="ev-hint">${hint}</span></span></label>`).join("") +
+    `<div class="study-foot">학교 홈페이지 학사일정(NEIS)을 하루 한 번 받아 와요.${g ? ` ${g}학년 일정만 보여요.` : ""}</div>`);
+  $("studyModal").querySelectorAll("[data-acad]").forEach((c) => c.onchange = () => {
+    c.checked ? acadOn.add(c.dataset.acad) : acadOn.delete(c.dataset.acad);
+    try { localStorage.setItem("dshs-cal-acad", JSON.stringify([...acadOn])); } catch {}
+    if ($("acadBtn")) $("acadBtn").textContent = acadBtnLabel();
+    fc?.refetchEvents();
+  });
 }
 
 // 학교 일정 대상 (학번 목록)

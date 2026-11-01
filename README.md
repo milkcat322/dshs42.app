@@ -17,6 +17,8 @@ supabase/functions/signup/index.ts          회원가입 (학번당 1계정 강�
 notify.sql                ★ 필수 학교 일정 표시 + 알림 발송 기록
 supabase/functions/send-reminders/index.ts  알림 발송
 supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼지 계산
+academic.json             학사일정 (NEIS 에서 매일 자동 갱신 · 직접 고치지 않음)
+scripts/fetch-academic.mjs  학사일정 받기 (GitHub Actions 가 매일 실행)
 DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일 · 최신이 맨 아래)
 CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공용 규칙
 .claude/                  Claude Code 공용 설정 · 자동 git pull/push 훅
@@ -116,6 +118,8 @@ update public.profiles set is_admin = true where student_id = 2113;
 **수행평가 공지** — 자기가 듣는 과목에만 올릴 수 있고, 올리면 `승인 대기` 상태입니다. 관리자가 승인해야 **그 과목을 듣는 학생에게만** 보입니다. 이 범위 제한은 화면이 아니라 DB 권한(RLS)으로 걸려 있어서, 다른 과목 공지는 애초에 내려받아지지 않습니다.
 
 **알림** — `내 일정`·`수행평가 공지` 탭의 버튼으로 기기마다 켜고 끕니다. 수행평가는 마감 **1일 전·6시간 전**, 내 일정·공유 일정·`필수 일정`으로 표시한 학교 일정은 시작 **30분 전**에 웹 푸시가 갑니다. 시간표 수업은 알리지 않고, 완료 표시한 일은 빠집니다. 하루 종일 일정은 시작 시각이 없어서 그날 07:50 에 알립니다. 로그아웃하면 그 기기의 알림도 꺼집니다. 같은 알림은 두 번 가지 않고, 만료된 구독은 자동으로 정리됩니다. 아이폰은 **홈 화면에 추가한 뒤에만** 알림을 받을 수 있습니다(iOS 제한). 안드로이드는 설치 없이도 됩니다.
+
+**학사일정** — 학교 홈페이지의 학사일정(원본은 NEIS)을 달력에 깔고, `🎓 학사일정` 버튼으로 귀가일 · 시험 · 방학·개학 · 공휴일·휴업일 · 학교 행사를 종류별로 켜고 끕니다(기기마다 기억). 내 학년 일정만 보이고, 공휴일·휴업일·방학에는 시간표를 깔지 않습니다. `.github/workflows/academic.yml` 이 매일 03:00 에 `node scripts/fetch-academic.mjs` 로 `academic.json` 을 갱신하고, 바뀐 게 있을 때만 커밋합니다. NEIS 인증키 없이도 되지만, [open.neis.go.kr](https://open.neis.go.kr) 에서 무료 인증키를 받아 GitHub 저장소 Settings → Secrets → Actions 에 `NEIS_KEY` 로 넣으면 요청 수가 줄고 하루에 일정이 많은 날도 빠짐없이 받습니다.
 
 ## 내용을 고친 뒤에
 

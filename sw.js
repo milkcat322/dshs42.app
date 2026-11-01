@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v30';
+const CACHE = 'dshs-study-v31';
 
 const SHELL = [
   './',
@@ -62,8 +62,8 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 스크립트·설정 파일: 항상 최신을 먼저 (코드를 고치면 새로고침 한 번에 반영되도록)
-  if (url.pathname.endsWith('.js')) {
+  // 스크립트·설정·데이터 파일(학사일정 academic.json 등): 항상 최신을 먼저 (고치면 새로고침 한 번에 반영되도록)
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.json')) {
     e.respondWith(
       fetch(req).then(res => {
         const copy = res.clone();
