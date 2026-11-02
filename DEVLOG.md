@@ -13,7 +13,7 @@
 - **2026-10-31** 알림 개편: 기기별 켜기/끄기, 수행평가 마감 1일·6시간 전, 일정·필수 학교 일정 30분 전
 - **2026-11-01** DEVLOG 자동 기록을 모든 세션으로 확장하고 동시 작업 충돌 방지(.gitattributes 유니온 병합, push 전 원격 확인·병합) 체계로 Check Push를 구축, 중간고사 탭 삭제·평균 학점 탭을 학점 계산으로 개명 <!-- session a12519e2 -->
 - **2026-11-01** 학생 수강 과목·분반별 수행평가 일괄 등록, 지필평가 기간·목요일 귀가일 R&E 시간표 제외, 수행평가 탭 문구 완화와 제출처 선택 도입, 수행평가 탭 알림 버튼 제거 <!-- session cfda7dec -->
-- **2026-11-01** dshs.app과 API 연동 승인받아 OAuth 연결 구현 완료: 내 신청 내역을 일정 탭 달력에 읽기 전용으로 표시, 비공식 사이트 문구 추가, DEVLOG에 개발자 이름 기록 추가 <!-- session f6c6188d -->
+- **2026-11-01** 로그인 화면에 "dshs.app으로 로그인" 버튼 추가, 기존 계정 자동 연결과 42기 명단 기반 신규 계정 생성 지원 <!-- session f6c6188d -->
 <!-- 개발 흐름 끝 -->
 
 ## 쓰는 법
@@ -640,37 +640,41 @@
 - [ ] dshs.app 연동은 운영자 답변 대기
 - [ ] dev-journey 공개 전 productivity 표시 여부와 팀원 동의를 정한 뒤 `setup.sh` 실행
 
-## 2026-11-01 23:06–13:30 · dshs.app API 연동 구현: 신청 내역을 일정 탭 달력에 표시
+## 2026-11-01 23:06–13:36 · dshs.app API 연동 완료와 "dshs.app으로 로그인" 추가
 
-`session f6c6188d` · 개발 milkcat322 · 요청 11회
+`session f6c6188d` · 개발 milkcat322 · 요청 13회
 
 ### 목표
-- dshs.app 운영자에게 API 연동 신청 답장을 작성하고, 승인 후 실제 OAuth 연동을 구현한다.
+- dshs.app 개발자의 API 연동 요청에 답장 작성 및 조건 협의
+- dshs.app 신청 내역을 내 일정 탭 달력에 읽기 전용으로 연동
+- 로그인 화면에 "dshs.app으로 로그인" 선택지 추가
 
 ### 한 일
-- dshs.app 운영자와 메일을 주고받으며 redirect URI, scope, 서비스 이름(dshs42), 비공식 사이트 문구를 협의하고 API 키를 발급받음
-- `dshs-oauth` Edge Function 작성: OIDC+PKCE 로그인 연결, 토큰 저장과 만료 시 refresh, 신청 내역 조회, 연결 해제
-- `dshsapp.sql`로 dshs.app 연결 정보·토큰을 담는 테이블 추가 (서버만 읽을 수 있도록 RLS 설정)
-- 내 일정 탭에 "🔗 dshs.app 연결" 버튼과 신청 내역 📮 표시(달력·목록) 추가
-- 사이트 하단과 로그인 화면에 비공식 사이트 문구 추가
-- DEVLOG 기록에 개발자 이름(`git config user.name`)이 들어가도록 devlog-worker.mjs 수정, CLAUDE.md에 규칙 추가
-- Supabase secrets에 client ID/secret 설정, Edge Function 배포, localhost에서 실제 계정으로 연결 테스트
+- dshs.app 개발자와 여러 차례 메일 협의: scope를 `request.read` 중심으로 축소, 서비스 동의 화면 이름 `dshs42` 결정, `offline_access`로 refresh token 확보
+- 발급받은 Client ID/Secret으로 토큰 엔드포인트 동작을 직접 검증
+- `dshs_links`, `dshs_oauth_states` 테이블(`dshsapp.sql`) 설계: 토큰은 서버에만 저장, RLS로 보호
+- `dshs-oauth` Edge Function 작성: OIDC+PKCE 연결, 토큰 만료 시 refresh, 연결 해제, 신청 내역 조회
+- 내 일정 탭에 "🔗 dshs.app 연결" 버튼과 신청 내역 달력 표시(📮) 구현, 승인 대기/반려 상태 반영
+- 로그인 화면과 사이트 하단에 비공식 사이트 문구 추가
+- DEVLOG 자동 기록 훅에 개발자 이름(`git config user.name`) 표시 추가, CLAUDE.md에 규칙 기록
+- 로그인 화면에 "dshs.app으로 로그인" 버튼 추가: 기존 연결 계정 → 같은 학번 계정 자동 연결 → 42기 명단 확인 후 신규 계정 생성 순서로 처리, 일회용 로그인 토큰으로 세션 전달
 
 ### 결정과 이유
-- Scope를 `request.read` 하나로 최소화함. 처음엔 me.read·reservation.read·penalty.read까지 요청했으나 실제로 쓸 기능이 신청 내역 표시뿐이라 줄임
-- "dshs.app으로 로그인"으로의 교체는 이번에 하지 않음. 기존 계정(`아이디@dshs.study`)에 연결하는 방식을 택해 기존 데이터를 유지
-- dshs.app 토큰과 secret은 저장소 파일이 아니라 Supabase secrets/서버 DB에만 저장
+- 신청 기능을 재구현하지 않고 읽기 전용 표시만 함. **why:** dshs.app 개발자 가이드에 기존 기능 중복 금지 규칙이 있음
+- scope를 `openid`, `offline_access`, `me.read`, `request.read`로 최소화. **why:** 실제 쓰는 기능이 신청 내역 표시뿐이라 운영자 승인 부담과 데이터 범위를 줄이기 위함
+- 동의 화면 이름을 `dshs42`로 결정. **why:** 운영자가 도메인 `dshs42.app`과 `dshs.app`의 유사성을 지적하며 다른 이름을 요청
+- 로그인 교체는 기존 계정(`아이디@dshs.study`)과 자동 연결하는 방식으로 설계. **why:** 기존 데이터가 끊기지 않게 하기 위함
+- OAuth secret은 코드·저장소에 넣지 않고 Supabase secrets에만 저장. **why:** DEVLOG 자동 기록 훅이 비밀값을 가리지 못해 유출 위험이 있음
 
 ### 해결한 문제
-- 증상: 실제 로그인 시 `invalid_client` 오류 → 원인: Supabase에 `DSHS_CLIENT_ID`/`DSHS_CLIENT_SECRET`이 저장되지 않아 함수가 `undefined`를 보냄 → 해결: secrets set 명령으로 값을 저장한 뒤 정상 연결 확인
+- 증상: localhost에서 dshs.app 연결 시 `invalid_client` 오류 → 원인: Supabase에 `DSHS_CLIENT_ID`/`DSHS_CLIENT_SECRET`이 저장되지 않아 함수가 `undefined`를 전송 → 해결: `supabase secrets set`으로 두 값 등록
 
 ### 남은 일
-- [ ] DEVLOG 자동 기록에 secret 값이 실수로 들어가지 않았는지 확인
-- [ ] 아이폰 홈 화면 앱에서도 연결 동작 확인
-- [ ] "dshs.app으로 로그인" 전환 여부 추후 결정
+- [ ] 아이폰 홈 화면 PWA에서 dshs.app 연결이 정상 동작하는지 확인
+- [ ] 로그인 전체를 "dshs.app으로 로그인"으로 완전히 교체할지 결정 (운영자 제안)
 
 ### 배운 점
-- Supabase secrets를 설정하지 않으면 Edge Function이 조용히 `undefined` client_id를 보내 `invalid_client`로 실패함 — 배포 후 `secrets list`로 확인이 필요함
+- DEVLOG 자동 기록 훅에는 비밀값을 가리는 기능이 없어, secret이 포함된 대화 내용을 그대로 커밋할 위험이 있음
 
 ### 바뀐 파일
 - `.claude/hooks/devlog-worker.mjs`
@@ -683,4 +687,4 @@
 - `sw.js`
 - `updates.js`
 
-<!-- flow: - **2026-11-01** dshs.app과 API 연동 승인받아 OAuth 연결 구현 완료: 내 신청 내역을 일정 탭 달력에 읽기 전용으로 표시, 비공식 사이트 문구 추가, DEVLOG에 개발자 이름 기록 추가 -->
+<!-- flow: - **2026-11-01** 로그인 화면에 "dshs.app으로 로그인" 버튼 추가, 기존 계정 자동 연결과 42기 명단 기반 신규 계정 생성 지원 -->
