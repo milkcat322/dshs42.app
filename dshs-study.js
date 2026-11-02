@@ -384,12 +384,11 @@ function rerender() {
 window.closeStudyView = closeStudy;
 
 function renderStudy() {
-  const who = me.student_id ? esc(me.name) : `관리자 (${esc(me.username)})`;
   const subjects = me.student_id ? `${myClasses.length}과목` : `전체 ${mySubjects().length}과목`;
   const [title, sub] = {
-    cal: ["내 일정", `${who} · 수행평가 ${subjects} + 개인 일정`],
-    notice: ["수행평가", `${who} · 내 분반 수행평가 ${subjects}`],
-    todo: ["할 일", `${who} · 체크하면서 하나씩 끝내요`],
+    cal: ["내 일정", `수행평가 ${subjects} + 개인 일정`],
+    notice: ["수행평가", `내 분반 수행평가 ${subjects}`],
+    todo: ["할 일", "체크하면서 하나씩 끝내요"],
   }[page];
   $("studyView").innerHTML = `
     <div class="study-head">
