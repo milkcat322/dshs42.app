@@ -398,7 +398,7 @@ function renderStudy() {
     </div>
     ${page === "cal" ? `<div class="study-row">
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
-      ${me.is_admin ? '<button class="study-btn admin" id="btnSchool">🏫 학교 일정 추가</button>' : ""}
+      ${me.is_admin ? '<button class="study-btn admin" id="btnSchool">🎓 학교 일정 추가</button>' : ""}
       <button class="study-btn" id="btnPush"></button>
     </div>
     <div id="dshsHint"></div>` : ""}
@@ -508,6 +508,7 @@ function card(a, opts = {}) {
 function renderList(mode) {
   const body = $("studyBody");
   view = mode;
+  loadAcademic();
   if (mode === "admin") {
     destroyCal();
     body.innerHTML = `<div class="study-section">승인 대기 ${cache.pending.length}건</div>` +
@@ -537,12 +538,12 @@ function renderList(mode) {
       </div>`}
       <div class="cal-right">
         ${me.student_id && tab !== "list" ? `<label class="tt-check"><input type="checkbox" id="ttToggle"${showTT ? " checked" : ""}> 학교 시간표 보이기</label>` : ""}
-        ${tab !== "list" ? `<button class="study-btn small" id="acadBtn">${acadBtnLabel()}</button>` : ""}
+        <button class="study-btn small" id="acadBtn">${acadBtnLabel()}</button>
         <div class="seg">${VIEWS.map(([k, label]) =>
           `<button class="seg-btn${tab === k ? " on" : ""}" data-seg="${k}">${label}</button>`).join("")}</div>
       </div>
     </div>${legendHtml()}` +
-    (tab === "list" ? listHtml(agenda()) : `<div class="fc-host" id="calHost"><div class="study-empty">달력 불러오는 중…</div></div>`);
+    (tab === "list" ? listHtml([...agenda(), ...acadAgenda()].sort(byAgenda)) : `<div class="fc-host" id="calHost"><div class="study-empty">달력 불러오는 중…</div></div>`);
   body.querySelectorAll("[data-seg]").forEach((b) => b.onclick = () => switchTab(b.dataset.seg));
   body.querySelectorAll("[data-nav]").forEach((b) => b.onclick = () => fc && fc[b.dataset.nav]());
   if ($("ttToggle")) $("ttToggle").onchange = () => {
@@ -575,7 +576,10 @@ function openItem(kind, id) {
     const se = cache.school.find((x) => x.id === id);
     me.is_admin ? openSchoolForm(se) : openSchoolDetail(se);
   } else if (kind === "tt") return;
-  else if (kind === "acad") openAcadDetail(acadList.find((e) => e.id === id));
+  else if (kind === "acad") {
+    const a = acadList.find((e) => e.id === id);
+    me.is_admin ? openSchoolForm(neisDraft(a)) : openAcadDetail(a);
+  }
   else if (kind === "dshs") openDshsDetail(dshs.items.find((r) => r.uid === id));
   else if (kind === "todo") openTodoForm(cache.todos.find((t) => t.id === id));
   else {
@@ -692,7 +696,7 @@ function fcEvents() {
       extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared },
     };
     if (it.shared) base.classNames.push("fcx-shared");
-    if (it.kind === "sch") base.classNames.push("fcx-school");
+    if (it.kind === "sch") base.classNames.push("fcx-acad");
     if (it.kind === "dshs") base.classNames.push("fcx-dshs");
     if (it.kind === "todo") return { ...base, classNames: [...base.classNames, "fcx-todo"], start: dayKey(it.at), allDay: true, editable: true, durationEditable: false };
     if (it.kind === "asg") return { ...base, start: dayKey(it.at), allDay: true, editable: false };
@@ -720,7 +724,7 @@ function fcContent(arg) {
   const time = compact ? ""
     : p.kind === "asg" ? `${hm(p.at)} 마감`
     : arg.event.allDay ? "" : `${hm(s)}${e ? ` – ${hm(e)}` : ""}`;
-  const icon = p.kind === "asg" ? "📋 " : p.kind === "sch" ? "🏫 " : p.kind === "acad" ? "🎓 " : p.kind === "dshs" ? "📮 " : p.shared ? "👥 " : "";
+  const icon = p.kind === "asg" ? "📋 " : p.kind === "sch" || p.kind === "acad" ? "🎓 " : p.kind === "dshs" ? "📮 " : p.shared ? "👥 " : "";
   // 좁은 칸에서는 아이콘 + 첫 글자만 (… 까지 넣으면 글자가 밀려 … 만 남습니다)
   const label = compact && icon ? `${icon.trim()}${esc([...full][0] || "")}` : `${icon}${esc(title)}`;
   return { html: `<div class="fcx" title="${esc(full)}">
@@ -836,10 +840,12 @@ function agenda() {
     owner: ownsEvent(e), shared: eventPeople(e).length > 0,
     tag: [shareLabel(e) && `👥 ${shareLabel(e)}`, e.memo.split("\n")[0]].filter(Boolean).join(" · "),
   }));
-  const sch = cache.school.map((e) => ({
-    kind: "sch", id: e.id, title: e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
-    allDay: e.all_day, color: "school", done: false, owner: me.is_admin,
-    tag: [e.no_class && "수업 없음", me.is_admin && e.audience === "some" && `🎯 ${schoolTargets(e).length}명`,
+  // 관리자가 숨긴 학사일정은 관리자에게만 흐리게 보여 줍니다 (눌러서 되돌릴 수 있게)
+  const sch = [...liveSchool(), ...(me.is_admin ? cache.school.filter((e) => e.hidden) : [])]
+    .filter((e) => acadOn.has(e.category)).map((e) => ({
+    kind: "sch", id: e.id, title: e.hidden ? `숨김 · ${e.title}` : e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
+    allDay: e.all_day, color: `acad-${e.category}`, done: !!e.hidden, owner: me.is_admin,
+    tag: [catLabel(e.category), e.no_class && "수업 없음", me.is_admin && e.audience === "some" && `🎯 ${schoolTargets(e).length}명`,
       e.memo.split("\n")[0]].filter(Boolean).join(" · "),
   }));
   // 기한을 정한 할 일은 그날 종일 칸에 체크박스로 둡니다
@@ -847,8 +853,9 @@ function agenda() {
     kind: "todo", id: t.id, title: t.title, at: parseDay(t.due_on), end: null, allDay: true,
     color: "mint", done: t.done, owner: true,
   }));
-  return [...sch, ...asgs, ...todos, ...evs, ...dshsAgenda()].sort((x, y) => (y.allDay - x.allDay) || (x.at - y.at));
+  return [...sch, ...asgs, ...todos, ...evs, ...dshsAgenda()].sort(byAgenda);
 }
+const byAgenda = (x, y) => (y.allDay - x.allDay) || (x.at - y.at);
 
 function timeLabel(it) {
   const multi = it.end && dayKey(it.end) !== dayKey(it.at);
@@ -859,18 +866,16 @@ function timeLabel(it) {
 }
 
 // 일정 종류 이름. 달력에서는 모양으로, 목록에서는 이 이름표로 구분합니다 (모양은 index.html 의 "일정 종류" 규칙)
-const KIND_LABEL = { asg: "수행평가", todo: "할 일", ev: "내 일정", sch: "학교 일정", dshs: "dshs.app 신청" };
+const KIND_LABEL = { asg: "수행평가", todo: "할 일", ev: "내 일정", sch: "학교 일정", acad: "학교 일정", dshs: "dshs.app 신청" };
 function legendHtml() {
-  const kinds = [["asg", "c-asg"], ["todo", "c-mint"], ["ev", "c-violet"], ["sch", "c-school"], ["dshs", "c-dshs"]];
-  const items = kinds.map(([k, c]) => `<span class="kl ${c}"><i class="kl-mark k-${k}"></i>${KIND_LABEL[k]}</span>`);
-  if (tab !== "list") items.splice(4, 0, `<span class="kl c-acad-event"><i class="kl-mark k-acad"></i>학사일정</span>`);
-  return `<div class="kind-legend">${items.join("")}</div>`;
+  const kinds = [["asg", "c-asg"], ["todo", "c-mint"], ["ev", "c-violet"], ["acad", "c-acad-event"], ["dshs", "c-dshs"]];
+  return `<div class="kind-legend">${kinds.map(([k, c]) => `<span class="kl ${c}"><i class="kl-mark k-${k}"></i>${KIND_LABEL[k]}</span>`).join("")}</div>`;
 }
 
 function row(it) {
   const d = it.kind === "asg" && !it.done ? dueInfo(it.at) : null;
   return `<div class="ev-row k-${it.kind} c-${it.color}${it.done ? " done" : ""}">
-    ${it.kind === "sch" || it.kind === "dshs" ? `<span class="ev-check sch-ic" aria-hidden="true">${it.kind === "sch" ? "🏫" : "📮"}</span>`
+    ${it.kind === "sch" || it.kind === "acad" || it.kind === "dshs" ? `<span class="ev-check sch-ic" aria-hidden="true">${it.kind === "dshs" ? "📮" : "🎓"}</span>`
       : `<button class="ev-check" data-chk="${it.kind}:${it.id}" aria-label="완료 표시"${it.auto
       ? ' disabled title="지난 일정은 자동으로 완료돼요"' : ""}>${it.done ? "✓" : ""}</button>`}
     <button class="ev-main" data-open="${it.kind}:${it.id}">
@@ -1355,7 +1360,7 @@ function myBlocks() {
 // 학사일정은 달력에서 꺼 두어도 그날 시간표는 깔지 않습니다.
 function noClassDays() {
   const days = new Set();
-  for (const e of cache.school.filter((x) => x.no_class)) {
+  for (const e of liveSchool().filter((x) => x.no_class)) {
     const d = new Date(e.starts_at); d.setHours(0, 0, 0, 0);
     const last = new Date(e.ends_at || e.starts_at);
     for (; d <= last; d.setDate(d.getDate() + 1)) days.add(dayKey(d));
@@ -1369,7 +1374,7 @@ function noClassDays() {
 // 귀가일 날짜들 (학사일정 + 관리자가 추가한 학교 일정)
 function homeDays() {
   const days = new Set(myAcad().filter((e) => e.name.includes("귀가")).map((e) => e.start));
-  for (const e of cache.school) if (e.title.includes("귀가")) days.add(dayKey(new Date(e.starts_at)));
+  for (const e of liveSchool()) if (e.title.includes("귀가")) days.add(dayKey(new Date(e.starts_at)));
   return days;
 }
 
@@ -1397,6 +1402,8 @@ function ttEvents(from, to) {
 // ---------- 학사일정 (NEIS) ----------
 // 학교 홈페이지의 학사일정을 scripts/fetch-academic.mjs 가 매일 academic.json 으로 받아 둡니다.
 // 종류별로 켜고 끄고, 고른 값은 이 기기에 기억합니다.
+// 관리자가 만든 학교 일정(school_events)도 같은 종류·같은 모양으로 보여 줍니다.
+// academic.json 은 매일 덮어써지므로, 관리자가 고친 NEIS 일정은 school_events 에 neis_key 로 저장해 원본 대신 보여 줍니다.
 const ACAD_CATS = [
   ["home", "귀가일", "귀가일"],
   ["exam", "시험", "1·2차 지필평가"],
@@ -1406,10 +1413,13 @@ const ACAD_CATS = [
   ["event", "학교 행사", "입학식 · 졸업식 · 체육대회 · 여명제 등"],
 ];
 let acadList = null;   // academic.json 의 일정 (처음 달력을 열 때 한 번 받습니다)
+let acadLoading = false;
 let acadOn = (() => {
   try { const v = JSON.parse(localStorage.getItem("dshs-cal-acad")); if (Array.isArray(v)) return new Set(v); } catch {}
   return new Set(ACAD_CATS.map(([k]) => k));
 })();
+
+const catLabel = (k) => ACAD_CATS.find(([c]) => c === k)?.[1] || "";
 
 function acadCat(e) {
   if (/귀가|귀사/.test(e.name)) return "home";
@@ -1421,19 +1431,33 @@ function acadCat(e) {
 }
 
 async function loadAcademic() {
-  if (acadList) return;
+  if (acadList || acadLoading) return;
+  acadLoading = true;
   try {
     const res = await fetch("academic.json");
-    acadList = (await res.json()).events.map((e, i) => ({ ...e, id: String(i), cat: acadCat(e) }));
-  } catch { return; }   // 못 받으면 학사일정 없이 달력만 보여 줍니다
-  fc?.refetchEvents();
+    acadList = (await res.json()).events.map((e, i) => ({
+      ...e, id: String(i), cat: acadCat(e),
+      key: `${e.start}|${e.name}|${e.grades.join("")}`,   // 고친 내용을 잇는 값. 줄 번호는 매일 바뀔 수 있어서 내용으로 만듭니다
+    }));
+  } catch { return; } finally { acadLoading = false; }   // 못 받으면 학사일정 없이 달력만 보여 줍니다
+  refreshAcad();
+}
+// 달력은 일정만 새로 받고, 목록은 다시 그립니다
+function refreshAcad() {
+  if (tab === "list") { if (calOpen()) rerender(); } else fc?.refetchEvents();
 }
 
 // 내 학년 일정만 (학번 2113 → 2학년, 관리자는 전부). 토요휴업일은 매주라 뺍니다.
 const myGrade = () => (me.student_id ? Math.floor(me.student_id / 1000) : 0);
 function myAcad() {
   const g = myGrade();
-  return (acadList || []).filter((e) => e.name !== "토요휴업일" && (!g || e.grades.includes(g)));
+  const replaced = new Set(cache.school.map((x) => x.neis_key).filter(Boolean));   // 관리자가 고치거나 숨긴 일정은 뺍니다
+  return (acadList || []).filter((e) => e.name !== "토요휴업일" && (!g || e.grades.includes(g)) && !replaced.has(e.key));
+}
+// 학교 일정 중 숨기지 않았고 내 학년에 해당하는 것 (NEIS 를 고친 일정은 원본의 대상 학년을 따릅니다)
+function liveSchool() {
+  const g = String(myGrade());
+  return cache.school.filter((e) => !e.hidden && (!e.neis_key || g === "0" || e.neis_key.split("|").pop().includes(g)));
 }
 
 function acadEvents(from, to) {
@@ -1447,10 +1471,29 @@ function acadEvents(from, to) {
   });
 }
 
+// 목록 보기: 앞으로 두 달 안의 학사일정 (2년 치가 있어서 전부 넣으면 내 일정이 묻힙니다)
+function acadAgenda() {
+  const today = dayKey(new Date()), until = new Date(); until.setDate(until.getDate() + 60);
+  return myAcad().filter((e) => acadOn.has(e.cat) && e.end >= today && e.start <= dayKey(until)).map((e) => ({
+    kind: "acad", id: e.id, title: e.name, at: parseDay(e.start), allDay: true, done: false, color: `acad-${e.cat}`, tag: catLabel(e.cat),
+    end: e.end > e.start ? new Date(`${e.end}T23:59`) : null,
+  }));
+}
+
+// 관리자가 NEIS 일정을 처음 고칠 때 쓰는 초안 (학교 일정 폼이 그대로 받습니다). 저장하기 전에는 DB 에 없습니다.
+function neisDraft(a) {
+  return {
+    id: null, title: a.name, memo: a.memo || "", all_day: true, notify: false, audience: "all", hidden: false,
+    starts_at: parseDay(a.start).toISOString(), ends_at: a.end > a.start ? new Date(`${a.end}T23:59`).toISOString() : null,
+    no_class: a.type === "공휴일" || a.type === "휴업일" || a.name.includes("지필평가"),
+    category: a.cat, neis_key: a.key, school_event_targets: [],
+  };
+}
+
 function openAcadDetail(e) {
   const when = e.start === e.end ? `${dayTitle(e.start)} · 하루 종일` : `${dayTitle(e.start)} – ${dayTitle(e.end)}`;
-  const label = ACAD_CATS.find(([k]) => k === e.cat)[1];
-  openSheet("🎓 학사일정", `
+  const label = catLabel(e.cat);
+  openSheet("🎓 학교 일정", `
     <div class="shared-card c-acad-${e.cat}">
       <div class="ev-title">${esc(e.name)}</div>
       <div class="ev-meta">${esc(when)} · ${label}${e.grades.length < 3 ? ` · ${e.grades.join("·")}학년` : ""}</div>
@@ -1459,10 +1502,10 @@ function openAcadDetail(e) {
     <div class="study-foot">${e.from ? `${esc(e.from)}로 추가한 일정이에요.` : "학교 홈페이지 학사일정(NEIS)에서 가져온 일정이에요."}</div>`);
 }
 
-const acadBtnLabel = () => `🎓 학사일정 ${acadOn.size}/${ACAD_CATS.length}`;
+const acadBtnLabel = () => `🎓 학교 일정 ${acadOn.size}/${ACAD_CATS.length}`;
 function openAcadFilter() {
   const g = myGrade();
-  openSheet("🎓 학사일정 보기", ACAD_CATS.map(([k, label, hint]) =>
+  openSheet("🎓 학교 일정 보기", ACAD_CATS.map(([k, label, hint]) =>
     `<label class="ev-allday acad-opt c-acad-${k}"><input type="checkbox" data-acad="${k}"${acadOn.has(k) ? " checked" : ""}>
       <span class="acad-dot"></span><span><b>${label}</b> <span class="ev-hint">${hint}</span></span></label>`).join("") +
     `<div class="study-foot">학교 홈페이지 학사일정(NEIS)을 하루 한 번 받아 와요.${g ? ` ${g}학년 일정만 보여요.` : ""}</div>`);
@@ -1470,7 +1513,7 @@ function openAcadFilter() {
     c.checked ? acadOn.add(c.dataset.acad) : acadOn.delete(c.dataset.acad);
     try { localStorage.setItem("dshs-cal-acad", JSON.stringify([...acadOn])); } catch {}
     if ($("acadBtn")) $("acadBtn").textContent = acadBtnLabel();
-    fc?.refetchEvents();
+    refreshAcad();
   });
 }
 
@@ -1675,17 +1718,19 @@ function schoolWhen(e) {
 }
 
 function openSchoolDetail(e) {
-  openSheet("🏫 학교 일정", `
-    <div class="shared-card c-school">
+  openSheet("🎓 학교 일정", `
+    <div class="shared-card c-acad-${e.category}">
       <div class="ev-title">${esc(e.title)}</div>
-      <div class="ev-meta">${esc(schoolWhen(e))}${e.no_class ? " · 수업 없음" : ""}</div>
+      <div class="ev-meta">${esc(schoolWhen(e))} · ${catLabel(e.category)}${e.no_class ? " · 수업 없음" : ""}</div>
       ${e.memo ? `<div class="asg-body">${esc(e.memo)}</div>` : ""}
     </div>
-    <div class="study-foot">학교에서 올린 일정이에요.</div>`);
+    <div class="study-foot">${e.neis_key ? "학교 홈페이지 학사일정을 관리자가 고친 일정이에요." : "관리자가 올린 일정이에요."}</div>`);
 }
 
 // 관리자: 학교 일정 추가·수정 (대상: 전체 / 특정 인원)
+// e.neis_key 가 있으면 NEIS 일정을 고치는 중입니다. e.id 가 없으면 아직 고친 적이 없는 원본입니다 (neisDraft).
 function openSchoolForm(e, seed) {
+  const neis = !!e?.neis_key;
   const now = new Date();
   const start = e ? new Date(e.starts_at) : seed?.start || new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9);
   const allDay = e ? e.all_day : seed ? seed.allDay : true;
@@ -1698,9 +1743,13 @@ function openSchoolForm(e, seed) {
   const subjects = [...new Set(people.flatMap((p) => Object.keys(p.classes)))].sort((a, b) => a.localeCompare(b, "ko"));
   const rooms = [...new Set(people.map((p) => homeroom(p.sid)))].sort();
 
-  openSheet(e ? "학교 일정 수정" : "🏫 학교 일정 추가", `
+  openSheet(e ? "학교 일정 수정" : "🎓 학교 일정 추가", `
+    ${neis ? `<div class="study-foot">학교 홈페이지(NEIS)에서 온 일정이에요. 여기서 고치면 이 사이트에서만 바뀌고, 원본은 그대로예요.</div>` : ""}
     <label class="study-label">제목</label>
     <input class="study-input" id="sTitle" maxlength="120" value="${esc(e?.title || "")}" placeholder="예: 체육대회, 2학기 기말고사, 개교기념일">
+    <label class="study-label">종류</label>
+    <select class="study-input" id="sCat">${ACAD_CATS.map(([k, label]) =>
+      `<option value="${k}"${k === (e?.category || "event") ? " selected" : ""}>${label}</option>`).join("")}</select>
     <label class="ev-allday"><input type="checkbox" id="sAll"${allDay ? " checked" : ""}> 하루 종일</label>
     <label class="study-label">시작</label>
     <div class="ev-when"><input class="study-input" type="date" id="sSd" value="${dayKey(start)}"><input class="study-input" type="time" id="sSt" step="300" value="${hm(start)}"></div>
@@ -1711,6 +1760,7 @@ function openSchoolForm(e, seed) {
     <label class="study-label">메모 (선택)</label>
     <textarea class="study-input" id="sMemo" rows="2" maxlength="2000" placeholder="장소, 준비물 등">${esc(e?.memo || "")}</textarea>
 
+    <div${neis ? ' style="display:none"' : ""}>
     <label class="study-label">누구에게 보일까요</label>
     <div class="seg aud-seg">
       <button type="button" class="seg-btn" data-aud="all">전체</button>
@@ -1732,10 +1782,12 @@ function openSchoolForm(e, seed) {
       <input class="study-input" id="audQ" autocomplete="off" placeholder="이름·학번으로 한 명씩 추가">
       <div class="fr-results" id="audRes"></div>
     </div>
+    </div>
 
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="sSave">${e ? "저장" : "추가"}</button>
-    ${e ? '<button class="study-submit ghost danger" id="sDel">학교 일정 삭제</button>' : ""}`);
+    ${neis && e.id ? '<button class="study-submit ghost" id="sRevert">원래 일정으로 되돌리기</button>' : ""}
+    ${e && !e.hidden ? `<button class="study-submit ghost danger" id="sDel">${neis ? "달력에서 숨기기" : "학교 일정 삭제"}</button>` : ""}`);
   const sheet = $("studyModal").querySelector(".study-sheet");
   const at = (d, t) => (d ? new Date(`${d}T${t || "00:00"}`) : null);
 
@@ -1808,9 +1860,10 @@ function openSchoolForm(e, seed) {
     const row = {
       title, memo: $("sMemo").value.trim(), all_day: all, no_class: all && $("sNo").checked, notify: $("sNotify").checked, audience,
       starts_at: starts.toISOString(), ends_at: ends ? ends.toISOString() : null,
+      category: $("sCat").value, neis_key: e?.neis_key || null, hidden: false,
     };
     $("sSave").disabled = true;
-    const { data: saved, error } = e
+    const { data: saved, error } = e?.id
       ? await sb.from("school_events").update(row).eq("id", e.id).select("id").single()
       : await sb.from("school_events").insert(row).select("id").single();
     if (error) { $("sSave").disabled = false; return showErr("저장하지 못했어요: " + error.message); }
@@ -1827,10 +1880,30 @@ function openSchoolForm(e, seed) {
     else toast(audience === "all" ? "모두에게 보이는 학교 일정이에요" : `${want.length}명에게 보이는 학교 일정이에요`);
     await loadAssignments();
   };
-  if (e) $("sDel").onclick = async () => {
+  // 원본 NEIS 일정은 지울 수 없으니, 숨겼다는 표시를 남겨 달력에서 뺍니다 (관리자 달력에는 흐리게 남아 되돌릴 수 있어요)
+  if ($("sRevert")) $("sRevert").onclick = async () => {
+    const { error } = await sb.from("school_events").delete().eq("id", e.id);
+    if (error) return showErr("되돌리지 못했어요.");
+    closeModal();
+    toast("학교 홈페이지 일정으로 되돌렸어요");
+    await loadAssignments();
+  };
+  if ($("sDel") && neis) $("sDel").onclick = async () => {
+    if (!confirm("이 일정을 모두의 달력에서 숨길까요?")) return;
+    const hide = { hidden: true, notify: false, no_class: false };
+    const { error } = e.id
+      ? await sb.from("school_events").update(hide).eq("id", e.id)
+      : await sb.from("school_events").insert({ title: e.title, memo: e.memo, starts_at: e.starts_at, ends_at: e.ends_at,
+          all_day: true, audience: "all", category: e.category, neis_key: e.neis_key, ...hide });
+    if (error) return showErr("숨기지 못했어요.");
+    closeModal();
+    toast("숨겼어요. 흐리게 보이는 일정을 눌러 되돌릴 수 있어요");
+    await loadAssignments();
+  };
+  if ($("sDel") && !neis) $("sDel").onclick = async () => {
     if (!confirm("이 학교 일정을 모두의 달력에서 지울까요?")) return;
     const snap = { id: e.id, title: e.title, memo: e.memo, starts_at: e.starts_at, ends_at: e.ends_at,
-      all_day: e.all_day, no_class: e.no_class, notify: e.notify, audience: e.audience };
+      all_day: e.all_day, no_class: e.no_class, notify: e.notify, audience: e.audience, category: e.category };
     const targets = before.map((sid) => ({ event_id: e.id, student_id: sid }));
     const { error } = await sb.from("school_events").delete().eq("id", e.id);
     if (error) return showErr("삭제하지 못했어요.");

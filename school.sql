@@ -61,3 +61,21 @@ create policy school_event_targets_read on public.school_event_targets
   for select using (public.is_admin() or student_id = public.my_student_id());
 create policy school_event_targets_admin on public.school_event_targets
   for all using (public.is_admin()) with check (public.is_admin());
+
+-- ------------------------------------------------------------
+-- NEIS 학사일정과 같은 종류로 보여 주고, 관리자가 NEIS 일정을 고칠 수 있게 합니다.
+-- academic.json 은 매일 덮어써지므로 고친 내용은 여기에 저장해 원본 대신 보여 줍니다.
+-- category = 학사일정 종류 (dshs-study.js 의 ACAD_CATS)
+-- neis_key = 고친 NEIS 일정 ("시작일|이름|대상학년"). 관리자가 새로 만든 일정은 null
+-- hidden   = 관리자가 달력에서 숨긴 NEIS 일정 (알림이 가지 않도록 notify 는 false)
+-- ------------------------------------------------------------
+alter table public.school_events add column if not exists category text not null default 'event';
+alter table public.school_events add column if not exists neis_key text;
+alter table public.school_events add column if not exists hidden boolean not null default false;
+alter table public.school_events drop constraint if exists school_events_category_check;
+alter table public.school_events add constraint school_events_category_check
+  check (category in ('home', 'exam', 'break', 'holiday', 'club', 'event'));
+alter table public.school_events drop constraint if exists school_events_neis_check;
+alter table public.school_events add constraint school_events_neis_check
+  check ((neis_key is null or audience = 'all') and (not hidden or (neis_key is not null and not notify)));
+create unique index if not exists school_events_neis_key_idx on public.school_events (neis_key);
