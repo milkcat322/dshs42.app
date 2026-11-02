@@ -1512,10 +1512,10 @@ function openClassForm(b, key, forAll) {
 
 // ---------- 피드백 ----------
 // 로그인한 사용자가 보내고 관리자가 읽습니다. 스크린샷은 비공개 버킷 feedback 에 저장합니다.
-const FEEDBACK_KINDS = { bug: "오류 제보", notice: "공지 오류", idea: "기능 제안", etc: "기타" };
+const FEEDBACK_KINDS = { bug: "오류 제보", notice: "전체 분반 공지 오류", idea: "기능 제안", etc: "기타" };
 const FEEDBACK_HINT = {
   bug: "어떤 화면에서 무엇을 했을 때 문제가 생겼는지 적어 주세요",
-  notice: "어떤 과목 · 분반의 어떤 공지가 잘못됐는지 적어 주세요",
+  notice: "어떤 과목의 전체 분반 공지가 잘못됐는지 적어 주세요",
   idea: "있으면 좋겠는 기능을 적어 주세요",
   etc: "하고 싶은 말을 적어 주세요",
 };
