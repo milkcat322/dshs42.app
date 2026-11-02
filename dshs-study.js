@@ -695,7 +695,7 @@ function fcEvents() {
     const base = {
       id: `${it.kind}:${it.id}`, title: it.title,
       classNames: [`c-${it.color}`, it.kind === "asg" ? "fcx-asg" : "", it.status && it.status !== "approved" ? "fcx-pend" : "", it.done ? "is-done" : ""],
-      extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared },
+      extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared, subject: it.subject },
     };
     if (it.shared) base.classNames.push("fcx-shared");
     if (it.kind === "todo") return { ...base, classNames: [...base.classNames, "fcx-todo"], start: dayKey(it.at), allDay: true, editable: true, durationEditable: false };
@@ -713,6 +713,16 @@ function fcEvents() {
 // 폰의 3일 보기는 줄이지 않고 줄바꿈으로 모두 보여 줍니다 (index.html 의 .fc-threeDays-view 규칙).
 const compactCal = (arg) => window.innerWidth < 640 && arg.view.type !== "threeDays";
 
+// 과목별 이모티콘 (고정). 새 과목이 생기면 여기에 더합니다.
+const SUBJECT_EMOJI = {
+  "AI바이오": "🧬", "R&E": "🔬", "매체언어": "📰", "미술": "🎨", "미적분학2": "📐", "영어토론": "🎤", "음악": "🎵",
+  "응용수학": "🔢", "인공지능정보": "🤖", "일반물리2": "🧲", "일반물리실험2": "⚡", "일반생물학": "🌱", "일반생물학실험": "🦠",
+  "일반지구과학": "🌍", "일반지구과학실험": "🌋", "일반화학1": "🧪", "일반화학2": "💧", "일반화학실험1": "🥼",
+  "자료구조와 알고리즘": "🌳", "정보과학프로젝트": "💻", "체육": "🏃", "컴퓨터물리해석": "📊", "학급 자치": "🏫",
+  "학술영어": "📚", "화법소통": "💬",
+};
+const subjEmoji = (subject) => SUBJECT_EMOJI[subject] || "📌";
+
 function fcContent(arg) {
   const p = arg.event.extendedProps;
   const compact = compactCal(arg);
@@ -725,7 +735,7 @@ function fcContent(arg) {
     : arg.event.allDay ? "" : `${hm(s)}${e ? ` – ${hm(e)}` : ""}`;
   return { html: `<div class="fcx" title="${esc(full)}">
     ${time ? `<div class="fcx-time">${time}</div>` : ""}
-    <div class="fcx-title">${esc(title)}</div>
+    <div class="fcx-title">${p.kind === "asg" ? `${subjEmoji(p.subject)} ` : ""}${esc(title)}</div>
   </div>` };
 }
 
@@ -833,7 +843,7 @@ function agenda() {
   const now = new Date();
   // 마감 일시가 없는 공지는 날짜가 없어 달력·목록에 놓을 수 없으므로 수행평가 공지 탭에서만 보여 줍니다
   const asgs = [...cache.items, ...own].filter((a) => a.due_at).map((a) => ({
-    kind: "asg", id: a.id, title: a.title, at: new Date(a.due_at), end: null, allDay: false,
+    kind: "asg", id: a.id, subject: a.subject, title: a.title, at: new Date(a.due_at), end: null, allDay: false,
     color: "asg", done: cache.done.has(a.id) || new Date(a.due_at) < now, status: a.status,
     auto: !cache.done.has(a.id) && new Date(a.due_at) < now,
     tag: `${a.subject} · ${banLabel(a.ban)}`,
@@ -883,7 +893,7 @@ function row(it) {
       : `<button class="ev-check" data-chk="${it.kind}:${it.id}" aria-label="완료 표시"${it.auto
       ? ' disabled title="지난 일정은 자동으로 완료돼요"' : ""}>${it.done ? "✓" : ""}</button>`}
     <button class="ev-main" data-open="${it.kind}:${it.id}">
-      <span class="ev-title">${esc(it.title)}</span>
+      <span class="ev-title">${it.kind === "asg" ? `${subjEmoji(it.subject)} ` : ""}${esc(it.title)}</span>
       <span class="ev-meta">${KIND_LABEL[it.kind]} · ${esc(timeLabel(it))}${it.tag ? ` · ${esc(it.tag)}` : ""}</span>
     </button>
     ${it.kind === "asg" ? `<span class="asg-badges">${stBadge(it.status)}${d ? `<span class="due-badge ${d.tone}">${d.label}</span>` : ""}</span>` : ""}

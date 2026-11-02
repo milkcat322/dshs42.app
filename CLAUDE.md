@@ -56,7 +56,7 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 ## 주의할 점
 
 - **로컬에서 실행해도 실제 서비스 DB 에 연결된다.** 테스트 데이터를 만들면 지운다.
-- `main` 에 push 하면 Netlify 가 바로 배포한다. 세션 종료 시 변경 전체가 지금 브랜치로 자동 push 되므로, 큰 작업은 브랜치(`feature/이름`)에서 한다.
+- `main` 에 push 하면 Netlify 의 beta 사이트(`dshs42-beta.netlify.app`)에 바로 배포된다. 개발은 beta 에서 확인하고, `dshs42.app` 에는 나중에 반영한다. 지금 `dshs42.app` 은 옛 버전이다. beta 도 실제 서비스 DB 를 쓴다. 세션 종료 시 변경 전체가 지금 브랜치로 자동 push 되므로, 큰 작업은 브랜치(`feature/이름`)에서 한다.
 - 프론트 파일(`.js`, `index.html` 등)을 고치면 `sw.js` 의 `CACHE` 버전을 올린다. Supabase·Edge Function 응답은 서비스 워커가 캐시하면 안 된다.
 - `dshs-study.js` 는 전역 스코프 파일이다. 고친 뒤 맨 끝의 `init();` 이 남아 있는지 확인한다 (빠지면 로그인이 통째로 사라짐).
 - 교시 시각은 `dshs-study.js` 의 `PERIOD_TIME` 한 곳에서만 관리한다.
