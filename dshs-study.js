@@ -1699,7 +1699,7 @@ function openSettings() {
          신청 내역은 보기만 할 수 있고, 신청 · 변경은 dshs.app 에서 해요.</div>
        <button class="study-submit" id="doDshs">dshs.app으로 로그인해서 연결</button>`;
   openSheet("설정", `
-    <label class="set-row"><span><b>알림</b><span class="ev-hint" id="pushHint">수행평가는 1일 · 6시간 전, 일정은 30분 전에 알려 줘요 (이 기기)</span></span>
+    <label class="set-row"><span><b>알림</b><span class="ev-hint" id="pushHint">${PUSH_HINT}</span></span>
       <input type="checkbox" id="setPush"></label>
     <div class="set-sec">내 일정 달력</div>
     ${calSettingsHtml()}
@@ -2359,11 +2359,17 @@ async function deviceSub() {
 }
 
 // 설정의 알림 체크박스
-// 설정의 알림 체크박스와, 알림이 꺼져 있으면 설정 아이콘의 빨간 점
+const PUSH_HINT = "수행평가는 1일 · 6시간 전, 일정은 30분 전에 알려 줘요 (이 기기)";
+// 설정의 알림 체크박스와, 알림이 꺼져 있으면 설정 아이콘의 빨간 점 · 설정 창 알림 줄 빨간 강조
 function paintPush() {
   const b = $("setPush");
-  if (b) b.checked = pushOn;
-  $("btnSettings").classList.toggle("warn", !!me && paintPush.known && !pushOn && pushPossible());
+  const warn = !!me && paintPush.known && !pushOn && pushPossible();
+  if (b) {
+    b.checked = pushOn;
+    b.closest(".set-row").classList.toggle("warn", warn);   // 설정 창의 알림 줄도 빨갛게
+    $("pushHint").textContent = warn ? "알림이 꺼져 있어요. 눌러서 켜 주세요" : PUSH_HINT;
+  }
+  $("btnSettings").classList.toggle("warn", warn);
 }
 // 이 기기에서 알림을 켤 수 있는지 (못 켜는 기기에는 빨간 점을 띄우지 않습니다)
 function pushPossible() {
