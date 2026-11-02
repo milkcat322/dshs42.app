@@ -302,13 +302,11 @@
   .asg-top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
   .asg-subject { font-size: 12px; font-weight: 600; color: var(--text-dim); }
   .asg-badges { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap; }
-  .due-badge { font-size: 12px; font-weight: 700; }
-  .due-badge.ok { color: var(--text); }
-  .due-badge.soon { color: #fb923c; }
-  .due-badge.over { color: var(--text-muted); }
-  .st-badge { font-size: 12px; font-weight: 700; }
-  .st-badge.pending { color: #facc15; }
-  .st-badge.rejected { color: #fca5a5; }
+  .due-badge { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 3px 8px; }
+  .due-badge.ok { background: rgba(111,224,196,0.13); color: var(--accent3); }
+  .due-badge.soon { background: rgba(251,146,60,0.15); color: #fb923c; }
+  .due-badge.over { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+  .st-badge { font-size: 11px; font-weight: 400; color: var(--text-muted); }
   .asg-title { font-size: 14.5px; font-weight: 700; line-height: 1.45; }
   .asg-body { font-size: 12.5px; color: var(--text-dim); line-height: 1.7; margin-top: 6px; white-space: pre-wrap; }
   .asg-due { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--text-dim); margin-top: 8px; }
