@@ -182,11 +182,11 @@
   .ios-num { width: 22px; height: 22px; border-radius: 7px; background: var(--accent1); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
   .ios-close { width: 100%; margin-top: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 12px; padding: 13px; font-size: 14px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; }
   /* 업데이트 소식: 좌측 상단 버튼 + 팝업 */
-  .top-btns { position: absolute; top: 8px; left: 20px; z-index: 2; display: flex; gap: 6px; }
-  .top-right { position: absolute; top: 8px; right: 20px; z-index: 2; }
-  .upd-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 100px; padding: 6px 13px; font-size: 12.5px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-dim); cursor: pointer; }
-  .upd-btn:hover { border-color: var(--accent1); color: var(--text); }
-  .upd-btn.has-new::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); }
+  /* 탭 위 아이콘 버튼 (업데이트 · 피드백 · 계정) */
+  .nav-icons { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
+  .icon-btn { position: relative; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--border); border-radius: 50%; font-size: 16px; line-height: 1; cursor: pointer; }
+  .icon-btn:hover { border-color: var(--accent1); }
+  .icon-btn.has-new::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
   .upd-sheet { max-width: 420px; }
   .upd-entry { padding: 14px 0; border-top: 1px solid var(--border); }
   .study-sheet-head + .upd-entry { border-top: none; padding-top: 0; }
@@ -617,10 +617,6 @@
     .header { display: flex; align-items: center; height: 46px; margin: env(safe-area-inset-top) 0 0; text-align: left; }
     .school-badge, .subtitle { display: none; }
     h1 { font-size: 20px; margin: 0; }
-    .top-btns { top: calc(9px + env(safe-area-inset-top)); left: auto; right: 14px; }
-    .top-right { top: calc(9px + env(safe-area-inset-top)); right: 14px; }
-    .container:has(#btnFeedback:not([style*="none"])) .top-btns { right: 92px; }
-    .upd-btn { padding: 5px 10px; font-size: 12px; }
 
     /* 설치 안내는 한 줄로. 자세한 설명은 설치 버튼을 누르면 나옵니다 */
     .install-bar { padding: 8px 10px; margin-bottom: 10px; gap: 10px; border-radius: 13px; }
@@ -628,8 +624,11 @@
     .install-sub { display: none; }
     .install-btn { padding: 7px 12px; }
 
-    /* 탭: 한 줄로 두고 스크롤해도 위에 붙어 있습니다 */
-    .study-nav { position: sticky; top: 0; z-index: 50; flex-wrap: nowrap; gap: 6px; margin: 0 -14px 12px; padding: calc(6px + env(safe-area-inset-top)) 14px 8px; background: rgba(10,10,15,0.9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+    /* 아이콘 버튼과 탭: 탭은 한 줄로 두고, 둘 다 스크롤해도 위에 붙어 있습니다 */
+    .nav-bar { position: sticky; top: 0; z-index: 50; margin: 0 -14px 12px; padding: calc(6px + env(safe-area-inset-top)) 14px 8px; background: rgba(10,10,15,0.9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+    .nav-icons { margin-bottom: 6px; }
+    .icon-btn { width: 32px; height: 32px; font-size: 15px; }
+    .study-nav { flex-wrap: nowrap; gap: 6px; margin: 0; }
     .study-nav .study-btn { flex: 1 1 0; min-width: 0; padding: 10px 2px; font-size: 13.5px; border-radius: 11px; white-space: nowrap; }
 
     /* 검색은 내 시간표 화면에서만 보입니다 */
@@ -700,11 +699,6 @@
 </head>
 <body>
 <div class="container">
-  <div class="top-btns">
-    <button class="upd-btn" id="updBtn" type="button">📢 업데이트</button>
-    <button class="upd-btn" id="btnAcct" type="button" style="display:none">👤 계정</button>
-  </div>
-  <div class="top-right"><button class="upd-btn" id="btnFeedback" type="button" style="display:none">💬 피드백</button></div>
   <div class="header">
     <div class="school-badge">대전과학고등학교 · 2026학년도</div>
     <h1>dshs42.app</h1>
@@ -719,7 +713,15 @@
     <button class="install-btn" id="installBtn">설치</button>
     <button class="install-x" id="installX" aria-label="닫기">✕</button>
   </div>
-  <div class="study-nav" id="studyNav" style="display:none"></div>
+  <!-- 탭과 그 위의 아이콘 버튼은 함께 움직여, 폰에서 스크롤해도 위에 붙어 있습니다 -->
+  <div class="nav-bar">
+    <div class="nav-icons">
+      <button class="icon-btn" id="updBtn" type="button" title="업데이트 소식" aria-label="업데이트 소식">📢</button>
+      <button class="icon-btn" id="btnFeedback" type="button" title="피드백" aria-label="피드백" style="display:none">💬</button>
+      <button class="icon-btn" id="btnAcct" type="button" title="계정" aria-label="계정" style="display:none">👤</button>
+    </div>
+    <div class="study-nav" id="studyNav" style="display:none"></div>
+  </div>
   <div class="search-section">
     <div class="search-label">학생 · 학번 · 선생님 · 과목 검색</div>
     <div class="search-row">

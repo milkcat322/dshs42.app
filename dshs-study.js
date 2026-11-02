@@ -173,8 +173,8 @@ function renderNav() {
   const nav = $("studyNav");
   nav.style.display = "flex";
   const open = $("studyView").style.display === "block";
-  // 학생 계정은 맨 왼쪽에 "내 시간표" (관리자 계정은 학번이 없어 내 시간표가 없음)
-  const tabs = me?.student_id ? [["mytt", "내 시간표"], ...PAGES] : PAGES;
+  // 학생 계정은 맨 왼쪽에 "시간표" (내 시간표 · 검색. 관리자 계정은 학번이 없어 내 시간표가 없음)
+  const tabs = me?.student_id ? [["mytt", "시간표"], ...PAGES] : PAGES;
   const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && page === k);
   nav.innerHTML = me
     ? tabs.map(([k, label]) =>
