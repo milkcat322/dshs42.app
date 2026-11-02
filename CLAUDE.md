@@ -60,7 +60,7 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - 프론트 파일(`.js`, `index.html` 등)을 고치면 `sw.js` 의 `CACHE` 버전을 올린다. Supabase·Edge Function 응답은 서비스 워커가 캐시하면 안 된다.
 - `dshs-study.js` 는 전역 스코프 파일이다. 고친 뒤 맨 끝의 `init();` 이 남아 있는지 확인한다 (빠지면 로그인이 통째로 사라짐).
 - 교시 시각은 `dshs-study.js` 의 `PERIOD_TIME` 한 곳에서만 관리한다.
-- 수업 옮김·공강은 `class_changes` 에 저장한다 (`user_id` 있음 = 그 학생만, null = 관리자가 분반 전체). 시간표 원본 `SCHOOL_DATA` 는 고치지 않는다. R&E·학급 자치는 바뀔 일이 없어 대상에서 뺀다(`FIXED_CLASSES`). 옮긴 수업은 시작 30분 전에 알림이 간다 (학생이 직접 바꾼 수업은 관리자 변경 알림을 받지 않음).
+- 수업 옮김·공강은 `class_changes` 에 저장한다 (`user_id` 있음 = 그 학생만, null = 관리자가 분반 전체). 시간표 원본 `SCHOOL_DATA` 는 고치지 않는다. R&E·학급 자치는 바뀔 일이 없어 대상에서 뺀다(`FIXED_CLASSES`). 옮긴 수업 알림(시작 30분 전, 학생이 직접 바꾼 수업은 관리자 변경 알림을 받지 않음)은 코드에 있지만 `send-reminders` 를 배포해야 동작한다.
 - 공지·일정의 접근 범위는 화면이 아니라 DB 권한(RLS)으로 막는다. 권한 관련 변경은 SQL 파일에 반영한다.
 - DB 를 바꾸면 해당 `.sql` 파일에도 반영하고, 새 파일이면 README 1단계 실행 순서에 추가한다.
 - 로그인 이메일 도메인 `EMAIL_DOMAIN = "dshs.study"` (dshs-study.js · signup Edge Function)는 서비스 이름이 바뀌어도 바꾸지 않는다. 계정이 `아이디@dshs.study` 로 저장돼 있어 바꾸면 모두 로그인이 안 된다. 로그인 유지 키(`dshs-study-auth`)·캐시 이름도 그대로 둔다.
