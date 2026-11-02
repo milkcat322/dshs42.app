@@ -110,7 +110,8 @@ function dayTitle(key) {
 async function init() {
   if (!ENABLED) { $("studyNav").style.display = "none"; return; }
   if (dshsPopupLanding()) closeDshsPopup();   // 앱이 연 로그인 창이면 화면을 그리기 전에 바로 닫습니다
-  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.4");
+  // ?bundle: 여러 파일을 차례로 받지 않고 한 파일로 받습니다 (index.html 의 modulepreload 와 같은 주소)
+  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.4?bundle");
   sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs-study-auth" },
   });

@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v77';
+const CACHE = 'dshs-study-v78';
 
 const SHELL = [
   './',
@@ -43,6 +43,27 @@ self.addEventListener('message', e => {
   if (e.data === 'skip-waiting') self.skipWaiting();
 });
 
+// 네트워크 우선. 다만 네트워크가 느리면(SLOW_MS) 기다리지 않고 저장해 둔 것을 먼저 보여 주고,
+// 늦게 온 새 응답은 저장만 해 두었다가 다음에 열 때 씁니다. 저장해 둔 게 없으면 네트워크를 끝까지 기다립니다.
+const SLOW_MS = 2500;
+function networkFirst(req, key) {
+  const net = fetch(req).then(res => {
+    if (res.ok) {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(key, copy)).catch(() => {});
+    }
+    return res;
+  });
+  const cached = () => caches.match(key).then(hit => hit || (key === './index.html' ? caches.match('./') : undefined));
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const finish = (res) => { if (!done && res) { done = true; resolve(res); } };
+    const timer = setTimeout(() => cached().then(finish), SLOW_MS);
+    net.then(res => { clearTimeout(timer); finish(res); })
+      .catch(() => { clearTimeout(timer); cached().then(hit => hit ? finish(hit) : (!done && reject(new Error('offline')))); });
+  });
+}
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -65,25 +86,13 @@ self.addEventListener('fetch', e => {
 
   // 스크립트·설정·데이터 파일(학사일정 academic.json 등): 항상 최신을 먼저 (고치면 새로고침 한 번에 반영되도록)
   if (url.pathname.endsWith('.js') || url.pathname.endsWith('.json')) {
-    e.respondWith(
-      fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
-        return res;
-      }).catch(() => caches.match(req))
-    );
+    e.respondWith(networkFirst(req, req));
     return;
   }
 
   // 앱 문서: 네트워크 우선(최신 시간표), 실패하면 캐시로 오프라인 동작
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
-    e.respondWith(
-      fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put('./index.html', copy)).catch(() => {});
-        return res;
-      }).catch(() => caches.match('./index.html').then(hit => hit || caches.match('./')))
-    );
+    e.respondWith(networkFirst(req, './index.html'));
     return;
   }
 
