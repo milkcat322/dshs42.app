@@ -21,8 +21,8 @@ let tab = (() => {      // feed 화면의 탭. 마지막에 고른 보기를 기
   return window.innerWidth < 640 ? "3day" : "week";
 })();
 
-// 민트는 할 일 전용이라 개인 일정 색에서 뺐습니다 (예전에 민트로 저장한 일정은 그대로 민트로 보임)
-const COLORS = ["violet", "pink", "orange", "blue"];
+// 종류마다 한 색: 수행평가 노랑 · 할 일 민트 · 학교 일정 회색 · 신청 파랑. 내 일정은 남은 세 색에서 고릅니다.
+const COLORS = ["violet", "pink", "orange"];
 
 // ---------- 유틸 ----------
 const $ = (id) => document.getElementById(id);
@@ -173,13 +173,13 @@ function renderNav() {
   nav.style.display = "flex";
   const open = $("studyView").style.display === "block";
   // 학생 계정은 맨 왼쪽에 "내 시간표" (관리자 계정은 학번이 없어 내 시간표가 없음)
-  const tabs = me?.student_id ? [["mytt", "📅 내 시간표"], ...PAGES] : PAGES;
+  const tabs = me?.student_id ? [["mytt", "내 시간표"], ...PAGES] : PAGES;
   const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && page === k);
   nav.innerHTML = me
     ? tabs.map(([k, label]) =>
         `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("") +
-      `<button class="study-btn" id="btnAcct" title="${esc(me.name)} (${esc(me.username)})">👤 계정</button>`
-    : `<button class="study-btn" id="btnLogin">🔑 로그인 / 회원가입</button>`;
+      `<button class="study-btn" id="btnAcct" title="${esc(me.name)} (${esc(me.username)})">계정</button>`
+    : `<button class="study-btn" id="btnLogin">로그인 / 회원가입</button>`;
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
@@ -351,7 +351,7 @@ function signupStep3(sid, name) {
 }
 
 // ---------- 탭: 내 일정 · 수행평가 공지 · 할 일 ----------
-const PAGES = [["cal", "🗓 내 일정"], ["notice", "📝 수행평가"], ["todo", "☑️ 할 일"]];
+const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"]];
 const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo" };
 
 // 내 일정: 수행평가(내 분반 공지 + 내가 올린 것)와 개인 일정을 한 달력에 모두 보여줍니다
@@ -398,13 +398,13 @@ function renderStudy() {
     </div>
     ${page === "cal" ? `<div class="study-row">
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
-      ${me.is_admin ? '<button class="study-btn admin" id="btnSchool">🎓 학교 일정 추가</button>' : ""}
+      ${me.is_admin ? '<button class="study-btn" id="btnSchool">학교 일정 추가</button>' : ""}
       <button class="study-btn" id="btnPush"></button>
     </div>
     <div id="dshsHint"></div>` : ""}
     ${page === "notice" ? `<div class="study-row">
       <button class="study-btn primary" id="btnNew">+ 수행평가 추가</button>
-      ${me.is_admin ? '<button class="study-btn admin" id="btnAdmin">⭐ 승인 대기 <span id="pendCount">0</span></button>' : ""}
+      ${me.is_admin ? '<button class="study-btn" id="btnAdmin">승인 대기 <span id="pendCount">0</span></button>' : ""}
     </div>` : ""}
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
@@ -474,26 +474,24 @@ const editsOnlyForMe = (a) => !me.is_admin && a.status === "approved";
 const canEditAsg = (a) => me.is_admin || a.status === "approved" || a.created_by === me.id;
 const canDelAsg = (a) => me.is_admin || (a.created_by === me.id && a.status !== "approved");
 
+// 승인 전 수행평가의 상태. D-day 옆에 함께 보여 줍니다
+const stBadge = (status) => (status === "pending" ? '<span class="st-badge pending">대기</span>'
+  : status === "rejected" ? '<span class="st-badge rejected">반려됨</span>' : "");
+
 function card(a, opts = {}) {
   const d = asgDue(a);
-  const stBadge = `<span class="st-badge ${a.status}">${a.status === "pending" ? "승인 대기" : "반려됨"}</span>`;
-  const dueBadge = `<span class="due-badge ${d.tone}">${d.label}</span>`;
-  // 공지 탭(check)에서는 내 미승인 공지도 D-day 와 함께 "나만 보여요" 를 붙여 보여줍니다
-  const badge = a.status === "approved" ? `${a.personal ? '<span class="own-tag">내가 수정함</span>' : ""}${dueBadge}`
-    : opts.check ? `<span class="own-tag">나만 보여요 · ${a.status === "pending" ? "승인 대기" : "반려됨"}</span>${dueBadge}`
-    : stBadge;
+  const badge = `<span class="asg-badges">${a.personal ? '<span class="own-tag">내가 수정함</span>' : ""}${stBadge(a.status)}<span class="due-badge ${d.tone}">${d.label}</span></span>`;
   const done = opts.check && cache.done.has(a.id);
-  const ownOnly = a.created_by === me.id && a.status !== "approved";
   const editBtn = canEditAsg(a) ? `<button class="study-btn small" data-aedit="${a.id}">수정</button>` : "";
   const delBtn = canDelAsg(a) ? `<button class="study-btn small no" data-del="${a.id}">삭제</button>` : "";
-  return `<div class="asg-card${done ? " done" : ""}${opts.check && ownOnly ? " own" : ""}">
+  return `<div class="asg-card${done ? " done" : ""}">
     <div class="asg-top"><span class="asg-subject">${esc(a.subject)} · ${esc(banLabel(a.ban))}</span>${badge}</div>
     <div class="asg-title">${esc(a.title)}</div>
     ${a.body ? `<div class="asg-body">${esc(a.body)}</div>` : ""}
-    <div class="asg-due"><span>🗓 ${d.when ? `${d.when} 마감` : "마감 일시 미정"}</span>${a.author_name ? `<span class="asg-by">${esc(a.author_name)} 작성</span>` : ""}</div>
-    ${a.submit_to ? `<div class="asg-due">📮 제출: ${esc(a.submit_to)}</div>` : ""}
+    <div class="asg-due"><span>${d.when ? `${d.when} 마감` : "마감 일시 미정"}</span>${a.author_name ? `<span class="asg-by">${esc(a.author_name)} 작성</span>` : ""}</div>
+    ${a.submit_to ? `<div class="asg-due">제출: ${esc(a.submit_to)}</div>` : ""}
     ${opts.check ? `<div class="asg-actions">
-      <button class="study-btn small${done ? " on" : ""}" data-adone="${a.id}">${done ? "✓ 완료함" : "완료 표시"}</button>
+      <button class="study-btn small${done ? " on" : ""}" data-adone="${a.id}">${done ? "완료함" : "완료 표시"}</button>
       ${editBtn}${delBtn}
     </div>` : ""}
     ${opts.admin ? `<div class="asg-actions">
@@ -501,7 +499,6 @@ function card(a, opts = {}) {
       <button class="study-btn small no" data-no="${a.id}">반려</button>
       ${editBtn}${delBtn}
     </div>` : ""}
-    ${opts.mine && a.status !== "approved" ? `<div class="asg-actions">${editBtn}${delBtn}</div>` : ""}
   </div>`;
 }
 
@@ -554,12 +551,6 @@ function renderList(mode) {
   if ($("acadBtn")) $("acadBtn").onclick = openAcadFilter;
   bindRows(body);
   if (tab !== "list") mountCal();
-}
-
-function mineHtml() {
-  const mineOpen = (cache.mine || []).filter((a) => a.status !== "approved");
-  return mineOpen.length ? `<div class="study-section">내가 추가한 수행평가</div>` +
-    mineOpen.map((a) => card(a, { mine: true })).join("") : "";
 }
 
 // 목록의 완료 동그라미 · 항목 열기 · 공지 취소
@@ -696,8 +687,6 @@ function fcEvents() {
       extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared },
     };
     if (it.shared) base.classNames.push("fcx-shared");
-    if (it.kind === "sch") base.classNames.push("fcx-acad");
-    if (it.kind === "dshs") base.classNames.push("fcx-dshs");
     if (it.kind === "todo") return { ...base, classNames: [...base.classNames, "fcx-todo"], start: dayKey(it.at), allDay: true, editable: true, durationEditable: false };
     if (it.kind === "asg") return { ...base, start: dayKey(it.at), allDay: true, editable: false };
     if (it.allDay) {
@@ -709,27 +698,23 @@ function fcEvents() {
   });
 }
 
-// 폰의 주·월 보기는 칸이 좁아 제목을 첫 글자 + … 로 줄이고 시간·아이콘은 뺍니다 (눌러서 자세히 봄).
+// 폰의 주·월 보기는 칸이 좁아 시간은 빼고, 제목은 칸에 들어가는 만큼만 보여 줍니다 (눌러서 자세히 봄).
 // 폰의 3일 보기는 줄이지 않고 줄바꿈으로 모두 보여 줍니다 (index.html 의 .fc-threeDays-view 규칙).
 const compactCal = (arg) => window.innerWidth < 640 && arg.view.type !== "threeDays";
-const firstChar = (t) => ([...t].length > 1 ? `${[...t][0]}…` : t);
 
 function fcContent(arg) {
   const p = arg.event.extendedProps;
   const compact = compactCal(arg);
-  const full = arg.event.title, title = compact ? firstChar(full) : full;
+  const full = arg.event.title, title = full;
   if (p.kind === "tt") return { html: `<div class="fcx-tt-in"><b>${esc(title)}</b>${compact ? "" : `<span>${esc(p.ban)}</span>`}</div>` };
   if (p.kind === "todo") return { html: `<div class="fcx" title="${esc(full)}"><div class="fcx-title"><span class="fcx-tchk" role="checkbox" aria-checked="${p.done}" aria-label="완료 표시">${p.done ? "✓" : ""}</span>${esc(title)}</div></div>` };
   const s = arg.event.start, e = arg.event.end;
   const time = compact ? ""
     : p.kind === "asg" ? `${hm(p.at)} 마감`
     : arg.event.allDay ? "" : `${hm(s)}${e ? ` – ${hm(e)}` : ""}`;
-  const icon = p.kind === "asg" ? "📋 " : p.kind === "sch" || p.kind === "acad" ? "🎓 " : p.kind === "dshs" ? "📮 " : p.shared ? "👥 " : "";
-  // 좁은 칸에서는 아이콘 + 첫 글자만 (… 까지 넣으면 글자가 밀려 … 만 남습니다)
-  const label = compact && icon ? `${icon.trim()}${esc([...full][0] || "")}` : `${icon}${esc(title)}`;
   return { html: `<div class="fcx" title="${esc(full)}">
     ${time ? `<div class="fcx-time">${time}</div>` : ""}
-    <div class="fcx-title">${label}</div>
+    <div class="fcx-title">${esc(title)}</div>
   </div>` };
 }
 
@@ -832,20 +817,20 @@ function agenda() {
     kind: "asg", id: a.id, title: a.title, at: new Date(a.due_at), end: null, allDay: false,
     color: "asg", done: cache.done.has(a.id) || new Date(a.due_at) < now, status: a.status,
     auto: !cache.done.has(a.id) && new Date(a.due_at) < now,
-    tag: `${a.subject} · ${banLabel(a.ban)}${a.status === "pending" ? " · 승인 대기 (나만 보여요)" : a.status === "rejected" ? " · 나만 보여요" : ""}`,
+    tag: `${a.subject} · ${banLabel(a.ban)}`,
   }));
   const evs = cache.events.map((e) => ({
     kind: "ev", id: e.id, title: e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
     allDay: e.all_day, color: e.color, done: eventDone(e) || isPastEvent(e), auto: !eventDone(e) && isPastEvent(e),
     owner: ownsEvent(e), shared: eventPeople(e).length > 0,
-    tag: [shareLabel(e) && `👥 ${shareLabel(e)}`, e.memo.split("\n")[0]].filter(Boolean).join(" · "),
+    tag: [shareLabel(e), e.memo.split("\n")[0]].filter(Boolean).join(" · "),
   }));
   // 관리자가 숨긴 학사일정은 관리자에게만 흐리게 보여 줍니다 (눌러서 되돌릴 수 있게)
   const sch = [...liveSchool(), ...(me.is_admin ? cache.school.filter((e) => e.hidden) : [])]
     .filter((e) => acadOn.has(e.category)).map((e) => ({
     kind: "sch", id: e.id, title: e.hidden ? `숨김 · ${e.title}` : e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
-    allDay: e.all_day, color: `acad-${e.category}`, done: !!e.hidden, owner: me.is_admin,
-    tag: [catLabel(e.category), e.no_class && "수업 없음", me.is_admin && e.audience === "some" && `🎯 ${schoolTargets(e).length}명`,
+    allDay: e.all_day, color: "school", done: !!e.hidden, owner: me.is_admin,
+    tag: [e.no_class && "수업 없음", me.is_admin && e.audience === "some" && `${schoolTargets(e).length}명 대상`,
       e.memo.split("\n")[0]].filter(Boolean).join(" · "),
   }));
   // 기한을 정한 할 일은 그날 종일 칸에 체크박스로 둡니다
@@ -865,25 +850,24 @@ function timeLabel(it) {
   return multi ? `${md(it.at)} ${hm(it.at)} – ${md(it.end)} ${hm(it.end)}` : `${hm(it.at)} – ${hm(it.end)}`;
 }
 
-// 일정 종류 이름. 달력에서는 모양으로, 목록에서는 이 이름표로 구분합니다 (모양은 index.html 의 "일정 종류" 규칙)
+// 일정 종류 이름. 모든 일정은 같은 모양이고 색으로만 구분합니다 (범례 · 목록의 회색 글씨)
 const KIND_LABEL = { asg: "수행평가", todo: "할 일", ev: "내 일정", sch: "학교 일정", acad: "학교 일정", dshs: "dshs.app 신청" };
 function legendHtml() {
-  const kinds = [["asg", "c-asg"], ["todo", "c-mint"], ["ev", "c-violet"], ["acad", "c-acad-event"], ["dshs", "c-dshs"]];
-  return `<div class="kind-legend">${kinds.map(([k, c]) => `<span class="kl ${c}"><i class="kl-mark k-${k}"></i>${KIND_LABEL[k]}</span>`).join("")}</div>`;
+  const kinds = [["asg", "c-asg"], ["todo", "c-mint"], ["ev", "c-violet"], ["sch", "c-school"], ["dshs", "c-dshs"]];
+  return `<div class="kind-legend">${kinds.map(([k, c]) => `<span class="kl ${c}"><i></i>${KIND_LABEL[k]}</span>`).join("")}</div>`;
 }
 
 function row(it) {
   const d = it.kind === "asg" && !it.done ? dueInfo(it.at) : null;
-  return `<div class="ev-row k-${it.kind} c-${it.color}${it.done ? " done" : ""}">
-    ${it.kind === "sch" || it.kind === "acad" || it.kind === "dshs" ? `<span class="ev-check sch-ic" aria-hidden="true">${it.kind === "dshs" ? "📮" : "🎓"}</span>`
+  return `<div class="ev-row c-${it.color}${it.done ? " done" : ""}">
+    ${it.kind === "sch" || it.kind === "acad" || it.kind === "dshs" ? `<span class="ev-dot" aria-hidden="true"></span>`
       : `<button class="ev-check" data-chk="${it.kind}:${it.id}" aria-label="완료 표시"${it.auto
       ? ' disabled title="지난 일정은 자동으로 완료돼요"' : ""}>${it.done ? "✓" : ""}</button>`}
     <button class="ev-main" data-open="${it.kind}:${it.id}">
-      <span class="ev-kind">${KIND_LABEL[it.kind]}</span>
       <span class="ev-title">${esc(it.title)}</span>
-      <span class="ev-meta">${esc(timeLabel(it))}${it.tag ? ` · ${esc(it.tag)}` : ""}</span>
+      <span class="ev-meta">${KIND_LABEL[it.kind]} · ${esc(timeLabel(it))}${it.tag ? ` · ${esc(it.tag)}` : ""}</span>
     </button>
-    ${d ? `<span class="due-badge ${d.tone}">${d.label}</span>` : ""}
+    ${it.kind === "asg" ? `<span class="asg-badges">${stBadge(it.status)}${d ? `<span class="due-badge ${d.tone}">${d.label}</span>` : ""}</span>` : ""}
   </div>`;
 }
 
@@ -949,7 +933,7 @@ function openAsgDetail(a) {
     ${ownOnly ? `<div class="study-foot">${a.status === "pending"
       ? "아직 나만 보여요. 관리자가 승인하면 같은 분반 친구들에게도 보여요."
       : "승인되지 않아 분반 친구들에게는 보이지 않아요. 내 일정에는 그대로 남아 있어요."}</div>` : ""}
-    <button class="study-submit${done ? " ghost" : ""}" id="aDone">${done ? "완료 취소" : "✓ 완료로 표시"}</button>
+    <button class="study-submit${done ? " ghost" : ""}" id="aDone">${done ? "완료 취소" : "완료로 표시"}</button>
     ${canEditAsg(a) ? '<button class="study-submit ghost" id="aEdit">수정</button>' : ""}
     ${canDelAsg(a) ? '<button class="study-submit ghost danger" id="aDel">삭제</button>' : ""}`);
   $("aDone").onclick = async () => { closeModal(); await toggleDone("asg", a.id); };
@@ -1149,15 +1133,15 @@ function openSharedEvent(ev) {
   const done = eventDone(ev);
   openSheet("공유받은 일정", `
     <div class="asg-card c-${ev.color} shared-card">
-      <div class="asg-top"><span class="asg-subject">👥 ${esc(owner?.name || "친구")}님이 공유</span></div>
+      <div class="asg-top"><span class="asg-subject">${esc(owner?.name || "친구")}님이 공유</span></div>
       <div class="asg-title">${esc(ev.title)}</div>
       ${ev.memo ? `<div class="asg-body">${esc(ev.memo)}</div>` : ""}
-      <div class="asg-due">🗓 ${dayTitle(dayKey(it.at))} · ${esc(timeLabel(it))}</div>
+      <div class="asg-due">${dayTitle(dayKey(it.at))} · ${esc(timeLabel(it))}</div>
       <div class="asg-due">함께: ${esc([owner?.name, ...others].filter(Boolean).join(", "))}</div>
     </div>
     <div class="study-foot">시간·내용은 만든 사람만 바꿀 수 있어요.</div>
-    ${it.auto ? `<button class="study-submit ghost" disabled>✓ 지난 일정 · 자동 완료</button>`
-      : `<button class="study-submit${done ? " ghost" : ""}" id="sDone">${done ? "완료 취소" : "✓ 완료로 표시"}</button>`}
+    ${it.auto ? `<button class="study-submit ghost" disabled>지난 일정 · 자동 완료</button>`
+      : `<button class="study-submit${done ? " ghost" : ""}" id="sDone">${done ? "완료 취소" : "완료로 표시"}</button>`}
     <button class="study-submit ghost danger" id="sLeave">내 달력에서 빼기</button>`);
   if ($("sDone")) $("sDone").onclick = async () => { closeModal(); await toggleDone("ev", ev.id); };
   $("sLeave").onclick = async () => {
@@ -1466,7 +1450,7 @@ function acadEvents(from, to) {
     const after = parseDay(e.end); after.setDate(after.getDate() + 1);   // FullCalendar 종일 일정의 끝은 다음 날(미포함)
     return {
       id: `acad:${e.id}`, title: e.name, start: e.start, end: dayKey(after), allDay: true, editable: false,
-      classNames: ["fcx-acad", `c-acad-${e.cat}`], extendedProps: { kind: "acad" },
+      classNames: ["c-school"], extendedProps: { kind: "acad" },
     };
   });
 }
@@ -1475,7 +1459,7 @@ function acadEvents(from, to) {
 function acadAgenda() {
   const today = dayKey(new Date()), until = new Date(); until.setDate(until.getDate() + 60);
   return myAcad().filter((e) => acadOn.has(e.cat) && e.end >= today && e.start <= dayKey(until)).map((e) => ({
-    kind: "acad", id: e.id, title: e.name, at: parseDay(e.start), allDay: true, done: false, color: `acad-${e.cat}`, tag: catLabel(e.cat),
+    kind: "acad", id: e.id, title: e.name, at: parseDay(e.start), allDay: true, done: false, color: "school",
     end: e.end > e.start ? new Date(`${e.end}T23:59`) : null,
   }));
 }
@@ -1493,8 +1477,8 @@ function neisDraft(a) {
 function openAcadDetail(e) {
   const when = e.start === e.end ? `${dayTitle(e.start)} · 하루 종일` : `${dayTitle(e.start)} – ${dayTitle(e.end)}`;
   const label = catLabel(e.cat);
-  openSheet("🎓 학교 일정", `
-    <div class="shared-card c-acad-${e.cat}">
+  openSheet("학교 일정", `
+    <div class="shared-card c-school">
       <div class="ev-title">${esc(e.name)}</div>
       <div class="ev-meta">${esc(when)} · ${label}${e.grades.length < 3 ? ` · ${e.grades.join("·")}학년` : ""}</div>
       ${e.memo ? `<div class="asg-body">${esc(e.memo)}</div>` : ""}
@@ -1502,12 +1486,12 @@ function openAcadDetail(e) {
     <div class="study-foot">${e.from ? `${esc(e.from)}로 추가한 일정이에요.` : "학교 홈페이지 학사일정(NEIS)에서 가져온 일정이에요."}</div>`);
 }
 
-const acadBtnLabel = () => `🎓 학교 일정 ${acadOn.size}/${ACAD_CATS.length}`;
+const acadBtnLabel = () => `학교 일정 ${acadOn.size}/${ACAD_CATS.length}`;
 function openAcadFilter() {
   const g = myGrade();
-  openSheet("🎓 학교 일정 보기", ACAD_CATS.map(([k, label, hint]) =>
-    `<label class="ev-allday acad-opt c-acad-${k}"><input type="checkbox" data-acad="${k}"${acadOn.has(k) ? " checked" : ""}>
-      <span class="acad-dot"></span><span><b>${label}</b> <span class="ev-hint">${hint}</span></span></label>`).join("") +
+  openSheet("학교 일정 보기", ACAD_CATS.map(([k, label, hint]) =>
+    `<label class="ev-allday acad-opt"><input type="checkbox" data-acad="${k}"${acadOn.has(k) ? " checked" : ""}>
+      <span><b>${label}</b> <span class="ev-hint">${hint}</span></span></label>`).join("") +
     `<div class="study-foot">학교 홈페이지 학사일정(NEIS)을 하루 한 번 받아 와요.${g ? ` ${g}학년 일정만 보여요.` : ""}</div>`);
   $("studyModal").querySelectorAll("[data-acad]").forEach((c) => c.onchange = () => {
     c.checked ? acadOn.add(c.dataset.acad) : acadOn.delete(c.dataset.acad);
@@ -1578,7 +1562,7 @@ function watchDshs() {
 
 const dshsItems = () => (dshs.linked ? dshs.items.filter((r) => r.status !== "rejected") : []);
 
-// 아직 연결하지 않은 학생에게만 내 일정 위에 안내를 띄웁니다. 닫으면 이 기기에서는 다시 뜨지 않고, 👤 계정에서 연결할 수 있어요.
+// 아직 연결하지 않은 학생에게만 내 일정 위에 안내를 띄웁니다. 닫으면 이 기기에서는 다시 뜨지 않고, 계정에서 연결할 수 있어요.
 const DSHS_HINT_KEY = "dshs-link-hint-off";
 function dshsHintOff() {
   try { return localStorage.getItem(DSHS_HINT_KEY) === "1"; } catch { return false; }
@@ -1616,8 +1600,8 @@ function dshsAgenda() {
 function openDshsDetail(r) {
   if (!r) return;
   const when = schoolWhen({ starts_at: r.from, ends_at: dshsAllDay(r) ? null : r.to, all_day: dshsAllDay(r) });
-  const info = [r.form !== r.title && r.form, r.category, r.room && `📍 ${r.room}`, r.count > 1 && `${r.count}명 참여`].filter(Boolean);
-  openSheet("📮 dshs.app 신청", `
+  const info = [r.form !== r.title && r.form, r.category, r.room, r.count > 1 && `${r.count}명 참여`].filter(Boolean);
+  openSheet("dshs.app 신청", `
     <div class="shared-card c-dshs">
       <div class="ev-title">${esc(r.title)}</div>
       <div class="ev-meta">${esc(when)} · ${DSHS_STATUS[r.status] || ""}</div>
@@ -1627,17 +1611,17 @@ function openDshsDetail(r) {
     <a class="study-btn wide" href="https://dshs.app" target="_blank" rel="noopener">dshs.app 열기</a>`);
 }
 
-// 👤 계정: 로그아웃과 dshs.app 연결 관리
+// 계정: 로그아웃과 dshs.app 연결 관리
 function openAccount() {
   const link = dshs.linked
-    ? `<div class="asg-body">📮 dshs.app ${dshs.name ? `${esc(dshs.name)} 계정과 ` : ""}연결돼 있어요. 진행 중인 내 신청 ${dshsItems().length}건이 달력에 보여요.</div>
+    ? `<div class="asg-body">dshs.app ${dshs.name ? `${esc(dshs.name)} 계정과 ` : ""}연결돼 있어요. 진행 중인 내 신청 ${dshsItems().length}건이 달력에 보여요.</div>
        <div class="study-foot">내 일정을 보는 동안 1분마다 새로 받아 와요. 연결을 해제하면 이 사이트에 저장된 dshs.app 로그인 정보가 지워져요.</div>
        <button class="study-btn wide" id="dshsUnlink">dshs.app 연결 해제</button>`
-    : `<div class="asg-body">🔗 dshs.app 계정을 연결하면 내가 낸 신청이 내 일정 달력에 자동으로 보여요.</div>
+    : `<div class="asg-body">dshs.app 계정을 연결하면 내가 낸 신청이 내 일정 달력에 자동으로 보여요.</div>
        <div class="study-foot">dshs.app 로그인 화면에서 로그인하고 동의하면 돼요. 비밀번호는 이 사이트에 전달되지 않아요.<br>
          신청 내역은 보기만 할 수 있고, 신청 · 변경은 dshs.app 에서 해요.</div>
        <button class="study-submit" id="doDshs">dshs.app으로 로그인해서 연결</button>`;
-  openSheet("👤 내 계정", `
+  openSheet("내 계정", `
     <div class="ev-title">${esc(me.name)}</div>
     <div class="ev-meta">${esc(me.username)}</div>
     ${link}
@@ -1718,8 +1702,8 @@ function schoolWhen(e) {
 }
 
 function openSchoolDetail(e) {
-  openSheet("🎓 학교 일정", `
-    <div class="shared-card c-acad-${e.category}">
+  openSheet("학교 일정", `
+    <div class="shared-card c-school">
       <div class="ev-title">${esc(e.title)}</div>
       <div class="ev-meta">${esc(schoolWhen(e))} · ${catLabel(e.category)}${e.no_class ? " · 수업 없음" : ""}</div>
       ${e.memo ? `<div class="asg-body">${esc(e.memo)}</div>` : ""}
@@ -1743,7 +1727,7 @@ function openSchoolForm(e, seed) {
   const subjects = [...new Set(people.flatMap((p) => Object.keys(p.classes)))].sort((a, b) => a.localeCompare(b, "ko"));
   const rooms = [...new Set(people.map((p) => homeroom(p.sid)))].sort();
 
-  openSheet(e ? "학교 일정 수정" : "🎓 학교 일정 추가", `
+  openSheet(e ? "학교 일정 수정" : "학교 일정 추가", `
     ${neis ? `<div class="study-foot">학교 홈페이지(NEIS)에서 온 일정이에요. 여기서 고치면 이 사이트에서만 바뀌고, 원본은 그대로예요.</div>` : ""}
     <label class="study-label">제목</label>
     <input class="study-input" id="sTitle" maxlength="120" value="${esc(e?.title || "")}" placeholder="예: 체육대회, 2학기 기말고사, 개교기념일">
@@ -1938,13 +1922,12 @@ function renderNotice() {
   const subjects = noticeSubjects(now);
   const picked = subjects.find((sj) => sj.name === openSubj);
   body.innerHTML =
-    `<div class="study-section">⏰ 곧 마감 · ${URGENT_DAYS}일 안에 ${urgent.length}건</div>` +
+    `<div class="study-section">곧 마감 · ${URGENT_DAYS}일 안에 ${urgent.length}건</div>` +
     (urgent.length ? urgent.map((a) => card(a, { check: true })).join("")
       : `<div class="study-empty">${URGENT_DAYS}일 안에 마감되는 수행평가가 없어요.</div>`) +
     `<div class="study-section">과목별 수행평가</div>` +
     `<div class="subj-grid">${subjects.map(subjBlock).join("")}</div>` +
-    `<div id="subjDetail">${picked ? subjDetail(picked) : `<div class="subj-hint">과목을 누르면 그 과목 수행평가가 여기에 보여요</div>`}</div>` +
-    mineHtml();
+    `<div id="subjDetail">${picked ? subjDetail(picked) : `<div class="subj-hint">과목을 누르면 그 과목 수행평가가 여기에 보여요</div>`}</div>`;
   body.querySelectorAll("[data-subj]").forEach((b) => b.onclick = () => {
     openSubj = openSubj === b.dataset.subj ? null : b.dataset.subj;
     renderNotice();
@@ -1978,7 +1961,7 @@ function subjBlock(sj) {
     <span class="subj-name">${esc(sj.name)}</span>
     <span class="subj-ban">${esc(sj.ban)}</span>
     <span class="subj-meta">${next
-      ? `<span class="due-badge ${next.tone}">${next.label}</span>${sj.left.length}건`
+      ? `${stBadge(sj.left[0].status)}<span class="due-badge ${next.tone}">${next.label}</span>${sj.left.length}건`
       : sj.up.length ? "모두 완료" : "없음"}</span>
   </button>`;
 }
@@ -2011,8 +1994,8 @@ function todoRow(t) {
       <span class="ev-title">${esc(t.title)}</span>
     </button>
     ${due
-      ? `<button class="td-due ${t.done ? "" : due.tone}" data-tdue="${t.id}" title="${esc(due.text)}까지 · 눌러서 바꾸기">📅 ${due.short}${t.done ? "" : ` · ${due.label}`}</button>`
-      : t.done ? "" : `<button class="td-due empty" data-tdue="${t.id}" title="기한 정하기" aria-label="기한 정하기">📅</button>`}
+      ? `<button class="td-due ${t.done ? "" : due.tone}" data-tdue="${t.id}" title="${esc(due.text)}까지 · 눌러서 바꾸기">${due.short}${t.done ? "" : ` · ${due.label}`}</button>`
+      : t.done ? "" : `<button class="td-due empty" data-tdue="${t.id}" title="기한 정하기" aria-label="기한 정하기">기한</button>`}
     <button class="td-del" data-tdel="${t.id}" aria-label="삭제">✕</button>
   </div>`;
 }
@@ -2037,7 +2020,7 @@ function renderTodo() {
       <button class="study-btn primary" id="tdAdd">추가</button>
     </div>
     <div class="study-section">남은 할 일 ${open.length}개</div>
-    ${open.length ? open.map(todoRow).join("") : `<div class="study-empty">남은 할 일이 없어요 🎉</div>`}
+    ${open.length ? open.map(todoRow).join("") : `<div class="study-empty">남은 할 일이 없어요</div>`}
     ${done.length ? `<div class="study-section">완료 ${done.length}개</div>` + done.map(todoRow).join("") : ""}`;
   const add = async () => {
     const title = $("tdTitle").value.trim();
@@ -2090,7 +2073,7 @@ function openDuePop(btn, t) {
     const d = todoDue(key);
     return `<button class="due-pick${t.due_on === key ? " on" : ""}" data-key="${key}"><span>${label}</span><span class="due-pick-day">${d.short}</span></button>`;
   }).join("") + `
-    <label class="due-pick due-cal"><span>📅 날짜 고르기</span><input type="date" value="${t.due_on || ""}"></label>
+    <label class="due-pick due-cal"><span>날짜 고르기</span><input type="date" value="${t.due_on || ""}"></label>
     ${t.due_on ? `<button class="due-pick due-clear" data-key="">기한 없애기</button>` : ""}`;
   document.body.appendChild(pop);
   const r = btn.getBoundingClientRect();
@@ -2180,7 +2163,7 @@ function paintPush() {
   const b = $("btnPush");
   if (!b) return;
   b.classList.toggle("on", pushOn);
-  b.textContent = pushOn ? "🔔 알림 켜짐" : "🔕 알림 꺼짐";
+  b.textContent = pushOn ? "알림 켜짐" : "알림 꺼짐";
   b.setAttribute("aria-pressed", pushOn);
 }
 
