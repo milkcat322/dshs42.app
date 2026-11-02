@@ -109,6 +109,7 @@ function dayTitle(key) {
 // ---------- 시작 ----------
 async function init() {
   if (!ENABLED) { $("studyNav").style.display = "none"; return; }
+  if (dshsPopupLanding()) closeDshsPopup();   // 앱이 연 로그인 창이면 화면을 그리기 전에 바로 닫습니다
   const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.4");
   sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs-study-auth" },
@@ -1927,7 +1928,7 @@ async function startDshs() {
   try {
     const handoff = newHandoff();
     const { body } = await dshsCall("start", { return_to: location.origin + location.pathname, handoff });
-    if (body.url) { location.href = body.url; if (handoff) waitHandoff(); return; }
+    if (body.url) { openDshsLogin(body.url, handoff); return; }
     toast(body.error || "dshs.app 연결을 시작하지 못했어요", true);
   } catch { toast("dshs.app 연결을 시작하지 못했어요", true); }
   if ($("doDshs")) $("doDshs").disabled = false;
@@ -1952,11 +1953,8 @@ async function loginWithDshs() {
     const handoff = newHandoff();
     const { body } = await dshsCall("login", { return_to: location.origin + location.pathname, handoff });
     if (body.url) {
-      location.href = body.url;
-      if (handoff) {   // 로그인 창을 그냥 닫았으면 다시 누를 수 있게 둡니다
-        $("doDshsLogin").disabled = false;
-        waitHandoff();
-      }
+      openDshsLogin(body.url, handoff);
+      if (handoff) $("doDshsLogin").disabled = false;   // 로그인 창을 그냥 닫았으면 다시 누를 수 있게 둡니다
       return;
     }
   } catch {}
@@ -1967,8 +1965,9 @@ async function loginWithDshs() {
 // ---------- 앱(홈 화면에 추가)에서 dshs.app 로그인 ----------
 // 앱에서는 dshs.app 로그인 화면이 다른 브라우저 창(팝업)에서 열려, 그 창으로 돌아온 로그인은 앱에 남지 않습니다.
 // 그래서 앱만 아는 임의 값(handoff)을 함께 보내고, 로그인 창에는 "앱으로 돌아가세요"만 띄운 뒤
-// 앱이 Edge Function 에서 결과(일회용 로그인 토큰)를 받아 앱에서 로그인합니다.
-// sessionStorage 는 창마다 따로라 팝업은 이 값을 모릅니다.
+// 앱이 Edge Function 에서 결과(일회용 로그인 토큰)를 받아 앱에서 로그인하고, 로그인 창은 닫습니다.
+// 이 값은 앱 창의 메모리에만 두어 팝업은 모릅니다. 새 창을 못 열어 이 창에서 로그인 화면으로 갈 때만
+// sessionStorage 에 남겨, 돌아온 뒤 이어서 받습니다 (새 창은 열 때 sessionStorage 를 복사해 가므로 그 전에는 쓰지 않음).
 const DSHS_HAND_KEY = "dshs-handoff";
 const DSHS_HAND_TTL = 10 * 60000;   // 서버의 로그인 요청 유효 시간과 같음
 const isInstalledApp = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -1977,8 +1976,28 @@ function newHandoff() {
   if (!isInstalledApp()) return undefined;
   const key = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replace(/[+/=]/g, "");
   waitHandoff.h = { key, at: Date.now() };
-  try { sessionStorage.setItem(DSHS_HAND_KEY, JSON.stringify(waitHandoff.h)); } catch {}
+  try { sessionStorage.removeItem(DSHS_HAND_KEY); } catch {}
   return key;
+}
+
+// 앱: 로그인 화면을 새 창으로 열어 두었다가, 로그인이 끝나면 앱이 그 창을 닫습니다.
+function openDshsLogin(url, handoff) {
+  if (!handoff) { location.href = url; return; }
+  const w = window.open(url, "_blank");
+  if (w) waitHandoff.win = w;
+  else {
+    try { sessionStorage.setItem(DSHS_HAND_KEY, JSON.stringify(waitHandoff.h)); } catch {}
+    location.href = url;
+  }
+  waitHandoff();
+}
+
+// 앱이 연 로그인 창으로 돌아온 경우 (?dshs=app 이고 이 창은 handoff 를 모름) → 창을 닫습니다.
+// 닫을 수 없는 브라우저면 "앱으로 돌아가세요" 안내가 남습니다.
+const dshsPopupLanding = () => new URLSearchParams(location.search).get("dshs") === "app" && !pendingHandoff();
+function closeDshsPopup() {
+  try { window.opener?.postMessage("dshs-handoff", location.origin); } catch {}   // 앱이 기다리지 않고 바로 받아 가게
+  try { window.close(); } catch {}
 }
 function pendingHandoff() {
   let h = waitHandoff.h;
@@ -1994,10 +2013,11 @@ function clearHandoff() {
 function waitHandoff() {
   if (waitHandoff.on) return;
   waitHandoff.on = true;
-  const tick = async () => {
+  // 로그인 창이 앞에 있어 앱이 가려져 있어도, 로그인 창이 끝났다고 알려 오면(now) 바로 받아 갑니다
+  const tick = async (now) => {
     const key = pendingHandoff();
     if (!key) return stop();
-    if (document.hidden || tick.busy) return;
+    if ((document.hidden && now !== true) || tick.busy) return;
     tick.busy = true;
     try {
       const { ok, body } = await dshsCall("poll", { handoff: key });
@@ -2006,17 +2026,22 @@ function waitHandoff() {
     tick.busy = false;
   };
   const t = setInterval(tick, 3000);
+  const onMsg = (e) => { if (e.origin === location.origin && e.data === "dshs-handoff") tick(true); };
   function stop() {
     clearInterval(t);
     document.removeEventListener("visibilitychange", tick);
+    window.removeEventListener("message", onMsg);
     waitHandoff.on = false;
   }
   document.addEventListener("visibilitychange", tick);
+  window.addEventListener("message", onMsg);
   tick();
 }
 
 async function handoffArrived(r) {
   clearHandoff();
+  try { waitHandoff.win?.close(); } catch {}
+  waitHandoff.win = null;
   let ok = ["linked", "login", "joined"].includes(r.result);
   if (ok && r.token) {
     const { error } = await sb.auth.verifyOtp({ token_hash: r.token, type: "magiclink" });
@@ -2050,9 +2075,11 @@ function dshsReturned() {
   if (!r) return;
   if (r === "app") {
     // 앱에서 연 로그인 창(팝업)으로 돌아온 경우. 로그인은 앱이 이어서 합니다.
-    if (!pendingHandoff()) openSheet("dshs.app 로그인", `
-      <div class="ev-title">dshs.app 로그인을 마쳤어요</div>
-      <div class="asg-body">이 창을 닫고 앱으로 돌아가 주세요. 앱에서 자동으로 이어져요.</div>`);
+    if (!pendingHandoff()) {   // init 에서 창을 닫지 못한 경우의 안내
+      openSheet("dshs.app 로그인", `
+        <div class="ev-title">dshs.app 로그인을 마쳤어요</div>
+        <div class="asg-body">이 창을 닫고 앱으로 돌아가 주세요. 앱에서 자동으로 이어져요.</div>`);
+    }
   } else {
     const ok = ["linked", "login", "joined"].includes(r) && !dshsSession.failed && !!me;
     toast(ok ? DSHS_RETURNED[r] : DSHS_RETURNED[q.get("reason")] || "dshs.app 로그인에 실패했어요", !ok);

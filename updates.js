@@ -10,7 +10,7 @@
 window.DSHS_UPDATES = [
   {
     id: "2026-11-02-app-login", date: "2026-11-02", major: false,
-    title: "앱에서 dshs.app으로 로그인하면 로그인 창을 닫아도 앱에서 로그인돼요",
+    title: "앱에서 dshs.app으로 로그인하면 로그인 창이 닫히고 바로 앱에서 로그인돼요",
     items: [],
   },
   {
