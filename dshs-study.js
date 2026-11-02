@@ -1104,7 +1104,7 @@ function openEventForm(ev, seed) {
       friends.push({ sid, name: rosterName(sid), invite: true, fromGroup: true });
     }
     drawChips();
-  });
+  }, true);
   let qTimer, qSeq = 0;
   // 검색해서 결과 목록을 그립니다. 엔터를 누르면 기다리지 않고 바로 검색해 첫 번째 결과를 넣어요
   let shownQ = "";
@@ -1235,14 +1235,36 @@ function openEventForm(ev, seed) {
 // ---------- 즐겨찾기 그룹 (groups.sql) ----------
 // 일정의 '함께하는 친구'와 관리자 학교 일정 대상에서 함께 씁니다. 학생 그룹은 나만, 관리자 그룹은 관리자끼리 봐요.
 // boxId: 그룹 줄을 그릴 칸 · getSids(): 지금 고른 학번들 · addSids(sids): 그룹을 눌렀을 때 학번들을 더하기
-function mountGroups(boxId, getSids, addSids) {
+// withBan: "분반으로 고르기" 버튼도 둡니다 (과목 · 분반을 고르면 그 분반 학생 모두. 관리자 학교 일정은 따로 분반 줄이 있어 뺌)
+function mountGroups(boxId, getSids, addSids, withBan = false) {
   let groups = [];
   const draw = () => {
     const box = $(boxId);
     if (!box) return;
     box.innerHTML = `<span class="aud-label">그룹</span>` +
       groups.map((g, i) => `<span class="aud-group"><button type="button" class="study-btn small" data-group="${i}">${esc(g.name)} <small>${g.student_ids.length}</small></button><button type="button" class="aud-group-x" data-gdel="${i}" aria-label="${esc(g.name)} 그룹 지우기">✕</button></span>`).join("") +
-      `<button type="button" class="study-btn small" data-gsave>+ 고른 사람을 그룹으로</button>`;
+      (withBan ? `<button type="button" class="study-btn small" data-gban>분반으로 고르기</button>` : "") +
+      `<button type="button" class="study-btn small" data-gsave>+ 고른 사람을 그룹으로</button>` +
+      (withBan ? `<div class="aud-quick ban-pick" hidden>
+        <select class="study-input" data-bsubj><option value="">과목 고르기</option>${banSubjects().map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+        <select class="study-input" data-bban disabled><option value="">분반</option></select>
+        <button type="button" class="study-btn small" data-badd disabled>모두 넣기</button>
+      </div>` : "");
+    if (withBan) {
+      const pick = box.querySelector(".ban-pick"), subj = pick.querySelector("[data-bsubj]"), ban = pick.querySelector("[data-bban]"), go = pick.querySelector("[data-badd]");
+      box.querySelector("[data-gban]").onclick = () => { pick.hidden = !pick.hidden; };
+      subj.onchange = () => {
+        const bans = [...new Set(roster().map((p) => p.classes[subj.value]).filter(Boolean))].sort();
+        ban.innerHTML = `<option value="*">전체 분반</option>` + bans.map((x) => `<option>${esc(x)}</option>`).join("");
+        ban.disabled = go.disabled = !subj.value;
+      };
+      go.onclick = () => {
+        const s = subj.value, b = ban.value;
+        const sids = roster().filter((p) => p.classes[s] && (b === "*" || p.classes[s] === b)).map((p) => p.sid);
+        addSids(sids);
+        toast(`${s} ${b === "*" ? "전체" : b} ${sids.length}명을 넣었어요`);
+      };
+    }
     box.querySelectorAll("[data-group]").forEach((b) => b.onclick = () => addSids(groups[+b.dataset.group].student_ids));
     box.querySelectorAll("[data-gdel]").forEach((b) => b.onclick = async () => {
       const g = groups[+b.dataset.gdel];
@@ -1265,11 +1287,13 @@ function mountGroups(boxId, getSids, addSids) {
     };
   };
   sb.from("audience_groups").select("*").order("name").then(({ data, error }) => {
-    if (error) { $(boxId)?.remove(); return; }   // groups.sql 을 아직 실행하지 않았으면 숨깁니다
-    groups = data;
+    groups = error ? [] : data;   // 그룹을 못 불러와도 분반으로 고르기는 쓸 수 있게
+    if (error && !withBan) { $(boxId)?.remove(); return; }
     draw();
   });
 }
+// 분반이 있는 과목 (명단의 수강 정보에서)
+const banSubjects = () => [...new Set(roster().flatMap((p) => Object.keys(p.classes)))].sort((a, b) => a.localeCompare(b, "ko"));
 
 // 친구가 공유한 일정: 보기 + 내 완료 체크 + 내 달력에서 빼기
 function openSharedEvent(ev) {
