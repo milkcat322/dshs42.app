@@ -1038,7 +1038,7 @@ function openEventForm(ev, seed) {
     <label class="study-label">함께하는 친구 (선택)</label>
     <div class="fr-chips" id="frChips"></div>
     <div class="aud-quick" id="frGroups"><span class="aud-label">그룹</span><span class="aud-hint">불러오는 중…</span></div>
-    <input class="study-input" id="frQ" autocomplete="off" placeholder="이름·학번으로 찾기 (가입 전 친구는 학번 4자리)">
+    <input class="study-input" id="frQ" autocomplete="off" placeholder="이름·학번으로 찾기 (가입 전 친구도 돼요)">
     <div class="fr-results" id="frRes"></div>
     <div class="study-foot fr-note">넣은 친구 달력에도 이 일정이 생겨요. 고치거나 지우면 친구 달력에도 반영돼요. 가입 전인 친구는 가입하면 바로 생겨요.</div>
     ${ev ? `<label class="ev-allday"><input type="checkbox" id="eDone"${ev.done || isPastEvent(ev) ? " checked" : ""}${isPastEvent(ev) ? " disabled" : ""}> 완료한 일정${
@@ -1113,17 +1113,17 @@ function openEventForm(ev, seed) {
     const { data, error } = await sb.rpc("search_people", { p_query: q });
     if (seq !== qSeq) return;   // 더 늦게 친 검색어의 결과만 보여줍니다
     const list = (data || []).filter((p) => !friends.some((f) => !f.invite && f.id === p.id));
-    // 학번 4자리인데 가입한 사람 중에 없으면 → 명단에 있는 가입 전 학생으로 넣기
-    const sid = /^\d{4}$/.test(q) ? +q : 0;
-    const unjoined = sid && !(data || []).some((p) => p.student_id === sid) && (window.ID_TO_NAME || {})[q]
-      && sid !== me.student_id && !friends.some((f) => f.invite && f.sid === sid);
+    // 가입한 사람 중에 없는 명단 학생 → 가입 전 학생으로 넣기 (학번 4자리 또는 이름으로 찾음)
+    const joined = new Set((data || []).map((p) => p.student_id));
+    const unjoined = roster().filter((p) => (/^\d{4}$/.test(q) ? p.sid === +q : !/^\d+$/.test(q) && p.name.includes(q))
+      && !joined.has(p.sid) && p.sid !== me.student_id && !friends.some((f) => f.sid === p.sid)).slice(0, 5);
     const rows = [
       ...list.map((p, i) => `<button type="button" class="fr-item" data-add="${i}"><b>${esc(p.name)}</b>${p.student_id ? `<span>${p.student_id}</span>` : ""}</button>`),
-      ...(unjoined ? [`<button type="button" class="fr-item" data-invite="${sid}"><b>${esc(rosterName(sid))}</b><span>${sid} · 가입 전</span></button>`] : []),
+      ...unjoined.map((p) => `<button type="button" class="fr-item" data-invite="${p.sid}"><b>${esc(p.name)}</b><span>${p.sid} · 가입 전</span></button>`),
     ];
     $("frRes").innerHTML = error ? `<div class="fr-empty">찾지 못했어요.</div>`
       : rows.length ? rows.join("")
-      : `<div class="fr-empty">가입한 사람 중에 없어요. 가입 전인 친구는 학번 4자리를 입력해 주세요.</div>`;
+      : `<div class="fr-empty">명단에 없어요. 이름이나 학번 4자리를 확인해 주세요.</div>`;
     const added = () => { drawChips(); $("frQ").value = ""; $("frRes").innerHTML = ""; $("frQ").focus(); };
     $("frRes").querySelectorAll("[data-add]").forEach((b) => b.onclick = () => {
       const p = list[+b.dataset.add];
