@@ -186,6 +186,12 @@
   .nav-icons { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
   .icon-btn { position: relative; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--border); border-radius: 50%; font-size: 16px; line-height: 1; cursor: pointer; }
   .icon-btn:hover { border-color: var(--accent1); }
+  .nav-logo { display: none; margin-right: auto; font-size: 16px; font-weight: 900; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--text) 0%, var(--accent1) 50%, var(--accent2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .set-row b { display: block; font-size: 14.5px; color: var(--text); }
+  .set-row .ev-hint { display: block; margin-top: 2px; }
+  .set-row input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent1); }
+  .set-sec { margin: 18px 0 6px; font-size: 12px; font-weight: 700; color: var(--text-dim); }
   .icon-btn.has-new::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
   .upd-sheet { max-width: 420px; }
   .upd-entry { padding: 14px 0; border-top: 1px solid var(--border); }
@@ -614,9 +620,11 @@
     .container { padding: 0 14px calc(20px + env(safe-area-inset-bottom)); }
 
     /* 머리글: 왼쪽 로고, 오른쪽 버튼 */
-    .header { display: flex; align-items: center; height: 46px; margin: env(safe-area-inset-top) 0 0; text-align: left; }
+    /* 머리글: 맨 위에서는 로고가 가운데. 내리면 작은 로고가 아이콘 줄 왼쪽에 붙어 있습니다 */
+    .header { display: flex; align-items: center; justify-content: center; height: 46px; margin: env(safe-area-inset-top) 0 0; }
     .school-badge, .subtitle { display: none; }
-    h1 { font-size: 20px; margin: 0; }
+    h1 { font-size: 22px; margin: 0; }
+    body.scrolled .nav-logo { display: block; }
 
     /* 설치 안내는 한 줄로. 자세한 설명은 설치 버튼을 누르면 나옵니다 */
     .install-bar { padding: 8px 10px; margin-bottom: 10px; gap: 10px; border-radius: 13px; }
@@ -716,9 +724,10 @@
   <!-- 탭과 그 위의 아이콘 버튼은 함께 움직여, 폰에서 스크롤해도 위에 붙어 있습니다 -->
   <div class="nav-bar">
     <div class="nav-icons">
+      <span class="nav-logo" aria-hidden="true">dshs42.app</span>
       <button class="icon-btn" id="updBtn" type="button" title="업데이트 소식" aria-label="업데이트 소식">📢</button>
       <button class="icon-btn" id="btnFeedback" type="button" title="피드백" aria-label="피드백" style="display:none">💬</button>
-      <button class="icon-btn" id="btnAcct" type="button" title="계정" aria-label="계정" style="display:none">👤</button>
+      <button class="icon-btn" id="btnSettings" type="button" title="설정" aria-label="설정" style="display:none">⚙️</button>
     </div>
     <div class="study-nav" id="studyNav" style="display:none"></div>
   </div>
@@ -2180,6 +2189,16 @@ function switchTab(tabName, btn) {
     btn.classList.add('has-new');
     open('✨ 새로워진 점', unseen, '<button class="study-submit upd-ok" type="button">확인했어요</button>');
   }
+})();
+</script>
+<script>
+// 머리글 로고가 화면 밖으로 나가면 body.scrolled → 폰에서는 위에 붙은 아이콘 줄 왼쪽에 작은 로고를 보여 줍니다
+(() => {
+  const logo = document.querySelector('.header h1');
+  const check = () => document.body.classList.toggle('scrolled', logo.getBoundingClientRect().bottom < 0);
+  addEventListener('scroll', check, { passive: true });
+  addEventListener('resize', check);
+  check();
 })();
 </script>
 <script src="config.js"></script>

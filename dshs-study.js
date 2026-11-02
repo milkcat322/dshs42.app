@@ -184,17 +184,17 @@ function renderNav() {
     ? tabs.map(([k, label]) =>
         `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("")
     : `<button class="study-btn" id="btnLogin">로그인 / 회원가입</button>`;
-  // 계정 버튼은 로그인했을 때만 맨 위 업데이트 옆에 보입니다
-  const acct = $("btnAcct");
-  acct.style.display = me ? "" : "none";
-  acct.title = me ? `${me.name} (${me.username})` : "";
+  // 설정(알림 · 학교 일정 · 계정)은 로그인했을 때만 업데이트 옆에 보입니다
+  const set = $("btnSettings");
+  set.style.display = me ? "" : "none";
   const fb = $("btnFeedback");
   fb.style.display = me && FEEDBACK_ON ? "" : "none";
   fb.onclick = me ? (me.is_admin ? openFeedbackList : openFeedback) : null;
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
-    acct.onclick = openAccount;
+    set.onclick = openSettings;
+    autoPush();
   } else {
     $("btnLogin").onclick = () => openAuth("login");
   }
@@ -226,6 +226,7 @@ const openHome = () => (me.student_id ? openMyTimetable() : openStudy());
 async function logout() {
   await disablePush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 지웁니다
   await sb.auth.signOut();
+  autoPush.done = false;   // 다음에 로그인하는 사람의 알림을 다시 맞춥니다
   me = null; myClasses = []; dshs = dshsEmpty(); closeStudy(); renderNav();
   toast("로그아웃했어요");
 }
@@ -413,7 +414,6 @@ function renderStudy() {
     ${page === "cal" ? `<div class="study-row">
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
       ${me.is_admin ? '<button class="study-btn" id="btnSchool">학교 일정 추가</button><button class="study-btn" id="btnClass">수업 옮기기</button>' : ""}
-      <button class="study-btn" id="btnPush"></button>
     </div>
     <div id="dshsHint"></div>` : ""}
     ${page === "notice" ? `<div class="study-row">
@@ -424,7 +424,6 @@ function renderStudy() {
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
   if ($("btnSchool")) $("btnSchool").onclick = () => openSchoolForm(null);
   if ($("btnClass")) $("btnClass").onclick = openClassAdmin;
-  if ($("btnPush")) { $("btnPush").onclick = togglePush; paintPush(); refreshPush(); }
   paintDshs();
   if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
   if ($("btnAdmin")) $("btnAdmin").onclick = () => renderList("admin");
@@ -560,7 +559,7 @@ function renderList(mode) {
       </div>`}
       <div class="cal-right">
         ${me.student_id && tab !== "list" ? `<label class="tt-check"${tab === "month" ? ' style="display:none"' : ""}><input type="checkbox" id="ttToggle"${showTT ? " checked" : ""}> 학교 시간표 보이기</label>` : ""}
-        <button class="study-btn small" id="acadBtn">${acadBtnLabel()}</button>
+        ${showSchool ? `<button class="study-btn small" id="acadBtn">${acadBtnLabel()}</button>` : ""}
         <div class="seg">${VIEWS.map(([k, label]) =>
           `<button class="seg-btn${tab === k ? " on" : ""}" data-seg="${k}">${label}</button>`).join("")}</div>
       </div>
@@ -868,7 +867,7 @@ function agenda() {
   }));
   // 관리자가 숨긴 학사일정은 관리자에게만 흐리게 보여 줍니다 (눌러서 되돌릴 수 있게)
   const sch = [...liveSchool(), ...(me.is_admin ? cache.school.filter((e) => e.hidden) : [])]
-    .filter((e) => acadOn.has(e.category)).map((e) => ({
+    .filter((e) => acadShown(e.category)).map((e) => ({
     kind: "sch", id: e.id, title: e.hidden ? `숨김 · ${e.title}` : e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
     allDay: e.all_day, color: "school", done: !!e.hidden, owner: me.is_admin,
     tag: [e.no_class && "수업 없음", me.is_admin && e.audience === "some" && `${schoolTargets(e).length}명 대상`,
@@ -1703,6 +1702,10 @@ let acadOn = (() => {
   return new Set(ACAD_CATS.map(([k]) => k));
 })();
 
+// 설정의 '학교 일정 보이기' (기본 켜짐). 끄면 종류별 선택과 상관없이 학교 일정을 모두 숨깁니다.
+let showSchool = (() => { try { return localStorage.getItem("dshs-cal-school") !== "off"; } catch { return true; } })();
+const acadShown = (cat) => showSchool && acadOn.has(cat);
+
 const catLabel = (k) => ACAD_CATS.find(([c]) => c === k)?.[1] || "";
 
 function acadCat(e) {
@@ -1746,7 +1749,7 @@ function liveSchool() {
 
 function acadEvents(from, to) {
   const lo = dayKey(from), hi = dayKey(to);
-  return myAcad().filter((e) => acadOn.has(e.cat) && e.end >= lo && e.start < hi).map((e) => {
+  return myAcad().filter((e) => acadShown(e.cat) && e.end >= lo && e.start < hi).map((e) => {
     const after = parseDay(e.end); after.setDate(after.getDate() + 1);   // FullCalendar 종일 일정의 끝은 다음 날(미포함)
     return {
       id: `acad:${e.id}`, title: e.name, start: e.start, end: dayKey(after), allDay: true, editable: !!me.is_admin,
@@ -1758,7 +1761,7 @@ function acadEvents(from, to) {
 // 목록 보기: 앞으로 두 달 안의 학사일정 (2년 치가 있어서 전부 넣으면 내 일정이 묻힙니다)
 function acadAgenda() {
   const today = dayKey(new Date()), until = new Date(); until.setDate(until.getDate() + 60);
-  return myAcad().filter((e) => acadOn.has(e.cat) && e.end >= today && e.start <= dayKey(until)).map((e) => ({
+  return myAcad().filter((e) => acadShown(e.cat) && e.end >= today && e.start <= dayKey(until)).map((e) => ({
     kind: "acad", id: e.id, title: e.name, at: parseDay(e.start), allDay: true, done: false, color: "school",
     end: e.end > e.start ? new Date(`${e.end}T23:59`) : null,
   }));
@@ -1876,7 +1879,7 @@ function paintDshs() {
     <button class="study-btn small ok" id="dshsHintGo">연결</button>
     <button class="study-x" id="dshsHintX" aria-label="닫기">✕</button>
   </div>`;
-  $("dshsHintGo").onclick = openAccount;
+  $("dshsHintGo").onclick = openSettings;
   $("dshsHintX").onclick = () => {
     try { localStorage.setItem(DSHS_HINT_KEY, "1"); } catch {}
     box.innerHTML = "";
@@ -1911,8 +1914,8 @@ function openDshsDetail(r) {
     <a class="study-btn wide" href="https://dshs.app" target="_blank" rel="noopener">dshs.app 열기</a>`);
 }
 
-// 계정: 로그아웃과 dshs.app 연결 관리
-function openAccount() {
+// 설정: 알림 · 학교 일정 보이기 · 계정(로그아웃과 dshs.app 연결 관리)
+function openSettings() {
   const link = dshs.linked
     ? `<div class="asg-body">dshs.app ${dshs.name ? `${esc(dshs.name)} 계정과 ` : ""}연결돼 있어요. 진행 중인 내 신청 ${dshsItems().length}건이 달력에 보여요.</div>
        <div class="study-foot">내 일정을 보는 동안 1분마다 새로 받아 와요. 연결을 해제하면 이 사이트에 저장된 dshs.app 로그인 정보가 지워져요.</div>
@@ -1921,11 +1924,23 @@ function openAccount() {
        <div class="study-foot">dshs.app 로그인 화면에서 로그인하고 동의하면 돼요. 비밀번호는 이 사이트에 전달되지 않아요.<br>
          신청 내역은 보기만 할 수 있고, 신청 · 변경은 dshs.app 에서 해요.</div>
        <button class="study-submit" id="doDshs">dshs.app으로 로그인해서 연결</button>`;
-  openSheet("내 계정", `
+  openSheet("설정", `
+    <label class="set-row"><span><b>알림</b><span class="ev-hint" id="pushHint">수행평가는 1일 · 6시간 전, 일정은 30분 전에 알려 줘요 (이 기기)</span></span>
+      <input type="checkbox" id="setPush"></label>
+    <label class="set-row"><span><b>학교 일정 보이기</b><span class="ev-hint">학사일정 · 학교 행사를 내 일정 달력에 보여 줘요</span></span>
+      <input type="checkbox" id="setSchool"${showSchool ? " checked" : ""}></label>
+    <div class="set-sec">계정</div>
     <div class="ev-title">${esc(me.name)}</div>
     <div class="ev-meta">${esc(me.username)}</div>
     ${link}
     <button class="study-btn wide" id="doLogout">로그아웃</button>`);
+  $("setPush").onchange = togglePush;
+  paintPush(); refreshPush();
+  $("setSchool").onchange = () => {
+    showSchool = $("setSchool").checked;
+    try { localStorage.setItem("dshs-cal-school", showSchool ? "on" : "off"); } catch {}
+    if (calOpen()) { destroyCal(); rerender(); }   // 학교 일정 종류 버튼도 함께 숨기거나 보여 줍니다
+  };
   if ($("doDshs")) $("doDshs").onclick = startDshs;
   if ($("dshsUnlink")) $("dshsUnlink").onclick = unlinkDshs;
   $("doLogout").onclick = () => { closeModal(); logout(); };
@@ -2572,12 +2587,21 @@ async function deviceSub() {
   return reg ? reg.pushManager.getSubscription() : null;
 }
 
+// 설정의 알림 체크박스
 function paintPush() {
-  const b = $("btnPush");
-  if (!b) return;
-  b.classList.toggle("on", pushOn);
-  b.textContent = pushOn ? "알림 켜짐" : "알림 꺼짐";
-  b.setAttribute("aria-pressed", pushOn);
+  const b = $("setPush");
+  if (b) b.checked = pushOn;
+}
+
+// 알림은 기본으로 켜 둡니다: 이 기기에서 끈 적이 없고 브라우저 알림을 이미 허락했으면, 로그인할 때 조용히 등록합니다.
+// 아직 허락하지 않았으면 브라우저가 직접 물어야 해서 자동으로 켤 수 없고, 설정에서 알림을 눌러 켭니다.
+const PUSH_PREF = "dshs-push";
+const pushWanted = () => { try { return localStorage.getItem(PUSH_PREF) !== "off"; } catch { return true; } };
+async function autoPush() {
+  if (autoPush.done || !me) return;
+  autoPush.done = true;
+  if (!pushWanted() || !("Notification" in window) || Notification.permission !== "granted") return;
+  try { await enablePush(true); } catch {}
 }
 
 async function refreshPush() {
@@ -2590,19 +2614,22 @@ async function refreshPush() {
 }
 
 async function togglePush() {
-  const b = $("btnPush");
+  const b = $("setPush");
   b.disabled = true;
   try {
     if (pushOn) {
-      if (await disablePush()) toast("알림을 껐어요");
-      else toast("알림을 끄지 못했어요", true);
+      if (await disablePush()) {
+        try { localStorage.setItem(PUSH_PREF, "off"); } catch {}
+        toast("알림을 껐어요");
+      } else toast("알림을 끄지 못했어요", true);
     } else {
       await enablePush();
+      if (pushOn) try { localStorage.setItem(PUSH_PREF, "on"); } catch {}
     }
   } catch {
     toast("알림 설정을 바꾸지 못했어요", true);
   }
-  if ($("btnPush")) $("btnPush").disabled = false;
+  if ($("setPush")) $("setPush").disabled = false;
   paintPush();
 }
 
@@ -2616,17 +2643,19 @@ async function disablePush() {
   return true;
 }
 
-async function enablePush() {
-  if (!CFG.VAPID_PUBLIC_KEY) return toast("알림 키가 아직 설정되지 않았어요", true);
+// quiet: 로그인할 때 자동으로 켜는 경우 (안내를 띄우지 않음)
+async function enablePush(quiet = false) {
+  const say = quiet ? () => {} : toast;
+  if (!CFG.VAPID_PUBLIC_KEY) return say("알림 키가 아직 설정되지 않았어요", true);
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    return toast("이 브라우저는 알림을 지원하지 않아요", true);
+    return say("이 브라우저는 알림을 지원하지 않아요", true);
   }
   const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS && !standalone) return toast("아이폰은 홈 화면에 추가한 뒤에 알림을 켤 수 있어요", true);
+  if (isIOS && !standalone) return say("아이폰은 홈 화면에 추가한 뒤에 알림을 켤 수 있어요", true);
 
   const perm = await Notification.requestPermission();
-  if (perm !== "granted") return toast("알림이 차단되어 있어요", true);
+  if (perm !== "granted") return say("알림이 차단되어 있어요", true);
 
   const reg = await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
@@ -2640,9 +2669,10 @@ async function enablePush() {
   const { error } = await sb.from("push_subscriptions").upsert({
     endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_id: me.id,
   });
-  if (error) return toast("알림 등록에 실패했어요", true);
+  if (error) return say("알림 등록에 실패했어요", true);
   pushOn = true;
-  toast("수행평가는 1일·6시간 전, 일정은 30분 전에 알려드릴게요");
+  paintPush();
+  say("수행평가는 1일·6시간 전, 일정은 30분 전에 알려드릴게요");
 }
 
 init();
