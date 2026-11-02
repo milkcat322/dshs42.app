@@ -181,25 +181,21 @@ function renderNav() {
   nav.style.display = "flex";
   const open = $("studyView").style.display === "block";
   // 학생 계정은 맨 왼쪽에 "시간표" (내 시간표 · 검색. 관리자 계정은 학번이 없어 내 시간표가 없음)
-  const pages = me?.is_admin ? [...PAGES, ["admin", "현황"]] : PAGES;   // 현황 탭은 관리자만
+  const pages = me?.is_admin ? [...PAGES, ["admin", "관리"]] : PAGES;   // 관리 탭은 관리자만
   const tabs = me?.student_id ? [["mytt", "시간표"], ...pages] : pages;
   const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && page === k);
   nav.innerHTML = me
     ? tabs.map(([k, label]) =>
-        `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("")
+        `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${k === "admin" ? adminTabLabel() : label}</button>`).join("")
     : `<button class="study-btn" id="btnLogin">로그인</button>`;
   // 설정(알림 · 학교 일정 · 계정)은 업데이트 옆에 늘 보입니다 (로그인 전에는 관리자 로그인을 여는 곳)
   const set = $("btnSettings");
   set.style.display = "";
   set.onclick = openSettings;
-  // 💬 받은 피드백은 관리자만 (학생은 📢 업데이트 창의 피드백 탭에서 보냅니다)
-  const fb = $("btnFeedback");
-  fb.style.display = me?.is_admin ? "" : "none";
-  fb.onclick = me?.is_admin ? openFeedbackList : null;
-  if (me?.is_admin && !refreshFbBadge.on) {   // 1분마다 새 피드백 확인
-    refreshFbBadge.on = true;
-    refreshFbBadge();
-    setInterval(() => { if (me?.is_admin && !document.hidden) refreshFbBadge(); }, 60000);
+  if (me?.is_admin && !refreshAdminCount.on) {   // 1분마다 처리할 일 수 확인
+    refreshAdminCount.on = true;
+    refreshAdminCount();
+    setInterval(() => { if (me?.is_admin && !document.hidden) refreshAdminCount(); }, 60000);
   }
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
@@ -447,7 +443,7 @@ function renderStudy() {
     cal: ["내 일정", `수행평가 ${subjects} + 개인 일정`],
     notice: ["수행평가", `내 분반 수행평가 ${subjects}`],
     todo: ["할 일", "체크하면서 하나씩 끝내요"],
-    admin: ["현황", "지금까지 있었던 일과 하면 좋을 일"],
+    admin: ["관리", "수행평가 승인과 피드백을 처리해요"],
   }[page];
   $("studyView").innerHTML = `
     <div class="study-head">
@@ -464,14 +460,12 @@ function renderStudy() {
     <div id="dshsHint"></div>` : ""}
     ${page === "notice" ? `<div class="study-row">
       <button class="study-btn primary" id="btnNew">+ 수행평가 추가</button>
-      ${me.is_admin ? '<button class="study-btn" id="btnAdmin">승인 대기 <span id="pendCount">0</span></button>' : ""}
     </div>` : ""}
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
   if ($("btnSchool")) $("btnSchool").onclick = () => openSchoolForm(null);
   paintDshs();
   if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
-  if ($("btnAdmin")) $("btnAdmin").onclick = () => renderList("admin");
 }
 
 async function loadAssignments() {
@@ -512,8 +506,6 @@ async function loadAssignments() {
   cache.items = rows.filter((a) => a.status === "approved");
   cache.mine = rows.filter((a) => a.created_by === me.id);
   cache.pending = rows.filter((a) => a.status === "pending");
-  const pc = $("pendCount");
-  if (pc) pc.textContent = cache.pending.length;
   // 작성 중인 공지 추가 폼은 덮어쓰지 않습니다
   if ($("studyView").style.display === "block" && view !== "form") rerender();
 }
@@ -571,19 +563,6 @@ function renderList(mode) {
   const body = $("studyBody");
   view = mode;
   loadAcademic();
-  if (mode === "admin") {
-    destroyCal();
-    body.innerHTML = `<div class="study-section">승인 대기 ${cache.pending.length}건</div>` +
-      (cache.pending.length
-        ? cache.pending.map((a) => card(a, { admin: true })).join("")
-        : `<div class="study-empty">승인 대기 중인 수행평가가 없어요.</div>`) +
-      `<button class="study-btn wide" id="backFeed">← 목록으로</button>`;
-    body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
-    body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
-    bindRows(body);
-    $("backFeed").onclick = renderNotice;
-    return;
-  }
   // 달력이 이미 떠 있으면 다시 그리지 않고 일정만 새로 받습니다 (보던 날짜·스크롤 유지)
   if (tab !== "list" && fc && body.contains(fc.el)) {
     fc.refetchEvents();
@@ -1475,7 +1454,6 @@ async function review(id, status) {
     .eq("id", id);
   if (error) return toast("처리하지 못했어요", true);
   toast(status === "approved" ? "승인했어요" : "반려했어요");
-  view = "admin";
   await loadAssignments();
 }
 
@@ -1640,55 +1618,29 @@ function openFeedback() {
     if (error) return fail("보내지 못했어요. 잠시 뒤 다시 시도해 주세요.");
     closeModal();
     toast("피드백을 보냈어요. 고마워요!");
-    if (me.is_admin) refreshFbBadge();
+    if (me.is_admin) refreshAdminCount();
   };
 }
 window.openFeedback = openFeedback;
 
-// 관리자: 마지막으로 본 뒤 새로 온 피드백 수를 💬 아이콘에 빨갛게 보여 줍니다 (이 기기 기준)
+// 관리자: 관리 탭에 처리할 일(승인 대기 + 마지막으로 본 뒤 새로 온 피드백) 수를 빨갛게 보여 줍니다 (피드백은 이 기기 기준)
 const FB_SEEN_KEY = "dshs-fb-seen";
 const fbSeenAt = () => { try { return localStorage.getItem(FB_SEEN_KEY) || "1970-01-01T00:00:00Z"; } catch { return "1970-01-01T00:00:00Z"; } };
-async function refreshFbBadge() {
-  const b = $("btnFeedback");
-  if (!me?.is_admin) { b.classList.remove("warn"); b.dataset.count = ""; return; }
-  const { count, error } = await sb.from("feedback").select("id", { count: "exact", head: true }).gt("created_at", fbSeenAt());
-  if (error) return;
-  b.dataset.count = count ? (count > 99 ? "99+" : String(count)) : "";
-  b.title = count ? `받은 피드백 · 새로 ${count}건` : "받은 피드백";
+let adminCount = 0;
+const adminTabLabel = () => `관리${adminCount ? `<span class="nav-count">${adminCount > 99 ? "99+" : adminCount}</span>` : ""}`;
+async function refreshAdminCount() {
+  if (!me?.is_admin) return;
+  const [pend, fresh] = await Promise.all([
+    sb.from("assignments").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    sb.from("feedback").select("id", { count: "exact", head: true }).gt("created_at", fbSeenAt()),
+  ]);
+  if (pend.error || fresh.error) return;
+  adminCount = pend.count + fresh.count;
+  const tab = document.querySelector('#studyNav [data-page="admin"]');
+  if (tab) tab.innerHTML = adminTabLabel();
 }
 
-// 관리자: 받은 피드백 (최근 100건). 마지막으로 본 뒤 새로 온 것은 강조합니다
-async function openFeedbackList() {
-  openSheet("받은 피드백", `<div class="study-empty">불러오는 중…</div>`);
-  const { data, error } = await sb.from("feedback").select("*").order("created_at", { ascending: false }).limit(100);
-  const box = $("studyModal").querySelector(".study-sheet");
-  if (error) { box.querySelector(".study-empty").textContent = "불러오지 못했어요."; return; }
-  const seen = Date.parse(fbSeenAt());
-  if (data[0]) { try { localStorage.setItem(FB_SEEN_KEY, data[0].created_at); } catch {} }
-  refreshFbBadge();
-  const paths = data.map((f) => f.image_path).filter(Boolean);
-  const signed = paths.length ? (await sb.storage.from("feedback").createSignedUrls(paths, 3600)).data || [] : [];
-  const urlOf = new Map(signed.map((x) => [x.path, x.signedUrl]));
-  const { data: who } = await sb.from("profiles").select("id, name, student_id").in("id", [...new Set(data.map((f) => f.user_id))]);
-  const nameOf = new Map((who || []).map((p) => [p.id, p.student_id ? `${p.student_id} ${p.name}` : p.name]));
-  box.querySelector(".study-empty").outerHTML = data.length ? data.map((f) => `<div class="fb-item${Date.parse(f.created_at) > seen ? " new" : ""}">
-      <div class="ev-meta">${Date.parse(f.created_at) > seen ? '<span class="fb-new">새 피드백</span>' : ""}${FEEDBACK_KINDS[f.kind]} · ${esc(nameOf.get(f.user_id) || "알 수 없음")} · ${esc(dayTitle(dayKey(new Date(f.created_at))))} ${hm(new Date(f.created_at))}</div>
-      <div class="fb-body">${esc(f.body)}</div>
-      ${urlOf.get(f.image_path) ? `<a href="${esc(urlOf.get(f.image_path))}" target="_blank" rel="noopener"><img class="fb-img" src="${esc(urlOf.get(f.image_path))}" alt="첨부한 스크린샷"></a>` : ""}
-      <button class="study-btn small no" data-fbdel="${f.id}">삭제</button>
-    </div>`).join("") : `<div class="study-empty">아직 받은 피드백이 없어요.</div>`;
-  box.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = async () => {
-    const f = data.find((r) => r.id === x.dataset.fbdel);
-    if (!confirm("이 피드백을 삭제할까요?")) return;
-    const { error } = await sb.from("feedback").delete().eq("id", f.id);
-    if (error) return toast("삭제하지 못했어요", true);
-    if (f.image_path) await sb.storage.from("feedback").remove([f.image_path]);
-    toast("삭제했어요");
-    openFeedbackList();
-  });
-}
-
-// 관리자: 현황 탭. 데이터는 admin_overview() 한 번으로 받습니다 (overview.sql).
+// 관리자: 관리 탭의 학생 현황. 데이터는 admin_overview() 한 번으로 받습니다 (overview.sql).
 // 본인만 보는 내용(할 일 · 개인 일정 등)은 서버에서 제목 없이 수만 옵니다.
 // 마지막으로 본 뒤 생긴 활동은 강조합니다 (이 기기 기준, 처음 열 때는 강조 없음).
 const OV_SEEN_KEY = "dshs-overview-seen";
@@ -1703,8 +1655,8 @@ const OV_COUNTS = [["assignments", "수행평가"], ["personal", "개인 수정"
 const OV_KINDS = [["signup", "가입", "명"], ["assignment", "수행평가", "건"], ["event", "일정", "개"], ["todo", "할 일", "개"],
   ["done", "완료 표시", "건"], ["personal", "개인 수정", "건"], ["group", "그룹", "개"], ["status", "위치 표시", "건"], ["feedback", "피드백", "건"]];
 
-// 숫자를 보고 관리자가 하면 좋을 일을 고릅니다. 새 규칙은 여기에 한 줄씩 더합니다.
-function overviewTips(data, pending, newFeedback) {
+// 관리 탭 아래쪽 학생 현황에서 숫자를 보고 하면 좋을 일을 고릅니다. 새 규칙은 여기에 한 줄씩 더합니다.
+function overviewTips(data) {
   const joined = data.students;
   const weekAgo = Date.now() - 7 * 86400000;
   const idle = joined.filter((s) => !s.location && OV_COUNTS.every(([k]) => k === "push" || !s[k])).length;
@@ -1712,17 +1664,15 @@ function overviewTips(data, pending, newFeedback) {
   const away = joined.filter((s) => !s.last_login || Date.parse(s.last_login) < weekAgo).length;
   const writers = joined.filter((s) => s.assignments > 0).length;
   const tips = [];
-  if (pending) tips.push({ text: `승인 대기 수행평가 ${pending}건을 확인해 보세요.`, why: "승인해야 분반 친구들에게 보여요. 수행평가 탭의 '승인 대기'에 있어요.", go: "notice", btn: "수행평가 탭으로" });
-  if (newFeedback) tips.push({ text: `새 피드백 ${newFeedback}건을 읽어 보세요.`, why: "학생이 보낸 오류 제보나 제안이에요.", go: "feedback", btn: "피드백 보기" });
-  if (data.not_joined.length >= data.roster * 0.3) tips.push({ text: `아직 ${data.not_joined.length}명이 가입하지 않았어요. 단톡방에 사이트 주소와 'dshs.app으로 로그인' 방법을 공지해 보세요.`, why: "아래 미가입 명단에서 누가 남았는지 볼 수 있어요." });
-  if (idle >= 3) tips.push({ text: `가입만 하고 아직 쓰지 않은 학생이 ${idle}명이에요. 수행평가와 일정 쓰는 법을 짧게 소개해 보세요.`, why: "로그인은 했지만 남긴 활동이 없는 학생 수예요." });
-  if (noPush >= 3) tips.push({ text: `알림을 켜지 않은 학생이 ${noPush}명이에요. 설정에서 알림을 켜야 마감 알림을 받는다고 안내해 보세요.`, why: "알림을 켠 기기가 하나도 없는 학생 수예요." });
-  if (away >= 3) tips.push({ text: `7일 넘게 들어오지 않은 학생이 ${away}명이에요. 새 기능 소식을 공지해 보세요.`, why: "마지막 로그인 기준이에요. 로그인을 유지한 채 쓰는 학생도 포함될 수 있어요." });
-  if (joined.length >= 10 && writers < joined.length * 0.3) tips.push({ text: `수행평가를 올린 학생이 ${writers}명뿐이에요. 과목이나 분반별로 올려 줄 학생을 정해 보세요.`, why: "지금 남아 있는 수행평가를 올린 학생 수예요." });
+  if (data.not_joined.length >= data.roster * 0.3) tips.push(`아직 ${data.not_joined.length}명이 가입하지 않았어요. 단톡방에 사이트 주소와 'dshs.app으로 로그인' 방법을 공지해 보세요.`);
+  if (idle >= 3) tips.push(`가입만 하고 아직 쓰지 않은 학생이 ${idle}명이에요. 수행평가와 일정 쓰는 법을 짧게 소개해 보세요.`);
+  if (noPush >= 3) tips.push(`알림 켠 기기가 없는 학생이 ${noPush}명이에요. 설정에서 알림을 켜야 마감 알림을 받는다고 안내해 보세요.`);
+  if (away >= 3) tips.push(`7일 넘게 로그인 기록이 없는 학생이 ${away}명이에요. 로그인을 유지한 채 쓰는 학생도 포함될 수 있어요.`);
+  if (joined.length >= 10 && writers < joined.length * 0.3) tips.push(`수행평가를 올린 학생이 ${writers}명뿐이에요. 과목이나 분반별로 올려 줄 학생을 정해 보세요.`);
   return tips;
 }
 
-function overviewHtml(data, seen, pending = 0, newFeedback = 0) {
+function studentsHtml(data, seen) {
   const first = seen === Infinity;   // 처음 열면 최근 24시간을 요약하고 강조는 하지 않습니다
   const since = first ? Date.now() - 86400000 : seen;
   const fresh = data.activity.filter((a) => Date.parse(a.at) > since);
@@ -1731,8 +1681,7 @@ function overviewHtml(data, seen, pending = 0, newFeedback = 0) {
   const sum = (k) => data.students.reduce((n, s) => n + (s[k] || 0), 0);
   const today = dayKey(new Date());
   const activeToday = data.students.filter((s) => s.last_login && dayKey(new Date(s.last_login)) === today).length;
-  const located = data.students.filter((s) => s.location).length;
-  const tips = overviewTips(data, pending, newFeedback);
+  const tips = overviewTips(data);
   const activity = data.activity.map((a) => {
     const isNew = !first && Date.parse(a.at) > seen;
     return `<div class="fb-item${isNew ? " new" : ""}">
@@ -1749,52 +1698,93 @@ function overviewHtml(data, seen, pending = 0, newFeedback = 0) {
       <div class="ev-meta">${counts.length ? counts.join(" · ") : "아직 활동 없음"}</div>
     </div>`;
   }).join("");
-  return `<div class="ov-stats">
-      <div class="ov-stat"><b>${data.students.length}/${data.roster}</b>가입</div>
-      <div class="ov-stat"><b>${activeToday}</b>오늘 로그인</div>
-      <div class="ov-stat"><b>${fresh.length}${fresh.length >= 100 ? "+" : ""}</b>${first ? "최근 24시간" : "새 활동"}</div>
-    </div>
-    <div class="ov-sec">지금까지</div>
-    <ul class="ov-list">
-      <li>42기 ${data.roster}명 중 ${data.students.length}명이 가입했어요.</li>
-      <li>학생들이 수행평가 ${sum("assignments")}건, 일정 ${sum("events")}개, 할 일 ${sum("todos")}개를 남겼고, ${located}명이 위치를 표시했어요. 피드백은 ${sum("feedback")}건이에요.</li>
+  return `<ul class="ov-list">
+      <li>42기 ${data.roster}명 중 ${data.students.length}명 가입 · 오늘 로그인 ${activeToday}명</li>
+      <li>학생들이 남긴 수행평가 ${sum("assignments")}건 · 일정 ${sum("events")}개 · 할 일 ${sum("todos")}개</li>
       <li>${first ? "최근 24시간" : "지난번 본 뒤"}: ${freshBits.length ? esc(freshBits.join(", ")) : "새 활동 없음"}</li>
+      ${tips.map((t) => `<li>${esc(t)}</li>`).join("")}
     </ul>
-    <div class="ov-sec">하면 좋을 일</div>
-    ${tips.length ? tips.map((t, i) => `<div class="ov-tip">
-      <div class="fb-body">${esc(t.text)}</div>
-      <div class="ov-note">${esc(t.why)}</div>
-      ${t.go ? `<button class="study-btn small" data-ovgo="${t.go}">${esc(t.btn)}</button>` : ""}
-    </div>`).join("") : '<div class="study-empty">지금은 따로 챙길 일이 없어요.</div>'}
-    <div class="ov-sec">최근 활동</div>
-    ${activity || '<div class="study-empty">아직 활동이 없어요.</div>'}
-    <div class="ov-sec">학생별 (최근 가입순)</div>
-    ${students || '<div class="study-empty">아직 가입한 학생이 없어요.</div>'}
-    <details class="ov-more"><summary>아직 가입하지 않은 학생 ${data.not_joined.length}명</summary>
-      <p>${data.not_joined.map(ovWho).join(" · ")}</p>
-    </details>
-    <div class="ov-note ov-foot">지금 남아 있는 내용만 보여요. 지운 항목과 고치기 전 내용은 나오지 않아요. 할 일 · 개인 일정 · 개인 수정 · 학생 그룹의 내용은 본인만 볼 수 있어 수와 시각만 보여요. '하면 좋을 일'은 위 숫자를 보고 자동으로 고른 제안이에요.</div>`;
+    <details class="ov-more"><summary>최근 활동</summary>${activity || '<div class="study-empty">아직 활동이 없어요.</div>'}</details>
+    <details class="ov-more"><summary>학생별 ${data.students.length}명</summary>${students || '<div class="study-empty">아직 가입한 학생이 없어요.</div>'}</details>
+    <details class="ov-more"><summary>아직 가입하지 않은 학생 ${data.not_joined.length}명</summary><p>${data.not_joined.map(ovWho).join(" · ")}</p></details>
+    <div class="ov-note ov-foot">지금 남아 있는 내용만 보여요. 지운 항목과 고치기 전 내용은 나오지 않아요. 할 일 · 개인 일정 · 개인 수정 · 학생 그룹의 내용은 본인만 볼 수 있어 수와 시각만 보여요.</div>`;
 }
 
-// 현황 탭. 수행평가 승인 대기 수는 loadAssignments 가 받은 cache.pending 을 씁니다.
-let ovSeen;   // 탭을 열 때 읽은 "지난번 본 시각" (다시 그려도 강조가 사라지지 않게)
+function feedbackItemHtml(f, name, url, isNew) {
+  return `<div class="fb-item${isNew ? " new" : ""}">
+    <div class="ev-meta">${isNew ? '<span class="fb-new">새 피드백</span>' : ""}${FEEDBACK_KINDS[f.kind]} · ${esc(name || "알 수 없음")} · ${esc(ovTime(f.created_at))}</div>
+    <div class="fb-body">${esc(f.body)}</div>
+    ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener"><img class="fb-img" src="${esc(url)}" alt="첨부한 스크린샷"></a>` : ""}
+    <button class="study-btn small no" data-fbdel="${f.id}">삭제</button>
+  </div>`;
+}
+
+// 최근 피드백 100건과 스크린샷 주소 · 보낸 학생 이름을 받습니다
+async function loadFeedback() {
+  const { data, error } = await sb.from("feedback").select("*").order("created_at", { ascending: false }).limit(100);
+  if (error) return { error };
+  const paths = data.map((f) => f.image_path).filter(Boolean);
+  const signed = paths.length ? (await sb.storage.from("feedback").createSignedUrls(paths, 3600)).data || [] : [];
+  const { data: who } = data.length
+    ? await sb.from("profiles").select("id, name, student_id").in("id", [...new Set(data.map((f) => f.user_id))])
+    : { data: [] };
+  return {
+    rows: data,
+    urlOf: new Map(signed.map((x) => [x.path, x.signedUrl])),
+    nameOf: new Map((who || []).map((p) => [p.id, p.student_id ? `${p.student_id} ${p.name}` : p.name])),
+  };
+}
+
+// 관리 탭: 승인 대기 → 받은 피드백 → 학생 현황 순서입니다.
+// 승인 대기는 loadAssignments 가 받은 cache.pending 을 씁니다. 승인 · 반려 · 삭제 뒤에는 다시 그립니다.
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt) {
+  const rows = fb.rows || [];
+  const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
+  const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
+  const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
+  return `<div class="ov-stats">
+      <div class="ov-stat${pending.length ? " hot" : ""}"><b>${pending.length}</b>승인 대기</div>
+      <div class="ov-stat${fresh.length ? " hot" : ""}"><b>${fresh.length}</b>새 피드백</div>
+      <div class="ov-stat"><b>${overview ? `${overview.students.length}/${overview.roster}` : "-"}</b>가입</div>
+    </div>
+    <div class="study-section">승인 대기 ${pending.length}건</div>
+    ${pending.length ? pending.map((a) => card(a, { admin: true })).join("") : '<div class="study-empty">승인 대기 중인 수행평가가 없어요.</div>'}
+    <div class="study-section">받은 피드백 ${fresh.length ? `새로 ${fresh.length}건` : ""}</div>
+    ${fb.error ? '<div class="study-empty">피드백을 불러오지 못했어요.</div>'
+      : (fresh.length ? fbHtml(fresh, true) : '<div class="study-empty">새 피드백이 없어요.</div>')
+        + (old.length ? `<details class="ov-more"><summary>지난 피드백 ${old.length}건</summary>${fbHtml(old, false)}</details>` : "")}
+    <div class="study-section">학생 현황</div>
+    ${overview ? studentsHtml(overview, ovSeenAt) : '<div class="study-empty">학생 현황을 불러오지 못했어요.</div>'}`;
+}
+
+let ovSeen, fbSeen;   // 탭을 열 때 읽은 "지난번 본 시각" (승인 뒤 다시 그려도 강조가 사라지지 않게)
 async function renderOverview() {
-  const body = $("studyBody");
-  if (!body) return;
+  if (!$("studyBody")) return;
   if (ovSeen === undefined) {
     ovSeen = Infinity;
     try { ovSeen = Date.parse(localStorage.getItem(OV_SEEN_KEY)) || Infinity; } catch {}
+    fbSeen = Date.parse(fbSeenAt());
   }
-  const [{ data, error }, fb] = await Promise.all([
-    sb.rpc("admin_overview"),
-    sb.from("feedback").select("id", { count: "exact", head: true }).gt("created_at", fbSeenAt()),
-  ]);
-  if (view !== "overview" || !$("studyBody")) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
-  if (error) { $("studyBody").innerHTML = `<div class="study-empty">불러오지 못했어요.</div>`; return; }
-  $("studyBody").innerHTML = overviewHtml(data, ovSeen, cache.pending?.length || 0, fb.count || 0);
-  $("studyBody").querySelectorAll("[data-ovgo]").forEach((b) => b.onclick = () =>
-    (b.dataset.ovgo === "feedback" ? openFeedbackList() : openStudy(b.dataset.ovgo)));
-  if (data.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
+  const [{ data, error }, fb] = await Promise.all([sb.rpc("admin_overview"), loadFeedback()]);
+  const body = $("studyBody");
+  if (view !== "overview" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
+  body.innerHTML = manageHtml(cache.pending || [], fb, fbSeen, error ? null : data, ovSeen);
+  body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
+  body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
+  bindRows(body);
+  body.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = () => deleteFeedback(fb.rows.find((r) => r.id === x.dataset.fbdel)));
+  if (fb.rows?.[0]) { try { localStorage.setItem(FB_SEEN_KEY, fb.rows[0].created_at); } catch {} }
+  if (data?.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
+  refreshAdminCount();
+}
+
+async function deleteFeedback(f) {
+  if (!confirm("이 피드백을 삭제할까요?")) return;
+  const { error } = await sb.from("feedback").delete().eq("id", f.id);
+  if (error) return toast("삭제하지 못했어요", true);
+  if (f.image_path) await sb.storage.from("feedback").remove([f.image_path]);
+  toast("삭제했어요");
+  renderOverview();
 }
 
 // ---------- 학사일정 (NEIS) ----------
