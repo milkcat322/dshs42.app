@@ -1,5 +1,5 @@
 // dshs42.app — 알림 발송 Edge Function
-// 수행평가 기한 · 내 일정 · 필수 학교 일정 · 옮긴 수업 알림을 웹 푸시로 보냅니다.
+// 수행평가 기한 · 내 일정 · 필수 학교 일정 알림을 웹 푸시로 보냅니다.
 // 누구에게 무엇을 보낼지는 plan.ts 가 정하고, 여기서는 불러오고 보내고 기록만 합니다.
 // 같은 (사람, 알림) 조합은 notify_log 때문에 두 번 가지 않습니다.
 //
@@ -38,7 +38,7 @@ Deno.serve(async () => {
   const userIds = [...new Set(subs.map((s) => s.user_id))];
 
   const asgColumns = "id, subject, ban, title, due_at, status, created_by";
-  const [users, assignments, personal, asgDone, events, members, school, classes] = await Promise.all([
+  const [users, assignments, personal, asgDone, events, members, school] = await Promise.all([
     admin.from("profiles").select("id, student_id").in("id", userIds),
     admin.from("assignments").select(asgColumns)
       .in("status", ["approved", "pending"]).gt("due_at", iso(now)).lte("due_at", iso(now + DAY)),
@@ -49,9 +49,8 @@ Deno.serve(async () => {
     admin.from("event_members").select("event_id, user_id, done").in("user_id", userIds),
     admin.from("school_events")
       .select("id, title, starts_at, ends_at, all_day, notify, audience, school_event_targets(student_id)"),
-    admin.from("class_changes").select("id, user_id, subject, ban, on_date, period_from, moved_start"),
   ]);
-  const failedQuery = [users, assignments, personal, asgDone, events, members, school, classes].find((r) => r.error);
+  const failedQuery = [users, assignments, personal, asgDone, events, members, school].find((r) => r.error);
   if (failedQuery) return new Response(failedQuery.error!.message, { status: 500 });
 
   // 공지 마감은 멀어도 내 계정에서 고친 마감이 가까운 수행평가를 더합니다
@@ -78,7 +77,7 @@ Deno.serve(async () => {
   const planned = planNotes(now, {
     users: users.data!, enrollments,
     assignments: [...assignments.data!, ...moved.data!], asgDone: asgDone.data!, personal: personal.data!,
-    events: events.data!, members: members.data!, school: school.data!, classes: classes.data!,
+    events: events.data!, members: members.data!, school: school.data!,
   });
 
   let sent = 0, failed = 0, pruned = 0;

@@ -3,7 +3,6 @@
 //   수행평가      마감 1일 전 · 6시간 전 (완료 표시한 건 빼고)
 //   내 일정       시작 30분 전 (친구가 공유한 일정 포함, 완료 표시한 건 빼고)
 //   학교 일정     notify 를 켠 일정만 시작 30분 전
-//   옮긴 수업     옮긴 시간의 30분 전 (학생이 직접 바꾼 수업은 그 학생 변경을 따릅니다)
 //   하루 종일     시작 시각이 없으므로 그날 1교시 30분 전(07:50)에 한 번
 
 const MIN = 60000;
@@ -34,15 +33,10 @@ export type SchoolEvent = {
   all_day: boolean; notify: boolean; audience: string;
   school_event_targets: { student_id: number }[];
 };
-// user_id 있음 = 그 학생만, null = 분반 전체. moved_start 없음 = 공강
-export type ClassChange = {
-  id: string; user_id: string | null; subject: string; ban: string;
-  on_date: string; period_from: number; moved_start: string | null;
-};
 export type Input = {
   users: User[]; enrollments: Enrollment[];
   assignments: Assignment[]; asgDone: AsgDone[]; personal: Personal[];
-  events: CalEvent[]; members: Member[]; school: SchoolEvent[]; classes: ClassChange[];
+  events: CalEvent[]; members: Member[]; school: SchoolEvent[];
 };
 export type Note = {
   userId: string; key: string; title: string; body: string; url: string; ttl: number;
@@ -132,23 +126,6 @@ export function planNotes(now: number, d: Input): Note[] {
     if (!startsSoon(at)) continue;
     const note = eventNote(e, at, "학교 일정 · ", "sch");
     for (const u of d.users) if (sees(e, u)) push(u.id, note);
-  }
-
-  // 옮긴 수업. 내가 직접 바꾼 수업(공강 포함)이 있으면 분반 전체 변경은 내 것이 아닙니다.
-  const classKey = (c: ClassChange) => `${c.subject}|${c.ban}|${c.on_date}|${c.period_from}`;
-  const mineChanged = new Set(d.classes.filter((c) => c.user_id).map((c) => `${c.user_id}|${classKey(c)}`));
-  for (const c of d.classes) {
-    if (!c.moved_start) continue;
-    const at = Date.parse(c.moved_start);
-    if (!startsSoon(at)) continue;
-    const note = eventNote({ id: c.id, title: `${c.subject} 수업`, all_day: false }, at, "옮긴 수업 · ", "class");
-    if (c.user_id) {
-      if (known.has(c.user_id)) push(c.user_id, note);
-      continue;
-    }
-    for (const u of d.users) {
-      if (banOf.get(`${u.student_id}|${c.subject}`) === c.ban && !mineChanged.has(`${u.id}|${classKey(c)}`)) push(u.id, note);
-    }
   }
 
   return notes;

@@ -9,7 +9,7 @@ const EMAIL_DOMAIN = "dshs.study";
 let sb = null;
 let me = null;          // { id, username, student_id, name, is_admin }
 let myClasses = [];     // 로컬 시간표 데이터에서 가져온 내 수강 분반 [{ subject, ban }]
-let cache = { items: [], pending: [], mine: [], events: [], done: new Set(), people: new Map(), todos: null, school: [], classes: [], classReqs: [] };
+let cache = { items: [], pending: [], mine: [], events: [], done: new Set(), people: new Map(), todos: null, school: [] };
 let page = "cal";       // 열린 탭: cal(내 일정) | notice(수행평가) | todo(할 일)
 let view = "feed";      // studyBody 에 떠 있는 화면: feed | notice | admin | form | todo
 let fc = null;          // FullCalendar 인스턴스 (달력 탭일 때만)
@@ -413,7 +413,7 @@ function renderStudy() {
     </div>
     ${page === "cal" ? `<div class="study-row">
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
-      ${me.is_admin ? '<button class="study-btn" id="btnSchool">학교 일정 추가</button><button class="study-btn" id="btnClass">수업 옮기기</button>' : ""}
+      ${me.is_admin ? '<button class="study-btn" id="btnSchool">학교 일정 추가</button>' : ""}
     </div>
     <div id="dshsHint"></div>` : ""}
     ${page === "notice" ? `<div class="study-row">
@@ -423,7 +423,6 @@ function renderStudy() {
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
   if ($("btnSchool")) $("btnSchool").onclick = () => openSchoolForm(null);
-  if ($("btnClass")) $("btnClass").onclick = openClassAdmin;
   paintDshs();
   if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
   if ($("btnAdmin")) $("btnAdmin").onclick = () => renderList("admin");
@@ -431,7 +430,7 @@ function renderStudy() {
 
 async function loadAssignments() {
   loadDshs();   // dshs.app 신청 내역은 따로 받아서, 오면 달력에 더합니다
-  const [asg, personal, evs, done, people, todos, school, classes] = await Promise.all([
+  const [asg, personal, evs, done, people, todos, school] = await Promise.all([
     sb.from("assignments").select("*").order("due_at", { ascending: true }),
     sb.from("assignment_personal").select("*"),
     sb.from("events").select("*").order("starts_at", { ascending: true }),   // 내 일정 + 친구가 공유한 일정
@@ -439,12 +438,8 @@ async function loadAssignments() {
     sb.rpc("my_event_people"),
     sb.from("todos").select("*").order("created_at", { ascending: true }),
     sb.from("school_events").select("*, school_event_targets(student_id)").order("starts_at", { ascending: true }),
-    sb.from("class_changes").select("*, profiles(name)"),
   ]);
   cache.school = school.data || [];
-  const today = dayKey(new Date());
-  cache.classes = (classes.data || []).filter((c) => !c.user_id || c.user_id === me.id);   // 관리자는 모든 학생 것을 받지만 달력에는 내 것만 씁니다
-  cache.classReqs = classReqGroups((classes.data || []).filter((c) => c.user_id && c.status === "pending" && (c.on_date >= today || dayKey(new Date(c.moved_start)) >= today)));
   cache.todos = todos.error ? null : todos.data;
   const { data, error } = asg;
   // 개인 일정·완료 체크를 못 불러와도 수행평가는 그대로 보여줍니다
@@ -466,7 +461,7 @@ async function loadAssignments() {
   cache.mine = rows.filter((a) => a.created_by === me.id);
   cache.pending = rows.filter((a) => a.status === "pending");
   const pc = $("pendCount");
-  if (pc) pc.textContent = cache.pending.length + cache.classReqs.length;
+  if (pc) pc.textContent = cache.pending.length;
   // 작성 중인 공지 추가 폼은 덮어쓰지 않습니다
   if ($("studyView").style.display === "block" && view !== "form") rerender();
 }
@@ -530,15 +525,9 @@ function renderList(mode) {
       (cache.pending.length
         ? cache.pending.map((a) => card(a, { admin: true })).join("")
         : `<div class="study-empty">승인 대기 중인 수행평가가 없어요.</div>`) +
-      `<div class="study-section">수업 옮기기 승인 대기 ${cache.classReqs.length}건</div>` +
-      (cache.classReqs.length
-        ? cache.classReqs.map(classReqCard).join("")
-        : `<div class="study-empty">승인 대기 중인 수업 변경이 없어요.</div>`) +
       `<button class="study-btn wide" id="backFeed">← 목록으로</button>`;
     body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
     body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
-    body.querySelectorAll("[data-cok]").forEach((b) => b.onclick = () => reviewClass(b.dataset.cok, true));
-    body.querySelectorAll("[data-cno]").forEach((b) => b.onclick = () => reviewClass(b.dataset.cno, false));
     bindRows(body);
     $("backFeed").onclick = renderNotice;
     return;
@@ -681,11 +670,6 @@ async function mountCal() {
     eventContent: fcContent,
     datesSet: (arg) => { fcDate = arg.view.currentStart; const t = $("calTitle"); if (t) t.textContent = arg.view.title; },
     dateClick: (arg) => {
-      // 시간표는 배경이라 직접 눌리지 않으므로, 누른 시각에 수업이 있는지 찾습니다
-      if (!arg.allDay && arg.view.type !== "dayGridMonth") {
-        const tt = fc.getEvents().find((e) => e.extendedProps.kind === "tt" && e.start <= arg.date && arg.date < e.end);
-        if (tt && !FIXED_CLASSES.has(tt.extendedProps.block.subject)) return openClassSheet(tt.extendedProps, arg.date);
-      }
       let start = arg.date;
       if (arg.view.type === "dayGridMonth") {   // 월 보기에서 날짜를 누르면 다음 정각 1시간짜리
         start = new Date(arg.date);
@@ -1415,16 +1399,8 @@ function ttEvents(from, to) {
     const key = dayKey(d);
     if (off.has(key)) continue;
     (blocks[d.getDay()] || []).filter((b) => !(b.subject === "R&E" && homes.has(key))).forEach((b, i) => {
-      const c = classChange(b, key);
-      if (c?.moved_start) return;   // 옮긴 수업은 옮긴 시간에 그립니다 (아래)
-      out.push(ttBlock(`tt:${key}:${i}`, b, key, c, periodTime(key, b.from, 0), periodTime(key, b.to, 1)));
+      out.push(ttBlock(`tt:${key}:${i}`, b, periodTime(key, b.from, 0), periodTime(key, b.to, 1)));
     });
-  }
-  for (const c of cache.classes) {
-    if (!c.moved_start || new Date(c.moved_end) <= from || new Date(c.moved_start) >= to) continue;
-    const b = { subject: c.subject, ban: c.ban, from: c.period_from, to: c.period_to };
-    if (!myClasses.some((x) => x.subject === b.subject && x.ban === b.ban) || classChange(b, c.on_date) !== c) continue;
-    out.push(ttBlock(`tt:m:${c.id}`, b, c.on_date, c, new Date(c.moved_start), new Date(c.moved_end)));
   }
   return out;
 }
@@ -1436,123 +1412,10 @@ function periodTime(key, period, end) {
 }
 const periodLabel = (b) => (b.from === b.to ? `${b.from}교시` : `${b.from}–${b.to}교시`);
 
-function ttBlock(id, block, key, change, start, end) {
+function ttBlock(id, block, start, end) {
   return {
-    id, title: change ? `옮김 · ${block.subject}` : block.subject, display: "background",
-    classNames: ["fcx-tt"], start, end,
-    extendedProps: { kind: "tt", block, key, change, label: `${block.ban} · ${change ? "원래 " : ""}${periodLabel(block)}` },
-  };
-}
-
-// ---------- 수업 옮기기 ----------
-// 선생님 사정으로 수업이 옮겨질 때 씁니다. 학생이 옮기면 내 달력에 바로 적용되고 승인 요청이 됩니다.
-// 관리자가 승인하거나 직접 옮기면 분반 전체에 적용됩니다.
-// 같은 수업에 둘 다 있으면 학생이 직접 고친 것을 따릅니다.
-const FIXED_CLASSES = new Set(["R&E", "학급 자치"]);   // 옮길 일이 없는 시간
-function classChange(b, key) {
-  const same = (c) => c.subject === b.subject && c.ban === b.ban && c.on_date === key && c.period_from === b.from;
-  return cache.classes.find((c) => same(c) && c.user_id) || cache.classes.find((c) => same(c) && !c.user_id);
-}
-const movedText = (c) => `${dayTitle(dayKey(new Date(c.moved_start)))} ${hm(new Date(c.moved_start))}–${hm(new Date(c.moved_end))}`;
-
-async function undoClass(ids, msg) {
-  const { error } = await sb.from("class_changes").delete().in("id", ids);
-  if (error) return toast("되돌리지 못했어요", true);
-  closeModal();
-  toast(msg);
-  await loadAssignments();
-}
-
-// 같은 수업을 같은 시간으로 옮긴 학생들의 요청은 한 건으로 묶습니다
-function classReqGroups(rows) {
-  const groups = new Map();
-  for (const c of rows) {
-    const k = [c.subject, c.ban, c.on_date, c.period_from, c.moved_start, c.moved_end].join("|");
-    if (!groups.has(k)) groups.set(k, { ...c, names: [] });
-    groups.get(k).names.push(c.profiles?.name || "학생");
-  }
-  return [...groups.values()].sort((x, y) => (x.on_date < y.on_date ? -1 : 1));
-}
-
-function classReqCard(c) {
-  return `<div class="ev-row"><span class="ev-main"><span class="ev-title">${esc(c.subject)} · ${esc(c.ban)}</span>
-    <span class="ev-meta">${esc(dayTitle(c.on_date))} ${periodLabel({ from: c.period_from, to: c.period_to })} → ${esc(movedText(c))}</span>
-    <span class="ev-meta">${esc(c.names.join(", "))} 요청</span></span>
-    <button class="study-btn small ok" data-cok="${c.id}">승인</button>
-    <button class="study-btn small no" data-cno="${c.id}">반려</button></div>`;
-}
-
-async function reviewClass(id, approve) {
-  const { error } = await sb.rpc("review_class_change", { p_id: id, p_approve: approve });
-  if (error) return toast(error.message.includes("already_applied") ? "이미 분반 전체에 옮긴 수업이에요. 먼저 되돌려 주세요" : "처리하지 못했어요", true);
-  toast(approve ? "분반 전체에 적용했어요" : "반려했어요");
-  view = "admin";
-  await loadAssignments();
-}
-
-// 달력에서 수업을 눌렀을 때
-function openClassSheet(p, at) {
-  const { block: b, key, change: c } = p;
-  const mine = c?.user_id === me.id;
-  const state = mine ? { pending: " · 승인 대기 중이에요. 승인되면 분반 전체에 적용돼요", rejected: " · 반려되어 내 달력에서만 바뀌어요" }[c.status] || "" : " (관리자가 분반 전체에 적용)";
-  openSheet(esc(b.subject), `
-    <div class="ev-meta">${esc(dayTitle(key))} · ${esc(p.label)}</div>
-    ${c ? `<div class="asg-body">${esc(`${movedText(c)}(으)로 옮겼어요`)}${esc(state)}</div>` : ""}
-    ${c ? "" : `<button class="study-submit" id="cMove">수업 옮기기</button>`}
-    ${mine ? `<button class="study-submit" id="cUndo">원래 수업으로 되돌리기</button>` : ""}
-    <button class="study-submit ghost" id="cEvent">이 시간에 일정 추가</button>
-    ${c ? "" : `<div class="study-foot">내 달력에는 바로 바뀌고, 관리자가 승인하면 분반 전체에 적용돼요.</div>`}`);
-  if ($("cMove")) $("cMove").onclick = () => openClassForm(b, key, false);
-  if ($("cUndo")) $("cUndo").onclick = () => undoClass([c.id], "원래 수업으로 되돌렸어요");
-  $("cEvent").onclick = () => openEventForm(null, { start: at, end: new Date(+at + HOUR), allDay: false });
-}
-
-// forAll 이면 분반 전체 (관리자)
-function openClassForm(b, key, forAll) {
-  // 시작 교시만 고르면 연속 수업은 원래 교시 수만큼 함께 옮겨집니다
-  const span = b.to - b.from + 1;
-  const periods = Object.keys(PERIOD_TIME).map(Number);
-  const last = periods[periods.length - 1];
-  let pick = b.from;
-  openSheet("수업 옮기기", `
-    <div class="ev-meta">${esc(b.subject)} · ${esc(b.ban)} · ${esc(dayTitle(key))} ${periodLabel(b)}</div>
-    <label class="study-label">옮길 날짜</label>
-    <input class="study-input" type="date" id="cDate" value="${key}">
-    <label class="study-label">${span > 1 ? `시작 교시 (${span}교시 연속)` : "옮길 교시"}</label>
-    <div class="ev-durs">${periods.map((n) =>
-      `<button type="button" class="ev-dur" data-p="${n}"${n + span - 1 > last ? " disabled" : ""}>${n}교시</button>`).join("")}</div>
-    <div class="study-foot" id="cWhen"></div>
-    <div class="study-foot">${forAll ? `${esc(b.ban)} 학생 모두의 달력에 적용돼요.` : "내 달력에는 바로 바뀌고, 관리자가 승인하면 분반 전체에 적용돼요."}</div>
-    <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="cSave">옮기기</button>`);
-  const sheet = $("studyModal").querySelector(".study-sheet");
-  const showWhen = () => {   // 함께 옮겨지는 교시를 모두 색칠합니다
-    const to = pick + span - 1;
-    sheet.querySelectorAll("[data-p]").forEach((y) => y.classList.toggle("on", +y.dataset.p >= pick && +y.dataset.p <= to));
-    $("cWhen").textContent = `${periodLabel({ from: pick, to })} · ${PERIOD_TIME[pick][0]}–${PERIOD_TIME[to][1]}`;
-  };
-  sheet.querySelectorAll("[data-p]").forEach((x) => x.onclick = () => {
-    pick = +x.dataset.p;
-    showWhen();
-  });
-  showWhen();
-  $("cSave").onclick = async () => {
-    const day = $("cDate").value;
-    if (!day) return showErr("날짜를 정해 주세요.");
-    if (day === key && pick === b.from) return showErr("원래 수업과 같은 시간이에요.");
-    const owner = forAll ? null : me.id;
-    if (cache.classes.some((c) => c.user_id === owner && c.subject === b.subject && c.ban === b.ban && c.on_date === key && c.period_from === b.from))
-      return showErr("이미 옮긴 수업이에요. 먼저 되돌려 주세요.");
-    $("cSave").disabled = true;
-    const { error } = await sb.from("class_changes").insert({
-      user_id: owner, status: forAll ? "approved" : "pending",
-      subject: b.subject, ban: b.ban, on_date: key, period_from: b.from, period_to: b.to,
-      moved_start: periodTime(day, pick, 0).toISOString(), moved_end: periodTime(day, pick + span - 1, 1).toISOString(),
-    });
-    if (error) { $("cSave").disabled = false; return showErr("저장하지 못했어요: " + error.message); }
-    closeModal();
-    toast(forAll ? "수업을 옮겼어요" : "내 달력에서 옮겼어요. 승인되면 분반 전체에 적용돼요");
-    await loadAssignments();
+    id, title: block.subject, display: "background", classNames: ["fcx-tt"], start, end,
+    extendedProps: { kind: "tt", label: `${block.ban} · ${periodLabel(block)}` },
   };
 }
 
@@ -1638,48 +1501,6 @@ async function openFeedbackList() {
     toast("삭제했어요");
     openFeedbackList();
   });
-}
-
-// 관리자: 달력에 시간표가 없으므로 과목 · 분반 · 날짜로 수업을 고릅니다
-function openClassAdmin() {
-  const people = roster();
-  const subjects = [...new Set(people.flatMap((p) => Object.keys(p.classes)))].filter((x) => !FIXED_CLASSES.has(x)).sort((a, b) => a.localeCompare(b, "ko"));
-  const today = dayKey(new Date());
-  const list = cache.classes.filter((c) => !c.user_id && c.on_date >= today).sort((x, y) => (x.on_date < y.on_date ? -1 : 1));
-  openSheet("수업 옮기기", `
-    <label class="study-label">과목</label>
-    <select class="study-input" id="caSubj"><option value="">과목 고르기</option>${subjects.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
-    <label class="study-label">분반</label>
-    <select class="study-input" id="caBan" disabled><option value="">분반</option></select>
-    <label class="study-label">수업 날짜</label>
-    <input class="study-input" type="date" id="caDate" value="${today}">
-    <label class="study-label">교시</label>
-    <select class="study-input" id="caBlock" disabled><option value="">이 날은 수업이 없어요</option></select>
-    <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="caMove" disabled>수업 옮기기</button>
-    ${list.length ? `<div class="study-section">분반 전체에 적용 중</div>` + list.map((c) => `<div class="ev-row"><span class="ev-main"><span class="ev-title">${esc(c.subject)} · ${esc(c.ban)}</span>
-      <span class="ev-meta">${esc(dayTitle(c.on_date))} ${c.period_from}교시 · ${esc(`${movedText(c)}로 옮김`)}</span></span>
-      <button class="study-btn small no" data-cundo="${c.id}">되돌리기</button></div>`).join("") : ""}`);
-  let blocks = [];
-  const draw = () => {
-    const subj = $("caSubj").value, ban = $("caBan").value, day = $("caDate").value;
-    const who = people.find((p) => p.classes[subj] === ban);
-    const sched = who ? window.SCHOOL_DATA[who.name].schedule : [];
-    blocks = day ? (blocksOf(sched)[parseDay(day).getDay()] || []).filter((b) => b.subject === subj) : [];
-    $("caBlock").innerHTML = blocks.length ? blocks.map((b, i) => `<option value="${i}">${periodLabel(b)}</option>`).join("")
-      : `<option value="">이 날은 수업이 없어요</option>`;
-    $("caBlock").disabled = $("caMove").disabled = !blocks.length;
-  };
-  $("caSubj").onchange = () => {
-    const subj = $("caSubj").value;
-    const bans = [...new Set(people.map((p) => p.classes[subj]).filter(Boolean))].sort();
-    $("caBan").innerHTML = bans.map((x) => `<option>${esc(x)}</option>`).join("") || `<option value="">분반</option>`;
-    $("caBan").disabled = !subj;
-    draw();
-  };
-  $("caBan").onchange = draw; $("caDate").onchange = draw;
-  $("caMove").onclick = () => openClassForm(blocks[+$("caBlock").value], $("caDate").value, true);
-  $("studyModal").querySelectorAll("[data-cundo]").forEach((x) => x.onclick = () => undoClass([x.dataset.cundo], "원래 수업으로 되돌렸어요"));
 }
 
 // ---------- 학사일정 (NEIS) ----------
