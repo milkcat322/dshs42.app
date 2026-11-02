@@ -565,11 +565,15 @@ function openItem(kind, id) {
   if (kind === "asg") openAsgDetail(findAsg(id));
   else if (kind === "sch") {
     const se = cache.school.find((x) => x.id === id);
-    me.is_admin ? openSchoolForm(se) : openSchoolDetail(se);
+    if (me.is_admin) openSchoolForm(se);
+    else if (isKkum(se.title)) openEventForm(null, kkumSeed(se.title, se.memo, se, se.neis_key || `sch:${se.id}`));
+    else openSchoolDetail(se);
   } else if (kind === "tt") return;
   else if (kind === "acad") {
     const a = acadList.find((e) => e.id === id);
-    me.is_admin ? openSchoolForm(neisDraft(a)) : openAcadDetail(a);
+    if (me.is_admin) openSchoolForm(neisDraft(a));
+    else if (isKkum(a.name)) openEventForm(null, kkumSeed(a.name, a.memo, neisDraft(a), a.key));
+    else openAcadDetail(a);
   }
   else if (kind === "dshs") openDshsDetail(dshs.items.find((r) => r.uid === id));
   else if (kind === "todo") openTodoForm(cache.todos.find((t) => t.id === id));
@@ -748,6 +752,16 @@ async function moveEvent(arg) {
       fc?.refetchEvents();
     });
   }
+  if (kind === "acad") {   // NEIS 일정: 처음 옮기면 관리자는 모두의 수정본, 학생(꿈지락)은 내 일정이 생깁니다
+    const a = acadList.find((x) => x.id === id);
+    const { id: _id, school_event_targets: _t, ...draft } = neisDraft(a);
+    const { error } = me.is_admin
+      ? await sb.from("school_events").insert({ ...draft, ...row })
+      : await sb.from("events").insert({ title: a.name, memo: a.memo || "", color: "violet", source_key: a.key, ...row });
+    if (error) { arg.revert(); return toast("옮기지 못했어요", true); }
+    toast(me.is_admin ? "학교 일정을 옮겼어요" : "내 달력에서만 옮겼어요");
+    return loadAssignments();
+  }
   if (kind === "sch") {   // 학교 일정 (관리자만 끌 수 있음)
     const se = cache.school.find((x) => x.id === id);
     const prev = { starts_at: se.starts_at, ends_at: se.ends_at, all_day: se.all_day };
@@ -819,8 +833,9 @@ function agenda() {
     auto: !cache.done.has(a.id) && new Date(a.due_at) < now,
     tag: `${a.subject} · ${banLabel(a.ban)}`,
   }));
-  const evs = cache.events.map((e) => ({
-    kind: "ev", id: e.id, title: e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
+  // 숨긴 꿈지락은 본인에게만 흐리게 남습니다 (눌러서 되돌릴 수 있게)
+  const evs = cache.events.filter((e) => !e.hidden || ownsEvent(e)).map((e) => ({
+    kind: "ev", id: e.id, title: e.hidden ? `숨김 · ${e.title}` : e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
     allDay: e.all_day, color: e.color, done: eventDone(e) || isPastEvent(e), auto: !eventDone(e) && isPastEvent(e),
     owner: ownsEvent(e), shared: eventPeople(e).length > 0,
     tag: [shareLabel(e), e.memo.split("\n")[0]].filter(Boolean).join(" · "),
@@ -962,31 +977,37 @@ function openEventForm(ev, seed) {
   // 시작을 바꾸면 끝이 이 길이만큼 따라옵니다 (처음엔 1시간)
   let dur = allDay || end <= start ? HOUR : end - start;
   const color = ev?.color || "violet";
-  openSheet(ev ? "일정 수정" : "새 일정", `
+  const source = ev?.source_key || seed?.source_key;   // 꿈지락을 내 일정으로 고치는 중
+  openSheet(ev || source ? "일정 수정" : "새 일정", `
+    ${source ? `<div class="study-foot">여기서 고쳐도 내 달력에서만 바뀌고, 다른 친구들에게는 그대로 보여요.</div>` : ""}
     <label class="study-label">제목</label>
-    <input class="study-input" id="eTitle" maxlength="120" value="${esc(ev?.title || "")}" placeholder="예: 동아리 회의, 학원, 생일">
+    <input class="study-input" id="eTitle" maxlength="120" value="${esc(ev?.title || seed?.title || "")}" placeholder="예: 동아리 회의, 학원, 생일">
     <label class="ev-allday"><input type="checkbox" id="eAll"${allDay ? " checked" : ""}> 하루 종일</label>
     <label class="study-label">시작</label>
-    <div class="ev-when"><input class="study-input" type="date" id="eSd" value="${dayKey(start)}"><input class="study-input" type="time" id="eSt" step="300" value="${hm(start)}"></div>
+    <div class="ev-when"><input class="study-input" type="date" id="eSd" value="${dayKey(start)}"><input class="study-input" type="time" id="eSt" step="300" value="${allDay ? "09:00" : hm(start)}"></div>
     <label class="study-label">끝</label>
-    <div class="ev-when"><input class="study-input" type="date" id="eEd" value="${dayKey(end)}"><input class="study-input" type="time" id="eEt" step="300" value="${hm(end)}"></div>
+    <div class="ev-when"><input class="study-input" type="date" id="eEd" value="${dayKey(end)}"><input class="study-input" type="time" id="eEt" step="300" value="${allDay ? "10:00" : hm(end)}"></div>
     <div class="ev-durs">${DURATIONS.map(([m, label]) =>
       `<button type="button" class="ev-dur" data-dur="${m}">${label}</button>`).join("")}</div>
     <label class="study-label">색</label>
     <div class="ev-colors">${COLORS.map((c) =>
       `<button type="button" class="ev-swatch c-${c}${c === color ? " on" : ""}" data-color="${c}" aria-label="${c}"></button>`).join("")}</div>
     <label class="study-label">메모 (선택)</label>
-    <textarea class="study-input" id="eMemo" rows="3" maxlength="2000" placeholder="장소, 준비물 등">${esc(ev?.memo || "")}</textarea>
+    <textarea class="study-input" id="eMemo" rows="3" maxlength="2000" placeholder="장소, 준비물 등">${esc(ev?.memo || seed?.memo || "")}</textarea>
+    <div${source ? ' style="display:none"' : ""}>
     <label class="study-label">함께하는 친구 (선택)</label>
     <div class="fr-chips" id="frChips"></div>
     <input class="study-input" id="frQ" autocomplete="off" placeholder="이름·학번으로 찾기">
     <div class="fr-results" id="frRes"></div>
     <div class="study-foot fr-note">넣은 친구 달력에도 이 일정이 생겨요. 고치거나 지우면 친구 달력에도 반영돼요.</div>
+    </div>
     ${ev ? `<label class="ev-allday"><input type="checkbox" id="eDone"${ev.done || isPastEvent(ev) ? " checked" : ""}${isPastEvent(ev) ? " disabled" : ""}> 완료한 일정${
       isPastEvent(ev) ? ' <span class="ev-hint">(지난 일정이라 자동 완료 · 미래로 옮기면 풀려요)</span>' : ""}</label>` : ""}
     <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="eSave">${ev ? "저장" : "추가"}</button>
-    ${ev ? '<button class="study-submit ghost danger" id="eDel">일정 삭제</button>' : ""}`);
+    <button class="study-submit" id="eSave">${ev || source ? "저장" : "추가"}</button>
+    ${ev?.source_key ? '<button class="study-submit ghost" id="eRevert">원래 일정으로 되돌리기</button>' : ""}
+    ${source && !ev?.hidden ? '<button class="study-submit ghost danger" id="eHide">내 달력에서 숨기기</button>' : ""}
+    ${ev && !source ? '<button class="study-submit ghost danger" id="eDel">일정 삭제</button>' : ""}`);
   const sheet = $("studyModal").querySelector(".study-sheet");
   const at = (d, t) => (d ? new Date(`${d}T${t || "00:00"}`) : null);
   const readStart = () => at($("eSd").value, $("eSt").value);
@@ -1082,6 +1103,8 @@ function openEventForm(ev, seed) {
       starts_at: starts.toISOString(), ends_at: ends ? ends.toISOString() : null,
     };
     let reopened = false;
+    if (seed?.source_key) row.source_key = seed.source_key;
+    if (ev?.hidden) { row.hidden = false; $("eDone").checked = false; }
     if (ev) {
       // 지난 일정을 미래로 옮기면 완료를 취소합니다. 지난 일정(체크 잠김)은 원래 값을 유지
       reopened = isPastEvent(ev) && eventEnd(row) > new Date();
@@ -1106,7 +1129,27 @@ function openEventForm(ev, seed) {
     await loadAssignments();
     if (fc) fc.gotoDate(starts);
   };
-  if (ev) $("eDel").onclick = async () => {
+  // 꿈지락: 내 일정 행을 지우면 원래 학교 일정이 다시 보입니다
+  if ($("eRevert")) $("eRevert").onclick = async () => {
+    const { error } = await sb.from("events").delete().eq("id", ev.id);
+    if (error) return showErr("되돌리지 못했어요.");
+    closeModal();
+    toast("원래 일정으로 되돌렸어요");
+    await loadAssignments();
+  };
+  // 그냥 지우면 원래 일정이 다시 나타나므로, 숨김 표시를 남깁니다 (완료 처리라 알림도 가지 않습니다)
+  if ($("eHide")) $("eHide").onclick = async () => {
+    const hide = { hidden: true, done: true };
+    const { error } = ev
+      ? await sb.from("events").update(hide).eq("id", ev.id)
+      : await sb.from("events").insert({ title: seed.title, memo: seed.memo || "", color: "violet", all_day: true,
+          starts_at: seed.start.toISOString(), ends_at: null, source_key: seed.source_key, ...hide });
+    if (error) return showErr("숨기지 못했어요.");
+    closeModal();
+    toast("숨겼어요. 흐리게 보이는 일정을 눌러 되돌릴 수 있어요");
+    await loadAssignments();
+  };
+  if ($("eDel")) $("eDel").onclick = async () => {
     // 지우기 전 모습을 기억해 두었다가 [실행 취소] 하면 같은 id 로 되살립니다 (함께하는 친구 포함)
     const snap = { id: ev.id, title: ev.title, memo: ev.memo, starts_at: ev.starts_at, ends_at: ev.ends_at,
       all_day: ev.all_day, color: ev.color, done: ev.done };
@@ -1435,13 +1478,22 @@ function refreshAcad() {
 const myGrade = () => (me.student_id ? Math.floor(me.student_id / 1000) : 0);
 function myAcad() {
   const g = myGrade();
-  const replaced = new Set(cache.school.map((x) => x.neis_key).filter(Boolean));   // 관리자가 고치거나 숨긴 일정은 뺍니다
+  const replaced = new Set([...cache.school.map((x) => x.neis_key).filter(Boolean), ...myCopies()]);   // 고치거나 숨긴 일정은 뺍니다
   return (acadList || []).filter((e) => e.name !== "토요휴업일" && (!g || e.grades.includes(g)) && !replaced.has(e.key));
+}
+// 꿈지락은 시간이 자주 바뀌어서 학생이 자기 달력에서만 고칠 수 있습니다.
+// 고치면 events 에 내 일정으로 저장되고(source_key = 원본), 내 달력에서만 원본 대신 보입니다. RLS 상 다른 학생에게는 보이지 않습니다.
+const isKkum = (title) => title.includes("꿈지락");
+const myCopies = () => new Set(cache.events.filter((e) => e.source_key && ownsEvent(e)).map((e) => e.source_key));
+function kkumSeed(title, memo, e, source_key) {
+  const start = new Date(e.starts_at), allDay = e.all_day;
+  return { title, memo, source_key, start, allDay, end: e.ends_at ? new Date(e.ends_at) : allDay ? start : new Date(+start + HOUR) };
 }
 // 학교 일정 중 숨기지 않았고 내 학년에 해당하는 것 (NEIS 를 고친 일정은 원본의 대상 학년을 따릅니다)
 function liveSchool() {
-  const g = String(myGrade());
-  return cache.school.filter((e) => !e.hidden && (!e.neis_key || g === "0" || e.neis_key.split("|").pop().includes(g)));
+  const g = String(myGrade()), copies = myCopies();
+  return cache.school.filter((e) => !e.hidden && !copies.has(e.neis_key || `sch:${e.id}`)
+    && (!e.neis_key || g === "0" || e.neis_key.split("|").pop().includes(g)));
 }
 
 function acadEvents(from, to) {
@@ -1449,7 +1501,7 @@ function acadEvents(from, to) {
   return myAcad().filter((e) => acadOn.has(e.cat) && e.end >= lo && e.start < hi).map((e) => {
     const after = parseDay(e.end); after.setDate(after.getDate() + 1);   // FullCalendar 종일 일정의 끝은 다음 날(미포함)
     return {
-      id: `acad:${e.id}`, title: e.name, start: e.start, end: dayKey(after), allDay: true, editable: false,
+      id: `acad:${e.id}`, title: e.name, start: e.start, end: dayKey(after), allDay: true, editable: !!me.is_admin || isKkum(e.name),
       classNames: ["c-school"], extendedProps: { kind: "acad" },
     };
   });
@@ -1736,9 +1788,9 @@ function openSchoolForm(e, seed) {
       `<option value="${k}"${k === (e?.category || "event") ? " selected" : ""}>${label}</option>`).join("")}</select>
     <label class="ev-allday"><input type="checkbox" id="sAll"${allDay ? " checked" : ""}> 하루 종일</label>
     <label class="study-label">시작</label>
-    <div class="ev-when"><input class="study-input" type="date" id="sSd" value="${dayKey(start)}"><input class="study-input" type="time" id="sSt" step="300" value="${hm(start)}"></div>
+    <div class="ev-when"><input class="study-input" type="date" id="sSd" value="${dayKey(start)}"><input class="study-input" type="time" id="sSt" step="300" value="${allDay ? "09:00" : hm(start)}"></div>
     <label class="study-label">끝</label>
-    <div class="ev-when"><input class="study-input" type="date" id="sEd" value="${dayKey(end)}"><input class="study-input" type="time" id="sEt" step="300" value="${hm(end)}"></div>
+    <div class="ev-when"><input class="study-input" type="date" id="sEd" value="${dayKey(end)}"><input class="study-input" type="time" id="sEt" step="300" value="${allDay ? "10:00" : hm(end)}"></div>
     <label class="ev-allday sch-noclass"><input type="checkbox" id="sNo"${e?.no_class ? " checked" : ""}> 수업 없는 날 <span class="ev-hint">(이 기간엔 달력에 시간표를 깔지 않아요)</span></label>
     <label class="ev-allday"><input type="checkbox" id="sNotify"${e?.notify ? " checked" : ""}> <span style="white-space:nowrap">필수 일정</span> <span class="ev-hint">(30분 전 알림 · 하루 종일은 07:50)</span></label>
     <label class="study-label">메모 (선택)</label>
@@ -1779,7 +1831,7 @@ function openSchoolForm(e, seed) {
     sheet.classList.toggle("allday", $("sAll").checked);
     sheet.querySelector(".sch-noclass").style.display = $("sAll").checked ? "" : "none";
   };
-  $("sAll").onchange = () => { syncAll(); if ($("sAll").checked) $("sEd").value = $("sSd").value; };
+  $("sAll").onchange = () => { syncAll(); $("sAll").checked ? $("sEd").value = $("sSd").value : $("sSd").onchange(); };
   $("sSd").onchange = () => {
     if ($("sAll").checked) { if ($("sEd").value < $("sSd").value) $("sEd").value = $("sSd").value; }
     else { const s = at($("sSd").value, $("sSt").value); const en = new Date(+s + HOUR); $("sEd").value = dayKey(en); $("sEt").value = hm(en); }
