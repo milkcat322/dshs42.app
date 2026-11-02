@@ -195,6 +195,9 @@ function renderNav() {
   const fb = $("btnFeedback");
   fb.style.display = me?.is_admin ? "" : "none";
   fb.onclick = me?.is_admin ? openFeedbackList : null;
+  const ov = $("btnOverview");   // 📊 학생 현황도 관리자만
+  ov.style.display = me?.is_admin ? "" : "none";
+  ov.onclick = me?.is_admin ? openOverview : null;
   if (me?.is_admin && !refreshFbBadge.on) {   // 1분마다 새 피드백 확인
     refreshFbBadge.on = true;
     refreshFbBadge();
@@ -1682,6 +1685,65 @@ async function openFeedbackList() {
     toast("삭제했어요");
     openFeedbackList();
   });
+}
+
+// 관리자: 학생 현황. 데이터는 admin_overview() 한 번으로 받습니다 (overview.sql).
+// 본인만 보는 내용(할 일 · 개인 일정 등)은 서버에서 제목 없이 수만 옵니다.
+// 마지막으로 본 뒤 생긴 활동은 강조합니다 (이 기기 기준, 처음 열 때는 강조 없음).
+const OV_SEEN_KEY = "dshs-overview-seen";
+const ovTime = (s) => {
+  if (!s) return "기록 없음";
+  const d = new Date(s);
+  return `${dayTitle(dayKey(d))} ${hm(d)}`;
+};
+const ovWho = (r) => `${r.student_id ? `${r.student_id} ` : ""}${esc(r.name)}`;
+const OV_COUNTS = [["assignments", "수행평가"], ["personal", "개인 수정"], ["done", "완료 표시"], ["events", "일정"],
+  ["todos", "할 일"], ["groups", "그룹"], ["feedback", "피드백"], ["push", "알림 기기"]];
+
+function overviewHtml(data, seen) {
+  const fresh = data.activity.filter((a) => Date.parse(a.at) > seen);
+  const today = dayKey(new Date());
+  const activeToday = data.students.filter((s) => s.last_login && dayKey(new Date(s.last_login)) === today).length;
+  const activity = data.activity.map((a) => {
+    const isNew = Date.parse(a.at) > seen;
+    return `<div class="fb-item${isNew ? " new" : ""}">
+      <div class="ev-meta">${isNew ? '<span class="fb-new">새 활동</span>' : ""}${ovWho(a)} · ${esc(ovTime(a.at))}</div>
+      <div class="fb-body">${esc(a.text)}</div>
+    </div>`;
+  }).join("");
+  const students = data.students.map((s) => {
+    const counts = OV_COUNTS.filter(([k]) => s[k] > 0).map(([k, label]) => `${label} ${s[k]}`);
+    if (s.location) counts.push(`📍 ${esc(s.location)}`);
+    return `<div class="fb-item">
+      <div class="fb-body"><b>${ovWho(s)}</b></div>
+      <div class="ev-meta">가입 ${esc(ovTime(s.joined_at))} · 마지막 로그인 ${esc(ovTime(s.last_login))}</div>
+      <div class="ev-meta">${counts.length ? counts.join(" · ") : "아직 활동 없음"}</div>
+    </div>`;
+  }).join("");
+  return `<div class="ov-stats">
+      <div class="ov-stat"><b>${data.students.length}/${data.roster}</b>가입</div>
+      <div class="ov-stat"><b>${activeToday}</b>오늘 로그인</div>
+      <div class="ov-stat"><b>${fresh.length}</b>새 활동</div>
+    </div>
+    <div class="ov-note">지금 남아 있는 내용만 보여요. 지운 항목과 고치기 전 내용은 나오지 않아요. 할 일 · 개인 일정 · 개인 수정 · 학생 그룹의 내용은 본인만 볼 수 있어 수와 시각만 보여요.</div>
+    <div class="ov-sec">최근 활동</div>
+    ${activity || '<div class="study-empty">아직 활동이 없어요.</div>'}
+    <div class="ov-sec">학생별 (최근 가입순)</div>
+    ${students || '<div class="study-empty">아직 가입한 학생이 없어요.</div>'}
+    <details class="ov-more"><summary>아직 가입하지 않은 학생 ${data.not_joined.length}명</summary>
+      <p>${data.not_joined.map(ovWho).join(" · ")}</p>
+    </details>`;
+}
+
+async function openOverview() {
+  openSheet("학생 현황", `<div class="study-empty">불러오는 중…</div>`);
+  const box = $("studyModal").querySelector(".study-sheet");
+  const { data, error } = await sb.rpc("admin_overview");
+  if (error) { box.querySelector(".study-empty").textContent = "불러오지 못했어요."; return; }
+  let seen = Infinity;
+  try { seen = Date.parse(localStorage.getItem(OV_SEEN_KEY)) || Infinity; } catch {}
+  box.querySelector(".study-empty").outerHTML = overviewHtml(data, seen);
+  if (data.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
 }
 
 // ---------- 학사일정 (NEIS) ----------
