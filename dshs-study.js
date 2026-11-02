@@ -203,6 +203,7 @@ function openMyTimetable() {
   if (!nm || typeof window.renderResult !== "function") return openStudy();
   destroyCal();
   $("studyView").style.display = "none";
+  document.body.classList.remove("study-open");
   $("errorMsg")?.classList.remove("show");
   $("welcomeState").style.display = "none";
   if ($("nameInput")) $("nameInput").value = "";   // 다른 사람을 검색했던 흔적 지우기
@@ -369,6 +370,8 @@ function openStudy(p) {
   $("result").classList.remove("show");
   $("welcomeState").style.display = "none";
   $("studyView").style.display = "block";
+  // 시간표 검색창은 내 시간표 탭에서만 보입니다 (내 시간표 탭이 없는 관리자 계정은 그대로 둠)
+  document.body.classList.toggle("study-open", !!me?.student_id);
   renderStudy();
   renderNav();
   loadAssignments();
@@ -376,6 +379,7 @@ function openStudy(p) {
 function closeStudy() {
   destroyCal();
   $("studyView").style.display = "none";
+  document.body.classList.remove("study-open");
   if (!$("result").classList.contains("show")) $("welcomeState").style.display = "";
   if (me) renderNav();
 }

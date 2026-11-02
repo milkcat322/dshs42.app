@@ -39,6 +39,7 @@
   h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 900; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--text) 0%, var(--accent1) 50%, var(--accent2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
   .subtitle { color: var(--text-dim); font-size: 14px; font-weight: 300; }
   .search-section { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 32px; position: relative; overflow: hidden; }
+  body.study-open .search-section { display: none; }   /* 내 일정 · 수행평가 · 할 일 탭에서는 검색창을 숨깁니다 */
   .search-label { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; font-family: 'IBM Plex Mono', monospace; }
   .search-row { display: flex; gap: 12px; align-items: stretch; }
   .search-input-wrap { flex: 1; position: relative; }
