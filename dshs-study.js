@@ -1334,7 +1334,8 @@ async function removeItem(id) {
 // 교시 시각: 1교시 08:20 시작, 50분 수업 + 10분 쉬는 시간, 점심 12:10–13:10
 const PERIOD_TIME = {
   1: ["08:20", "09:10"], 2: ["09:20", "10:10"], 3: ["10:20", "11:10"], 4: ["11:20", "12:10"],
-  5: ["13:10", "14:00"], 6: ["14:10", "15:00"], 7: ["15:10", "16:00"], 8: ["16:10", "17:00"], 9: ["17:10", "18:00"],
+  5: ["13:10", "14:00"], 6: ["14:10", "15:00"], 7: ["15:20", "16:10"], 8: ["16:20", "17:10"], 9: ["17:20", "18:10"],
+  10: ["19:00", "19:50"], 11: ["20:00", "20:50"], 12: ["21:00", "21:50"],
 };
 const DOW = { 월: 1, 화: 2, 수: 3, 목: 4, 금: 5 };
 let showTT = (() => { try { return localStorage.getItem("dshs-cal-tt") !== "off"; } catch { return true; } })();
@@ -1418,7 +1419,7 @@ function ttBlock(id, block, key, change, start, end) {
   return {
     id, title: change ? `옮김 · ${block.subject}` : block.subject, display: "background",
     classNames: ["fcx-tt", change ? "tt-moved" : ""], start, end,
-    extendedProps: { kind: "tt", block, key, change, label: `${block.ban} · ${periodLabel(block)}` },
+    extendedProps: { kind: "tt", block, key, change, label: `${block.ban} · ${change ? "원래 " : ""}${periodLabel(block)}` },
   };
 }
 
@@ -1458,53 +1459,44 @@ function openClassSheet(p, at) {
 
 // forAll 이면 분반 전체 (관리자)
 function openClassForm(b, key, forAll) {
-  // 길이 기본값은 원래 수업 길이입니다
-  const orig = (periodTime(key, b.to, 1) - periodTime(key, b.from, 0)) / 60000;
-  const mins = (m) => (m < 60 ? `${m}분` : `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ""}`);
-  const lengths = [[50, "1교시"], [110, "2교시"]];
-  if (!lengths.some(([m]) => m === orig)) lengths.push([orig, "원래 길이"]);
-  let dur = orig;
+  // 시작 교시만 고르면 연속 수업은 원래 교시 수만큼 함께 옮겨집니다
+  const span = b.to - b.from + 1;
+  const periods = Object.keys(PERIOD_TIME).map(Number);
+  const last = periods[periods.length - 1];
+  let pick = b.from;
   openSheet("수업 옮기기", `
     <div class="ev-meta">${esc(b.subject)} · ${esc(b.ban)} · ${esc(dayTitle(key))} ${periodLabel(b)}</div>
-    <label class="study-label">옮길 날짜와 시작 시간</label>
-      <div class="ev-when"><input class="study-input" type="date" id="cDate" value="${key}"><input class="study-input" type="time" id="cStart" step="300" value="${PERIOD_TIME[b.from][0]}"></div>
-      <label class="study-label">수업 길이</label>
-      <div class="ev-durs">${lengths.map(([m, label]) =>
-        `<button type="button" class="ev-dur${m === orig ? " on" : ""}" data-len="${m}">${label} (${mins(m)})</button>`).join("")}
-        <button type="button" class="ev-dur" id="cOther">그 외</button></div>
-      <div id="cOtherBox" style="display:none"><label class="study-label">끝나는 시간</label>
-        <input class="study-input" type="time" id="cEnd" step="300" value="${PERIOD_TIME[b.to][1]}"></div>
+    <label class="study-label">옮길 날짜</label>
+    <input class="study-input" type="date" id="cDate" value="${key}">
+    <label class="study-label">${span > 1 ? `시작 교시 (${span}교시 연속)` : "옮길 교시"}</label>
+    <div class="ev-durs">${periods.map((n) =>
+      `<button type="button" class="ev-dur${n === pick ? " on" : ""}" data-p="${n}"${n + span - 1 > last ? " disabled" : ""}>${n}교시</button>`).join("")}</div>
+    <div class="study-foot" id="cWhen"></div>
     <div class="study-foot">${forAll ? `${esc(b.ban)} 학생 모두의 달력에 적용돼요.` : "내 달력에서만 바뀌어요."}</div>
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="cSave">옮기기</button>`);
   const sheet = $("studyModal").querySelector(".study-sheet");
-  const custom = () => $("cOther").classList.contains("on");
-  const syncEnd = () => {   // 길이를 고른 동안에는 끝 시간이 시작을 따라갑니다
-    if (custom()) return;
-    const s = new Date(`2000-01-01T${$("cStart").value}`);
-    if (!isNaN(s)) $("cEnd").value = hm(new Date(+s + dur * 60000));
+  const showWhen = () => {
+    const to = pick + span - 1;
+    $("cWhen").textContent = `${periodLabel({ from: pick, to })} · ${PERIOD_TIME[pick][0]}–${PERIOD_TIME[to][1]}`;
   };
-  const pickLen = (btn) => sheet.querySelectorAll(".ev-dur").forEach((x) => x.classList.toggle("on", x === btn));
-  $("cStart").onchange = syncEnd;
-  sheet.querySelectorAll("[data-len]").forEach((x) => x.onclick = () => {
-    dur = +x.dataset.len;
-    pickLen(x);
-    $("cOtherBox").style.display = "none";
-    syncEnd();
+  sheet.querySelectorAll("[data-p]").forEach((x) => x.onclick = () => {
+    pick = +x.dataset.p;
+    sheet.querySelectorAll("[data-p]").forEach((y) => y.classList.toggle("on", y === x));
+    showWhen();
   });
-  $("cOther").onclick = () => { pickLen($("cOther")); $("cOtherBox").style.display = ""; };
+  showWhen();
   $("cSave").onclick = async () => {
-    const start = new Date(`${$("cDate").value}T${$("cStart").value}`);
-    const end = new Date(`${$("cDate").value}T${$("cEnd").value}`);
-    if (isNaN(start) || isNaN(end)) return showErr("날짜와 시간을 정해 주세요.");
-    if (end <= start) return showErr("끝나는 시간이 시작보다 빨라요.");
+    const day = $("cDate").value;
+    if (!day) return showErr("날짜를 정해 주세요.");
+    if (day === key && pick === b.from) return showErr("원래 수업과 같은 시간이에요.");
     const owner = forAll ? null : me.id;
     if (cache.classes.some((c) => c.user_id === owner && c.subject === b.subject && c.ban === b.ban && c.on_date === key && c.period_from === b.from))
-      return showErr("이미 바꾼 수업이에요. 먼저 되돌려 주세요.");
+      return showErr("이미 옮긴 수업이에요. 먼저 되돌려 주세요.");
     $("cSave").disabled = true;
     const { error } = await sb.from("class_changes").insert({
       user_id: owner, subject: b.subject, ban: b.ban, on_date: key, period_from: b.from, period_to: b.to,
-      moved_start: start.toISOString(), moved_end: end.toISOString(),
+      moved_start: periodTime(day, pick, 0).toISOString(), moved_end: periodTime(day, pick + span - 1, 1).toISOString(),
     });
     if (error) { $("cSave").disabled = false; return showErr("저장하지 못했어요: " + error.message); }
     closeModal();
