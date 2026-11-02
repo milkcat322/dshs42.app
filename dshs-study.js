@@ -184,20 +184,20 @@ function renderNav() {
   nav.innerHTML = me
     ? tabs.map(([k, label]) =>
         `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("")
-    : `<button class="study-btn" id="btnLogin">로그인 / 회원가입</button>`;
-  // 설정(알림 · 학교 일정 · 계정)은 로그인했을 때만 업데이트 옆에 보입니다
+    : `<button class="study-btn" id="btnLogin">dshs.app으로 로그인</button>`;
+  // 설정(알림 · 학교 일정 · 계정)은 업데이트 옆에 늘 보입니다 (로그인 전에는 관리자 로그인을 여는 곳)
   const set = $("btnSettings");
-  set.style.display = me ? "" : "none";
+  set.style.display = "";
+  set.onclick = openSettings;
   const fb = $("btnFeedback");
   fb.style.display = me && FEEDBACK_ON ? "" : "none";
   fb.onclick = me ? (me.is_admin ? openFeedbackList : openFeedback) : null;
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
-    set.onclick = openSettings;
     autoPush();
   } else {
-    $("btnLogin").onclick = () => openAuth("login");
+    $("btnLogin").onclick = openAuth;
   }
 }
 
@@ -233,42 +233,42 @@ async function logout() {
   toast("로그아웃했어요");
 }
 
-// ---------- 로그인 / 회원가입 ----------
+// ---------- 로그인 ----------
+// 학생은 dshs.app 으로만 로그인합니다 (회원가입 없음). 처음이면 dshs-oauth 가 학번으로 계정을 만듭니다.
+// 아이디 · 비밀번호 로그인은 관리자 전용이라 숨겨 두었고, 설정 창 제목 "설정" 을 7번 누르면 열립니다.
 function closeModal() { $("studyModal").className = "study-modal"; }
 
-function openAuth(mode) {
-  const m = $("studyModal");
-  m.className = "study-modal show";
-  m.innerHTML = `<div class="study-sheet">
-    <div class="study-sheet-head">
-      <div class="study-tabs">
-        <button class="study-tab${mode === "login" ? " on" : ""}" data-m="login">로그인</button>
-        <button class="study-tab${mode === "signup" ? " on" : ""}" data-m="signup">회원가입</button>
-      </div>
-      <button class="study-x">✕</button>
-    </div>
+function openAuth() {
+  openSheet("로그인", `
     <button class="study-submit dshs-login" id="doDshsLogin">dshs.app으로 로그인</button>
-    <div class="auth-or">또는 아이디로 ${mode === "login" ? "로그인" : "가입"}</div>
-    <div id="authBody"></div>
-    <div class="study-foot">dshs.app으로 로그인하면 따로 가입하지 않아도 돼요. 이미 가입했다면 같은 학번 계정으로 들어가요.<br>
-      대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트예요.</div>
-  </div>`;
-  m.querySelector(".study-x").onclick = closeModal;
-  m.onclick = (e) => { if (e.target === m) closeModal(); };
-  m.querySelectorAll(".study-tab").forEach((b) => { b.onclick = () => openAuth(b.dataset.m); });
+    <div class="study-err" id="authErr"></div>
+    <div class="study-foot">dshs.app 계정으로 로그인해요. 따로 가입하지 않아도 되고, 전에 아이디로 가입했다면 같은 학번 계정으로 들어가요.<br>
+      대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트예요.</div>`);
   $("doDshsLogin").onclick = loginWithDshs;
-  (mode === "login" ? loginForm : signupStep1)();
 }
 
-function loginForm() {
-  $("authBody").innerHTML = `
+// 설정 창 제목을 빠르게 7번 누르면 관리자 로그인
+const ADMIN_TAPS = 7;
+function bindAdminTap() {
+  const t = $("studyModal").querySelector(".sheet-title");
+  let n = 0, last = 0;
+  t.style.userSelect = "none";
+  t.onclick = () => {
+    const now = Date.now();
+    n = now - last < 1500 ? n + 1 : 1;
+    last = now;
+    if (n >= ADMIN_TAPS) openAdminLogin();
+  };
+}
+
+function openAdminLogin() {
+  openSheet("관리자 로그인", `
     <label class="study-label">아이디</label>
-    <input class="study-input" id="loginId" autocomplete="username" placeholder="가입할 때 정한 아이디">
+    <input class="study-input" id="loginId" autocomplete="username">
     <label class="study-label">비밀번호</label>
-    <input class="study-input" id="loginPw" type="password" autocomplete="current-password" placeholder="8자 이상">
+    <input class="study-input" id="loginPw" type="password" autocomplete="current-password">
     <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="doLogin">로그인</button>
-    <div class="study-foot">이 브라우저에서는 다음부터 자동으로 로그인돼요.</div>`;
+    <button class="study-submit" id="doLogin">로그인</button>`);
   const go = async () => {
     const u = $("loginId").value.trim().toLowerCase();
     const p = $("loginPw").value;
@@ -287,83 +287,10 @@ function loginForm() {
   };
   $("doLogin").onclick = go;
   $("loginPw").onkeydown = (e) => { if (e.key === "Enter") go(); };
+  $("loginId").focus();
 }
 
 function showErr(msg) { const e = $("authErr"); e.textContent = msg; e.classList.add("show"); }
-
-function signupStep1() {
-  $("authBody").innerHTML = `
-    <label class="study-label">학번</label>
-    <input class="study-input" id="suSid" inputmode="numeric" maxlength="4" placeholder="예: 2113">
-    <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="doCheck">다음</button>
-    <div class="study-foot">학번으로 본인 이름을 확인한 뒤 아이디를 만들어요.</div>`;
-  const go = async () => {
-    const sid = parseInt($("suSid").value.trim(), 10);
-    if (!sid) return showErr("학번을 숫자로 입력해 주세요.");
-    $("doCheck").disabled = true;
-    const { data, error } = await sb.rpc("student_id_status", { p_student_id: sid });
-    $("doCheck").disabled = false;
-    if (error) return showErr("확인에 실패했어요. 잠시 뒤 다시 시도해 주세요.");
-    const row = data?.[0];
-    if (!row) return showErr("명단에 없는 학번이에요.");
-    if (row.taken) return showErr("이 학번은 이미 가입되어 있어요. 로그인해 주세요.");
-    signupStep2(sid, row.name);
-  };
-  $("doCheck").onclick = go;
-  $("suSid").onkeydown = (e) => { if (e.key === "Enter") go(); };
-}
-
-function signupStep2(sid, name) {
-  $("authBody").innerHTML = `
-    <div class="study-confirm">
-      <div class="study-confirm-name">${esc(name)}</div>
-      <div class="study-confirm-sid">학번 ${sid}</div>
-    </div>
-    <div class="study-foot" style="margin:0 0 14px">본인이 맞나요? 아니라면 학번을 다시 확인해 주세요.</div>
-    <button class="study-submit ghost" id="back">← 학번 다시 입력</button>
-    <button class="study-submit" id="yes">네, 맞아요</button>`;
-  $("back").onclick = signupStep1;
-  $("yes").onclick = () => signupStep3(sid, name);
-}
-
-function signupStep3(sid, name) {
-  $("authBody").innerHTML = `
-    <div class="study-who">${esc(name)} · ${sid}</div>
-    <label class="study-label">아이디</label>
-    <input class="study-input" id="suId" autocomplete="username" placeholder="영문 소문자·숫자 4~20자">
-    <label class="study-label">비밀번호</label>
-    <input class="study-input" id="suPw" type="password" autocomplete="new-password" placeholder="8자 이상">
-    <label class="study-label">비밀번호 확인</label>
-    <input class="study-input" id="suPw2" type="password" autocomplete="new-password">
-    <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="doSignup">가입하기</button>
-    <div class="study-foot">학번당 계정은 하나만 만들 수 있어요.</div>`;
-  $("doSignup").onclick = async () => {
-    const u = $("suId").value.trim().toLowerCase();
-    const p = $("suPw").value, p2 = $("suPw2").value;
-    if (!/^[a-z0-9_]{4,20}$/.test(u)) return showErr("아이디는 영문 소문자·숫자·밑줄 4~20자예요.");
-    if (p.length < 8) return showErr("비밀번호는 8자 이상이어야 해요.");
-    if (p !== p2) return showErr("비밀번호가 서로 달라요.");
-    $("doSignup").disabled = true;
-    try {
-      const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY },
-        body: JSON.stringify({ student_id: sid, username: u, password: p }),
-      });
-      const out = await res.json();
-      if (!res.ok) { $("doSignup").disabled = false; return showErr(out.error || "가입하지 못했어요."); }
-      await sb.auth.signInWithPassword({ email: `${u}@${EMAIL_DOMAIN}`, password: p });
-      await loadProfile();
-      closeModal(); renderNav(); openHome();
-      toast(`${name}님, 가입을 환영해요`);
-    } catch {
-      $("doSignup").disabled = false;
-      showErr("네트워크 오류가 났어요.");
-    }
-  };
-}
 
 // ---------- 탭: 내 일정 · 수행평가 공지 · 할 일 ----------
 const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"]];
@@ -1745,6 +1672,14 @@ function openDshsDetail(r) {
 
 // 설정: 알림 · 학교 일정 보이기 · 계정(로그아웃과 dshs.app 연결 관리)
 function openSettings() {
+  if (!me) {   // 로그인 전: 로그인 안내만 (제목 7번 → 관리자 로그인)
+    openSheet("설정", `
+      <div class="asg-body">로그인하면 알림 · 내 일정 달력 설정과 계정을 여기서 관리할 수 있어요.</div>
+      <button class="study-submit dshs-login" id="doDshsLogin">dshs.app으로 로그인</button>
+      <div class="study-err" id="authErr"></div>`);
+    $("doDshsLogin").onclick = loginWithDshs;
+    return bindAdminTap();
+  }
   const link = dshs.linked
     ? `<div class="asg-body">dshs.app ${dshs.name ? `${esc(dshs.name)} 계정과 ` : ""}연결돼 있어요. 진행 중인 내 신청 ${dshsItems().length}건이 달력에 보여요.</div>
        <div class="study-foot">내 일정을 보는 동안 1분마다 새로 받아 와요. 연결을 해제하면 이 사이트에 저장된 dshs.app 로그인 정보가 지워져요.</div>
@@ -1769,6 +1704,7 @@ function openSettings() {
   if ($("doDshs")) $("doDshs").onclick = startDshs;
   if ($("dshsUnlink")) $("dshsUnlink").onclick = unlinkDshs;
   $("doLogout").onclick = () => { closeModal(); logout(); };
+  bindAdminTap();
 }
 
 async function startDshs() {
