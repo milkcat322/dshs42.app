@@ -540,7 +540,7 @@ function renderList(mode) {
         <span class="cal-title" id="calTitle"></span>
       </div>`}
       <div class="cal-right">
-        ${me.student_id && tab !== "list" ? `<label class="tt-check"><input type="checkbox" id="ttToggle"${showTT ? " checked" : ""}> 학교 시간표 보이기</label>` : ""}
+        ${me.student_id && tab !== "list" ? `<label class="tt-check"${tab === "month" ? ' style="display:none"' : ""}><input type="checkbox" id="ttToggle"${showTT ? " checked" : ""}> 학교 시간표 보이기</label>` : ""}
         <button class="study-btn small" id="acadBtn">${acadBtnLabel()}</button>
         <div class="seg">${VIEWS.map(([k, label]) =>
           `<button class="seg-btn${tab === k ? " on" : ""}" data-seg="${k}">${label}</button>`).join("")}</div>
@@ -593,6 +593,8 @@ function switchTab(next) {
     // 보던 범위에 오늘이 있으면 오늘부터, 아니면 그 범위의 첫날부터
     const t = new Date(), v = fc.view;
     fc.changeView(FC_VIEW[next], t >= v.activeStart && t < v.activeEnd ? t : v.currentStart);
+    const tt = $("ttToggle")?.closest("label");   // 월 보기에는 시간표가 없습니다
+    if (tt) tt.style.display = next === "month" ? "none" : "";
     $("studyBody").querySelectorAll("[data-seg]").forEach((b) => b.classList.toggle("on", b.dataset.seg === next));
     return;
   }
@@ -642,6 +644,7 @@ async function mountCal() {
     slotDuration: "01:00:00",
     snapDuration: "00:15:00",
     scrollTime: "08:00:00",
+    lazyFetching: false,   // 보기를 바꿀 때마다 새로 그립니다. 월 보기에서 받은 일정에는 시간표가 없습니다
     expandRows: true,
     dayMaxEvents: 3,
     eventDisplay: "block",
