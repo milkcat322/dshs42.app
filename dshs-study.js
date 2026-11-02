@@ -113,6 +113,7 @@ async function init() {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs-study-auth" },
   });
 
+  await dshsSession();   // dshs.app 으로 로그인하고 돌아온 경우
   const { data: { session } } = await sb.auth.getSession();   // ← 자동 로그인
   if (session) await loadProfile();
   renderNav();
@@ -130,7 +131,7 @@ async function init() {
   if (me && opened === "assignments") openStudy("notice");
   else if (me && opened === "cal") openStudy("cal");
   else if (me?.student_id) openMyTimetable();
-  if (me) dshsReturned();
+  dshsReturned();
 }
 
 async function loadProfile() {
@@ -231,12 +232,16 @@ function openAuth(mode) {
       </div>
       <button class="study-x">✕</button>
     </div>
+    <button class="study-submit dshs-login" id="doDshsLogin">dshs.app으로 로그인</button>
+    <div class="auth-or">또는 아이디로 ${mode === "login" ? "로그인" : "가입"}</div>
     <div id="authBody"></div>
-    <div class="study-foot">대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트예요.</div>
+    <div class="study-foot">dshs.app으로 로그인하면 따로 가입하지 않아도 돼요. 이미 가입했다면 같은 학번 계정으로 들어가요.<br>
+      대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트예요.</div>
   </div>`;
   m.querySelector(".study-x").onclick = closeModal;
   m.onclick = (e) => { if (e.target === m) closeModal(); };
   m.querySelectorAll(".study-tab").forEach((b) => { b.onclick = () => openAuth(b.dataset.m); });
+  $("doDshsLogin").onclick = loginWithDshs;
   (mode === "login" ? loginForm : signupStep1)();
 }
 
@@ -1463,9 +1468,12 @@ const DSHS_FN = `${CFG.SUPABASE_URL}/functions/v1/dshs-oauth`;
 const DSHS_STATUS = { pending: "승인 대기", approved: "승인", rejected: "반려" };
 const DSHS_RETURNED = {
   linked: "dshs.app 계정을 연결했어요. 신청 내역이 달력에 보여요",
-  denied: "dshs.app 연결을 취소했어요",
+  login: "dshs.app 계정으로 로그인했어요",
+  joined: "dshs.app 계정으로 가입했어요. 반가워요",
+  denied: "dshs.app 로그인을 취소했어요",
   mismatch: "dshs.app 계정의 학번이 이 계정과 달라서 연결하지 않았어요",
-  expired: "연결 시간이 지났어요. 다시 시도해 주세요",
+  notstudent: "42기 학생 명단에 있는 dshs.app 계정만 로그인할 수 있어요",
+  expired: "시간이 지났어요. 다시 시도해 주세요",
 };
 const dshsEmpty = () => ({ linked: null, name: null, items: [], at: 0 });   // linked: null = 아직 모름
 let dshs = dshsEmpty();
@@ -1474,7 +1482,7 @@ async function dshsCall(action, extra) {
   const { data: { session } } = await sb.auth.getSession();
   const res = await fetch(DSHS_FN, {
     method: "POST",
-    headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token}` },
+    headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token || CFG.SUPABASE_ANON_KEY}` },
     body: JSON.stringify({ action, ...extra }),
   });
   return { ok: res.ok, body: await res.json().catch(() => ({})) };
@@ -1573,11 +1581,32 @@ async function unlinkDshs() {
   toast("dshs.app 연결을 해제했어요");
 }
 
-// dshs.app 로그인에서 돌아왔을 때 (?dshs=linked | error&reason=…) 결과를 알리고 주소를 정리합니다
+// 'dshs.app으로 로그인' (로그인 전 화면). 돌아오면 init 이 주소의 일회용 토큰으로 세션을 만듭니다.
+async function loginWithDshs() {
+  $("doDshsLogin").disabled = true;
+  try {
+    const { body } = await dshsCall("login", { return_to: location.origin + location.pathname });
+    if (body.url) { location.href = body.url; return; }
+  } catch {}
+  showErr("dshs.app 로그인을 시작하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
+  $("doDshsLogin").disabled = false;
+}
+
+// dshs.app 로그인에서 돌아오며 받은 일회용 토큰(#dshs_login=…) → 이 사이트 세션. 토큰은 주소에서 바로 지웁니다.
+async function dshsSession() {
+  const token = new URLSearchParams(location.hash.slice(1)).get("dshs_login");
+  if (!token) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  const { error } = await sb.auth.verifyOtp({ token_hash: token, type: "magiclink" });
+  if (error) dshsSession.failed = true;
+}
+
+// dshs.app 로그인에서 돌아왔을 때 (?dshs=linked | login | joined | error&reason=…) 결과를 알리고 주소를 정리합니다
 function dshsReturned() {
   const q = new URLSearchParams(location.search), r = q.get("dshs");
   if (!r) return;
-  toast(DSHS_RETURNED[r === "linked" ? "linked" : q.get("reason")] || "dshs.app 연결에 실패했어요", r !== "linked");
+  const ok = ["linked", "login", "joined"].includes(r) && !dshsSession.failed && !!me;
+  toast(ok ? DSHS_RETURNED[r] : DSHS_RETURNED[q.get("reason")] || "dshs.app 로그인에 실패했어요", !ok);
   q.delete("dshs"); q.delete("reason");
   const rest = q.toString();
   history.replaceState(null, "", location.pathname + (rest ? `?${rest}` : ""));

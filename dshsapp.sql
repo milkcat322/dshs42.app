@@ -22,14 +22,16 @@ create table if not exists public.dshs_links (
 
 -- ------------------------------------------------------------
 -- 2. 로그인 진행 중인 요청 (state · PKCE). 10분 지나면 지웁니다.
+--    user_id 가 있으면 로그인한 학생의 계정 연결, 없으면 'dshs.app으로 로그인'.
 -- ------------------------------------------------------------
 create table if not exists public.dshs_oauth_states (
   state      text primary key,
-  user_id    uuid not null references public.profiles(id) on delete cascade,
+  user_id    uuid references public.profiles(id) on delete cascade,
   verifier   text not null,
   return_to  text not null,
   created_at timestamptz not null default now()
 );
+alter table public.dshs_oauth_states alter column user_id drop not null;
 
 -- 서비스 롤 전용 (정책 없음 = 접근 불가)
 alter table public.dshs_links enable row level security;

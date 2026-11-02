@@ -66,6 +66,7 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - `config.js` 에는 anon 키만. service_role 키·VAPID 비밀키는 Edge Function secrets 에만 둔다.
 - 외부 서비스(dshs.app 등) 호출은 브라우저가 아니라 Edge Function 을 거친다 (CORS). 크롤링·대리 로그인은 하지 않고 공식 OAuth/API 만 쓴다.
 - dshs.app 연동(`dshs-oauth`): client_secret 은 Supabase secrets(`DSHS_CLIENT_SECRET`)에만 둔다. 대화·DEVLOG·커밋에 적지 않는다 (DEVLOG 자동 요약이 그대로 올릴 수 있음). 허용 scope 는 `openid profile me.read request.read offline_access` 뿐이고, 늘리려면 dshs.app 관리자에게 메일로 요청한다. 요청 제한(60초 120회)이 사이트 전체 합산이라 브라우저는 5분에 한 번만 받는다. dshs.app 에 이미 있는 기능을 똑같이 만들지 않는다 (이용 규칙).
+- 'dshs.app으로 로그인'은 dshs.app 의 학번으로 계정을 찾는다 (연결된 계정 → 같은 학번 계정 → 명단에 있으면 새 계정 `d<학번>@dshs.study`, 임의 비밀번호). 세션은 Edge Function 이 만든 일회용 magiclink 토큰을 `#dshs_login=` 으로 넘겨 브라우저가 `verifyOtp` 로 만든다.
 - 사이트 하단과 로그인 창의 "학생 비공식 사이트" 문구는 dshs.app 측 요청이라 지우지 않는다.
 - 알림 계산은 `supabase/functions/send-reminders/plan.ts` 순수 함수에 둔다 (DB·푸시 없이 테스트 가능하게).
 - 학사일정은 NEIS(학교 코드 `G10` / `7430032`)가 원본이다. `academic.json` 은 GitHub Actions 가 매일 덮어쓰므로 직접 고치지 않는다. NEIS 에 없는 일정(카톡 공지 등)은 `academic-extra.json` 에 적고 `node scripts/fetch-academic.mjs` 를 실행한다 (먼저 academic.json 과 비교해 이미 있는 건 넣지 않는다). 종류 분류는 `dshs-study.js` 의 `acadCat()`.
