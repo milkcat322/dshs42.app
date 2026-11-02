@@ -227,6 +227,7 @@ async function logout() {
   await disablePush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 지웁니다
   await sb.auth.signOut();
   autoPush.done = false;   // 다음에 로그인하는 사람의 알림을 다시 맞춥니다
+  paintPush.known = false;
   me = null; myClasses = []; dshs = dshsEmpty(); closeStudy(); renderNav();
   toast("로그아웃했어요");
 }
@@ -2411,9 +2412,17 @@ async function deviceSub() {
 }
 
 // 설정의 알림 체크박스
+// 설정의 알림 체크박스와, 알림이 꺼져 있으면 설정 아이콘의 빨간 점
 function paintPush() {
   const b = $("setPush");
   if (b) b.checked = pushOn;
+  $("btnSettings").classList.toggle("warn", !!me && paintPush.known && !pushOn && pushPossible());
+}
+// 이 기기에서 알림을 켤 수 있는지 (못 켜는 기기에는 빨간 점을 띄우지 않습니다)
+function pushPossible() {
+  if (!CFG.VAPID_PUBLIC_KEY || !("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  return !(/iPad|iPhone|iPod/.test(navigator.userAgent) && !standalone);
 }
 
 // 알림은 기본으로 켜 둡니다: 이 기기에서 끈 적이 없고 브라우저 알림을 이미 허락했으면, 로그인할 때 조용히 등록합니다.
@@ -2423,16 +2432,19 @@ const pushWanted = () => { try { return localStorage.getItem(PUSH_PREF) !== "off
 async function autoPush() {
   if (autoPush.done || !me) return;
   autoPush.done = true;
-  if (!pushWanted() || !("Notification" in window) || Notification.permission !== "granted") return;
-  try { await enablePush(true); } catch {}
+  if (pushWanted() && "Notification" in window && Notification.permission === "granted") {
+    try { await enablePush(true); } catch {}
+  }
+  refreshPush();   // 켜졌는지 확인해서 설정 아이콘의 빨간 점을 맞춥니다
 }
 
 async function refreshPush() {
   const sub = await deviceSub().catch(() => null);
-  if (!sub) { pushOn = false; return paintPush(); }
+  if (!sub) { pushOn = false; paintPush.known = true; return paintPush(); }
   const { data, error } = await sb.from("push_subscriptions").select("endpoint").eq("endpoint", sub.endpoint).maybeSingle();
   if (error) return;
   pushOn = !!data;
+  paintPush.known = true;
   paintPush();
 }
 
