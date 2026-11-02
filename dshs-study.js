@@ -1037,6 +1037,7 @@ function openEventForm(ev, seed) {
     <textarea class="study-input" id="eMemo" rows="3" maxlength="2000" placeholder="장소, 준비물 등">${esc(ev?.memo || "")}</textarea>
     <label class="study-label">함께하는 친구 (선택)</label>
     <div class="fr-chips" id="frChips"></div>
+    <div class="aud-quick" id="frGroups"><span class="aud-label">그룹</span><span class="aud-hint">불러오는 중…</span></div>
     <input class="study-input" id="frQ" autocomplete="off" placeholder="이름·학번으로 찾기 (가입 전 친구는 학번 4자리)">
     <div class="fr-results" id="frRes"></div>
     <div class="study-foot fr-note">넣은 친구 달력에도 이 일정이 생겨요. 고치거나 지우면 친구 달력에도 반영돼요. 가입 전인 친구는 가입하면 바로 생겨요.</div>
@@ -1083,18 +1084,27 @@ function openEventForm(ev, seed) {
 
   // 함께하는 친구: 가입한 사람은 이름·학번으로 찾고(search_people),
   // 가입 전인 학생은 학번 4자리를 입력하면 넣을 수 있어요 (invites.sql: 가입하는 순간 그 학생 달력에 생김)
+  const sidOf = (name) => window.SCHOOL_DATA?.[name]?.id;   // 그룹으로 저장할 때 쓰는 학번 (이름 → 학번)
   const before = ev ? [
-    ...eventPeople(ev).filter((p) => !p.is_owner).map((p) => ({ id: p.user_id, name: p.name })),
+    ...eventPeople(ev).filter((p) => !p.is_owner).map((p) => ({ id: p.user_id, name: p.name, sid: sidOf(p.name) })),
     ...eventInvites(ev).map((sid) => ({ sid, name: rosterName(sid), invite: true })),
   ] : [];
   let friends = [...before];
   const sameFriend = (a, b) => (a.invite ? b.invite && a.sid === b.sid : !b.invite && a.id === b.id);
   const drawChips = () => {
     $("frChips").innerHTML = friends.map((f, i) =>
-      `<span class="fr-chip">${esc(f.name)}${f.invite ? "<small>가입 전</small>" : ""}<button type="button" data-rm="${i}" aria-label="${esc(f.name)} 빼기">✕</button></span>`).join("");
+      `<span class="fr-chip">${esc(f.name)}${f.invite && !f.fromGroup ? "<small>가입 전</small>" : ""}<button type="button" data-rm="${i}" aria-label="${esc(f.name)} 빼기">✕</button></span>`).join("");
     $("frChips").querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { friends.splice(+b.dataset.rm, 1); drawChips(); });
   };
   drawChips();
+  // 그룹: 학번으로 넣습니다. 가입한 학생은 저장할 때 DB(invites.sql 트리거)가 바로 함께하는 친구로 바꿔요
+  mountGroups("frGroups", () => friends.map((f) => f.sid), (sids) => {
+    for (const sid of sids) {
+      if (sid === me.student_id || friends.some((f) => f.sid === sid)) continue;
+      friends.push({ sid, name: rosterName(sid), invite: true, fromGroup: true });
+    }
+    drawChips();
+  });
   let qTimer, qSeq = 0;
   $("frQ").oninput = () => {
     clearTimeout(qTimer);
@@ -1119,7 +1129,7 @@ function openEventForm(ev, seed) {
       const added = () => { drawChips(); $("frQ").value = ""; $("frRes").innerHTML = ""; $("frQ").focus(); };
       $("frRes").querySelectorAll("[data-add]").forEach((b) => b.onclick = () => {
         const p = list[+b.dataset.add];
-        friends.push({ id: p.id, name: p.name });
+        friends.push({ id: p.id, name: p.name, sid: p.student_id });
         added();
       });
       $("frRes").querySelectorAll("[data-invite]").forEach((b) => b.onclick = () => {
@@ -1203,6 +1213,45 @@ function openEventForm(ev, seed) {
     });
     await loadAssignments();
   };
+}
+
+// ---------- 즐겨찾기 그룹 (groups.sql) ----------
+// 일정의 '함께하는 친구'와 관리자 학교 일정 대상에서 함께 씁니다. 학생 그룹은 나만, 관리자 그룹은 관리자끼리 봐요.
+// boxId: 그룹 줄을 그릴 칸 · getSids(): 지금 고른 학번들 · addSids(sids): 그룹을 눌렀을 때 학번들을 더하기
+function mountGroups(boxId, getSids, addSids) {
+  let groups = [];
+  const draw = () => {
+    const box = $(boxId);
+    if (!box) return;
+    box.innerHTML = `<span class="aud-label">그룹</span>` +
+      groups.map((g, i) => `<span class="aud-group"><button type="button" class="study-btn small" data-group="${i}">${esc(g.name)} <small>${g.student_ids.length}</small></button><button type="button" class="aud-group-x" data-gdel="${i}" aria-label="${esc(g.name)} 그룹 지우기">✕</button></span>`).join("") +
+      `<button type="button" class="study-btn small" data-gsave>+ 고른 사람을 그룹으로</button>`;
+    box.querySelectorAll("[data-group]").forEach((b) => b.onclick = () => addSids(groups[+b.dataset.group].student_ids));
+    box.querySelectorAll("[data-gdel]").forEach((b) => b.onclick = async () => {
+      const g = groups[+b.dataset.gdel];
+      if (!confirm(`'${g.name}' 그룹을 지울까요? (이미 넣은 사람은 그대로예요)`)) return;
+      const { error } = await sb.from("audience_groups").delete().eq("id", g.id);
+      if (error) return toast("그룹을 지우지 못했어요", true);
+      groups = groups.filter((x) => x !== g);
+      draw();
+    });
+    box.querySelector("[data-gsave]").onclick = async () => {
+      const sids = [...new Set(getSids())].filter(Boolean).sort((a, b) => a - b);
+      if (!sids.length) return toast("먼저 그룹에 넣을 사람을 골라 주세요", true);
+      const name = prompt(`지금 고른 ${sids.length}명을 어떤 이름의 그룹으로 저장할까요?`, "")?.trim();
+      if (!name) return;
+      const { data, error } = await sb.from("audience_groups").insert({ name: name.slice(0, 40), student_ids: sids }).select().single();
+      if (error) return toast("그룹을 저장하지 못했어요", true);
+      groups = [...groups, data].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      draw();
+      toast(`'${data.name}' 그룹을 저장했어요`);
+    };
+  };
+  sb.from("audience_groups").select("*").order("name").then(({ data, error }) => {
+    if (error) { $(boxId)?.remove(); return; }   // groups.sql 을 아직 실행하지 않았으면 숨깁니다
+    groups = data;
+    draw();
+  });
 }
 
 // 친구가 공유한 일정: 보기 + 내 완료 체크 + 내 달력에서 빼기
@@ -2174,43 +2223,7 @@ function openSchoolForm(e, seed) {
     people.filter((p) => p.classes[subj] && (ban === "*" || p.classes[subj] === ban)).forEach((p) => picked.add(p.sid));
     drawAud();
   };
-  // 즐겨찾기 그룹 (groups.sql, 관리자끼리 함께 씀): 누르면 그 사람들을 한 번에 더하고, 지금 고른 사람을 새 그룹으로 저장합니다
-  let groups = [];
-  const drawGroups = () => {
-    const box = $("audGroups");
-    if (!box) return;
-    box.innerHTML = `<span class="aud-label">그룹</span>` +
-      groups.map((g, i) => `<span class="aud-group"><button type="button" class="study-btn small" data-group="${i}">${esc(g.name)} <small>${g.student_ids.length}</small></button><button type="button" class="aud-group-x" data-gdel="${i}" aria-label="${esc(g.name)} 그룹 지우기">✕</button></span>`).join("") +
-      `<button type="button" class="study-btn small" id="audGroupSave">+ 고른 사람을 그룹으로</button>`;
-    box.querySelectorAll("[data-group]").forEach((b) => b.onclick = () => {
-      groups[+b.dataset.group].student_ids.forEach((sid) => picked.add(sid));
-      drawAud();
-    });
-    box.querySelectorAll("[data-gdel]").forEach((b) => b.onclick = async () => {
-      const g = groups[+b.dataset.gdel];
-      if (!confirm(`'${g.name}' 그룹을 지울까요? (일정 대상은 그대로예요)`)) return;
-      const { error } = await sb.from("audience_groups").delete().eq("id", g.id);
-      if (error) return toast("그룹을 지우지 못했어요", true);
-      groups = groups.filter((x) => x !== g);
-      drawGroups();
-    });
-    $("audGroupSave").onclick = async () => {
-      if (!picked.size) return toast("먼저 그룹에 넣을 사람을 골라 주세요", true);
-      const name = prompt(`지금 고른 ${picked.size}명을 어떤 이름의 그룹으로 저장할까요?`, "")?.trim();
-      if (!name) return;
-      const { data, error } = await sb.from("audience_groups")
-        .insert({ name: name.slice(0, 40), student_ids: [...picked].sort((a, b) => a - b) }).select().single();
-      if (error) return toast(/relation|does not exist|schema cache/i.test(error.message) ? "그룹 기능은 아직 준비 중이에요" : "그룹을 저장하지 못했어요", true);
-      groups = [...groups, data].sort((a, b) => a.name.localeCompare(b.name, "ko"));
-      drawGroups();
-      toast(`'${data.name}' 그룹을 저장했어요`);
-    };
-  };
-  sb.from("audience_groups").select("*").order("name").then(({ data, error }) => {
-    if (error) { $("audGroups")?.remove(); return; }   // groups.sql 을 아직 실행하지 않았으면 숨깁니다
-    groups = data;
-    drawGroups();
-  });
+  mountGroups("audGroups", () => [...picked], (sids) => { sids.forEach((sid) => picked.add(sid)); drawAud(); });
 
   $("audQ").oninput = () => {
     const q = $("audQ").value.trim();
