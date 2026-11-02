@@ -649,47 +649,49 @@
 - [ ] dshs.app 연동은 운영자 답변 대기
 - [ ] dev-journey 공개 전 productivity 표시 여부와 팀원 동의를 정한 뒤 `setup.sh` 실행
 
-## 2026-11-01 23:06–13:38 · dshs.app 연동: API 신청 답장부터 신청 내역 표시, dshs.app으로 로그인까지
+## 2026-11-01 23:06–14:32 · dshs.app API 연동 협의부터 신청 내역 표시·dshs.app으로 로그인까지
 
-`session f6c6188d` · 개발 milkcat322 · 요청 13회
+`session f6c6188d` · 개발 milkcat322 · 요청 14회
 
 ### 목표
-- dshs.app 개발자에게 API 사용 신청 답장 작성
-- dshs.app 신청 내역을 내 일정 달력에 읽기 전용으로 표시
-- 로그인 화면에 "dshs.app으로 로그인" 선택지 추가
-- DEVLOG 기록에 개발자 이름 포함
+- dshs.app 개발자와 연동 범위(Scope, Redirect URI, 서비스 이름) 협의
+- dshs.app 신청 내역을 내 일정 탭 달력에 읽기 전용으로 표시
+- 기존 로그인에 "dshs.app으로 로그인" 선택지 추가
 
 ### 한 일
-- dshs.app 개발자 문서(developer, client, school API)를 확인하고 API 신청 답장을 scope `request.read` 하나로 좁혀 작성
-- 운영자 요청에 따라 비공식 사이트 문구, 서비스 이름(dshs42), "dshs.app으로 로그인" 전환 계획을 답장에 반영
-- 발급받은 client ID/secret으로 토큰 엔드포인트와 redirect URI 동작을 직접 검증
-- `dshsapp.sql`에 dshs.app 연결·토큰 저장 테이블 작성(서버 전용, RLS로 브라우저 접근 차단)
-- `supabase/functions/dshs-oauth/index.ts` Edge Function 작성: 연결 시작, 콜백 처리, 신청 조회, 토큰 refresh, 연결 해제
-- 내 일정 탭에 dshs.app 연결 버튼과 신청 내역(📮) 달력 표시 추가, 로그인 화면·사이트 하단에 비공식 사이트 문구 추가
-- `.claude/hooks/devlog-worker.mjs`에 `git config user.name` 기반 개발자 표시 추가, CLAUDE.md에 규칙 기록
-- 로그인 화면에 "dshs.app으로 로그인" 버튼 추가: 기존 연결 계정 로그인 → 같은 학번 계정 자동 연결 → 42기 명단 기반 신규 계정 생성 순서로 처리하는 OAuth 플로우를 Edge Function과 프런트엔드에 구현
+- dshs.app 개발자에게 앱 정보·Redirect URI·Scope를 담은 연동 신청 메일 작성, 범위를 `request.read` 하나로 축소
+- 운영자 피드백(비공식 사이트 명시, 서비스 이름 제공, refresh token 안내)에 맞춰 답장 재작성, 서비스 이름 dshs42로 확정
+- 발급받은 Client ID/secret을 PowerShell로 직접 호출해 토큰 엔드포인트·redirect URI·scope 동작 검증
+- `dshsapp.sql`(dshs_links, dshs_oauth_states)과 `supabase/functions/dshs-oauth/index.ts` 작성: OIDC+PKCE 연결, 토큰 저장·갱신, 신청 조회, 연결 해제
+- 일정 탭에 dshs.app 연결 버튼과 신청 내역(📮) 표시 추가, 로그인 화면·사이트 하단에 비공식 사이트 문구 추가
+- DEVLOG 자동 기록에 `git config user.name` 기반 개발자 이름 표시 추가 (`devlog-worker.mjs`, `CLAUDE.md`)
+- "dshs.app으로 로그인" 버튼 추가: 연결된 계정 로그인 → 동일 학번 계정 자동 연결 → 42기 명단 기반 신규 가입 순서로 처리, 일회용 토큰으로 세션 전달
 
 ### 결정과 이유
-- API 신청 범위를 예약·벌점·내 정보 조회까지 포함한 넓은 안에서 신청 내역 조회(`request.read`) 하나로 축소. 사용자가 추가 기능은 신청 내역 표시뿐이라고 확정했기 때문.
-- 기존 아이디·비밀번호 로그인은 즉시 교체하지 않고 유지하면서 dshs.app 로그인을 추가 선택지로 둠. 기존 계정이 `아이디@dshs.study`로 저장돼 있어 데이터 단절을 피하기 위함.
-- dshs.app client secret은 코드·커밋에 넣지 않고 Supabase secrets에만 저장. DEVLOG 자동 기록 훅이 비밀값을 가리지 못하므로 유출 위험을 피하기 위함.
+- Scope를 `request.read`(+연결용 `openid`, `offline_access`)만 신청하고 예약·벌점·내정보는 제외. dshs.app 개발자 가이드의 "기존 기능 중복 금지" 규칙 때문
+- 로그인 교체 시 기존 `아이디@dshs.study` 계정과 자동 연결하는 단계를 둠. 바로 교체하면 기존 데이터가 끊기기 때문
+- client secret은 코드·커밋에 넣지 않고 Supabase secrets에만 저장하기로 함
 
 ### 해결한 문제
-- 증상: dshs.app 로그인 콜백에서 `invalid_client` 오류 → 원인: Supabase에 `DSHS_CLIENT_ID`/`DSHS_CLIENT_SECRET`이 저장되지 않아 함수가 `undefined`를 전송 → 해결: 사용자가 `supabase secrets set`으로 직접 값 설정
+- 증상: dshs.app 로그인 연결 시 `invalid_client` 오류 → 원인: Supabase에 `DSHS_CLIENT_ID`/`DSHS_CLIENT_SECRET`이 저장되지 않아 함수가 `undefined`를 전송 → 해결: `supabase secrets set`으로 두 값 등록
 
 ### 남은 일
-- [ ] 아이폰 홈 화면 앱에서 dshs.app 연결이 정상 동작하는지 확인
+- [ ] 아이폰 홈 화면 앱(PWA)에서 dshs.app 연결이 정상 동작하는지 확인
+- [ ] 운영 DB에서 `notice.sql` 실행(마감 일시 없이 수행평가 등록 가능하게)
+
+### 배운 점
+- DEVLOG 자동 요약 훅은 비밀값을 가리지 않으므로, 대화에 secret을 붙여넣으면 저장소에 그대로 올라갈 위험이 있음 — 매번 커밋·DEVLOG에 들어갔는지 직접 확인해야 함
 
 ### 바뀐 파일
-- `supabase/functions/dshs-oauth/index.ts`
-- `dshsapp.sql`
-- `dshs-study.js`
-- `index.html`
-- `sw.js`
-- `updates.js`
 - `.claude/hooks/devlog-worker.mjs`
 - `CLAUDE.md`
 - `README.md`
+- `dshs-study.js`
+- `dshsapp.sql`
+- `index.html`
+- `supabase/functions/dshs-oauth/index.ts`
+- `sw.js`
+- `updates.js`
 
 <!-- flow: - **2026-11-01** dshs.app 공식 API 연동 완료: 서버 전용 OAuth(dshs-oauth Edge Function)로 신청 내역을 내 일정 달력에 표시, 로그인 화면에 "dshs.app으로 로그인"을 추가해 기존 계정 자동 연결·42기 명단 기반 신규 가입 지원, DEVLOG에 개발자 이름 자동 기록 추가 -->
 ## 2026-11-02 13:21–14:10 · 자생탐 보고서용 개발 내용 정리 파일 작성
