@@ -9,7 +9,7 @@ const EMAIL_DOMAIN = "dshs.study";
 let sb = null;
 let me = null;          // { id, username, student_id, name, is_admin }
 let myClasses = [];     // 로컬 시간표 데이터에서 가져온 내 수강 분반 [{ subject, ban }]
-let cache = { items: [], pending: [], mine: [], events: [], done: new Set(), people: new Map(), todos: null, school: [], classes: [] };
+let cache = { items: [], pending: [], mine: [], events: [], done: new Set(), people: new Map(), todos: null, school: [], classes: [], classReqs: [] };
 let page = "cal";       // 열린 탭: cal(내 일정) | notice(수행평가) | todo(할 일)
 let view = "feed";      // studyBody 에 떠 있는 화면: feed | notice | admin | form | todo
 let fc = null;          // FullCalendar 인스턴스 (달력 탭일 때만)
@@ -431,10 +431,12 @@ async function loadAssignments() {
     sb.rpc("my_event_people"),
     sb.from("todos").select("*").order("created_at", { ascending: true }),
     sb.from("school_events").select("*, school_event_targets(student_id)").order("starts_at", { ascending: true }),
-    sb.from("class_changes").select("*"),
+    sb.from("class_changes").select("*, profiles(name)"),
   ]);
   cache.school = school.data || [];
-  cache.classes = classes.data || [];
+  const today = dayKey(new Date());
+  cache.classes = (classes.data || []).filter((c) => !c.user_id || c.user_id === me.id);   // 관리자는 모든 학생 것을 받지만 달력에는 내 것만 씁니다
+  cache.classReqs = classReqGroups((classes.data || []).filter((c) => c.user_id && c.status === "pending" && (c.on_date >= today || dayKey(new Date(c.moved_start)) >= today)));
   cache.todos = todos.error ? null : todos.data;
   const { data, error } = asg;
   // 개인 일정·완료 체크를 못 불러와도 수행평가는 그대로 보여줍니다
@@ -456,7 +458,7 @@ async function loadAssignments() {
   cache.mine = rows.filter((a) => a.created_by === me.id);
   cache.pending = rows.filter((a) => a.status === "pending");
   const pc = $("pendCount");
-  if (pc) pc.textContent = cache.pending.length;
+  if (pc) pc.textContent = cache.pending.length + cache.classReqs.length;
   // 작성 중인 공지 추가 폼은 덮어쓰지 않습니다
   if ($("studyView").style.display === "block" && view !== "form") rerender();
 }
@@ -520,9 +522,15 @@ function renderList(mode) {
       (cache.pending.length
         ? cache.pending.map((a) => card(a, { admin: true })).join("")
         : `<div class="study-empty">승인 대기 중인 수행평가가 없어요.</div>`) +
+      `<div class="study-section">수업 옮기기 승인 대기 ${cache.classReqs.length}건</div>` +
+      (cache.classReqs.length
+        ? cache.classReqs.map(classReqCard).join("")
+        : `<div class="study-empty">승인 대기 중인 수업 변경이 없어요.</div>`) +
       `<button class="study-btn wide" id="backFeed">← 목록으로</button>`;
     body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
     body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
+    body.querySelectorAll("[data-cok]").forEach((b) => b.onclick = () => reviewClass(b.dataset.cok, true));
+    body.querySelectorAll("[data-cno]").forEach((b) => b.onclick = () => reviewClass(b.dataset.cno, false));
     bindRows(body);
     $("backFeed").onclick = renderNotice;
     return;
@@ -1429,7 +1437,8 @@ function ttBlock(id, block, key, change, start, end) {
 }
 
 // ---------- 수업 옮기기 ----------
-// 선생님 사정으로 수업이 옮겨지거나 없어질 때 씁니다. 학생은 내 달력만, 관리자는 분반 전체를 바꿉니다.
+// 선생님 사정으로 수업이 옮겨질 때 씁니다. 학생이 옮기면 내 달력에 바로 적용되고 승인 요청이 됩니다.
+// 관리자가 승인하거나 직접 옮기면 분반 전체에 적용됩니다.
 // 같은 수업에 둘 다 있으면 학생이 직접 고친 것을 따릅니다.
 const FIXED_CLASSES = new Set(["R&E", "학급 자치"]);   // 옮길 일이 없는 시간
 function classChange(b, key) {
@@ -1446,17 +1455,45 @@ async function undoClass(ids, msg) {
   await loadAssignments();
 }
 
+// 같은 수업을 같은 시간으로 옮긴 학생들의 요청은 한 건으로 묶습니다
+function classReqGroups(rows) {
+  const groups = new Map();
+  for (const c of rows) {
+    const k = [c.subject, c.ban, c.on_date, c.period_from, c.moved_start, c.moved_end].join("|");
+    if (!groups.has(k)) groups.set(k, { ...c, names: [] });
+    groups.get(k).names.push(c.profiles?.name || "학생");
+  }
+  return [...groups.values()].sort((x, y) => (x.on_date < y.on_date ? -1 : 1));
+}
+
+function classReqCard(c) {
+  return `<div class="ev-row"><span class="ev-main"><span class="ev-title">${esc(c.subject)} · ${esc(c.ban)}</span>
+    <span class="ev-meta">${esc(dayTitle(c.on_date))} ${periodLabel({ from: c.period_from, to: c.period_to })} → ${esc(movedText(c))}</span>
+    <span class="ev-meta">${esc(c.names.join(", "))} 요청</span></span>
+    <button class="study-btn small ok" data-cok="${c.id}">승인</button>
+    <button class="study-btn small no" data-cno="${c.id}">반려</button></div>`;
+}
+
+async function reviewClass(id, approve) {
+  const { error } = await sb.rpc("review_class_change", { p_id: id, p_approve: approve });
+  if (error) return toast(error.message.includes("already_applied") ? "이미 분반 전체에 옮긴 수업이에요. 먼저 되돌려 주세요" : "처리하지 못했어요", true);
+  toast(approve ? "분반 전체에 적용했어요" : "반려했어요");
+  view = "admin";
+  await loadAssignments();
+}
+
 // 달력에서 수업을 눌렀을 때
 function openClassSheet(p, at) {
   const { block: b, key, change: c } = p;
   const mine = c?.user_id === me.id;
+  const state = mine ? { pending: " · 승인 대기 중이에요. 승인되면 분반 전체에 적용돼요", rejected: " · 반려되어 내 달력에서만 바뀌어요" }[c.status] || "" : " (관리자가 분반 전체에 적용)";
   openSheet(esc(b.subject), `
     <div class="ev-meta">${esc(dayTitle(key))} · ${esc(p.label)}</div>
-    ${c ? `<div class="asg-body">${esc(`${movedText(c)}(으)로 옮겼어요`)}${mine ? "" : " (관리자가 분반 전체에 적용)"}</div>` : ""}
+    ${c ? `<div class="asg-body">${esc(`${movedText(c)}(으)로 옮겼어요`)}${esc(state)}</div>` : ""}
     ${c ? "" : `<button class="study-submit" id="cMove">수업 옮기기</button>`}
     ${mine ? `<button class="study-submit" id="cUndo">원래 수업으로 되돌리기</button>` : ""}
     <button class="study-submit ghost" id="cEvent">이 시간에 일정 추가</button>
-    ${c ? "" : `<div class="study-foot">내 달력에서만 바뀌고, 다른 친구들에게는 그대로 보여요.</div>`}`);
+    ${c ? "" : `<div class="study-foot">내 달력에는 바로 바뀌고, 관리자가 승인하면 분반 전체에 적용돼요.</div>`}`);
   if ($("cMove")) $("cMove").onclick = () => openClassForm(b, key, false);
   if ($("cUndo")) $("cUndo").onclick = () => undoClass([c.id], "원래 수업으로 되돌렸어요");
   $("cEvent").onclick = () => openEventForm(null, { start: at, end: new Date(+at + HOUR), allDay: false });
@@ -1477,7 +1514,7 @@ function openClassForm(b, key, forAll) {
     <div class="ev-durs">${periods.map((n) =>
       `<button type="button" class="ev-dur" data-p="${n}"${n + span - 1 > last ? " disabled" : ""}>${n}교시</button>`).join("")}</div>
     <div class="study-foot" id="cWhen"></div>
-    <div class="study-foot">${forAll ? `${esc(b.ban)} 학생 모두의 달력에 적용돼요.` : "내 달력에서만 바뀌어요."}</div>
+    <div class="study-foot">${forAll ? `${esc(b.ban)} 학생 모두의 달력에 적용돼요.` : "내 달력에는 바로 바뀌고, 관리자가 승인하면 분반 전체에 적용돼요."}</div>
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="cSave">옮기기</button>`);
   const sheet = $("studyModal").querySelector(".study-sheet");
@@ -1500,12 +1537,13 @@ function openClassForm(b, key, forAll) {
       return showErr("이미 옮긴 수업이에요. 먼저 되돌려 주세요.");
     $("cSave").disabled = true;
     const { error } = await sb.from("class_changes").insert({
-      user_id: owner, subject: b.subject, ban: b.ban, on_date: key, period_from: b.from, period_to: b.to,
+      user_id: owner, status: forAll ? "approved" : "pending",
+      subject: b.subject, ban: b.ban, on_date: key, period_from: b.from, period_to: b.to,
       moved_start: periodTime(day, pick, 0).toISOString(), moved_end: periodTime(day, pick + span - 1, 1).toISOString(),
     });
     if (error) { $("cSave").disabled = false; return showErr("저장하지 못했어요: " + error.message); }
     closeModal();
-    toast("수업을 옮겼어요");
+    toast(forAll ? "수업을 옮겼어요" : "내 달력에서 옮겼어요. 승인되면 분반 전체에 적용돼요");
     await loadAssignments();
   };
 }
