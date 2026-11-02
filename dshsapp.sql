@@ -32,7 +32,23 @@ create table if not exists public.dshs_oauth_states (
   created_at timestamptz not null default now()
 );
 alter table public.dshs_oauth_states alter column user_id drop not null;
+-- 설치한 앱에서 시작한 로그인: 앱만 아는 값의 해시. 결과를 로그인 창이 아니라 앱이 받아 갑니다.
+alter table public.dshs_oauth_states add column if not exists handoff text;
+
+-- ------------------------------------------------------------
+-- 3. 앱이 받아 갈 로그인 결과. 앱이 한 번 받아 가면 지우고, 10분 지나면 지웁니다.
+--    앱(홈 화면에 추가한 사이트)에서는 dshs.app 로그인이 다른 브라우저 창에서 열려,
+--    로그인 결과를 그 창이 아니라 앱이 가져가야 앱에서 로그인됩니다.
+-- ------------------------------------------------------------
+create table if not exists public.dshs_handoffs (
+  handoff    text primary key,             -- 앱만 아는 값의 SHA-256
+  result     text not null,                -- login | joined | linked | error
+  reason     text,
+  token      text,                         -- 일회용 로그인 토큰 (로그인일 때)
+  created_at timestamptz not null default now()
+);
 
 -- 서비스 롤 전용 (정책 없음 = 접근 불가)
 alter table public.dshs_links enable row level security;
 alter table public.dshs_oauth_states enable row level security;
+alter table public.dshs_handoffs enable row level security;

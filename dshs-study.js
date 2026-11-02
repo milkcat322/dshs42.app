@@ -1925,8 +1925,9 @@ function openAccount() {
 async function startDshs() {
   $("doDshs").disabled = true;
   try {
-    const { body } = await dshsCall("start", { return_to: location.origin + location.pathname });
-    if (body.url) { location.href = body.url; return; }
+    const handoff = newHandoff();
+    const { body } = await dshsCall("start", { return_to: location.origin + location.pathname, handoff });
+    if (body.url) { location.href = body.url; if (handoff) waitHandoff(); return; }
     toast(body.error || "dshs.app 연결을 시작하지 못했어요", true);
   } catch { toast("dshs.app 연결을 시작하지 못했어요", true); }
   if ($("doDshs")) $("doDshs").disabled = false;
@@ -1948,11 +1949,89 @@ async function unlinkDshs() {
 async function loginWithDshs() {
   $("doDshsLogin").disabled = true;
   try {
-    const { body } = await dshsCall("login", { return_to: location.origin + location.pathname });
-    if (body.url) { location.href = body.url; return; }
+    const handoff = newHandoff();
+    const { body } = await dshsCall("login", { return_to: location.origin + location.pathname, handoff });
+    if (body.url) {
+      location.href = body.url;
+      if (handoff) {   // 로그인 창을 그냥 닫았으면 다시 누를 수 있게 둡니다
+        $("doDshsLogin").disabled = false;
+        waitHandoff();
+      }
+      return;
+    }
   } catch {}
   showErr("dshs.app 로그인을 시작하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
   $("doDshsLogin").disabled = false;
+}
+
+// ---------- 앱(홈 화면에 추가)에서 dshs.app 로그인 ----------
+// 앱에서는 dshs.app 로그인 화면이 다른 브라우저 창(팝업)에서 열려, 그 창으로 돌아온 로그인은 앱에 남지 않습니다.
+// 그래서 앱만 아는 임의 값(handoff)을 함께 보내고, 로그인 창에는 "앱으로 돌아가세요"만 띄운 뒤
+// 앱이 Edge Function 에서 결과(일회용 로그인 토큰)를 받아 앱에서 로그인합니다.
+// sessionStorage 는 창마다 따로라 팝업은 이 값을 모릅니다.
+const DSHS_HAND_KEY = "dshs-handoff";
+const DSHS_HAND_TTL = 10 * 60000;   // 서버의 로그인 요청 유효 시간과 같음
+const isInstalledApp = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+function newHandoff() {
+  if (!isInstalledApp()) return undefined;
+  const key = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replace(/[+/=]/g, "");
+  waitHandoff.h = { key, at: Date.now() };
+  try { sessionStorage.setItem(DSHS_HAND_KEY, JSON.stringify(waitHandoff.h)); } catch {}
+  return key;
+}
+function pendingHandoff() {
+  let h = waitHandoff.h;
+  try { h = JSON.parse(sessionStorage.getItem(DSHS_HAND_KEY)) || h; } catch {}
+  return h && Date.now() - h.at < DSHS_HAND_TTL ? h.key : null;
+}
+function clearHandoff() {
+  try { sessionStorage.removeItem(DSHS_HAND_KEY); } catch {}
+  waitHandoff.h = null;
+}
+
+// 로그인 창에서 돌아오면 바로, 앱이 보이는 동안에는 3초마다 결과를 확인합니다.
+function waitHandoff() {
+  if (waitHandoff.on) return;
+  waitHandoff.on = true;
+  const tick = async () => {
+    const key = pendingHandoff();
+    if (!key) return stop();
+    if (document.hidden || tick.busy) return;
+    tick.busy = true;
+    try {
+      const { ok, body } = await dshsCall("poll", { handoff: key });
+      if (ok && !body.pending && key === pendingHandoff()) { stop(); await handoffArrived(body); }
+    } catch {}
+    tick.busy = false;
+  };
+  const t = setInterval(tick, 3000);
+  function stop() {
+    clearInterval(t);
+    document.removeEventListener("visibilitychange", tick);
+    waitHandoff.on = false;
+  }
+  document.addEventListener("visibilitychange", tick);
+  tick();
+}
+
+async function handoffArrived(r) {
+  clearHandoff();
+  let ok = ["linked", "login", "joined"].includes(r.result);
+  if (ok && r.token) {
+    const { error } = await sb.auth.verifyOtp({ token_hash: r.token, type: "magiclink" });
+    if (!error) await loadProfile();
+    ok = !error && !!me;
+  }
+  if (!ok) return toast(DSHS_RETURNED[r.reason] || "dshs.app 로그인에 실패했어요", true);
+  closeModal();
+  if (r.result === "linked") {
+    dshs.at = 0;
+    loadDshs();
+  } else {
+    renderNav(); openHome();
+  }
+  toast(DSHS_RETURNED[r.result]);
 }
 
 // dshs.app 로그인에서 돌아오며 받은 일회용 토큰(#dshs_login=…) → 이 사이트 세션. 토큰은 주소에서 바로 지웁니다.
@@ -1967,9 +2046,17 @@ async function dshsSession() {
 // dshs.app 로그인에서 돌아왔을 때 (?dshs=linked | login | joined | error&reason=…) 결과를 알리고 주소를 정리합니다
 function dshsReturned() {
   const q = new URLSearchParams(location.search), r = q.get("dshs");
+  if (pendingHandoff()) waitHandoff();   // 앱 창 안에서 로그인 화면으로 갔다 온 경우 (컴퓨터에 설치한 앱 등)
   if (!r) return;
-  const ok = ["linked", "login", "joined"].includes(r) && !dshsSession.failed && !!me;
-  toast(ok ? DSHS_RETURNED[r] : DSHS_RETURNED[q.get("reason")] || "dshs.app 로그인에 실패했어요", !ok);
+  if (r === "app") {
+    // 앱에서 연 로그인 창(팝업)으로 돌아온 경우. 로그인은 앱이 이어서 합니다.
+    if (!pendingHandoff()) openSheet("dshs.app 로그인", `
+      <div class="ev-title">dshs.app 로그인을 마쳤어요</div>
+      <div class="asg-body">이 창을 닫고 앱으로 돌아가 주세요. 앱에서 자동으로 이어져요.</div>`);
+  } else {
+    const ok = ["linked", "login", "joined"].includes(r) && !dshsSession.failed && !!me;
+    toast(ok ? DSHS_RETURNED[r] : DSHS_RETURNED[q.get("reason")] || "dshs.app 로그인에 실패했어요", !ok);
+  }
   q.delete("dshs"); q.delete("reason");
   const rest = q.toString();
   history.replaceState(null, "", location.pathname + (rest ? `?${rest}` : ""));

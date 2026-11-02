@@ -7,6 +7,8 @@
 //   GET  ?code=…&state=…                 → dshs.app 이 돌려보내는 곳 (redirect URI). 토큰을 저장하고 사이트로 돌아갑니다.
 //                                          'dshs.app으로 로그인' 이면 학번으로 계정을 찾거나 만들고,
 //                                          일회용 로그인 토큰을 주소의 # 뒤에 붙여 돌려보냅니다 (브라우저가 세션으로 바꿈).
+//   POST { action: "poll", handoff }     → 설치한 앱에서 시작한 로그인의 결과. start/login 에 handoff 를 같이 보냈으면
+//                                          로그인 창에는 "앱으로 돌아가세요"만 보여 주고, 결과(일회용 토큰)는 앱이 여기서 받아 갑니다.
 //   POST { action: "requests" }          → 내 신청 내역 { linked, items }
 //   POST { action: "unlink" }            → 연결 해제 (refresh token 무효화 + 저장한 토큰 삭제)
 //
@@ -61,6 +63,11 @@ function jwtPayload(token: string) {
   const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(part + "=".repeat((4 - part.length % 4) % 4));
   return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+}
+
+async function sha256(s: string) {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // 계정 연결은 내 일정 탭으로, 로그인은 첫 화면으로 돌아갑니다
@@ -135,16 +142,20 @@ async function api(link: Link, path: string) {
 
 // ---------- 동작 ----------
 // userId 가 null 이면 'dshs.app으로 로그인'
-async function start(userId: string | null, returnTo: unknown) {
+// handoff: 설치한 앱에서 시작했을 때 앱만 아는 임의 값. 결과는 로그인 창이 아니라 앱이 poll 로 받아 갑니다.
+async function start(userId: string | null, returnTo: unknown, handoff: unknown) {
   let back = DEFAULT_RETURN;
   try {
     const u = new URL(String(returnTo));
     if (RETURN_OK.test(u.origin)) back = u.origin + u.pathname;
   } catch { /* 기본 주소로 */ }
 
-  await admin.from("dshs_oauth_states").delete().lt("created_at", new Date(Date.now() - 10 * 60000).toISOString());
+  const old = new Date(Date.now() - 10 * 60000).toISOString();
+  await admin.from("dshs_oauth_states").delete().lt("created_at", old);
+  await admin.from("dshs_handoffs").delete().lt("created_at", old);
   const state = randomToken(), verifier = randomToken();
-  const { error } = await admin.from("dshs_oauth_states").insert({ state, user_id: userId, verifier, return_to: back });
+  const hand = typeof handoff === "string" && handoff.length >= 32 ? await sha256(handoff) : null;
+  const { error } = await admin.from("dshs_oauth_states").insert({ state, user_id: userId, verifier, return_to: back, handoff: hand });
   if (error) return json({ error: "서버 오류가 났어요. 잠시 뒤 다시 시도해 주세요." }, 500);
 
   const url = new URL(`${ISSUER}/auth`);
@@ -209,7 +220,17 @@ async function callback(params: URLSearchParams) {
   if (!st) return backTo(DEFAULT_RETURN, { dshs: "error", reason: "expired" }, true);
   await admin.from("dshs_oauth_states").delete().eq("state", state);   // 한 번만 씁니다
   const login = !st.user_id;
-  const fail = (reason: string) => backTo(st.return_to, { dshs: "error", reason }, login);
+  // 앱에서 시작했으면 결과를 앱이 받아 가도록 맡겨 두고, 로그인 창에는 "앱으로 돌아가세요"만 보여 줍니다
+  const done = async (result: string, reason?: string, token?: string) => {
+    if (!st.handoff) {
+      const params: Record<string, string> = { dshs: result };
+      if (reason) params.reason = reason;
+      return backTo(st.return_to, params, login, token ? `dshs_login=${token}` : "");
+    }
+    await admin.from("dshs_handoffs").upsert({ handoff: st.handoff, result, reason: reason ?? null, token: token ?? null });
+    return backTo(st.return_to, { dshs: "app" }, true);
+  };
+  const fail = (reason: string) => done("error", reason);
   if (Date.parse(st.created_at) < Date.now() - 10 * 60000) return fail("expired");
 
   const err = params.get("error");
@@ -258,11 +279,21 @@ async function callback(params: URLSearchParams) {
     linked_at: new Date().toISOString(),
   });
   if (error) return fail("failed");
-  if (!login) return backTo(st.return_to, { dshs: "linked" });
+  if (!login) return done("linked");
 
   const token = await loginToken(userId);
   if (!token) return fail("failed");
-  return backTo(st.return_to, { dshs: created ? "joined" : "login" }, true, `dshs_login=${token}`);
+  return done(created ? "joined" : "login", undefined, token);
+}
+
+// 앱이 로그인 결과를 받아 갑니다. 아직이면 { pending: true }. 한 번 받아 가면 지웁니다.
+async function poll(handoff: unknown) {
+  if (typeof handoff !== "string" || handoff.length < 32) return json({ error: "잘못된 요청이에요." }, 400);
+  const key = await sha256(handoff);
+  const { data } = await admin.from("dshs_handoffs").delete().eq("handoff", key).select().maybeSingle();
+  if (!data) return json({ pending: true });
+  if (Date.parse(data.created_at) < Date.now() - 10 * 60000) return json({ result: "error", reason: "expired" });
+  return json({ result: data.result, reason: data.reason, token: data.token });
 }
 
 async function revoke(token?: string | null) {
@@ -311,17 +342,18 @@ Deno.serve(async (req) => {
   if (req.method === "GET") return callback(new URL(req.url).searchParams);
   if (req.method !== "POST") return json({ error: "GET/POST only" }, 405);
 
-  let body: { action?: string; return_to?: string };
+  let body: { action?: string; return_to?: string; handoff?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: "잘못된 요청이에요." }, 400);
   }
-  if (body.action === "login") return start(null, body.return_to);
+  if (body.action === "login") return start(null, body.return_to, body.handoff);
+  if (body.action === "poll") return poll(body.handoff);
 
   const user = await currentUser(req);
   if (!user) return json({ error: "로그인이 필요해요." }, 401);
-  if (body.action === "start") return start(user.id, body.return_to);
+  if (body.action === "start") return start(user.id, body.return_to, body.handoff);
   if (body.action === "requests") return requests(user.id);
   if (body.action === "unlink") return unlink(user.id);
   return json({ error: "잘못된 요청이에요." }, 400);
