@@ -6,7 +6,7 @@
 -- user_id 있음 = 그 학생의 달력에서만 바뀝니다 (본인만 보고 고칩니다).
 -- user_id null = 관리자가 분반 전체에 적용한 변경입니다 (로그인한 모두가 읽습니다).
 -- moved_start 없음 = 공강, 있음 = 그 시간으로 옮김.
--- batch = 매주 반복으로 한 번에 만든 행 묶음.
+-- batch = (지금은 쓰지 않음) 매주 반복 기능을 빼면서 남은 칸입니다.
 -- ============================================================
 create table if not exists public.class_changes (
   id          uuid primary key default gen_random_uuid(),

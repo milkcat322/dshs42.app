@@ -351,7 +351,7 @@
   .toast-undo { background: rgba(124,111,224,0.18); border: 1px solid rgba(124,111,224,0.5); color: var(--text); border-radius: 9px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; white-space: nowrap; }
   .toast-undo:hover { background: rgba(124,111,224,0.32); }
   /* 내 일정 — 달력 · 목록 */
-  .c-asg { --c: #facc15; } .c-mint { --c: #6fe0c4; } .c-violet { --c: #8b7ff0; } .c-pink { --c: #e06f9e; } .c-orange { --c: #fb923c; } .c-blue { --c: #60a5fa; } .c-school { --c: #94a3b8; } .c-dshs { --c: #3b82f6; }
+  .c-asg { --c: #facc15; } .c-mint { --c: #6fe0c4; } .c-violet { --c: #8b7ff0; } .c-pink { --c: #e06f9e; } .c-orange { --c: #fb923c; } .c-blue { --c: #60a5fa; } .c-school { --c: #94a3b8; } .c-dshs { --c: #8fc7e8; }
   .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 3px; margin-bottom: 14px; }
   .seg-btn { background: none; border: none; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-muted); cursor: pointer; }
   .seg-btn.on { background: var(--card); color: var(--text); }
@@ -437,7 +437,7 @@
   .fcx { height: 100%; overflow: hidden; border-radius: 4px; padding: 2px 5px; background: color-mix(in srgb, var(--c) 18%, var(--surface)); border-left: 3px solid var(--c); color: var(--text); }
   /* 학교 일정 · dshs.app 신청은 학교 시간표와 같은 모양입니다 (각진 네모, 얇은 띠) */
   .c-school .fcx, .c-dshs .fcx { border-radius: 0; padding: 3px 5px; background: color-mix(in srgb, #94a3b8 9%, var(--surface)); border-left: 2px solid rgba(148,163,184,0.35); color: rgba(203,213,225,0.55); }
-  .c-dshs .fcx { background: color-mix(in srgb, #3b82f6 16%, var(--surface)); border-left-color: rgba(59,130,246,0.75); color: #93c5fd; }
+  .c-dshs .fcx { background: color-mix(in srgb, var(--c) 13%, var(--surface)); border-left-color: color-mix(in srgb, var(--c) 70%, transparent); color: var(--c); }
   .c-school .fcx-title, .c-dshs .fcx-title { font-size: 10.5px; line-height: 1.3; }
   .c-school .fcx-time, .c-dshs .fcx-time { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: inherit; opacity: 0.8; }
   .fcx-time { font-size: 10.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; }

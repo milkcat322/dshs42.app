@@ -663,7 +663,7 @@ async function mountCal() {
       // 시간표는 배경이라 직접 눌리지 않으므로, 누른 시각에 수업이 있는지 찾습니다
       if (!arg.allDay && arg.view.type !== "dayGridMonth") {
         const tt = fc.getEvents().find((e) => e.extendedProps.kind === "tt" && e.start <= arg.date && arg.date < e.end);
-        if (tt) return openClassSheet(tt.extendedProps, arg.date);
+        if (tt && !FIXED_CLASSES.has(tt.extendedProps.block.subject)) return openClassSheet(tt.extendedProps, arg.date);
       }
       let start = arg.date;
       if (arg.view.type === "dayGridMonth") {   // 월 보기에서 날짜를 누르면 다음 정각 1시간짜리
@@ -695,7 +695,7 @@ function fcEvents() {
     const base = {
       id: `${it.kind}:${it.id}`, title: it.title,
       classNames: [`c-${it.color}`, it.kind === "asg" ? "fcx-asg" : "", it.status && it.status !== "approved" ? "fcx-pend" : "", it.done ? "is-done" : ""],
-      extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared, subject: it.subject },
+      extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared },
     };
     if (it.shared) base.classNames.push("fcx-shared");
     if (it.kind === "todo") return { ...base, classNames: [...base.classNames, "fcx-todo"], start: dayKey(it.at), allDay: true, editable: true, durationEditable: false };
@@ -713,16 +713,6 @@ function fcEvents() {
 // 폰의 3일 보기는 줄이지 않고 줄바꿈으로 모두 보여 줍니다 (index.html 의 .fc-threeDays-view 규칙).
 const compactCal = (arg) => window.innerWidth < 640 && arg.view.type !== "threeDays";
 
-// 과목별 이모티콘 (고정). 새 과목이 생기면 여기에 더합니다.
-const SUBJECT_EMOJI = {
-  "AI바이오": "🧬", "R&E": "🔬", "매체언어": "📰", "미술": "🎨", "미적분학2": "📐", "영어토론": "🎤", "음악": "🎵",
-  "응용수학": "🔢", "인공지능정보": "🤖", "일반물리2": "🧲", "일반물리실험2": "⚡", "일반생물학": "🌱", "일반생물학실험": "🦠",
-  "일반지구과학": "🌍", "일반지구과학실험": "🌋", "일반화학1": "🧪", "일반화학2": "💧", "일반화학실험1": "🥼",
-  "자료구조와 알고리즘": "🌳", "정보과학프로젝트": "💻", "체육": "🏃", "컴퓨터물리해석": "📊", "학급 자치": "🏫",
-  "학술영어": "📚", "화법소통": "💬",
-};
-const subjEmoji = (subject) => SUBJECT_EMOJI[subject] || "📌";
-
 function fcContent(arg) {
   const p = arg.event.extendedProps;
   const compact = compactCal(arg);
@@ -735,7 +725,7 @@ function fcContent(arg) {
     : arg.event.allDay ? "" : `${hm(s)}${e ? ` – ${hm(e)}` : ""}`;
   return { html: `<div class="fcx" title="${esc(full)}">
     ${time ? `<div class="fcx-time">${time}</div>` : ""}
-    <div class="fcx-title">${p.kind === "asg" ? `${subjEmoji(p.subject)} ` : ""}${esc(title)}</div>
+    <div class="fcx-title">${esc(title)}</div>
   </div>` };
 }
 
@@ -843,7 +833,7 @@ function agenda() {
   const now = new Date();
   // 마감 일시가 없는 공지는 날짜가 없어 달력·목록에 놓을 수 없으므로 수행평가 공지 탭에서만 보여 줍니다
   const asgs = [...cache.items, ...own].filter((a) => a.due_at).map((a) => ({
-    kind: "asg", id: a.id, subject: a.subject, title: a.title, at: new Date(a.due_at), end: null, allDay: false,
+    kind: "asg", id: a.id, title: a.title, at: new Date(a.due_at), end: null, allDay: false,
     color: "asg", done: cache.done.has(a.id) || new Date(a.due_at) < now, status: a.status,
     auto: !cache.done.has(a.id) && new Date(a.due_at) < now,
     tag: `${a.subject} · ${banLabel(a.ban)}`,
@@ -893,7 +883,7 @@ function row(it) {
       : `<button class="ev-check" data-chk="${it.kind}:${it.id}" aria-label="완료 표시"${it.auto
       ? ' disabled title="지난 일정은 자동으로 완료돼요"' : ""}>${it.done ? "✓" : ""}</button>`}
     <button class="ev-main" data-open="${it.kind}:${it.id}">
-      <span class="ev-title">${it.kind === "asg" ? `${subjEmoji(it.subject)} ` : ""}${esc(it.title)}</span>
+      <span class="ev-title">${esc(it.title)}</span>
       <span class="ev-meta">${KIND_LABEL[it.kind]} · ${esc(timeLabel(it))}${it.tag ? ` · ${esc(it.tag)}` : ""}</span>
     </button>
     ${it.kind === "asg" ? `<span class="asg-badges">${stBadge(it.status)}${d ? `<span class="due-badge ${d.tone}">${d.label}</span>` : ""}</span>` : ""}
@@ -1436,6 +1426,7 @@ function ttBlock(id, block, key, change, start, end) {
 // ---------- 수업 변경 (옮김 · 공강) ----------
 // 선생님 사정으로 수업이 옮겨지거나 없어질 때 씁니다. 학생은 내 달력만, 관리자는 분반 전체를 바꿉니다.
 // 같은 수업에 둘 다 있으면 학생이 직접 고친 것을 따릅니다.
+const FIXED_CLASSES = new Set(["R&E", "학급 자치"]);   // 옮기거나 공강이 될 일이 없는 시간
 function classChange(b, key) {
   const same = (c) => c.subject === b.subject && c.ban === b.ban && c.on_date === key && c.period_from === b.from;
   return cache.classes.find((c) => same(c) && c.user_id) || cache.classes.find((c) => same(c) && !c.user_id);
@@ -1455,39 +1446,60 @@ async function undoClass(ids, msg) {
 function openClassSheet(p, at) {
   const { block: b, key, change: c } = p;
   const mine = c?.user_id === me.id;
-  const group = mine && c.batch ? cache.classes.filter((x) => x.batch === c.batch) : [];
   openSheet(esc(b.subject), `
     <div class="ev-meta">${esc(dayTitle(key))} · ${esc(p.label)}</div>
     ${c ? `<div class="asg-body">${esc(changeText(c))}${mine ? "" : " (관리자가 분반 전체에 적용)"}</div>` : ""}
     ${c ? "" : `<button class="study-submit" id="cMove">수업 옮기기</button>
       <button class="study-submit ghost" id="cOff">공강 처리</button>`}
     ${mine ? `<button class="study-submit" id="cUndo">원래 수업으로 되돌리기</button>` : ""}
-    ${group.length > 1 ? `<button class="study-submit ghost" id="cUndoAll">매주 반복 ${group.length}건 모두 되돌리기</button>` : ""}
     <button class="study-submit ghost" id="cEvent">이 시간에 일정 추가</button>
     ${c ? "" : `<div class="study-foot">내 달력에서만 바뀌고, 다른 친구들에게는 그대로 보여요.</div>`}`);
   if ($("cMove")) $("cMove").onclick = () => openClassForm(b, key, "move", false);
   if ($("cOff")) $("cOff").onclick = () => openClassForm(b, key, "off", false);
   if ($("cUndo")) $("cUndo").onclick = () => undoClass([c.id], "원래 수업으로 되돌렸어요");
-  if ($("cUndoAll")) $("cUndoAll").onclick = () => undoClass(group.map((x) => x.id), "모두 되돌렸어요");
   $("cEvent").onclick = () => openEventForm(null, { start: at, end: new Date(+at + HOUR), allDay: false });
 }
 
 // mode: move(옮기기) | off(공강). forAll 이면 분반 전체 (관리자)
 function openClassForm(b, key, mode, forAll) {
   const move = mode === "move";
-  const until = parseDay(key); until.setDate(until.getDate() + 28);
+  // 길이 기본값은 원래 수업 길이입니다
+  const orig = (periodTime(key, b.to, 1) - periodTime(key, b.from, 0)) / 60000;
+  const mins = (m) => (m < 60 ? `${m}분` : `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ""}`);
+  const lengths = [[50, "1교시"], [110, "2교시"]];
+  if (!lengths.some(([m]) => m === orig)) lengths.push([orig, "원래 길이"]);
+  let dur = orig;
   openSheet(move ? "수업 옮기기" : "공강 처리", `
     <div class="ev-meta">${esc(b.subject)} · ${esc(b.ban)} · ${esc(dayTitle(key))} ${periodLabel(b)}</div>
-    ${move ? `<label class="study-label">옮길 날짜와 시간</label>
-      <div class="ev-when"><input class="study-input" type="date" id="cDate" value="${key}"></div>
-      <div class="ev-when" style="margin-top:6px"><input class="study-input" type="time" id="cStart" step="300" value="${PERIOD_TIME[b.from][0]}"><input class="study-input" type="time" id="cEnd" step="300" value="${PERIOD_TIME[b.to][1]}"></div>` : ""}
-    <label class="ev-allday"><input type="checkbox" id="cRepeat"> 매주 반복 <span class="ev-hint">(출산 휴가처럼 오래 바뀔 때)</span></label>
-    <div id="cRepeatBox" style="display:none"><label class="study-label">마지막 날</label>
-      <input class="study-input" type="date" id="cUntil" min="${key}" value="${dayKey(until)}"></div>
+    ${move ? `<label class="study-label">옮길 날짜와 시작 시간</label>
+      <div class="ev-when"><input class="study-input" type="date" id="cDate" value="${key}"><input class="study-input" type="time" id="cStart" step="300" value="${PERIOD_TIME[b.from][0]}"></div>
+      <label class="study-label">수업 길이</label>
+      <div class="ev-durs">${lengths.map(([m, label]) =>
+        `<button type="button" class="ev-dur${m === orig ? " on" : ""}" data-len="${m}">${label} (${mins(m)})</button>`).join("")}
+        <button type="button" class="ev-dur" id="cOther">그 외</button></div>
+      <div id="cOtherBox" style="display:none"><label class="study-label">끝나는 시간</label>
+        <input class="study-input" type="time" id="cEnd" step="300" value="${PERIOD_TIME[b.to][1]}"></div>` : ""}
     <div class="study-foot">${forAll ? `${esc(b.ban)} 학생 모두의 달력에 적용돼요.` : "내 달력에서만 바뀌어요."}</div>
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="cSave">${move ? "옮기기" : "공강으로 표시"}</button>`);
-  $("cRepeat").onchange = () => { $("cRepeatBox").style.display = $("cRepeat").checked ? "" : "none"; };
+  const sheet = $("studyModal").querySelector(".study-sheet");
+  const custom = () => $("cOther").classList.contains("on");
+  const syncEnd = () => {   // 길이를 고른 동안에는 끝 시간이 시작을 따라갑니다
+    if (custom()) return;
+    const s = new Date(`2000-01-01T${$("cStart").value}`);
+    if (!isNaN(s)) $("cEnd").value = hm(new Date(+s + dur * 60000));
+  };
+  const pickLen = (btn) => sheet.querySelectorAll(".ev-dur").forEach((x) => x.classList.toggle("on", x === btn));
+  if (move) {
+    $("cStart").onchange = syncEnd;
+    sheet.querySelectorAll("[data-len]").forEach((x) => x.onclick = () => {
+      dur = +x.dataset.len;
+      pickLen(x);
+      $("cOtherBox").style.display = "none";
+      syncEnd();
+    });
+    $("cOther").onclick = () => { pickLen($("cOther")); $("cOtherBox").style.display = ""; };
+  }
   $("cSave").onclick = async () => {
     let start = null, end = null;
     if (move) {
@@ -1496,26 +1508,17 @@ function openClassForm(b, key, mode, forAll) {
       if (isNaN(start) || isNaN(end)) return showErr("날짜와 시간을 정해 주세요.");
       if (end <= start) return showErr("끝나는 시간이 시작보다 빨라요.");
     }
-    const repeat = $("cRepeat").checked, last = repeat ? $("cUntil").value : key;
-    if (last < key) return showErr("마지막 날이 수업 날짜보다 빨라요.");
-    const owner = forAll ? null : me.id, off = noClassDays(), rows = [];
-    for (let w = 0; w < 40; w++) {
-      const d = parseDay(key); d.setDate(d.getDate() + w * 7);
-      const on = dayKey(d);
-      if (on > last) break;
-      if (w && off.has(on)) continue;   // 휴일에는 원래 수업이 없습니다
-      if (cache.classes.some((c) => c.user_id === owner && c.subject === b.subject && c.ban === b.ban && c.on_date === on && c.period_from === b.from)) continue;
-      const shift = (t) => { const x = new Date(t); x.setDate(x.getDate() + w * 7); return x.toISOString(); };
-      rows.push({ user_id: owner, subject: b.subject, ban: b.ban, on_date: on, period_from: b.from, period_to: b.to,
-        moved_start: move ? shift(start) : null, moved_end: move ? shift(end) : null });
-    }
-    if (!rows.length) return showErr("바꿀 수업이 없어요. 이미 바꾼 수업은 먼저 되돌려 주세요.");
-    if (rows.length > 1) { const batch = crypto.randomUUID(); rows.forEach((r) => { r.batch = batch; }); }
+    const owner = forAll ? null : me.id;
+    if (cache.classes.some((c) => c.user_id === owner && c.subject === b.subject && c.ban === b.ban && c.on_date === key && c.period_from === b.from))
+      return showErr("이미 바꾼 수업이에요. 먼저 되돌려 주세요.");
     $("cSave").disabled = true;
-    const { error } = await sb.from("class_changes").insert(rows);
+    const { error } = await sb.from("class_changes").insert({
+      user_id: owner, subject: b.subject, ban: b.ban, on_date: key, period_from: b.from, period_to: b.to,
+      moved_start: move ? start.toISOString() : null, moved_end: move ? end.toISOString() : null,
+    });
     if (error) { $("cSave").disabled = false; return showErr("저장하지 못했어요: " + error.message); }
     closeModal();
-    toast(`수업 ${rows.length}건을 ${move ? "옮겼어요" : "공강으로 표시했어요"}`);
+    toast(move ? "수업을 옮겼어요" : "공강으로 표시했어요");
     await loadAssignments();
   };
 }
@@ -1523,7 +1526,7 @@ function openClassForm(b, key, mode, forAll) {
 // 관리자: 달력에 시간표가 없으므로 과목 · 분반 · 날짜로 수업을 고릅니다
 function openClassAdmin() {
   const people = roster();
-  const subjects = [...new Set(people.flatMap((p) => Object.keys(p.classes)))].sort((a, b) => a.localeCompare(b, "ko"));
+  const subjects = [...new Set(people.flatMap((p) => Object.keys(p.classes)))].filter((x) => !FIXED_CLASSES.has(x)).sort((a, b) => a.localeCompare(b, "ko"));
   const today = dayKey(new Date());
   const list = cache.classes.filter((c) => !c.user_id && c.on_date >= today).sort((x, y) => (x.on_date < y.on_date ? -1 : 1));
   openSheet("수업 변경", `
