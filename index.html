@@ -181,7 +181,8 @@
   .ios-num { width: 22px; height: 22px; border-radius: 7px; background: var(--accent1); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
   .ios-close { width: 100%; margin-top: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 12px; padding: 13px; font-size: 14px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; }
   /* 업데이트 소식: 좌측 상단 버튼 + 팝업 */
-  .upd-btn { position: absolute; top: 8px; left: 20px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 100px; padding: 6px 13px; font-size: 12.5px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-dim); cursor: pointer; }
+  .top-btns { position: absolute; top: 8px; left: 20px; z-index: 2; display: flex; gap: 6px; }
+  .upd-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 100px; padding: 6px 13px; font-size: 12.5px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-dim); cursor: pointer; }
   .upd-btn:hover { border-color: var(--accent1); color: var(--text); }
   .upd-btn.has-new::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); }
   .upd-sheet { max-width: 420px; }
@@ -350,7 +351,7 @@
   .toast-undo { background: rgba(124,111,224,0.18); border: 1px solid rgba(124,111,224,0.5); color: var(--text); border-radius: 9px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; white-space: nowrap; }
   .toast-undo:hover { background: rgba(124,111,224,0.32); }
   /* 내 일정 — 달력 · 목록 */
-  .c-asg { --c: #facc15; } .c-mint { --c: #6fe0c4; } .c-violet { --c: #8b7ff0; } .c-pink { --c: #e06f9e; } .c-orange { --c: #fb923c; } .c-blue { --c: #60a5fa; } .c-school { --c: #94a3b8; } .c-dshs { --c: #60a5fa; }
+  .c-asg { --c: #facc15; } .c-mint { --c: #6fe0c4; } .c-violet { --c: #8b7ff0; } .c-pink { --c: #e06f9e; } .c-orange { --c: #fb923c; } .c-blue { --c: #60a5fa; } .c-school { --c: #94a3b8; } .c-dshs { --c: #1447e6; }
   .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 3px; margin-bottom: 14px; }
   .seg-btn { background: none; border: none; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-muted); cursor: pointer; }
   .seg-btn.on { background: var(--card); color: var(--text); }
@@ -431,6 +432,7 @@
   .fc-host .fc-daygrid-event { margin-top: 2px; border-radius: 6px; }
   /* 모든 일정은 같은 모양. 종류는 색(--c)으로만 구분합니다 */
   .fcx { height: 100%; overflow: hidden; border-radius: 4px; padding: 2px 5px; background: color-mix(in srgb, var(--c) 18%, var(--surface)); border-left: 3px solid var(--c); color: var(--text); }
+  .c-dshs .fcx { background: color-mix(in srgb, var(--c) 34%, var(--surface)); }
   .fcx-time { font-size: 10.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; }
   .fcx-title { font-size: 12px; font-weight: 600; line-height: 1.35; white-space: nowrap; overflow: hidden; }
   .fc-timegrid-event .fcx-title { white-space: normal; }
@@ -596,7 +598,10 @@
 </head>
 <body>
 <div class="container">
-  <button class="upd-btn" id="updBtn" type="button">📢 업데이트</button>
+  <div class="top-btns">
+    <button class="upd-btn" id="updBtn" type="button">📢 업데이트</button>
+    <button class="upd-btn" id="btnAcct" type="button" style="display:none">계정</button>
+  </div>
   <div class="header">
     <div class="school-badge">대전과학고등학교 · 2026학년도</div>
     <h1>dshs42.app</h1>

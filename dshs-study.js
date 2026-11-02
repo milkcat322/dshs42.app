@@ -177,13 +177,16 @@ function renderNav() {
   const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && page === k);
   nav.innerHTML = me
     ? tabs.map(([k, label]) =>
-        `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("") +
-      `<button class="study-btn" id="btnAcct" title="${esc(me.name)} (${esc(me.username)})">계정</button>`
+        `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("")
     : `<button class="study-btn" id="btnLogin">로그인 / 회원가입</button>`;
+  // 계정 버튼은 로그인했을 때만 맨 위 업데이트 옆에 보입니다
+  const acct = $("btnAcct");
+  acct.style.display = me ? "" : "none";
+  acct.title = me ? `${me.name} (${me.username})` : "";
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
-    $("btnAcct").onclick = openAccount;
+    acct.onclick = openAccount;
   } else {
     $("btnLogin").onclick = () => openAuth("login");
   }
@@ -1969,7 +1972,7 @@ function subjBlock(sj) {
     <span class="subj-name">${esc(sj.name)}</span>
     <span class="subj-ban">${esc(sj.ban)}</span>
     <span class="subj-meta">${next
-      ? `${stBadge(sj.left[0].status)}<span class="due-badge ${next.tone}">${next.label}</span>${sj.left.length}건`
+      ? `<span class="due-badge ${next.tone}">${next.label}</span>${sj.left.length}건`
       : sj.up.length ? "모두 완료" : "없음"}</span>
   </button>`;
 }
