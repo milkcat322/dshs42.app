@@ -1106,38 +1106,55 @@ function openEventForm(ev, seed) {
     drawChips();
   });
   let qTimer, qSeq = 0;
+  // 검색해서 결과 목록을 그립니다. 엔터를 누르면 기다리지 않고 바로 검색해 첫 번째 결과를 넣어요
+  let shownQ = "";
+  const search = async (q) => {
+    const seq = ++qSeq;
+    const { data, error } = await sb.rpc("search_people", { p_query: q });
+    if (seq !== qSeq) return;   // 더 늦게 친 검색어의 결과만 보여줍니다
+    const list = (data || []).filter((p) => !friends.some((f) => !f.invite && f.id === p.id));
+    // 학번 4자리인데 가입한 사람 중에 없으면 → 명단에 있는 가입 전 학생으로 넣기
+    const sid = /^\d{4}$/.test(q) ? +q : 0;
+    const unjoined = sid && !(data || []).some((p) => p.student_id === sid) && (window.ID_TO_NAME || {})[q]
+      && sid !== me.student_id && !friends.some((f) => f.invite && f.sid === sid);
+    const rows = [
+      ...list.map((p, i) => `<button type="button" class="fr-item" data-add="${i}"><b>${esc(p.name)}</b>${p.student_id ? `<span>${p.student_id}</span>` : ""}</button>`),
+      ...(unjoined ? [`<button type="button" class="fr-item" data-invite="${sid}"><b>${esc(rosterName(sid))}</b><span>${sid} · 가입 전</span></button>`] : []),
+    ];
+    $("frRes").innerHTML = error ? `<div class="fr-empty">찾지 못했어요.</div>`
+      : rows.length ? rows.join("")
+      : `<div class="fr-empty">가입한 사람 중에 없어요. 가입 전인 친구는 학번 4자리를 입력해 주세요.</div>`;
+    const added = () => { drawChips(); $("frQ").value = ""; $("frRes").innerHTML = ""; $("frQ").focus(); };
+    $("frRes").querySelectorAll("[data-add]").forEach((b) => b.onclick = () => {
+      const p = list[+b.dataset.add];
+      friends.push({ id: p.id, name: p.name, sid: p.student_id });
+      added();
+    });
+    $("frRes").querySelectorAll("[data-invite]").forEach((b) => b.onclick = () => {
+      const s = +b.dataset.invite;
+      friends.push({ sid: s, name: rosterName(s), invite: true });
+      added();
+    });
+    shownQ = q;
+  };
   $("frQ").oninput = () => {
     clearTimeout(qTimer);
     const q = $("frQ").value.trim();
+    shownQ = "";
     if (!q) { $("frRes").innerHTML = ""; return; }
-    qTimer = setTimeout(async () => {
-      const seq = ++qSeq;
-      const { data, error } = await sb.rpc("search_people", { p_query: q });
-      if (seq !== qSeq) return;   // 더 늦게 친 검색어의 결과만 보여줍니다
-      const list = (data || []).filter((p) => !friends.some((f) => !f.invite && f.id === p.id));
-      // 학번 4자리인데 가입한 사람 중에 없으면 → 명단에 있는 가입 전 학생으로 넣기
-      const sid = /^\d{4}$/.test(q) ? +q : 0;
-      const unjoined = sid && !(data || []).some((p) => p.student_id === sid) && (window.ID_TO_NAME || {})[q]
-        && sid !== me.student_id && !friends.some((f) => f.invite && f.sid === sid);
-      const rows = [
-        ...list.map((p, i) => `<button type="button" class="fr-item" data-add="${i}"><b>${esc(p.name)}</b>${p.student_id ? `<span>${p.student_id}</span>` : ""}</button>`),
-        ...(unjoined ? [`<button type="button" class="fr-item" data-invite="${sid}"><b>${esc(rosterName(sid))}</b><span>${sid} · 가입 전</span></button>`] : []),
-      ];
-      $("frRes").innerHTML = error ? `<div class="fr-empty">찾지 못했어요.</div>`
-        : rows.length ? rows.join("")
-        : `<div class="fr-empty">가입한 사람 중에 없어요. 가입 전인 친구는 학번 4자리를 입력해 주세요.</div>`;
-      const added = () => { drawChips(); $("frQ").value = ""; $("frRes").innerHTML = ""; $("frQ").focus(); };
-      $("frRes").querySelectorAll("[data-add]").forEach((b) => b.onclick = () => {
-        const p = list[+b.dataset.add];
-        friends.push({ id: p.id, name: p.name, sid: p.student_id });
-        added();
-      });
-      $("frRes").querySelectorAll("[data-invite]").forEach((b) => b.onclick = () => {
-        const s = +b.dataset.invite;
-        friends.push({ sid: s, name: rosterName(s), invite: true });
-        added();
-      });
-    }, 250);
+    qTimer = setTimeout(() => search(q), 250);
+  };
+  $("frQ").onkeydown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    // 한글 입력 중 엔터는 글자를 마무리한 뒤에 처리합니다
+    setTimeout(async () => {
+      const q = $("frQ").value.trim();
+      if (!q) return;
+      clearTimeout(qTimer);
+      if (shownQ !== q) await search(q);
+      if ($("frQ").value.trim() === q) $("frRes").querySelector(".fr-item")?.click();
+    }, 0);
   };
 
   let pick = color;
