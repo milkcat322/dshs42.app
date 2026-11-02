@@ -1431,7 +1431,7 @@ const periodLabel = (b) => (b.from === b.to ? `${b.from}교시` : `${b.from}–$
 function ttBlock(id, block, key, change, start, end) {
   return {
     id, title: change ? `옮김 · ${block.subject}` : block.subject, display: "background",
-    classNames: ["fcx-tt", change ? "tt-moved" : ""], start, end,
+    classNames: ["fcx-tt"], start, end,
     extendedProps: { kind: "tt", block, key, change, label: `${block.ban} · ${change ? "원래 " : ""}${periodLabel(block)}` },
   };
 }
