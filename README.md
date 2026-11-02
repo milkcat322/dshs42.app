@@ -24,6 +24,9 @@ supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼
 dshsapp.sql               ★ dshs.app 계정 연결 (토큰은 서버 전용)
 classes.sql               ★ 수업 옮기기
 feedback.sql              ★ 피드백 (표 + 비공개 스크린샷 버킷)
+status.sql                ★ 내 위치 (자습실 자리 · 빈백 등, 로그인한 학생 모두가 봄)
+invites.sql               ★ 가입 전 친구를 학번으로 일정에 넣기
+groups.sql                ★ 관리자 즐겨찾기 그룹 (학교 일정 대상)
 supabase/functions/dshs-oauth/index.ts      dshs.app 로그인 연결 · 신청 내역 조회
 updates.js                업데이트 소식 (주요 업데이트는 접속 시 한 번 팝업 · 좌측 상단 📢 업데이트에서 전체 내역)
 academic.json             학사일정 (NEIS 에서 매일 자동 갱신 · 직접 고치지 않음)
@@ -57,6 +60,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `dshsapp.sql` 을 **Run** (dshs.app 계정 연결 · 신청 내역을 달력에 표시)
    이어서 `classes.sql` 을 **Run** (수업 옮기기)
    이어서 `feedback.sql` 을 **Run** (피드백)
+   이어서 `status.sql` → `invites.sql` → `groups.sql` 을 차례로 **Run** (내 위치 · 가입 전 친구 초대 · 관리자 그룹)
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
 

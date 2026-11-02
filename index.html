@@ -9,16 +9,21 @@
 <meta name="theme-color" content="#0a0a0f">
 <meta name="color-scheme" content="dark light">
 <script>
-// 화면 테마: localStorage dshs-theme = system | dark | light (기본 dark). 화면을 그리기 전에 정해 깜빡이지 않게 합니다.
+// 화면 테마: localStorage dshs-theme = dark | light | ocean | forest | sakura.
+// 고른 적이 없으면 기기 설정(다크 · 라이트)을 따릅니다. 화면을 그리기 전에 정해 깜빡이지 않게 합니다.
 (() => {
   const mq = matchMedia('(prefers-color-scheme: light)');
+  const TONE = { dark: 'dark', light: 'light', ocean: 'dark', forest: 'dark', sakura: 'light' };
+  const BG = { dark: '#0a0a0f', light: '#f5f5fa', ocean: '#07111b', forest: '#0a120d', sakura: '#fbf3f6' };
   window.applyTheme = () => {
-    let t = 'dark';
-    try { t = localStorage.getItem('dshs-theme') || 'dark'; } catch (e) {}
-    const light = t === 'light' || (t === 'system' && mq.matches);
-    document.documentElement.dataset.theme = light ? 'light' : 'dark';
+    let t = null;
+    try { t = localStorage.getItem('dshs-theme'); } catch (e) {}
+    if (!TONE[t]) t = mq.matches ? 'light' : 'dark';
+    const root = document.documentElement;
+    root.dataset.theme = t;
+    root.dataset.tone = TONE[t];
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = light ? '#f5f5fa' : '#0a0a0f';
+    if (meta) meta.content = BG[t];
   };
   mq.addEventListener('change', window.applyTheme);
   window.applyTheme();
@@ -214,6 +219,31 @@
   .set-row b { display: block; font-size: 14.5px; color: var(--text); }
   .set-row .ev-hint { display: block; margin-top: 2px; }
   .set-row input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent1); }
+  /* 학교 일정 대상: 즐겨찾기 그룹 */
+  .aud-hint { font-size: 12px; color: var(--text-muted); }
+  .aud-group { display: inline-flex; align-items: center; }
+  .aud-group .study-btn { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .aud-group .study-btn small { color: var(--text-muted); font-weight: 400; margin-left: 2px; }
+  .aud-group-x { align-self: stretch; background: var(--surface); border: 1px solid var(--border); border-left: none; border-radius: 0 8px 8px 0; color: var(--text-muted); font-size: 11px; padding: 0 7px; cursor: pointer; }
+  .aud-group-x:hover { color: #fca5a5; }
+  /* 내 위치: 학생 이름 옆 표시와 내 시간표 위 내 위치 줄 */
+  .st-loc { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent3); white-space: nowrap; }
+  .st-loc:empty { display: none; }
+  .st-loc small { font-size: 9.5px; font-weight: 400; color: var(--text-muted); margin-left: 2px; }
+  .st-loc.old { opacity: 0.5; }
+  .ban-chip .st-loc { margin-left: 6px; }
+  .cdp-student .st-loc { margin-left: auto; padding-left: 6px; }
+  .student-meta .st-loc { margin-left: 6px; }
+  .my-status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; margin-bottom: 14px; font-size: 13.5px; }
+  .my-status .ms-label { color: var(--text-dim); font-size: 12.5px; }
+  .my-status b { color: var(--accent3); }
+  .my-status small { font-size: 11px; color: var(--text-muted); }
+  .my-status .study-btn { margin-left: auto; }
+  .place-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .place-opts .study-btn { padding: 12px 8px; }
+  .place-custom { display: flex; gap: 8px; }
+  .place-custom .study-input { flex: 1; }
+  .place-custom .study-btn { flex-shrink: 0; }
   /* 알림이 꺼져 있을 때 설정 창의 알림 줄 */
   .set-row.warn { margin: 0 -10px; padding: 12px 10px; border: 1px solid rgba(255,77,79,0.55); border-radius: 12px; background: rgba(255,77,79,0.1); }
   .set-row.warn b { color: #ff6b6b; }
@@ -752,9 +782,11 @@
     .timetable:not(.cmp-table) .class-cell .subj-name { font-size: 9px; }
   }
 
-  /* ---------- 라이트 테마 (설정 → 화면 테마) ----------
-     색은 대부분 위의 변수로 바뀌고, 어두운 배경에 맞춘 연한 글자색만 여기서 진하게 바꿉니다. */
-  :root[data-theme="light"] {
+  /* ---------- 화면 테마 (설정 → 화면 테마) ----------
+     html 의 data-theme 이 테마 이름(dark · light · ocean · forest · sakura), data-tone 이 밝기(dark · light)입니다.
+     밝은 테마(data-tone="light")는 아래 규칙으로 어두운 배경용 연한 글자색을 진하게 바꾸고,
+     테마마다 다른 색은 맨 아래 data-theme 블록에서 변수만 바꿉니다. */
+  :root[data-tone="light"] {
     color-scheme: light;
     --bg: #f5f5fa;
     --surface: #ffffff;
@@ -769,55 +801,78 @@
     --glow: rgba(106, 92, 214, 0.22);
     --bar-rgb: 245,245,250;
   }
-  :root[data-theme="light"] .timetable td { border-color: rgba(0,0,0,0.07); }
-  :root[data-theme="light"] .timetable th.day-header.mon { color: #7c3aed; }
-  :root[data-theme="light"] .timetable th.day-header.tue { color: #2563eb; }
-  :root[data-theme="light"] .timetable th.day-header.wed { color: #059669; }
-  :root[data-theme="light"] .timetable th.day-header.thu { color: #ea580c; }
-  :root[data-theme="light"] .timetable th.day-header.fri { color: #db2777; }
-  :root[data-theme="light"] .color-0 { color: #6d28d9; }
-  :root[data-theme="light"] .color-1 { color: #be185d; }
-  :root[data-theme="light"] .color-2 { color: #047857; }
-  :root[data-theme="light"] .color-3 { color: #1d4ed8; }
-  :root[data-theme="light"] .color-4 { color: #c2410c; }
-  :root[data-theme="light"] .color-5 { color: #a16207; }
-  :root[data-theme="light"] .color-6 { color: #047857; }
-  :root[data-theme="light"] .color-7 { color: #6d28d9; }
-  :root[data-theme="light"] .color-8 { color: #b91c1c; }
-  :root[data-theme="light"] .color-9 { color: #4338ca; }
-  :root[data-theme="light"] .color-10 { color: #0f766e; }
-  :root[data-theme="light"] .color-11 { color: #b45309; }
-  :root[data-theme="light"] .color-12 { color: #047857; }
-  :root[data-theme="light"] .cmp-cell > .cmp-row + .cmp-row { border-top-color: rgba(0,0,0,0.08); }
-  :root[data-theme="light"] .cmp-row.free, :root[data-theme="light"] .due-badge.over { background: rgba(0,0,0,0.03); }
-  :root[data-theme="light"] .due-pick:hover { background: rgba(0,0,0,0.05); }
-  :root[data-theme="light"] .notice-box .tx { color: #6b5a1a; }
-  :root[data-theme="light"] .notice-box .tx b, :root[data-theme="light"] .warn-note b, :root[data-theme="light"] .warn-note .hd { color: #a16207; }
-  :root[data-theme="light"] .error-msg, :root[data-theme="light"] .study-err, :root[data-theme="light"] .diag-row.bad .ms,
-  :root[data-theme="light"] .study-btn.small.no, :root[data-theme="light"] .td-due.over, :root[data-theme="light"] .due-clear,
-  :root[data-theme="light"] .study-submit.danger, :root[data-theme="light"] .set-row.warn b { color: #dc2626; }
-  :root[data-theme="light"] .set-row.warn .ev-hint { color: #b91c1c; }
-  :root[data-theme="light"] .due-badge.soon, :root[data-theme="light"] .td-due.soon, :root[data-theme="light"] .gpa-track.lib { color: #c2410c; }
-  :root[data-theme="light"] .c-asg { --c: #ca8a04; }
-  :root[data-theme="light"] .c-mint { --c: #0d9488; }
-  :root[data-theme="light"] .c-school { --c: #64748b; }
-  :root[data-theme="light"] .c-dshs { --c: #2b8fc7; }
-  :root[data-theme="light"] .c-orange { --c: #ea580c; }
-  :root[data-theme="light"] .c-blue { --c: #2563eb; }
-  :root[data-theme="light"] .fc-host.fc { --fc-border-color: rgba(0,0,0,0.09); }
-  :root[data-theme="light"] .fc-host .fc-timegrid-slot { border-bottom-color: rgba(0,0,0,0.05); }
-  :root[data-theme="light"] .fc-host .fc-day-sun .fcx-wd, :root[data-theme="light"] .fc-host .fc-daygrid .fc-day-sun .fc-col-header-cell-cushion,
-  :root[data-theme="light"] .fc-host .fc-day-sun .fc-daygrid-day-number { color: #dc2626; }
-  :root[data-theme="light"] .fc-host .fc-day-sat .fcx-wd, :root[data-theme="light"] .fc-host .fc-daygrid .fc-day-sat .fc-col-header-cell-cushion,
-  :root[data-theme="light"] .fc-host .fc-day-sat .fc-daygrid-day-number { color: #2563eb; }
-  :root[data-theme="light"] .fc-host .fc-bg-event.fcx-tt { background: rgba(100,116,139,0.08); border-left-color: rgba(100,116,139,0.35); }
-  :root[data-theme="light"] .fcx-tt-in { color: rgba(51,65,85,0.7); }
-  :root[data-theme="light"] .study-modal { background: rgba(20,20,40,0.35); }
+  :root[data-tone="light"] .timetable td { border-color: rgba(0,0,0,0.07); }
+  :root[data-tone="light"] .timetable th.day-header.mon { color: #7c3aed; }
+  :root[data-tone="light"] .timetable th.day-header.tue { color: #2563eb; }
+  :root[data-tone="light"] .timetable th.day-header.wed { color: #059669; }
+  :root[data-tone="light"] .timetable th.day-header.thu { color: #ea580c; }
+  :root[data-tone="light"] .timetable th.day-header.fri { color: #db2777; }
+  :root[data-tone="light"] .color-0 { color: #6d28d9; }
+  :root[data-tone="light"] .color-1 { color: #be185d; }
+  :root[data-tone="light"] .color-2 { color: #047857; }
+  :root[data-tone="light"] .color-3 { color: #1d4ed8; }
+  :root[data-tone="light"] .color-4 { color: #c2410c; }
+  :root[data-tone="light"] .color-5 { color: #a16207; }
+  :root[data-tone="light"] .color-6 { color: #047857; }
+  :root[data-tone="light"] .color-7 { color: #6d28d9; }
+  :root[data-tone="light"] .color-8 { color: #b91c1c; }
+  :root[data-tone="light"] .color-9 { color: #4338ca; }
+  :root[data-tone="light"] .color-10 { color: #0f766e; }
+  :root[data-tone="light"] .color-11 { color: #b45309; }
+  :root[data-tone="light"] .color-12 { color: #047857; }
+  :root[data-tone="light"] .cmp-cell > .cmp-row + .cmp-row { border-top-color: rgba(0,0,0,0.08); }
+  :root[data-tone="light"] .cmp-row.free, :root[data-tone="light"] .due-badge.over { background: rgba(0,0,0,0.03); }
+  :root[data-tone="light"] .due-pick:hover { background: rgba(0,0,0,0.05); }
+  :root[data-tone="light"] .notice-box .tx { color: #6b5a1a; }
+  :root[data-tone="light"] .notice-box .tx b, :root[data-tone="light"] .warn-note b, :root[data-tone="light"] .warn-note .hd { color: #a16207; }
+  :root[data-tone="light"] .error-msg, :root[data-tone="light"] .study-err, :root[data-tone="light"] .diag-row.bad .ms,
+  :root[data-tone="light"] .study-btn.small.no, :root[data-tone="light"] .td-due.over, :root[data-tone="light"] .due-clear,
+  :root[data-tone="light"] .study-submit.danger, :root[data-tone="light"] .set-row.warn b { color: #dc2626; }
+  :root[data-tone="light"] .set-row.warn .ev-hint { color: #b91c1c; }
+  :root[data-tone="light"] .due-badge.soon, :root[data-tone="light"] .td-due.soon, :root[data-tone="light"] .gpa-track.lib { color: #c2410c; }
+  :root[data-tone="light"] .c-asg { --c: #ca8a04; }
+  :root[data-tone="light"] .c-mint { --c: #0d9488; }
+  :root[data-tone="light"] .c-school { --c: #64748b; }
+  :root[data-tone="light"] .c-dshs { --c: #2b8fc7; }
+  :root[data-tone="light"] .c-orange { --c: #ea580c; }
+  :root[data-tone="light"] .c-blue { --c: #2563eb; }
+  :root[data-tone="light"] .fc-host.fc { --fc-border-color: rgba(0,0,0,0.09); }
+  :root[data-tone="light"] .fc-host .fc-timegrid-slot { border-bottom-color: rgba(0,0,0,0.05); }
+  :root[data-tone="light"] .fc-host .fc-day-sun .fcx-wd, :root[data-tone="light"] .fc-host .fc-daygrid .fc-day-sun .fc-col-header-cell-cushion,
+  :root[data-tone="light"] .fc-host .fc-day-sun .fc-daygrid-day-number { color: #dc2626; }
+  :root[data-tone="light"] .fc-host .fc-day-sat .fcx-wd, :root[data-tone="light"] .fc-host .fc-daygrid .fc-day-sat .fc-col-header-cell-cushion,
+  :root[data-tone="light"] .fc-host .fc-day-sat .fc-daygrid-day-number { color: #2563eb; }
+  :root[data-tone="light"] .fc-host .fc-bg-event.fcx-tt { background: rgba(100,116,139,0.08); border-left-color: rgba(100,116,139,0.35); }
+  :root[data-tone="light"] .fcx-tt-in { color: rgba(51,65,85,0.7); }
+  :root[data-tone="light"] .study-modal { background: rgba(20,20,40,0.35); }
+
+  /* 바다: 짙은 남색 + 청록 */
+  :root[data-theme="ocean"] {
+    --bg: #07111b; --surface: #0c1824; --card: #122232; --border: #1f3448;
+    --accent1: #3fa7e0; --accent2: #5ad1d6; --accent3: #7be0b4;
+    --text: #e3eef7; --text-dim: #8aa6bd; --text-muted: #557089;
+    --glow: rgba(63, 167, 224, 0.3); --bar-rgb: 7,17,27;
+  }
+  /* 숲: 짙은 초록 + 연두 */
+  :root[data-theme="forest"] {
+    --bg: #0a120d; --surface: #101a13; --card: #16241b; --border: #24382a;
+    --accent1: #5fbf7a; --accent2: #d6c25a; --accent3: #8fd9a8;
+    --text: #e6f0e8; --text-dim: #8fa996; --text-muted: #5b7262;
+    --glow: rgba(95, 191, 122, 0.3); --bar-rgb: 10,18,13;
+  }
+  /* 벚꽃: 밝은 분홍 */
+  :root[data-theme="sakura"] {
+    --bg: #fbf3f6; --surface: #ffffff; --card: #f7e8ee; --border: #ecd3dd;
+    --accent1: #d0577f; --accent2: #9a6ad6; --accent3: #2f9e8f;
+    --text: #2a1a21; --text-dim: #7a5864; --text-muted: #ae8d99;
+    --glow: rgba(208, 87, 127, 0.22); --bar-rgb: 251,243,246;
+  }
 
   /* 설정의 화면 테마 고르기 */
-  .theme-seg { display: inline-flex; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
-  .theme-seg button { background: none; border: none; border-radius: 7px; padding: 6px 11px; font-size: 12.5px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-muted); cursor: pointer; }
-  .theme-seg button.on { background: var(--card); color: var(--text); }
+  .theme-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 8px 0 4px; }
+  .theme-grid button { display: flex; flex-direction: column; align-items: center; gap: 5px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 9px 2px 7px; font-size: 12px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-dim); cursor: pointer; }
+  .theme-grid button.on { border-color: var(--accent1); color: var(--text); box-shadow: 0 0 0 1px var(--accent1) inset; }
+  .theme-grid i { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(128,128,128,0.35); }
 </style>
 </head>
 <body>
@@ -1293,7 +1348,7 @@ function renderResult(name, student) {
   resultEl.innerHTML = `
     <div class="student-profile">
       <div class="student-avatar">${name[0]}</div>
-      <div class="student-info"><h2>${name}</h2><div class="student-meta">학번 ${student.id} · 2학년 2학기</div></div>
+      <div class="student-info"><h2>${name}</h2><div class="student-meta">학번 ${student.id} · 2학년 2학기 <span class="st-loc" data-st="${student.id}"></span></div></div>
     </div>
     <div class="stats-row">
       <div class="stat-chip"><span class="stat-num">${subjects.length}</span><span class="stat-label">수강 과목</span></div>
@@ -1489,7 +1544,7 @@ function renderSubject(subject) {
         <div class="ban-arrow">▼</div>
       </div>
       ${room ? `<div class="t-room" style="margin-top:8px">📍 ${room}</div>` : ''}
-      <div class="ban-students">${roster[ban].map(st => `<span class="ban-chip">${st.name}<small>${st.id}</small></span>`).join('')}</div>
+      <div class="ban-students">${roster[ban].map(st => `<span class="ban-chip">${st.name}<small>${st.id}</small><span class="st-loc" data-st="${st.id}"></span></span>`).join('')}</div>
     </div>`;
   }).join('');
 
@@ -1834,8 +1889,9 @@ function showClassDetail(myName, subject, ban, event) {
   const popup = document.createElement('div');
   popup.id = 'cdp';
   popup.className = 'class-detail-popup';
-  popup.innerHTML = `<div class="cdp-header"><div><div class="cdp-subject">${subject}</div><div class="cdp-ban">${ban}</div></div><button class="cdp-close" onclick="document.getElementById('cdp').remove()">✕</button></div>${roomText?`<div class="cdp-info-row"><span>📍</span><span>${roomText}</span></div>`:''}${info.teacher?`<div class="cdp-info-row"><span>👩‍🏫</span><span>${info.teacher}</span></div>`:''}<div class="cdp-classmates-title">${myName ? '같은 반' : '수강생'} <span class="cdp-count">${classmates.length}명</span></div><div class="cdp-classmates">${classmates.map(c=>`<div class="cdp-student" onclick="selectName('${c.name}');document.getElementById('cdp').remove()"><span class="cdp-sname">${c.name}</span><span class="cdp-sid">${c.id}</span></div>`).join('')}${classmates.length===0?'<div style="color:var(--text-dim);font-size:0.8rem;padding:4px">없음</div>':''}</div>`;
+  popup.innerHTML = `<div class="cdp-header"><div><div class="cdp-subject">${subject}</div><div class="cdp-ban">${ban}</div></div><button class="cdp-close" onclick="document.getElementById('cdp').remove()">✕</button></div>${roomText?`<div class="cdp-info-row"><span>📍</span><span>${roomText}</span></div>`:''}${info.teacher?`<div class="cdp-info-row"><span>👩‍🏫</span><span>${info.teacher}</span></div>`:''}<div class="cdp-classmates-title">${myName ? '같은 반' : '수강생'} <span class="cdp-count">${classmates.length}명</span></div><div class="cdp-classmates">${classmates.map(c=>`<div class="cdp-student" onclick="selectName('${c.name}');document.getElementById('cdp').remove()"><span class="cdp-sname">${c.name}</span><span class="cdp-sid">${c.id}</span><span class="st-loc" data-st="${c.id}"></span></div>`).join('')}${classmates.length===0?'<div style="color:var(--text-dim);font-size:0.8rem;padding:4px">없음</div>':''}</div>`;
   document.body.appendChild(popup);
+  if (window.paintStatus) window.paintStatus(popup);   // 이름 옆 내 위치 (dshs-study.js)
   positionPopup(popup, event);
 }
 
@@ -1848,8 +1904,9 @@ function showFreeDetail(myName, day, period, event) {
   const popup = document.createElement('div');
   popup.id = 'cdp';
   popup.className = 'class-detail-popup';
-  popup.innerHTML = `<div class="cdp-header"><div><div class="cdp-subject" style="color:var(--accent3)">🕊 공강</div><div class="cdp-ban">${dayLabel[day]} ${period}교시</div></div><button class="cdp-close" onclick="document.getElementById('cdp').remove()">✕</button></div><div class="cdp-classmates-title">같이 공강인 사람 <span class="cdp-count" style="color:var(--accent3)">${freemates.length}명</span></div><div class="cdp-classmates">${freemates.length===0?'<div style="color:var(--text-dim);font-size:0.8rem;padding:4px">없음</div>':freemates.map(c=>`<div class="cdp-student" onclick="selectName('${c.name}');document.getElementById('cdp').remove()"><span class="cdp-sname">${c.name}</span><span class="cdp-sid">${c.id}</span></div>`).join('')}</div>`;
+  popup.innerHTML = `<div class="cdp-header"><div><div class="cdp-subject" style="color:var(--accent3)">🕊 공강</div><div class="cdp-ban">${dayLabel[day]} ${period}교시</div></div><button class="cdp-close" onclick="document.getElementById('cdp').remove()">✕</button></div><div class="cdp-classmates-title">같이 공강인 사람 <span class="cdp-count" style="color:var(--accent3)">${freemates.length}명</span></div><div class="cdp-classmates">${freemates.length===0?'<div style="color:var(--text-dim);font-size:0.8rem;padding:4px">없음</div>':freemates.map(c=>`<div class="cdp-student" onclick="selectName('${c.name}');document.getElementById('cdp').remove()"><span class="cdp-sname">${c.name}</span><span class="cdp-sid">${c.id}</span><span class="st-loc" data-st="${c.id}"></span></div>`).join('')}</div>`;
   document.body.appendChild(popup);
+  if (window.paintStatus) window.paintStatus(popup);   // 이름 옆 내 위치 (dshs-study.js)
   positionPopup(popup, event);
 }
 

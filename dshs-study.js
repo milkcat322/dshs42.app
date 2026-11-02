@@ -126,7 +126,8 @@ async function init() {
     if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); renderNav(); }
   });
   // 검색으로 다른 시간표를 띄우거나 숨기면 "내 시간표" 탭 강조를 다시 맞춥니다
-  new MutationObserver(() => { if (me) renderNav(); })
+  // 학생 이름 옆 위치(data-st)도 새로 그려진 화면에 채웁니다
+  new MutationObserver(() => { if (me) { renderNav(); paintStatus($("result")); } })
     .observe($("result"), { childList: true, attributes: true, attributeFilter: ["class"] });
 
   // 알림을 누르고 들어오면 그 탭으로, 아니면 내 시간표로 시작합니다
@@ -136,6 +137,7 @@ async function init() {
   else if (me?.student_id) openMyTimetable();
   dshsReturned();
   watchDshs();
+  watchStatus();
 }
 
 async function loadProfile() {
@@ -196,6 +198,7 @@ function renderNav() {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
     autoPush();
+    loadStatus();
   } else {
     $("btnLogin").onclick = openAuth;
   }
@@ -213,8 +216,100 @@ function openMyTimetable() {
   $("welcomeState").style.display = "none";
   if ($("nameInput")) $("nameInput").value = "";   // 다른 사람을 검색했던 흔적 지우기
   window.renderResult(nm, window.SCHOOL_DATA[nm]);
+  $("result").insertAdjacentHTML("afterbegin", '<div class="my-status" id="myStatus"></div>');
+  paintStatus();
   $("result").classList.add("show");
   renderNav();
+}
+
+// ---------- 내 위치 ----------
+// 수업에 빠진 학생을 세기 쉽도록 각자 지금 있는 곳을 남깁니다 (status.sql). 로그인한 학생 모두가 봐요.
+// index.html 은 학생 이름 옆에 <span class="st-loc" data-st="학번"></span> 자리만 두고, 여기서 채웁니다.
+const PLACES = ["자습실 자리", "빈백", "하늘마루", "기숙사"];
+const STATUS_OLD = 6 * 3600000;   // 이보다 오래된 위치는 흐리게
+let statusMap = new Map();
+let statusAt = 0;
+
+async function loadStatus(force = false) {
+  if (!me || (!force && Date.now() - statusAt < 55000)) return;
+  statusAt = Date.now();
+  const { data, error } = await sb.from("student_status").select("student_id, location, updated_at");
+  if (error) return;   // status.sql 을 아직 실행하지 않았으면 위치 없이 보여 줍니다
+  statusMap = new Map(data.map((r) => [r.student_id, r]));
+  paintStatus();
+}
+// 내 일정·시간표를 보는 동안 1분마다 새로 받습니다
+function watchStatus() {
+  const tick = () => { if (me && !document.hidden) loadStatus(); };
+  setInterval(tick, 60000);
+  document.addEventListener("visibilitychange", tick);
+}
+
+function whenLabel(iso) {
+  const d = new Date(iso), now = new Date();
+  const mins = Math.floor((now - d) / 60000);
+  if (mins < 1) return "방금";
+  if (mins < 60) return `${mins}분 전`;
+  return dayKey(d) === dayKey(now) ? hm(d) : `${md(d)} ${hm(d)}`;
+}
+
+function paintStatus(root = document) {
+  root.querySelectorAll("[data-st]").forEach((el) => {
+    const sid = +el.dataset.st;
+    const r = me && !(sid === me.student_id && $("myStatus")) ? statusMap.get(sid) : null;   // 내 위치는 위의 내 위치 줄에
+    el.innerHTML = r ? `📍 ${esc(r.location)} <small>${whenLabel(r.updated_at)}</small>` : "";
+    el.classList.toggle("old", !!r && Date.now() - new Date(r.updated_at) > STATUS_OLD);
+  });
+  paintMyStatus();
+}
+window.paintStatus = paintStatus;   // index.html 의 수업 팝업이 씁니다
+
+function paintMyStatus() {
+  const box = $("myStatus");
+  if (!box) return;
+  if (!me?.student_id) { box.remove(); return; }
+  const r = statusMap.get(me.student_id);
+  box.innerHTML = `<span class="ms-label">📍 내 위치</span>
+    <b>${r ? esc(r.location) : "아직 안 정했어요"}</b>${r ? `<small>${whenLabel(r.updated_at)} 수정</small>` : ""}
+    <button class="study-btn small" id="msEdit">${r ? "바꾸기" : "정하기"}</button>`;
+  $("msEdit").onclick = openStatusPicker;
+}
+
+function openStatusPicker() {
+  const cur = statusMap.get(me.student_id)?.location || "";
+  const custom = cur && !PLACES.includes(cur) ? cur : "";
+  openSheet("내 위치", `
+    <div class="place-opts">${PLACES.map((p) =>
+      `<button type="button" class="study-btn${p === cur ? " primary" : ""}" data-place="${esc(p)}">${p}</button>`).join("")}</div>
+    <label class="study-label">직접 입력</label>
+    <div class="place-custom">
+      <input class="study-input" id="plIn" maxlength="30" placeholder="예: 도서관, 보건실, 물리실험실" value="${esc(custom)}">
+      <button type="button" class="study-btn primary" id="plSave">저장</button>
+    </div>
+    <div class="study-err" id="authErr"></div>
+    ${cur ? '<button class="study-submit ghost" id="plClear">위치 지우기</button>' : ""}
+    <div class="study-foot">로그인한 42기 학생 모두에게 학번 옆에 보여요. 고친 시각도 함께 보여요.</div>`);
+  $("studyModal").querySelectorAll("[data-place]").forEach((b) => b.onclick = () => saveStatus(b.dataset.place));
+  $("plSave").onclick = () => {
+    const v = $("plIn").value.trim();
+    if (!v) return showErr("위치를 입력해 주세요.");
+    saveStatus(v);
+  };
+  $("plIn").onkeydown = (e) => { if (e.key === "Enter") $("plSave").click(); };
+  if ($("plClear")) $("plClear").onclick = () => saveStatus(null);
+}
+
+async function saveStatus(loc) {
+  const { error } = loc
+    ? await sb.from("student_status").upsert({ student_id: me.student_id, location: loc })
+    : await sb.from("student_status").delete().eq("student_id", me.student_id);
+  if (error) return showErr(/relation|does not exist|schema cache/i.test(error.message)
+    ? "위치 기능은 아직 준비 중이에요." : "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
+  if (loc) statusMap.set(me.student_id, { student_id: me.student_id, location: loc, updated_at: new Date().toISOString() });
+  else statusMap.delete(me.student_id);
+  closeModal(); paintStatus();
+  toast(loc ? `내 위치: ${loc}` : "위치를 지웠어요");
+  loadStatus(true);
 }
 // 지금 시간표 화면에 떠 있는 게 내 시간표인지 (다른 학생·선생님·과목을 검색했으면 아님)
 function showingMyTimetable() {
@@ -229,7 +324,9 @@ async function logout() {
   await sb.auth.signOut();
   autoPush.done = false;   // 다음에 로그인하는 사람의 알림을 다시 맞춥니다
   paintPush.known = false;
+  statusMap = new Map(); statusAt = 0;
   me = null; myClasses = []; dshs = dshsEmpty(); closeStudy(); renderNav();
+  $("myStatus")?.remove(); paintStatus();
   toast("로그아웃했어요");
 }
 
@@ -369,7 +466,7 @@ function renderStudy() {
 
 async function loadAssignments() {
   loadDshs();   // dshs.app 신청 내역은 따로 받아서, 오면 달력에 더합니다
-  const [asg, personal, evs, done, people, todos, school] = await Promise.all([
+  const [asg, personal, evs, done, people, todos, school, invites] = await Promise.all([
     sb.from("assignments").select("*").order("due_at", { ascending: true }),
     sb.from("assignment_personal").select("*"),
     sb.from("events").select("*").order("starts_at", { ascending: true }),   // 내 일정 + 친구가 공유한 일정
@@ -377,8 +474,14 @@ async function loadAssignments() {
     sb.rpc("my_event_people"),
     sb.from("todos").select("*").order("created_at", { ascending: true }),
     sb.from("school_events").select("*, school_event_targets(student_id)").order("starts_at", { ascending: true }),
+    sb.from("event_invites").select("event_id, student_id"),   // 내 일정에 학번으로 넣은 가입 전 친구 (invites.sql)
   ]);
   cache.school = school.data || [];
+  cache.invites = new Map();   // 일정 id → [학번]
+  for (const r of invites.data || []) {
+    if (!cache.invites.has(r.event_id)) cache.invites.set(r.event_id, []);
+    cache.invites.get(r.event_id).push(r.student_id);
+  }
   cache.todos = todos.error ? null : todos.data;
   const { data, error } = asg;
   // 개인 일정·완료 체크를 못 불러와도 수행평가는 그대로 보여줍니다
@@ -748,13 +851,15 @@ const isPastEvent = (e) => eventEnd(e) < new Date();
 // ---------- 공유 일정 ----------
 const ownsEvent = (e) => e.user_id === me.id;
 const eventPeople = (e) => cache.people.get(e.id) || [];
+const eventInvites = (e) => cache.invites?.get(e.id) || [];   // 학번 목록 (가입 전이라 아직 달력에 없음)
+const rosterName = (sid) => (window.ID_TO_NAME || {})[String(sid)] || String(sid);
 // 완료 체크는 사람마다 따로: 만든 사람은 events.done, 참여자는 event_members.done
 const eventDone = (e) => ownsEvent(e) ? e.done : !!eventPeople(e).find((p) => p.user_id === me.id)?.done;
 function shareLabel(e) {
   const ppl = eventPeople(e);
-  if (!ppl.length) return "";
+  if (!ppl.length && !eventInvites(e).length) return "";
   if (!ownsEvent(e)) return `${ppl.find((p) => p.is_owner)?.name || "친구"}님이 공유`;
-  const names = ppl.filter((p) => !p.is_owner).map((p) => p.name);
+  const names = [...ppl.filter((p) => !p.is_owner).map((p) => p.name), ...eventInvites(e).map(rosterName)];
   return names.length > 2 ? `${names.slice(0, 2).join(", ")} 외 ${names.length - 2}명과` : `${names.join(", ")}와 함께`;
 }
 
@@ -932,9 +1037,9 @@ function openEventForm(ev, seed) {
     <textarea class="study-input" id="eMemo" rows="3" maxlength="2000" placeholder="장소, 준비물 등">${esc(ev?.memo || "")}</textarea>
     <label class="study-label">함께하는 친구 (선택)</label>
     <div class="fr-chips" id="frChips"></div>
-    <input class="study-input" id="frQ" autocomplete="off" placeholder="이름·학번으로 찾기">
+    <input class="study-input" id="frQ" autocomplete="off" placeholder="이름·학번으로 찾기 (가입 전 친구는 학번 4자리)">
     <div class="fr-results" id="frRes"></div>
-    <div class="study-foot fr-note">넣은 친구 달력에도 이 일정이 생겨요. 고치거나 지우면 친구 달력에도 반영돼요.</div>
+    <div class="study-foot fr-note">넣은 친구 달력에도 이 일정이 생겨요. 고치거나 지우면 친구 달력에도 반영돼요. 가입 전인 친구는 가입하면 바로 생겨요.</div>
     ${ev ? `<label class="ev-allday"><input type="checkbox" id="eDone"${ev.done || isPastEvent(ev) ? " checked" : ""}${isPastEvent(ev) ? " disabled" : ""}> 완료한 일정${
       isPastEvent(ev) ? ' <span class="ev-hint">(지난 일정이라 자동 완료 · 미래로 옮기면 풀려요)</span>' : ""}</label>` : ""}
     <div class="study-err" id="authErr"></div>
@@ -976,12 +1081,17 @@ function openEventForm(ev, seed) {
   syncAll();
   markDur();
 
-  // 함께하는 친구: 가입한 사람만 검색됩니다 (search_people)
-  const before = ev ? eventPeople(ev).filter((p) => !p.is_owner).map((p) => ({ id: p.user_id, name: p.name })) : [];
+  // 함께하는 친구: 가입한 사람은 이름·학번으로 찾고(search_people),
+  // 가입 전인 학생은 학번 4자리를 입력하면 넣을 수 있어요 (invites.sql: 가입하는 순간 그 학생 달력에 생김)
+  const before = ev ? [
+    ...eventPeople(ev).filter((p) => !p.is_owner).map((p) => ({ id: p.user_id, name: p.name })),
+    ...eventInvites(ev).map((sid) => ({ sid, name: rosterName(sid), invite: true })),
+  ] : [];
   let friends = [...before];
+  const sameFriend = (a, b) => (a.invite ? b.invite && a.sid === b.sid : !b.invite && a.id === b.id);
   const drawChips = () => {
     $("frChips").innerHTML = friends.map((f, i) =>
-      `<span class="fr-chip">${esc(f.name)}<button type="button" data-rm="${i}" aria-label="${esc(f.name)} 빼기">✕</button></span>`).join("");
+      `<span class="fr-chip">${esc(f.name)}${f.invite ? "<small>가입 전</small>" : ""}<button type="button" data-rm="${i}" aria-label="${esc(f.name)} 빼기">✕</button></span>`).join("");
     $("frChips").querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { friends.splice(+b.dataset.rm, 1); drawChips(); });
   };
   drawChips();
@@ -994,16 +1104,28 @@ function openEventForm(ev, seed) {
       const seq = ++qSeq;
       const { data, error } = await sb.rpc("search_people", { p_query: q });
       if (seq !== qSeq) return;   // 더 늦게 친 검색어의 결과만 보여줍니다
-      const list = (data || []).filter((p) => !friends.some((f) => f.id === p.id));
+      const list = (data || []).filter((p) => !friends.some((f) => !f.invite && f.id === p.id));
+      // 학번 4자리인데 가입한 사람 중에 없으면 → 명단에 있는 가입 전 학생으로 넣기
+      const sid = /^\d{4}$/.test(q) ? +q : 0;
+      const unjoined = sid && !(data || []).some((p) => p.student_id === sid) && (window.ID_TO_NAME || {})[q]
+        && sid !== me.student_id && !friends.some((f) => f.invite && f.sid === sid);
+      const rows = [
+        ...list.map((p, i) => `<button type="button" class="fr-item" data-add="${i}"><b>${esc(p.name)}</b>${p.student_id ? `<span>${p.student_id}</span>` : ""}</button>`),
+        ...(unjoined ? [`<button type="button" class="fr-item" data-invite="${sid}"><b>${esc(rosterName(sid))}</b><span>${sid} · 가입 전</span></button>`] : []),
+      ];
       $("frRes").innerHTML = error ? `<div class="fr-empty">찾지 못했어요.</div>`
-        : list.length ? list.map((p, i) =>
-          `<button type="button" class="fr-item" data-add="${i}"><b>${esc(p.name)}</b>${p.student_id ? `<span>${p.student_id}</span>` : ""}</button>`).join("")
-        : `<div class="fr-empty">가입한 사람 중에 없어요.</div>`;
+        : rows.length ? rows.join("")
+        : `<div class="fr-empty">가입한 사람 중에 없어요. 가입 전인 친구는 학번 4자리를 입력해 주세요.</div>`;
+      const added = () => { drawChips(); $("frQ").value = ""; $("frRes").innerHTML = ""; $("frQ").focus(); };
       $("frRes").querySelectorAll("[data-add]").forEach((b) => b.onclick = () => {
         const p = list[+b.dataset.add];
         friends.push({ id: p.id, name: p.name });
-        drawChips();
-        $("frQ").value = ""; $("frRes").innerHTML = ""; $("frQ").focus();
+        added();
+      });
+      $("frRes").querySelectorAll("[data-invite]").forEach((b) => b.onclick = () => {
+        const s = +b.dataset.invite;
+        friends.push({ sid: s, name: rosterName(s), invite: true });
+        added();
       });
     }, 250);
   };
@@ -1046,11 +1168,15 @@ function openEventForm(ev, seed) {
       : await sb.from("events").insert(row).select("id").single();
     if (error) { $("eSave").disabled = false; return showErr("저장하지 못했어요: " + error.message); }
     // 친구 목록 맞추기: 새로 넣은 친구는 추가, 뺀 친구는 삭제
-    const add = friends.filter((f) => !before.some((b) => b.id === f.id));
-    const drop = before.filter((b) => !friends.some((f) => f.id === b.id));
+    const add = friends.filter((f) => !before.some((b) => sameFriend(b, f)));
+    const drop = before.filter((b) => !friends.some((f) => sameFriend(b, f)));
+    const addM = add.filter((f) => !f.invite), dropM = drop.filter((f) => !f.invite);
+    const addI = add.filter((f) => f.invite), dropI = drop.filter((f) => f.invite);
     const results = await Promise.all([
-      add.length && sb.from("event_members").insert(add.map((f) => ({ event_id: saved.id, user_id: f.id }))),
-      drop.length && sb.from("event_members").delete().eq("event_id", saved.id).in("user_id", drop.map((f) => f.id)),
+      addM.length && sb.from("event_members").insert(addM.map((f) => ({ event_id: saved.id, user_id: f.id }))),
+      dropM.length && sb.from("event_members").delete().eq("event_id", saved.id).in("user_id", dropM.map((f) => f.id)),
+      addI.length && sb.from("event_invites").insert(addI.map((f) => ({ event_id: saved.id, student_id: f.sid }))),
+      dropI.length && sb.from("event_invites").delete().eq("event_id", saved.id).in("student_id", dropI.map((f) => f.sid)),
     ]);
     closeModal();
     if (results.some((r) => r && r.error)) toast("일정은 저장했지만 친구 목록을 바꾸지 못했어요", true);
@@ -1064,6 +1190,7 @@ function openEventForm(ev, seed) {
     const snap = { id: ev.id, title: ev.title, memo: ev.memo, starts_at: ev.starts_at, ends_at: ev.ends_at,
       all_day: ev.all_day, color: ev.color, done: ev.done };
     const members = eventPeople(ev).filter((p) => !p.is_owner).map((p) => ({ event_id: ev.id, user_id: p.user_id, done: p.done }));
+    const invited = eventInvites(ev).map((sid) => ({ event_id: ev.id, student_id: sid }));
     const { error } = await sb.from("events").delete().eq("id", ev.id);
     if (error) return showErr("삭제하지 못했어요.");
     closeModal();
@@ -1071,6 +1198,7 @@ function openEventForm(ev, seed) {
       const { error } = await sb.from("events").insert(snap);
       if (error) return false;
       if (members.length) await sb.from("event_members").insert(members);
+      if (invited.length) await sb.from("event_invites").insert(invited);
       await loadAssignments();
     });
     await loadAssignments();
@@ -1681,13 +1809,21 @@ function openDshsDetail(r) {
 }
 
 // 화면 테마 (index.html 의 applyTheme 이 실제로 바꿉니다)
-const THEMES = [["system", "시스템"], ["dark", "다크"], ["light", "라이트"]];
+// [이름, 표시 이름, 미리보기 배경, 미리보기 강조색]. 고른 적이 없으면 기기 설정(다크 · 라이트)을 따릅니다.
+const THEMES = [
+  ["dark", "다크", "#0a0a0f", "#7c6fe0"],
+  ["light", "라이트", "#f5f5fa", "#6a5cd6"],
+  ["ocean", "바다", "#07111b", "#3fa7e0"],
+  ["forest", "숲", "#0a120d", "#5fbf7a"],
+  ["sakura", "벚꽃", "#fbf3f6", "#d0577f"],
+];
 const THEME_KEY = "dshs-theme";
-const curTheme = () => { try { return localStorage.getItem(THEME_KEY) || "dark"; } catch { return "dark"; } };
+const curTheme = () => document.documentElement.dataset.theme || "dark";   // applyTheme 이 정한 지금 테마
 function themeHtml() {
-  return `<div class="set-row"><span><b>화면 테마</b><span class="ev-hint">시스템: 기기 설정(다크 · 라이트)을 따라가요</span></span>
-    <div class="theme-seg">${THEMES.map(([k, label]) =>
-      `<button type="button" data-theme-pick="${k}"${curTheme() === k ? ' class="on"' : ""}>${label}</button>`).join("")}</div></div>`;
+  return `<div class="set-row" style="display:block"><b>화면 테마</b>
+    <span class="ev-hint">고르지 않으면 기기 설정(다크 · 라이트)을 따라가요</span>
+    <div class="theme-grid">${THEMES.map(([k, label, bg, ac]) =>
+      `<button type="button" data-theme-pick="${k}"${curTheme() === k ? ' class="on"' : ""}><i style="background:linear-gradient(135deg, ${bg} 50%, ${ac} 50%)"></i>${label}</button>`).join("")}</div></div>`;
 }
 function bindTheme() {
   $("studyModal").querySelectorAll("[data-theme-pick]").forEach((b) => b.onclick = () => {
@@ -1977,8 +2113,12 @@ function openSchoolForm(e, seed) {
         <span class="aud-label">반</span>
         ${rooms.map((r) => `<button type="button" class="study-btn small" data-room="${r}">${r}반</button>`).join("")}
       </div>
+      <div class="aud-quick" id="audGroups">
+        <span class="aud-label">그룹</span>
+        <span class="aud-hint">불러오는 중…</span>
+      </div>
       <div class="aud-quick">
-        <span class="aud-label">수강</span>
+        <span class="aud-label">분반</span>
         <select class="study-input" id="audSubj"><option value="">과목 고르기</option>${subjects.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
         <select class="study-input" id="audBan" disabled><option value="">분반</option></select>
         <button type="button" class="study-btn small" id="audSubjAdd" disabled>추가</button>
@@ -2034,6 +2174,44 @@ function openSchoolForm(e, seed) {
     people.filter((p) => p.classes[subj] && (ban === "*" || p.classes[subj] === ban)).forEach((p) => picked.add(p.sid));
     drawAud();
   };
+  // 즐겨찾기 그룹 (groups.sql, 관리자끼리 함께 씀): 누르면 그 사람들을 한 번에 더하고, 지금 고른 사람을 새 그룹으로 저장합니다
+  let groups = [];
+  const drawGroups = () => {
+    const box = $("audGroups");
+    if (!box) return;
+    box.innerHTML = `<span class="aud-label">그룹</span>` +
+      groups.map((g, i) => `<span class="aud-group"><button type="button" class="study-btn small" data-group="${i}">${esc(g.name)} <small>${g.student_ids.length}</small></button><button type="button" class="aud-group-x" data-gdel="${i}" aria-label="${esc(g.name)} 그룹 지우기">✕</button></span>`).join("") +
+      `<button type="button" class="study-btn small" id="audGroupSave">+ 고른 사람을 그룹으로</button>`;
+    box.querySelectorAll("[data-group]").forEach((b) => b.onclick = () => {
+      groups[+b.dataset.group].student_ids.forEach((sid) => picked.add(sid));
+      drawAud();
+    });
+    box.querySelectorAll("[data-gdel]").forEach((b) => b.onclick = async () => {
+      const g = groups[+b.dataset.gdel];
+      if (!confirm(`'${g.name}' 그룹을 지울까요? (일정 대상은 그대로예요)`)) return;
+      const { error } = await sb.from("audience_groups").delete().eq("id", g.id);
+      if (error) return toast("그룹을 지우지 못했어요", true);
+      groups = groups.filter((x) => x !== g);
+      drawGroups();
+    });
+    $("audGroupSave").onclick = async () => {
+      if (!picked.size) return toast("먼저 그룹에 넣을 사람을 골라 주세요", true);
+      const name = prompt(`지금 고른 ${picked.size}명을 어떤 이름의 그룹으로 저장할까요?`, "")?.trim();
+      if (!name) return;
+      const { data, error } = await sb.from("audience_groups")
+        .insert({ name: name.slice(0, 40), student_ids: [...picked].sort((a, b) => a - b) }).select().single();
+      if (error) return toast(/relation|does not exist|schema cache/i.test(error.message) ? "그룹 기능은 아직 준비 중이에요" : "그룹을 저장하지 못했어요", true);
+      groups = [...groups, data].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      drawGroups();
+      toast(`'${data.name}' 그룹을 저장했어요`);
+    };
+  };
+  sb.from("audience_groups").select("*").order("name").then(({ data, error }) => {
+    if (error) { $("audGroups")?.remove(); return; }   // groups.sql 을 아직 실행하지 않았으면 숨깁니다
+    groups = data;
+    drawGroups();
+  });
+
   $("audQ").oninput = () => {
     const q = $("audQ").value.trim();
     const list = q ? people.filter((p) => !picked.has(p.sid) && (p.name.includes(q) || String(p.sid).startsWith(q))).slice(0, 8) : [];
