@@ -191,9 +191,15 @@ function renderNav() {
   const set = $("btnSettings");
   set.style.display = "";
   set.onclick = openSettings;
+  // 💬 받은 피드백은 관리자만 (학생은 📢 업데이트 창의 피드백 탭에서 보냅니다)
   const fb = $("btnFeedback");
-  fb.style.display = me && FEEDBACK_ON ? "" : "none";
-  fb.onclick = me ? (me.is_admin ? openFeedbackList : openFeedback) : null;
+  fb.style.display = me?.is_admin ? "" : "none";
+  fb.onclick = me?.is_admin ? openFeedbackList : null;
+  if (me?.is_admin && !refreshFbBadge.on) {   // 1분마다 새 피드백 확인
+    refreshFbBadge.on = true;
+    refreshFbBadge();
+    setInterval(() => { if (me?.is_admin && !document.hidden) refreshFbBadge(); }, 60000);
+  }
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
@@ -1568,7 +1574,7 @@ function ttBlock(id, block, start, end) {
 
 // ---------- 피드백 ----------
 // 로그인한 사용자가 보내고 관리자가 읽습니다. 스크린샷은 비공개 버킷 feedback 에 저장합니다.
-const FEEDBACK_ON = false;   // 첫 배포 다음 날 true 로 바꾸고 updates.js 에 안내를 추가합니다
+// 보내기는 📢 업데이트 창의 '피드백' 탭에서, 관리자는 탭 위 💬 아이콘으로 바로 받은 피드백을 봅니다.
 const FEEDBACK_KINDS = { bug: "오류 제보", notice: "전체 분반 공지 오류", idea: "기능 제안", etc: "기타" };
 const FEEDBACK_HINT = {
   bug: "어떤 화면에서 무엇을 했을 때 문제가 생겼는지 적어 주세요",
@@ -1588,8 +1594,18 @@ async function shrinkImage(file) {
   return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("empty"))), "image/jpeg", 0.85));
 }
 
+// 📢 업데이트 창의 '피드백' 탭 (index.html 이 부릅니다). 머리의 '업데이트 내역' 을 누르면 업데이트 창으로 돌아갑니다.
 function openFeedback() {
-  openSheet("피드백", `
+  const head = window.updTabs ? window.updTabs("fb") : "피드백";
+  const back = () => $("studyModal").querySelector('[data-utab="upd"]')?.addEventListener("click", () => { closeModal(); window.openUpdates?.(); });
+  if (!me) {
+    openSheet(head, `
+      <div class="asg-body">로그인하면 피드백을 보낼 수 있어요.</div>
+      <button class="study-submit" id="fbLogin">로그인</button>`);
+    $("fbLogin").onclick = openAuth;
+    return back();
+  }
+  openSheet(head, `
     <label class="study-label">유형</label>
     <select class="study-input" id="fbKind">${Object.entries(FEEDBACK_KINDS).map(([k, label]) =>
       `<option value="${k}">${label}</option>`).join("")}</select>
@@ -1600,6 +1616,7 @@ function openFeedback() {
     <div class="study-foot">보낸 내용은 관리자만 볼 수 있어요.</div>
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="fbSend">보내기</button>`);
+  back();
   $("fbKind").onchange = () => { $("fbBody").placeholder = FEEDBACK_HINT[$("fbKind").value]; };
   $("fbSend").onclick = async () => {
     const body = $("fbBody").value.trim(), file = $("fbFile").files[0];
@@ -1619,22 +1636,39 @@ function openFeedback() {
     if (error) return fail("보내지 못했어요. 잠시 뒤 다시 시도해 주세요.");
     closeModal();
     toast("피드백을 보냈어요. 고마워요!");
+    if (me.is_admin) refreshFbBadge();
   };
 }
+window.openFeedback = openFeedback;
 
-// 관리자: 받은 피드백 (최근 100건)
+// 관리자: 마지막으로 본 뒤 새로 온 피드백 수를 💬 아이콘에 빨갛게 보여 줍니다 (이 기기 기준)
+const FB_SEEN_KEY = "dshs-fb-seen";
+const fbSeenAt = () => { try { return localStorage.getItem(FB_SEEN_KEY) || "1970-01-01T00:00:00Z"; } catch { return "1970-01-01T00:00:00Z"; } };
+async function refreshFbBadge() {
+  const b = $("btnFeedback");
+  if (!me?.is_admin) { b.classList.remove("warn"); b.dataset.count = ""; return; }
+  const { count, error } = await sb.from("feedback").select("id", { count: "exact", head: true }).gt("created_at", fbSeenAt());
+  if (error) return;
+  b.dataset.count = count ? (count > 99 ? "99+" : String(count)) : "";
+  b.title = count ? `받은 피드백 · 새로 ${count}건` : "받은 피드백";
+}
+
+// 관리자: 받은 피드백 (최근 100건). 마지막으로 본 뒤 새로 온 것은 강조합니다
 async function openFeedbackList() {
   openSheet("받은 피드백", `<div class="study-empty">불러오는 중…</div>`);
   const { data, error } = await sb.from("feedback").select("*").order("created_at", { ascending: false }).limit(100);
   const box = $("studyModal").querySelector(".study-sheet");
   if (error) { box.querySelector(".study-empty").textContent = "불러오지 못했어요."; return; }
+  const seen = Date.parse(fbSeenAt());
+  if (data[0]) { try { localStorage.setItem(FB_SEEN_KEY, data[0].created_at); } catch {} }
+  refreshFbBadge();
   const paths = data.map((f) => f.image_path).filter(Boolean);
   const signed = paths.length ? (await sb.storage.from("feedback").createSignedUrls(paths, 3600)).data || [] : [];
   const urlOf = new Map(signed.map((x) => [x.path, x.signedUrl]));
   const { data: who } = await sb.from("profiles").select("id, name, student_id").in("id", [...new Set(data.map((f) => f.user_id))]);
   const nameOf = new Map((who || []).map((p) => [p.id, p.student_id ? `${p.student_id} ${p.name}` : p.name]));
-  box.querySelector(".study-empty").outerHTML = data.length ? data.map((f) => `<div class="fb-item">
-      <div class="ev-meta">${FEEDBACK_KINDS[f.kind]} · ${esc(nameOf.get(f.user_id) || "알 수 없음")} · ${esc(dayTitle(dayKey(new Date(f.created_at))))} ${hm(new Date(f.created_at))}</div>
+  box.querySelector(".study-empty").outerHTML = data.length ? data.map((f) => `<div class="fb-item${Date.parse(f.created_at) > seen ? " new" : ""}">
+      <div class="ev-meta">${Date.parse(f.created_at) > seen ? '<span class="fb-new">새 피드백</span>' : ""}${FEEDBACK_KINDS[f.kind]} · ${esc(nameOf.get(f.user_id) || "알 수 없음")} · ${esc(dayTitle(dayKey(new Date(f.created_at))))} ${hm(new Date(f.created_at))}</div>
       <div class="fb-body">${esc(f.body)}</div>
       ${urlOf.get(f.image_path) ? `<a href="${esc(urlOf.get(f.image_path))}" target="_blank" rel="noopener"><img class="fb-img" src="${esc(urlOf.get(f.image_path))}" alt="첨부한 스크린샷"></a>` : ""}
       <button class="study-btn small no" data-fbdel="${f.id}">삭제</button>

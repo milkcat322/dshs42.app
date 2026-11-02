@@ -277,6 +277,10 @@
   .set-sub .set-row b { font-size: 13.5px; font-weight: 600; }
   .set-sub:has(input:disabled) { opacity: 0.45; }
   .set-sec { margin: 18px 0 6px; font-size: 12px; font-weight: 700; color: var(--text-dim); }
+  .icon-btn[data-count]:not([data-count=""])::after { content: attr(data-count); position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #ff4d4f; color: #fff; font-size: 10px; font-weight: 800; line-height: 17px; text-align: center; font-family: 'Noto Sans KR', sans-serif; }   /* 관리자: 새 피드백 수 */
+  .fb-item.new { margin: 0 -10px; padding: 12px 10px; border: 1px solid rgba(255,77,79,0.5); border-radius: 12px; background: rgba(255,77,79,0.08); margin-bottom: 8px; }
+  .fb-new { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 5px; background: #ff4d4f; color: #fff; font-size: 10.5px; font-weight: 700; }
+  .upd-sheet .study-tabs, .study-sheet .sheet-title .study-tabs { margin-left: -8px; }
   .icon-btn.warn::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f; }   /* 설정: 알림이 꺼져 있음 */
   .icon-btn.has-new::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
   .upd-sheet { max-width: 420px; }
@@ -2346,7 +2350,6 @@ function switchTab(tabName, btn) {
   const list = window.DSHS_UPDATES || [];
   const KEY = 'dshs-update-seen';
   const btn = document.getElementById('updBtn'), modal = document.getElementById('updModal');
-  if (!list.length) { btn.style.display = 'none'; return; }
   const majors = list.filter(u => u.major);
   let seen = null;
   try { seen = localStorage.getItem(KEY); } catch {}
@@ -2370,7 +2373,15 @@ function switchTab(tabName, btn) {
     modal.className = 'study-modal show';
     modal.querySelectorAll('.study-x, .upd-ok').forEach(b => b.onclick = close);
     modal.onclick = e => { if (e.target === modal) close(); };
+    // 피드백 탭: 보내는 창은 dshs-study.js 의 openFeedback (로그인 정보가 거기 있음)
+    const fbTab = modal.querySelector('[data-utab="fb"]');
+    if (fbTab) fbTab.onclick = () => { close(); if (window.openFeedback) window.openFeedback(); };
   }
+  // 업데이트 내역 · 피드백 탭 머리 (피드백 창도 같은 머리를 씁니다)
+  window.updTabs = on => `<div class="study-tabs">
+    <button class="study-tab${on === 'upd' ? ' on' : ''}" type="button" data-utab="upd">업데이트 내역</button>
+    <button class="study-tab${on === 'fb' ? ' on' : ''}" type="button" data-utab="fb">피드백</button></div>`;
+  window.openUpdates = () => open(window.updTabs('upd'), list, '');
   function close() {
     modal.className = 'study-modal';
     if (majors.length) { try { localStorage.setItem(KEY, majors[0].id); } catch {} }
@@ -2378,7 +2389,7 @@ function switchTab(tabName, btn) {
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('show')) close(); });
 
-  btn.onclick = () => open('📢 업데이트 내역', list, '');
+  btn.onclick = window.openUpdates;
   if (unseen.length) {
     btn.classList.add('has-new');
     open('✨ 새로워진 점', unseen, '<button class="study-submit upd-ok" type="button">확인했어요</button>');

@@ -60,7 +60,7 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - 프론트 파일(`.js`, `index.html` 등)을 고치면 `sw.js` 의 `CACHE` 버전을 올린다. Supabase·Edge Function 응답은 서비스 워커가 캐시하면 안 된다.
 - `dshs-study.js` 는 전역 스코프 파일이다. 고친 뒤 맨 끝의 `init();` 이 남아 있는지 확인한다 (빠지면 로그인이 통째로 사라짐).
 - 교시 시각은 `dshs-study.js` 의 `PERIOD_TIME` 한 곳에서만 관리한다.
-- 피드백은 `feedback` 표와 비공개 버킷 `feedback` 에 저장한다. 내용과 스크린샷은 관리자만 본다. 버킷을 공개로 바꾸지 않는다. 첫 배포 다음 날 공개할 예정이라 지금은 `FEEDBACK_ON = false` 로 버튼을 숨겼다. 켤 때 `updates.js` 에 안내를 추가한다.
+- 피드백은 `feedback` 표와 비공개 버킷 `feedback` 에 저장한다. 내용과 스크린샷은 관리자만 본다. 버킷을 공개로 바꾸지 않는다. 보내기는 📢 업데이트 창의 '피드백' 탭(`openFeedback`), 받은 피드백은 관리자에게만 보이는 💬 아이콘(`openFeedbackList`, 새 피드백 수 표시)이다.
 - 수업 옮기기 기능은 삭제했다. 시간표 원본 `SCHOOL_DATA` 를 그대로 보여 준다. `class_changes` 표와 `classes.sql` 은 남아 있지만 코드에서 쓰지 않는다.
 - 공지·일정의 접근 범위는 화면이 아니라 DB 권한(RLS)으로 막는다. 권한 관련 변경은 SQL 파일에 반영한다.
 - DB 를 바꾸면 해당 `.sql` 파일에도 반영하고, 새 파일이면 README 1단계 실행 순서에 추가한다.
