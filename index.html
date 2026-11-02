@@ -631,10 +631,10 @@
     /* 머리글: 맨 위에서는 로고가 가운데. 내리면 작은 로고가 아이콘 줄 왼쪽에 붙어 있습니다 */
     .header { display: flex; align-items: center; justify-content: center; height: 46px; margin: env(safe-area-inset-top) 0 0; }
     .school-badge, .subtitle { display: none; }
-    /* 내리는 만큼 가운데 로고가 작아지며 흐려지고(--hp: 0 → 1), 다 가려지면 작은 로고가 미끄러지듯 나타납니다 */
-    h1 { font-size: 22px; margin: 0; opacity: calc(1 - var(--hp, 0) * 0.8); transform: scale(calc(1 - var(--hp, 0) * 0.25)); }
-    .nav-logo { display: block; opacity: 0; transform: translate(12px, 6px) scale(0.9); transform-origin: left center; transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none; }
-    body.scrolled .nav-logo { opacity: 1; transform: none; }
+    /* 로고는 위에 붙는 아이콘 줄의 .nav-logo 하나만 씁니다. 맨 위에서는 가운데에 크게,
+       내리는 만큼(--hp: 0 → 1) 작아지며 왼쪽으로 옮겨 갑니다 (위치는 아래 스크립트가 계산). 머리글 h1 은 자리만 차지합니다 */
+    h1 { font-size: 22px; margin: 0; visibility: hidden; }
+    .nav-logo { display: block; transform-origin: left center; will-change: transform; pointer-events: none; white-space: nowrap; }
 
     /* 설치 안내는 한 줄로. 자세한 설명은 설치 버튼을 누르면 나옵니다 */
     .install-bar { padding: 8px 10px; margin-bottom: 10px; gap: 10px; border-radius: 13px; }
@@ -647,10 +647,11 @@
     .nav-bar { position: sticky; top: env(safe-area-inset-top); z-index: 50; margin: 0 -14px 12px; padding: 6px 14px 8px; background: rgba(10,10,15,0.9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
     .nav-bar::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: env(safe-area-inset-top); background: inherit; }
     /* 설치 안내가 없으면 맨 위에서는 아이콘 줄을 로고 줄 오른쪽에 겹쳐 두어 로고와 탭 사이를 줄입니다 */
-    .container:not(:has(#installBar.show)) .nav-bar { margin-top: -45px; }
+    .nav-bar { margin-top: -45px; }
+    .nav-icons { align-items: center; }
     /* 그 대신 맨 위에서는 배경을 비워 로고가 보이게 하고, 조금만 내려도 배경이 차오릅니다 */
-    .container:not(:has(#installBar.show)) .nav-bar { background: rgba(10,10,15, calc(var(--hp, 0) * 3)); }
-    body:not(.scrolled) .container:not(:has(#installBar.show)) .nav-bar { -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .nav-bar { background: rgba(10,10,15, calc(var(--hp, 0) * 2)); }   /* 조금만 내려도 배경이 차올라 아래 내용이 비치지 않게 */
+    body:not(.scrolled) .nav-bar { -webkit-backdrop-filter: none; backdrop-filter: none; }
     .nav-icons { margin-bottom: 6px; }
     .icon-btn { width: 32px; height: 32px; font-size: 15px; }
     .study-nav { flex-wrap: nowrap; gap: 6px; margin: 0; }
@@ -729,15 +730,6 @@
     <h1>dshs42.app</h1>
     <p class="subtitle">대전과학고 42기 · 시간표와 수행평가를 한곳에서</p>
   </div>
-  <div class="install-bar" id="installBar">
-    <div class="install-icon">📲</div>
-    <div class="install-txt">
-      <div class="install-title" id="installTitle">앱으로 설치하기</div>
-      <div class="install-sub" id="installSub">홈 화면에 추가하면 앱처럼 바로 열리고, 인터넷이 없어도 시간표를 볼 수 있어요. 설치 중 뜨는 보안 경고는 정상이에요</div>
-    </div>
-    <button class="install-btn" id="installBtn">설치</button>
-    <button class="install-x" id="installX" aria-label="닫기">✕</button>
-  </div>
   <!-- 탭과 그 위의 아이콘 버튼은 함께 움직여, 폰에서 스크롤해도 위에 붙어 있습니다 -->
   <div class="nav-bar">
     <div class="nav-icons">
@@ -747,6 +739,15 @@
       <button class="icon-btn" id="btnSettings" type="button" title="설정" aria-label="설정" style="display:none">⚙️</button>
     </div>
     <div class="study-nav" id="studyNav" style="display:none"></div>
+  </div>
+  <div class="install-bar" id="installBar">
+    <div class="install-icon">📲</div>
+    <div class="install-txt">
+      <div class="install-title" id="installTitle">앱으로 설치하기</div>
+      <div class="install-sub" id="installSub">홈 화면에 추가하면 앱처럼 바로 열리고, 인터넷이 없어도 시간표를 볼 수 있어요. 설치 중 뜨는 보안 경고는 정상이에요</div>
+    </div>
+    <button class="install-btn" id="installBtn">설치</button>
+    <button class="install-x" id="installX" aria-label="닫기">✕</button>
   </div>
   <div class="search-section">
     <div class="search-label">학생 · 학번 · 선생님 · 과목 검색</div>
@@ -2209,19 +2210,29 @@ function switchTab(tabName, btn) {
 })();
 </script>
 <script>
-// 머리글 로고가 화면 밖으로 나가면 body.scrolled → 폰에서는 위에 붙은 아이콘 줄 왼쪽에 작은 로고를 보여 줍니다
+// 폰: 내리는 만큼(hp 0 → 1) 로고가 가운데(크게)에서 왼쪽 위(작게)로 이어서 옮겨 갑니다. 안 보이는 순간 없이 한 로고가 움직여요.
 (() => {
-  const logo = document.querySelector('.header h1'), head = document.querySelector('.header');
+  const head = document.querySelector('.header'), logo = document.querySelector('.nav-logo'), row = document.querySelector('.nav-icons');
+  const phone = matchMedia('(max-width: 640px)');
+  const BIG = 22 / 16;   // 맨 위 로고 글자 크기 / 위에 붙은 로고 글자 크기
+  const RANGE = 40;      // 이만큼(px) 내리면 다 옮겨집니다
   let ticking = false;
   const check = () => {
     ticking = false;
-    const r = head.getBoundingClientRect();
-    const hp = Math.min(1, Math.max(0, -r.top / (r.height || 1)));   // 머리글이 가려진 정도 (0 ~ 1)
+    const top = -head.getBoundingClientRect().top;
+    const hp = Math.min(1, Math.max(0, top / RANGE));
     document.body.style.setProperty('--hp', hp.toFixed(3));
-    document.body.classList.toggle('scrolled', logo.getBoundingClientRect().bottom < 8);
+    document.body.classList.toggle('scrolled', hp >= 1);
+    if (!phone.matches) { logo.style.transform = ''; return; }
+    const ease = hp * hp * (3 - 2 * hp);   // 처음과 끝을 부드럽게
+    const s = BIG + (1 - BIG) * ease;
+    const x0 = (row.clientWidth - logo.offsetWidth * BIG) / 2;   // 가운데에 있을 때 왼쪽 끝 위치
+    logo.style.transform = `translateX(${(x0 * (1 - ease)).toFixed(1)}px) scale(${s.toFixed(3)})`;
   };
   addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(check); } }, { passive: true });
   addEventListener('resize', check);
+  addEventListener('load', check);   // 글꼴이 바뀌면 로고 너비가 달라집니다
+  phone.addEventListener('change', check);
   check();
 })();
 </script>
