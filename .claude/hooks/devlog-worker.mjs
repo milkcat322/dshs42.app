@@ -80,6 +80,8 @@ function flowLines(text) {
 function summarize(digest, sid, gitInfo) {
   const range = `${ymd(digest.first)} ${hm(digest.first)}–${hm(digest.last)}`;
   const flow = (flowLines(readDevlog()) ?? []).map((l) => l.replace(/\s*<!--.*?-->/g, '')).join('\n');
+  // 누가 개발했는지: 이 PC 의 git 사용자 이름 (요약 모델이 추측하지 않게 직접 넣는다)
+  const meta = `\`session ${sid}\` · 개발 ${git('config', 'user.name').out || '알 수 없음'} · 요청 ${digest.requests}회`;
   const prompt = `아래는 dshs-study 저장소에서 진행한 Claude Code 개발 세션 기록과 git 정보다.
 이 세션의 개발 로그 한 항목을 한국어 마크다운으로 써라. 읽는 사람은 이 프로젝트를 같이 개발하는 팀원이다.
 설명이나 인사 없이 본문만 출력하고, 첫 줄은 반드시 \`## \` 로 시작한다.
@@ -87,7 +89,7 @@ function summarize(digest, sid, gitInfo) {
 형식:
 ## ${range} · (이 세션을 한 줄로 요약한 제목)
 
-\`session ${sid}\` · 요청 ${digest.requests}회
+${meta}
 
 ### 목표
 - ...
@@ -108,6 +110,7 @@ function summarize(digest, sid, gitInfo) {
 (개발 흐름 한 줄 또는 없음)
 
 규칙:
+- 둘째 줄(session · 개발 · 요청)은 위 형식 그대로 옮겨 쓴다.
 - 내용이 없는 소제목은 통째로 뺀다. 바뀐 파일은 아래 git 정보를 기준으로 쓴다.
 - 기록에 있는 사실만 쓰고 추측하지 않는다.
 - 사람을 가리킬 때 성별 대명사(그/그녀)를 쓰지 않는다.
@@ -146,7 +149,7 @@ ${digest.text}
   }
 
   log(`worker: 요약 실패 (exit ${r.status}): ${limit(`${out}${r.stderr ?? ''}${r.error ?? ''}`, 500)}`);
-  return { failed: true, section: `## ${range} · (자동 요약 실패)\n\n\`session ${sid}\` · 요청 ${digest.requests}회\n\n${gitInfo}` };
+  return { failed: true, section: `## ${range} · (자동 요약 실패)\n\n${meta}\n\n${gitInfo}` };
 }
 
 // 세션의 개발 흐름 한 줄은 그 세션 기록 끝에 <!-- flow: … --> 로 넣어 둔다.

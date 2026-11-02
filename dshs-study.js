@@ -119,7 +119,7 @@ async function init() {
   if (me) loadAssignments();
 
   sb.auth.onAuthStateChange(async (evt) => {
-    if (evt === "SIGNED_OUT") { me = null; myClasses = []; renderNav(); }
+    if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); renderNav(); }
   });
   // 검색으로 다른 시간표를 띄우거나 숨기면 "내 시간표" 탭 강조를 다시 맞춥니다
   new MutationObserver(() => { if (me) renderNav(); })
@@ -130,6 +130,7 @@ async function init() {
   if (me && opened === "assignments") openStudy("notice");
   else if (me && opened === "cal") openStudy("cal");
   else if (me?.student_id) openMyTimetable();
+  if (me) dshsReturned();
 }
 
 async function loadProfile() {
@@ -212,7 +213,7 @@ const openHome = () => (me.student_id ? openMyTimetable() : openStudy());
 async function logout() {
   await disablePush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 지웁니다
   await sb.auth.signOut();
-  me = null; myClasses = []; closeStudy(); renderNav();
+  me = null; myClasses = []; dshs = dshsEmpty(); closeStudy(); renderNav();
   toast("로그아웃했어요");
 }
 
@@ -231,6 +232,7 @@ function openAuth(mode) {
       <button class="study-x">✕</button>
     </div>
     <div id="authBody"></div>
+    <div class="study-foot">대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트예요.</div>
   </div>`;
   m.querySelector(".study-x").onclick = closeModal;
   m.onclick = (e) => { if (e.target === m) closeModal(); };
@@ -393,6 +395,7 @@ function renderStudy() {
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
       ${me.is_admin ? '<button class="study-btn admin" id="btnSchool">🏫 학교 일정 추가</button>' : ""}
       <button class="study-btn" id="btnPush"></button>
+      <button class="study-btn" id="btnDshs"></button>
     </div>` : ""}
     ${page === "notice" ? `<div class="study-row">
       <button class="study-btn primary" id="btnNew">+ 수행평가 추가</button>
@@ -402,11 +405,13 @@ function renderStudy() {
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
   if ($("btnSchool")) $("btnSchool").onclick = () => openSchoolForm(null);
   if ($("btnPush")) { $("btnPush").onclick = togglePush; paintPush(); refreshPush(); }
+  if ($("btnDshs")) { $("btnDshs").onclick = openDshsSheet; paintDshs(); }
   if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
   if ($("btnAdmin")) $("btnAdmin").onclick = () => renderList("admin");
 }
 
 async function loadAssignments() {
+  loadDshs();   // dshs.app 신청 내역은 따로 받아서, 오면 달력에 더합니다
   const [asg, personal, evs, done, people, todos, school] = await Promise.all([
     sb.from("assignments").select("*").order("due_at", { ascending: true }),
     sb.from("assignment_personal").select("*"),
@@ -566,6 +571,7 @@ function openItem(kind, id) {
     me.is_admin ? openSchoolForm(se) : openSchoolDetail(se);
   } else if (kind === "tt") return;
   else if (kind === "acad") openAcadDetail(acadList.find((e) => e.id === id));
+  else if (kind === "dshs") openDshsDetail(dshs.items.find((r) => r.uid === id));
   else if (kind === "todo") openTodoForm(cache.todos.find((t) => t.id === id));
   else {
     const ev = cache.events.find((e) => e.id === id);
@@ -693,16 +699,25 @@ function fcEvents() {
   });
 }
 
+// 폰의 주·월 보기는 칸이 좁아 제목을 첫 글자 + … 로 줄이고 시간·아이콘은 뺍니다 (눌러서 자세히 봄).
+// 폰의 3일 보기는 줄이지 않고 줄바꿈으로 모두 보여 줍니다 (index.html 의 .fc-threeDays-view 규칙).
+const compactCal = (arg) => window.innerWidth < 640 && arg.view.type !== "threeDays";
+const firstChar = (t) => ([...t].length > 1 ? `${[...t][0]}…` : t);
+
 function fcContent(arg) {
   const p = arg.event.extendedProps;
-  if (p.kind === "tt") return { html: `<div class="fcx-tt-in"><b>${esc(arg.event.title)}</b><span>${esc(p.ban)}</span></div>` };
-  if (p.kind === "todo") return { html: `<div class="fcx"><div class="fcx-title"><span class="fcx-tchk" role="checkbox" aria-checked="${p.done}" aria-label="완료 표시">${p.done ? "✓" : ""}</span>${esc(arg.event.title)}</div></div>` };
+  const compact = compactCal(arg);
+  const full = arg.event.title, title = compact ? firstChar(full) : full;
+  if (p.kind === "tt") return { html: `<div class="fcx-tt-in"><b>${esc(title)}</b>${compact ? "" : `<span>${esc(p.ban)}</span>`}</div>` };
+  if (p.kind === "todo") return { html: `<div class="fcx" title="${esc(full)}"><div class="fcx-title"><span class="fcx-tchk" role="checkbox" aria-checked="${p.done}" aria-label="완료 표시">${p.done ? "✓" : ""}</span>${esc(title)}</div></div>` };
   const s = arg.event.start, e = arg.event.end;
-  const time = p.kind === "asg" ? `${hm(p.at)} 마감`
+  const time = compact ? ""
+    : p.kind === "asg" ? `${hm(p.at)} 마감`
     : arg.event.allDay ? "" : `${hm(s)}${e ? ` – ${hm(e)}` : ""}`;
-  return { html: `<div class="fcx">
+  const icon = compact ? "" : p.kind === "asg" ? "📋 " : p.kind === "sch" ? "🏫 " : p.kind === "acad" ? "🎓 " : p.kind === "dshs" ? "📮 " : p.shared ? "👥 " : "";
+  return { html: `<div class="fcx" title="${esc(full)}">
     ${time ? `<div class="fcx-time">${time}</div>` : ""}
-    <div class="fcx-title">${p.kind === "asg" ? "📋 " : p.kind === "sch" ? "🏫 " : p.kind === "acad" ? "🎓 " : p.shared ? "👥 " : ""}${esc(arg.event.title)}</div>
+    <div class="fcx-title">${icon}${esc(title)}</div>
   </div>` };
 }
 
@@ -824,7 +839,7 @@ function agenda() {
     kind: "todo", id: t.id, title: t.title, at: parseDay(t.due_on), end: null, allDay: true,
     color: "mint", done: t.done, owner: true, tag: "할 일",
   }));
-  return [...sch, ...asgs, ...todos, ...evs].sort((x, y) => (y.allDay - x.allDay) || (x.at - y.at));
+  return [...sch, ...asgs, ...todos, ...evs, ...dshsAgenda()].sort((x, y) => (y.allDay - x.allDay) || (x.at - y.at));
 }
 
 function timeLabel(it) {
@@ -838,7 +853,7 @@ function timeLabel(it) {
 function row(it) {
   const d = it.kind === "asg" && !it.done ? dueInfo(it.at) : null;
   return `<div class="ev-row c-${it.color}${it.done ? " done" : ""}">
-    ${it.kind === "sch" ? `<span class="ev-check sch-ic" aria-hidden="true">🏫</span>`
+    ${it.kind === "sch" || it.kind === "dshs" ? `<span class="ev-check sch-ic" aria-hidden="true">${it.kind === "sch" ? "🏫" : "📮"}</span>`
       : `<button class="ev-check" data-chk="${it.kind}:${it.id}" aria-label="완료 표시"${it.auto
       ? ' disabled title="지난 일정은 자동으로 완료돼요"' : ""}>${it.done ? "✓" : ""}</button>`}
     <button class="ev-main" data-open="${it.kind}:${it.id}">
@@ -1439,6 +1454,133 @@ function openAcadFilter() {
     if ($("acadBtn")) $("acadBtn").textContent = acadBtnLabel();
     fc?.refetchEvents();
   });
+}
+
+// ---------- dshs.app 신청 내역 ----------
+// dshs.app 계정을 연결하면 내 신청(외출 · 특별실 등)을 달력에 읽기 전용으로 보여 줍니다.
+// 토큰은 Edge Function(dshs-oauth)만 갖고, 여기서는 신청 목록만 받습니다. 신청 · 변경은 dshs.app 에서 합니다.
+const DSHS_FN = `${CFG.SUPABASE_URL}/functions/v1/dshs-oauth`;
+const DSHS_STATUS = { pending: "승인 대기", approved: "승인", rejected: "반려" };
+const DSHS_RETURNED = {
+  linked: "dshs.app 계정을 연결했어요. 신청 내역이 달력에 보여요",
+  denied: "dshs.app 연결을 취소했어요",
+  mismatch: "dshs.app 계정의 학번이 이 계정과 달라서 연결하지 않았어요",
+  expired: "연결 시간이 지났어요. 다시 시도해 주세요",
+};
+const dshsEmpty = () => ({ linked: null, name: null, items: [], at: 0 });   // linked: null = 아직 모름
+let dshs = dshsEmpty();
+
+async function dshsCall(action, extra) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch(DSHS_FN, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify({ action, ...extra }),
+  });
+  return { ok: res.ok, body: await res.json().catch(() => ({})) };
+}
+
+// 5분에 한 번만 새로 받습니다 (dshs.app 요청 횟수 제한이 이 사이트 전체에 함께 걸려 있어서)
+async function loadDshs(force) {
+  if (!force && Date.now() - dshs.at < 5 * 60000) return;
+  dshs.at = Date.now();
+  try {
+    const { body } = await dshsCall("requests");
+    if (typeof body.linked !== "boolean") throw new Error();
+    dshs.linked = body.linked;
+    dshs.name = body.name || null;
+    if (!body.linked) dshs.items = [];
+    else if (body.items) dshs.items = body.items;   // 잠깐 못 받으면 지난번 목록을 그대로 둡니다
+    if (body.expired) toast("dshs.app 연결이 만료됐어요. 다시 연결해 주세요", true);
+  } catch { dshs.at = 0; return; }   // 못 받으면 신청 내역 없이 달력만 보여 줍니다
+  paintDshs();
+  if ($("studyView").style.display === "block" && view === "feed") rerender();
+}
+
+const dshsItems = () => (dshs.linked ? dshs.items.filter((r) => r.status !== "rejected") : []);
+
+function paintDshs() {
+  const b = $("btnDshs");
+  if (b) b.textContent = dshs.linked ? `📮 dshs.app 신청 ${dshsItems().length}건` : "🔗 dshs.app 연결";
+}
+
+// 날짜만 정한 신청은 시작 = 끝 → 그날 종일 일정
+const dshsAllDay = (r) => r.from === r.to;
+function dshsAgenda() {
+  const now = new Date();
+  return dshsItems().map((r) => {
+    const at = new Date(r.from), allDay = dshsAllDay(r), end = allDay ? null : new Date(r.to);
+    return {
+      kind: "dshs", id: r.uid, title: r.title, at, end, allDay, color: "dshs", status: r.status,
+      done: eventEnd({ starts_at: r.from, ends_at: end && r.to, all_day: allDay }) < now,
+      tag: ["dshs.app 신청", DSHS_STATUS[r.status], r.room].filter(Boolean).join(" · "),
+    };
+  });
+}
+
+function openDshsDetail(r) {
+  if (!r) return;
+  const when = schoolWhen({ starts_at: r.from, ends_at: dshsAllDay(r) ? null : r.to, all_day: dshsAllDay(r) });
+  const info = [r.form !== r.title && r.form, r.category, r.room && `📍 ${r.room}`, r.count > 1 && `${r.count}명 참여`].filter(Boolean);
+  openSheet("📮 dshs.app 신청", `
+    <div class="shared-card c-dshs">
+      <div class="ev-title">${esc(r.title)}</div>
+      <div class="ev-meta">${esc(when)} · ${DSHS_STATUS[r.status] || ""}</div>
+      ${info.length ? `<div class="asg-body">${info.map(esc).join("<br>")}</div>` : ""}
+    </div>
+    <div class="study-foot">dshs.app 에서 가져온 신청이에요. 바꾸거나 취소하려면 dshs.app 에서 해 주세요.</div>
+    <a class="study-btn wide" href="https://dshs.app" target="_blank" rel="noopener">dshs.app 열기</a>`);
+}
+
+// 연결 안내 / 연결 관리
+function openDshsSheet() {
+  if (!dshs.linked) {
+    openSheet("🔗 dshs.app 연결", `
+      <div class="asg-body">dshs.app 계정을 연결하면 내가 낸 신청(외출 · 특별실 등)이 내 일정 달력에 함께 보여요.</div>
+      <div class="study-foot">dshs.app 로그인 화면에서 로그인하고 동의하면 돼요. 비밀번호는 이 사이트에 전달되지 않아요.<br>
+        신청 내역은 보기만 할 수 있고, 신청 · 변경은 dshs.app 에서 해요.</div>
+      <button class="study-submit" id="doDshs">dshs.app으로 로그인해서 연결</button>`);
+    $("doDshs").onclick = startDshs;
+    return;
+  }
+  openSheet("📮 dshs.app 연결됨", `
+    <div class="asg-body">${dshs.name ? `${esc(dshs.name)} 계정과 ` : ""}연결돼 있어요. 진행 중인 내 신청 ${dshsItems().length}건이 달력에 보여요.</div>
+    <div class="study-foot">5분마다 새로 받아 와요. 연결을 해제하면 이 사이트에 저장된 dshs.app 로그인 정보가 지워져요.</div>
+    <button class="study-submit" id="dshsReload">지금 새로 받기</button>
+    <button class="study-btn wide" id="dshsUnlink">연결 해제</button>`);
+  $("dshsReload").onclick = async () => { $("dshsReload").disabled = true; await loadDshs(true); closeModal(); toast("신청 내역을 새로 받았어요"); };
+  $("dshsUnlink").onclick = unlinkDshs;
+}
+
+async function startDshs() {
+  $("doDshs").disabled = true;
+  try {
+    const { body } = await dshsCall("start", { return_to: location.origin + location.pathname });
+    if (body.url) { location.href = body.url; return; }
+    toast(body.error || "dshs.app 연결을 시작하지 못했어요", true);
+  } catch { toast("dshs.app 연결을 시작하지 못했어요", true); }
+  if ($("doDshs")) $("doDshs").disabled = false;
+}
+
+async function unlinkDshs() {
+  if (!confirm("dshs.app 연결을 해제할까요? 달력에서 신청 내역이 사라져요.")) return;
+  try {
+    const { ok } = await dshsCall("unlink");
+    if (!ok) throw new Error();
+  } catch { return toast("연결을 해제하지 못했어요", true); }
+  dshs = { ...dshsEmpty(), linked: false, at: Date.now() };
+  closeModal(); paintDshs(); rerender();
+  toast("dshs.app 연결을 해제했어요");
+}
+
+// dshs.app 로그인에서 돌아왔을 때 (?dshs=linked | error&reason=…) 결과를 알리고 주소를 정리합니다
+function dshsReturned() {
+  const q = new URLSearchParams(location.search), r = q.get("dshs");
+  if (!r) return;
+  toast(DSHS_RETURNED[r === "linked" ? "linked" : q.get("reason")] || "dshs.app 연결에 실패했어요", r !== "linked");
+  q.delete("dshs"); q.delete("reason");
+  const rest = q.toString();
+  history.replaceState(null, "", location.pathname + (rest ? `?${rest}` : ""));
 }
 
 // 학교 일정 대상 (학번 목록)

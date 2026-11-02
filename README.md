@@ -21,6 +21,8 @@ submit.sql                ★ 수행평가 제출처
 personal.sql              ★ 수행평가 개인 수정
 supabase/functions/send-reminders/index.ts  알림 발송
 supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼지 계산
+dshsapp.sql               ★ dshs.app 계정 연결 (토큰은 서버 전용)
+supabase/functions/dshs-oauth/index.ts      dshs.app 로그인 연결 · 신청 내역 조회
 updates.js                업데이트 소식 (주요 업데이트는 접속 시 한 번 팝업 · 좌측 상단 📢 업데이트에서 전체 내역)
 academic.json             학사일정 (NEIS 에서 매일 자동 갱신 · 직접 고치지 않음)
 academic-extra.json       NEIS 에 없는 일정(카톡 공지 등)을 직접 적는 곳 → academic.json 에 합쳐짐
@@ -50,6 +52,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `submit.sql` 을 **Run** (수행평가 제출처)
    이어서 `personal.sql` 을 **Run** (수행평가 개인 수정)
    이어서 `notice.sql` 을 **Run** (수행평가 공지: 마감 일시 없이 올리기 · 작성자 표시 · 작성자/관리자 수정)
+   이어서 `dshsapp.sql` 을 **Run** (dshs.app 계정 연결 · 신청 내역을 달력에 표시)
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
 
@@ -69,12 +72,17 @@ supabase link --project-ref <프로젝트 ref>
 
 supabase functions deploy signup --no-verify-jwt
 supabase functions deploy send-reminders
+supabase functions deploy dshs-oauth --no-verify-jwt
 
 supabase secrets set \
   VAPID_PUBLIC_KEY=<공개키> \
   VAPID_PRIVATE_KEY=<비밀키> \
-  VAPID_SUBJECT=mailto:본인메일@example.com
+  VAPID_SUBJECT=mailto:본인메일@example.com \
+  DSHS_CLIENT_ID=<dshs.app client_id> \
+  DSHS_CLIENT_SECRET=<dshs.app client_secret>
 ```
+
+`dshs-oauth` 는 dshs.app 계정 연결(OIDC)과 신청 내역 조회를 맡습니다. client_id·secret 은 dshs.app 관리자에게 받은 값이고, **저장소 어디에도 적지 않습니다.** dshs.app 에 등록한 redirect URI 는 `https://<프로젝트 ref>.supabase.co/functions/v1/dshs-oauth` (운영)와 `http://localhost:54321/functions/v1/dshs-oauth` (로컬 — `supabase functions serve` 할 때 `DSHS_REDIRECT_URI` 를 이 값으로) 입니다. redirect URI · scope 를 바꾸려면 dshs.app 관리자에게 메일로 요청합니다.
 
 알림을 주기적으로 보내려면 `send-reminders/index.ts` 맨 아래 주석의 `cron.schedule` SQL 을 한 번 실행하세요. 1분마다 돌면서 **동작 방식**의 알림을 보냅니다.
 

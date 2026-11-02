@@ -11,6 +11,8 @@ Claude Code 는 이전 대화를 기억하지 못한다. 이 프로젝트는 아
 - **[DEVLOG.md](DEVLOG.md)** — 세션별 진행 기록 (최신이 맨 아래). 작업을 시작하기 전에 맨 아래 2~3개 기록과 `남은 일` 을 먼저 읽는다. 사용자가 "지난번에 하던 거", "이어서" 라고 하면 여기서 찾는다.
 - **CLAUDE.md (이 파일)** — 바뀌지 않는 규칙과 주의할 점.
 
+DEVLOG 의 각 기록 둘째 줄에는 `session … · 개발 <git 사용자 이름> · 요청 N회` 로 **누가 개발했는지**가 들어간다 (`devlog-worker.mjs` 가 그 PC 의 `git config user.name` 으로 넣음). 팀원마다 `git config user.name` 을 알아볼 수 있는 이름으로 설정해 둔다.
+
 DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약이라, 프로젝트 전체 맥락은 여기서 먼저 파악한다.
 
 세션 시작 시 훅이 `git pull` 을 하고, 답변 뒤 10분 동안 다음 요청이 없으면 대화를 요약해 DEVLOG 에 추가 → DEVLOG.md 커밋 → `git push` 를 자동으로 한다 (`.claude/hooks/`). 그래서 모든 세션이 기록되고, 다른 팀원이 한 작업도 DEVLOG 로 이어받을 수 있다. 자동 기록은 코드 변경을 커밋하지 않으므로, 작업이 끝나면 코드 커밋 · push 를 제안한다.
@@ -63,5 +65,7 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - 로그인 이메일 도메인 `EMAIL_DOMAIN = "dshs.study"` (dshs-study.js · signup Edge Function)는 서비스 이름이 바뀌어도 바꾸지 않는다. 계정이 `아이디@dshs.study` 로 저장돼 있어 바꾸면 모두 로그인이 안 된다. 로그인 유지 키(`dshs-study-auth`)·캐시 이름도 그대로 둔다.
 - `config.js` 에는 anon 키만. service_role 키·VAPID 비밀키는 Edge Function secrets 에만 둔다.
 - 외부 서비스(dshs.app 등) 호출은 브라우저가 아니라 Edge Function 을 거친다 (CORS). 크롤링·대리 로그인은 하지 않고 공식 OAuth/API 만 쓴다.
+- dshs.app 연동(`dshs-oauth`): client_secret 은 Supabase secrets(`DSHS_CLIENT_SECRET`)에만 둔다. 대화·DEVLOG·커밋에 적지 않는다 (DEVLOG 자동 요약이 그대로 올릴 수 있음). 허용 scope 는 `openid profile me.read request.read offline_access` 뿐이고, 늘리려면 dshs.app 관리자에게 메일로 요청한다. 요청 제한(60초 120회)이 사이트 전체 합산이라 브라우저는 5분에 한 번만 받는다. dshs.app 에 이미 있는 기능을 똑같이 만들지 않는다 (이용 규칙).
+- 사이트 하단과 로그인 창의 "학생 비공식 사이트" 문구는 dshs.app 측 요청이라 지우지 않는다.
 - 알림 계산은 `supabase/functions/send-reminders/plan.ts` 순수 함수에 둔다 (DB·푸시 없이 테스트 가능하게).
 - 학사일정은 NEIS(학교 코드 `G10` / `7430032`)가 원본이다. `academic.json` 은 GitHub Actions 가 매일 덮어쓰므로 직접 고치지 않는다. NEIS 에 없는 일정(카톡 공지 등)은 `academic-extra.json` 에 적고 `node scripts/fetch-academic.mjs` 를 실행한다 (먼저 academic.json 과 비교해 이미 있는 건 넣지 않는다). 종류 분류는 `dshs-study.js` 의 `acadCat()`.

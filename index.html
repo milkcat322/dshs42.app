@@ -287,6 +287,7 @@
   .study-btn.small.ok { background: rgba(111,224,196,0.15); border-color: rgba(111,224,196,0.45); color: var(--accent3); }
   .study-btn.small.no { background: rgba(252,165,165,0.1); border-color: rgba(252,165,165,0.35); color: #fca5a5; }
   .study-btn.wide { width: 100%; margin-top: 12px; }
+  a.study-btn.wide { display: block; text-align: center; text-decoration: none; box-sizing: border-box; }
   .study-view { display: none; animation: fadeUp 0.4s ease; }
   .study-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
   .study-head h2 { font-size: 22px; font-weight: 800; }
@@ -329,6 +330,7 @@
   .study-err { display: none; color: #fca5a5; font-size: 12px; margin-top: 10px; line-height: 1.6; }
   .study-err.show { display: block; }
   .study-foot { font-size: 11.5px; color: var(--text-muted); line-height: 1.7; margin-top: 12px; text-align: center; }
+  .site-note { font-size: 11px; color: var(--text-muted); line-height: 1.6; text-align: center; margin: 28px 16px 8px; word-break: keep-all; }
   .study-confirm { background: var(--surface); border: 1px solid var(--accent1); border-radius: 14px; padding: 22px; text-align: center; margin-bottom: 14px; }
   .study-confirm-name { font-size: 26px; font-weight: 800; }
   .study-confirm-sid { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text-dim); margin-top: 5px; }
@@ -345,7 +347,7 @@
   .toast-undo { background: rgba(124,111,224,0.18); border: 1px solid rgba(124,111,224,0.5); color: var(--text); border-radius: 9px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; white-space: nowrap; }
   .toast-undo:hover { background: rgba(124,111,224,0.32); }
   /* 내 일정 — 달력 · 목록 */
-  .c-asg { --c: #facc15; } .c-mint { --c: #6fe0c4; } .c-violet { --c: #8b7ff0; } .c-pink { --c: #e06f9e; } .c-orange { --c: #fb923c; } .c-blue { --c: #60a5fa; } .c-school { --c: #94a3b8; }
+  .c-asg { --c: #facc15; } .c-mint { --c: #6fe0c4; } .c-violet { --c: #8b7ff0; } .c-pink { --c: #e06f9e; } .c-orange { --c: #fb923c; } .c-blue { --c: #60a5fa; } .c-school { --c: #94a3b8; } .c-dshs { --c: #a3e635; }
   .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 3px; margin-bottom: 14px; }
   .seg-btn { background: none; border: none; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-muted); cursor: pointer; }
   .seg-btn.on { background: var(--card); color: var(--text); }
@@ -542,6 +544,9 @@
     .fc-host .fc-timegrid-slot { height: 44px; }
     .fcx { padding: 2px 4px; }
     .fcx-title { font-size: 11px; }
+    /* 3일 보기: 일정 제목을 … 로 줄이지 않고 줄바꿈으로 모두 보여 줍니다 (주·월 보기는 첫 글자만 — dshs-study.js 의 compactCal) */
+    .fc-threeDays-view .fcx-title, .fc-threeDays-view .fcx-time, .fc-threeDays-view .fcx-tt-in b { white-space: normal; text-overflow: clip; overflow-wrap: anywhere; }
+    .fc-threeDays-view .fc-daygrid-event .fcx { height: auto; }
   }
   .classes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
   .class-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; transition: all 0.2s; }
@@ -627,6 +632,7 @@
     <div class="welcome-icon">📅</div>
     <div class="welcome-text">이름이나 학번으로 개인 시간표를,<br>선생님은 수업 시간표, 과목은 분반표를 보여드려요</div>
   </div>
+  <p class="site-note">대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트입니다.</p>
 </div>
 <div class="ios-sheet" id="iosSheet">
   <div class="ios-card">
