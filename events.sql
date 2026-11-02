@@ -48,6 +48,7 @@ create policy assignment_done_own on public.assignment_done
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- ------------------------------------------------------------
+-- (지금은 쓰지 않음) 꿈지락 개인 수정용으로 만들었다가 기능을 뺐습니다. 값은 비어 있습니다.
 -- 꿈지락처럼 학생이 자기 달력에서만 고치는 학교 일정.
 -- source_key = 원본 학교 일정 (NEIS "시작일|이름|대상학년" 또는 "sch:<school_events.id>")
 --              이 값이 있는 내 일정은 내 달력에서만 원본 대신 보입니다. 일반 일정은 null
