@@ -547,8 +547,6 @@ function renderList(mode) {
         <span class="cal-title" id="calTitle"></span>
       </div>`}
       <div class="cal-right">
-        ${me.student_id && tab !== "list" ? `<label class="tt-check"${tab === "month" ? ' style="display:none"' : ""}><input type="checkbox" id="ttToggle"${showTT ? " checked" : ""}> 학교 시간표 보이기</label>` : ""}
-        ${showSchool ? `<button class="study-btn small" id="acadBtn">${acadBtnLabel()}</button>` : ""}
         <div class="seg">${VIEWS.map(([k, label]) =>
           `<button class="seg-btn${tab === k ? " on" : ""}" data-seg="${k}">${label}</button>`).join("")}</div>
       </div>
@@ -556,12 +554,6 @@ function renderList(mode) {
     (tab === "list" ? listHtml([...agenda(), ...acadAgenda()].sort(byAgenda)) : `<div class="fc-host" id="calHost"><div class="study-empty">달력 불러오는 중…</div></div>`);
   body.querySelectorAll("[data-seg]").forEach((b) => b.onclick = () => switchTab(b.dataset.seg));
   body.querySelectorAll("[data-nav]").forEach((b) => b.onclick = () => fc && fc[b.dataset.nav]());
-  if ($("ttToggle")) $("ttToggle").onchange = () => {
-    showTT = $("ttToggle").checked;
-    try { localStorage.setItem("dshs-cal-tt", showTT ? "on" : "off"); } catch {}
-    fc?.refetchEvents();
-  };
-  if ($("acadBtn")) $("acadBtn").onclick = openAcadFilter;
   bindRows(body);
   if (tab !== "list") mountCal();
 }
@@ -600,8 +592,6 @@ function switchTab(next) {
     // 보던 범위에 오늘이 있으면 오늘부터, 아니면 그 범위의 첫날부터
     const t = new Date(), v = fc.view;
     fc.changeView(FC_VIEW[next], t >= v.activeStart && t < v.activeEnd ? t : v.currentStart);
-    const tt = $("ttToggle")?.closest("label");   // 월 보기에는 시간표가 없습니다
-    if (tt) tt.style.display = next === "month" ? "none" : "";
     $("studyBody").querySelectorAll("[data-seg]").forEach((b) => b.classList.toggle("on", b.dataset.seg === next));
     return;
   }
@@ -1610,19 +1600,35 @@ function openAcadDetail(e) {
     <div class="study-foot">${e.from ? `${esc(e.from)}로 추가한 일정이에요.` : "학교 홈페이지 학사일정(NEIS)에서 가져온 일정이에요."}</div>`);
 }
 
-const acadBtnLabel = () => `학교 일정 ${acadOn.size}/${ACAD_CATS.length}`;
-function openAcadFilter() {
+// 설정의 달력 항목: 학교 일정(전체 · 종류 6가지)과 학교 시간표
+function calSettingsHtml() {
   const g = myGrade();
-  openSheet("학교 일정 보기", ACAD_CATS.map(([k, label, hint]) =>
-    `<label class="ev-allday acad-opt"><input type="checkbox" data-acad="${k}"${acadOn.has(k) ? " checked" : ""}>
-      <span><b>${label}</b> <span class="ev-hint">${hint}</span></span></label>`).join("") +
-    `<div class="study-foot">학교 홈페이지 학사일정(NEIS)을 하루 한 번 받아 와요.${g ? ` ${g}학년 일정만 보여요.` : ""}</div>`);
-  $("studyModal").querySelectorAll("[data-acad]").forEach((c) => c.onchange = () => {
+  return `
+    <label class="set-row"><span><b>학교 일정 보이기</b><span class="ev-hint">학교 홈페이지 학사일정(NEIS)을 하루 한 번 받아 와요.${g ? ` ${g}학년 일정만 보여요.` : ""}</span></span>
+      <input type="checkbox" id="setSchool"${showSchool ? " checked" : ""}></label>
+    <div class="set-sub" id="acadOpts">${ACAD_CATS.map(([k, label, hint]) =>
+      `<label class="set-row"><span><b>${label}</b><span class="ev-hint">${hint}</span></span>
+        <input type="checkbox" data-acad="${k}"${acadOn.has(k) ? " checked" : ""}${showSchool ? "" : " disabled"}></label>`).join("")}</div>
+    ${me.student_id ? `<label class="set-row"><span><b>학교 시간표 보이기</b><span class="ev-hint">내 일정 달력의 3일 · 주 보기에 내 수업을 깔아 줘요</span></span>
+      <input type="checkbox" id="setTT"${showTT ? " checked" : ""}></label>` : ""}`;
+}
+function bindCalSettings() {
+  $("setSchool").onchange = () => {
+    showSchool = $("setSchool").checked;
+    try { localStorage.setItem("dshs-cal-school", showSchool ? "on" : "off"); } catch {}
+    $("acadOpts").querySelectorAll("input").forEach((c) => c.disabled = !showSchool);
+    refreshAcad();
+  };
+  $("acadOpts").querySelectorAll("[data-acad]").forEach((c) => c.onchange = () => {
     c.checked ? acadOn.add(c.dataset.acad) : acadOn.delete(c.dataset.acad);
     try { localStorage.setItem("dshs-cal-acad", JSON.stringify([...acadOn])); } catch {}
-    if ($("acadBtn")) $("acadBtn").textContent = acadBtnLabel();
     refreshAcad();
   });
+  if ($("setTT")) $("setTT").onchange = () => {
+    showTT = $("setTT").checked;
+    try { localStorage.setItem("dshs-cal-tt", showTT ? "on" : "off"); } catch {}
+    fc?.refetchEvents();
+  };
 }
 
 // ---------- dshs.app 신청 내역 ----------
@@ -1748,8 +1754,8 @@ function openSettings() {
   openSheet("설정", `
     <label class="set-row"><span><b>알림</b><span class="ev-hint" id="pushHint">수행평가는 1일 · 6시간 전, 일정은 30분 전에 알려 줘요 (이 기기)</span></span>
       <input type="checkbox" id="setPush"></label>
-    <label class="set-row"><span><b>학교 일정 보이기</b><span class="ev-hint">학사일정 · 학교 행사를 내 일정 달력에 보여 줘요</span></span>
-      <input type="checkbox" id="setSchool"${showSchool ? " checked" : ""}></label>
+    <div class="set-sec">내 일정 달력</div>
+    ${calSettingsHtml()}
     <div class="set-sec">계정</div>
     <div class="ev-title">${esc(me.name)}</div>
     <div class="ev-meta">${esc(me.username)}</div>
@@ -1757,11 +1763,7 @@ function openSettings() {
     <button class="study-btn wide" id="doLogout">로그아웃</button>`);
   $("setPush").onchange = togglePush;
   paintPush(); refreshPush();
-  $("setSchool").onchange = () => {
-    showSchool = $("setSchool").checked;
-    try { localStorage.setItem("dshs-cal-school", showSchool ? "on" : "off"); } catch {}
-    if (calOpen()) { destroyCal(); rerender(); }   // 학교 일정 종류 버튼도 함께 숨기거나 보여 줍니다
-  };
+  bindCalSettings();
   if ($("doDshs")) $("doDshs").onclick = startDshs;
   if ($("dshsUnlink")) $("dshsUnlink").onclick = unlinkDshs;
   $("doLogout").onclick = () => { closeModal(); logout(); };

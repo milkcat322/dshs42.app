@@ -191,6 +191,10 @@
   .set-row b { display: block; font-size: 14.5px; color: var(--text); }
   .set-row .ev-hint { display: block; margin-top: 2px; }
   .set-row input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent1); }
+  .set-sub { padding-left: 16px; }
+  .set-sub .set-row { padding: 9px 0; }
+  .set-sub .set-row b { font-size: 13.5px; font-weight: 600; }
+  .set-sub:has(input:disabled) { opacity: 0.45; }
   .set-sec { margin: 18px 0 6px; font-size: 12px; font-weight: 700; color: var(--text-dim); }
   .icon-btn.has-new::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
   .upd-sheet { max-width: 420px; }
@@ -332,6 +336,10 @@
   .study-label { display: block; font-size: 11px; font-weight: 700; color: var(--text-dim); margin: 12px 0 6px; }
   .study-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; font-size: 14.5px; font-family: 'Noto Sans KR', sans-serif; color: var(--text); outline: none; }
   .study-input:focus { border-color: var(--accent1); }
+  /* 날짜 · 시간 입력: 아이폰은 기본 모양일 때 width 를 무시하고 옆으로 튀어나옵니다 */
+  .study-input { box-sizing: border-box; min-width: 0; max-width: 100%; }
+  input.study-input[type=datetime-local], input.study-input[type=date], input.study-input[type=time] { -webkit-appearance: none; appearance: none; display: block; min-height: 44px; }
+  input.study-input::-webkit-date-and-time-value { text-align: left; }
   textarea.study-input { resize: vertical; line-height: 1.6; }
   .study-submit { width: 100%; margin-top: 16px; background: var(--accent1); border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif; color: #fff; cursor: pointer; }
   .study-submit.ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); margin-bottom: 8px; }
@@ -635,7 +643,14 @@
     .install-btn { padding: 7px 12px; }
 
     /* 아이콘 버튼과 탭: 탭은 한 줄로 두고, 둘 다 스크롤해도 위에 붙어 있습니다 */
-    .nav-bar { position: sticky; top: 0; z-index: 50; margin: 0 -14px 12px; padding: calc(6px + env(safe-area-inset-top)) 14px 8px; background: rgba(10,10,15,0.9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+    /* 화면 맨 위의 노치 영역은 ::before 로 덮습니다 (padding 으로 넣으면 맨 위에 있을 때도 그만큼 빈칸이 생김) */
+    .nav-bar { position: sticky; top: env(safe-area-inset-top); z-index: 50; margin: 0 -14px 12px; padding: 6px 14px 8px; background: rgba(10,10,15,0.9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+    .nav-bar::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: env(safe-area-inset-top); background: inherit; }
+    /* 설치 안내가 없으면 맨 위에서는 아이콘 줄을 로고 줄 오른쪽에 겹쳐 두어 로고와 탭 사이를 줄입니다 */
+    .container:not(:has(#installBar.show)) .nav-bar { margin-top: -45px; }
+    /* 그 대신 맨 위에서는 배경을 비워 로고가 보이게 하고, 조금만 내려도 배경이 차오릅니다 */
+    .container:not(:has(#installBar.show)) .nav-bar { background: rgba(10,10,15, calc(var(--hp, 0) * 3)); }
+    body:not(.scrolled) .container:not(:has(#installBar.show)) .nav-bar { -webkit-backdrop-filter: none; backdrop-filter: none; }
     .nav-icons { margin-bottom: 6px; }
     .icon-btn { width: 32px; height: 32px; font-size: 15px; }
     .study-nav { flex-wrap: nowrap; gap: 6px; margin: 0; }
