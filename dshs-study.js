@@ -1470,19 +1470,19 @@ function openClassForm(b, key, forAll) {
     <input class="study-input" type="date" id="cDate" value="${key}">
     <label class="study-label">${span > 1 ? `시작 교시 (${span}교시 연속)` : "옮길 교시"}</label>
     <div class="ev-durs">${periods.map((n) =>
-      `<button type="button" class="ev-dur${n === pick ? " on" : ""}" data-p="${n}"${n + span - 1 > last ? " disabled" : ""}>${n}교시</button>`).join("")}</div>
+      `<button type="button" class="ev-dur" data-p="${n}"${n + span - 1 > last ? " disabled" : ""}>${n}교시</button>`).join("")}</div>
     <div class="study-foot" id="cWhen"></div>
     <div class="study-foot">${forAll ? `${esc(b.ban)} 학생 모두의 달력에 적용돼요.` : "내 달력에서만 바뀌어요."}</div>
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="cSave">옮기기</button>`);
   const sheet = $("studyModal").querySelector(".study-sheet");
-  const showWhen = () => {
+  const showWhen = () => {   // 함께 옮겨지는 교시를 모두 색칠합니다
     const to = pick + span - 1;
+    sheet.querySelectorAll("[data-p]").forEach((y) => y.classList.toggle("on", +y.dataset.p >= pick && +y.dataset.p <= to));
     $("cWhen").textContent = `${periodLabel({ from: pick, to })} · ${PERIOD_TIME[pick][0]}–${PERIOD_TIME[to][1]}`;
   };
   sheet.querySelectorAll("[data-p]").forEach((x) => x.onclick = () => {
     pick = +x.dataset.p;
-    sheet.querySelectorAll("[data-p]").forEach((y) => y.classList.toggle("on", y === x));
     showWhen();
   });
   showWhen();
