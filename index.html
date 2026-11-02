@@ -219,6 +219,25 @@
   .set-row b { display: block; font-size: 14.5px; color: var(--text); }
   .set-row .ev-hint { display: block; margin-top: 2px; }
   .set-row input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent1); }
+  /* 수행평가 탭: 전체 수행평가 (한 줄에 하나) */
+  .asg-all-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .asg-all-head .study-section { margin-bottom: 0; }
+  .asg-all-head .seg { margin: 0; }
+  .asg-all-head .seg-btn { padding: 5px 11px; font-size: 12px; white-space: nowrap; flex: none; }
+  .asg-rows { margin: 8px 0 18px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .asg-rows > .study-empty { border: none; margin: 0; }
+  .asg-row { display: flex; align-items: center; gap: 8px; padding: 0 10px; min-height: 40px; border-bottom: 1px solid var(--border); }
+  .asg-row:last-child { border-bottom: none; }
+  .asg-row.done .ar-title, .asg-row.done .ar-subj { color: var(--text-muted); text-decoration: line-through; }
+  .asg-chk { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--text-muted); background: none; color: #fff; font-size: 11px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .asg-chk.on { background: var(--accent3); border-color: var(--accent3); }
+  .asg-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 9px 0; color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 13px; text-align: left; cursor: pointer; }
+  .asg-row-main .due-badge { flex-shrink: 0; min-width: 44px; text-align: center; }
+  .ar-subj { flex-shrink: 0; max-width: 26%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; color: var(--accent1); }
+  .ar-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .ar-when { flex-shrink: 0; font-size: 11px; color: var(--text-muted); white-space: nowrap; font-family: 'IBM Plex Mono', 'Noto Sans KR', monospace; }
+  .ar-group { padding: 7px 12px 5px; font-size: 12px; font-weight: 800; color: var(--accent1); background: var(--card); border-bottom: 1px solid var(--border); }
+  .ar-group small { font-weight: 400; color: var(--text-muted); margin-left: 3px; }
   /* 학교 일정 대상: 즐겨찾기 그룹 */
   .aud-hint { font-size: 12px; color: var(--text-muted); }
   .ban-pick { flex-basis: 100%; margin: 2px 0 0; }

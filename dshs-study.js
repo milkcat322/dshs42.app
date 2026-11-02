@@ -2357,26 +2357,50 @@ function openSchoolForm(e, seed) {
 // ---------- 수행평가 공지 탭 ----------
 // 분반에 공지된 것 + 내가 올렸지만 아직 승인 안 된(또는 반려된) 것. 내 것은 승인과 상관없이 나에게 보입니다.
 const noticeItems = () => [...cache.items, ...(cache.mine || []).filter((a) => a.status !== "approved")].sort(byDue);
-// 위: 곧 마감인(3일 안) 아직 안 끝낸 공지. 아래: 과목 블록을 누르면 그 아래에 그 과목 공지.
-const URGENT_DAYS = 3;
+// 위: 다가오는 수행평가 전체를 한 줄씩 (많아도 한눈에). 아래: 과목 블록을 누르면 그 아래에 그 과목 공지.
 let openSubj = null;    // 고른 과목 이름
+const ASG_SORT_KEY = "dshs-asg-sort";
+let asgSort = (() => { try { return localStorage.getItem(ASG_SORT_KEY) === "subject" ? "subject" : "due"; } catch { return "due"; } })();
+
+// 수행평가 한 줄: 완료 체크 · D-day · 과목 · 제목 · 마감 일시. 누르면 자세히
+function asgRow(a, showSubj = true) {
+  const d = asgDue(a), done = cache.done.has(a.id);
+  return `<div class="asg-row${done ? " done" : ""}">
+    <button class="asg-chk${done ? " on" : ""}" data-chk="asg:${a.id}" aria-label="${done ? "완료 취소" : "완료 표시"}">${done ? "✓" : ""}</button>
+    <button class="asg-row-main" data-open="asg:${a.id}">
+      <span class="due-badge ${d.tone}">${d.label}</span>
+      ${showSubj ? `<span class="ar-subj">${esc(a.subject)}</span>` : ""}
+      <span class="ar-title">${esc(a.title)}</span>${stBadge(a.status)}
+      <span class="ar-when">${a.due_at ? `${md(new Date(a.due_at))} ${hm(new Date(a.due_at))}` : "미정"}</span>
+    </button>
+  </div>`;
+}
+
+function allAsgHtml(now) {
+  const up = noticeItems().filter((a) => dueMs(a) >= +now);   // 마감 일시 없는 것은 맨 뒤
+  const left = up.filter((a) => !cache.done.has(a.id)).length;
+  const sortBtns = [["due", "마감 기한순"], ["subject", "과목별"]].map(([k, label]) =>
+    `<button class="seg-btn${asgSort === k ? " on" : ""}" data-asort="${k}">${label}</button>`).join("");
+  let list;
+  if (!up.length) list = `<div class="study-empty">다가오는 수행평가가 없어요.</div>`;
+  else if (asgSort === "due") list = up.map((a) => asgRow(a)).join("");
+  else list = [...new Set(up.map((a) => a.subject))].sort((x, y) => x.localeCompare(y, "ko")).map((s) => {
+    const rows = up.filter((a) => a.subject === s);
+    return `<div class="ar-group">${esc(s)} <small>${rows.length}</small></div>` + rows.map((a) => asgRow(a, false)).join("");
+  }).join("");
+  return `<div class="asg-all-head"><div class="study-section">전체 수행평가 · 남은 ${left}건</div><div class="seg">${sortBtns}</div></div>
+    <div class="asg-rows">${list}</div>`;
+}
 
 function renderNotice() {
   destroyCal();
   view = "notice";
   const body = $("studyBody");
   const now = new Date();
-  const soon = new Date(+now + URGENT_DAYS * 86400000);
-  const urgent = noticeItems().filter((a) => {
-    const d = dueMs(a);   // 마감 일시가 없으면 Infinity → 급한 공지에 들지 않음
-    return d >= +now && d <= +soon && !cache.done.has(a.id);
-  });
   const subjects = noticeSubjects(now);
   const picked = subjects.find((sj) => sj.name === openSubj);
   body.innerHTML =
-    `<div class="study-section">곧 마감 · ${URGENT_DAYS}일 안에 ${urgent.length}건</div>` +
-    (urgent.length ? urgent.map((a) => card(a, { check: true })).join("")
-      : `<div class="study-empty">${URGENT_DAYS}일 안에 마감되는 수행평가가 없어요.</div>`) +
+    allAsgHtml(now) +
     `<div class="study-section">과목별 수행평가</div>` +
     `<div class="subj-grid">${subjects.map(subjBlock).join("")}</div>` +
     `<div id="subjDetail">${picked ? subjDetail(picked) : `<div class="subj-hint">과목을 누르면 그 과목 수행평가가 여기에 보여요</div>`}</div>`;
@@ -2386,6 +2410,11 @@ function renderNotice() {
     if (openSubj) $("subjDetail").scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
   body.querySelectorAll("[data-adone]").forEach((b) => b.onclick = () => toggleDone("asg", b.dataset.adone));
+  body.querySelectorAll("[data-asort]").forEach((b) => b.onclick = () => {
+    asgSort = b.dataset.asort;
+    try { localStorage.setItem(ASG_SORT_KEY, asgSort); } catch {}
+    renderNotice();
+  });
   bindRows(body);
 }
 
