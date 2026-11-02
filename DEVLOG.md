@@ -13,6 +13,7 @@
 - **2026-10-31** 알림 개편: 기기별 켜기/끄기, 수행평가 마감 1일·6시간 전, 일정·필수 학교 일정 30분 전
 - **2026-11-01** DEVLOG 자동 기록을 모든 세션으로 확장하고 동시 작업 충돌 방지(.gitattributes 유니온 병합, push 전 원격 확인·병합) 체계로 Check Push를 구축, 중간고사 탭 삭제·평균 학점 탭을 학점 계산으로 개명 <!-- session a12519e2 -->
 - **2026-11-01** 학생 수강 과목·분반별 수행평가 일괄 등록, 지필평가 기간·목요일 귀가일 R&E 시간표 제외, 수행평가 탭 문구 완화와 제출처 선택 도입, 수행평가 탭 알림 버튼 제거 <!-- session cfda7dec -->
+- **2026-11-01** dshs.app과 API 연동 승인받아 OAuth 연결 구현 완료: 내 신청 내역을 일정 탭 달력에 읽기 전용으로 표시, 비공식 사이트 문구 추가, DEVLOG에 개발자 이름 기록 추가 <!-- session f6c6188d -->
 <!-- 개발 흐름 끝 -->
 
 ## 쓰는 법
@@ -639,32 +640,47 @@
 - [ ] dshs.app 연동은 운영자 답변 대기
 - [ ] dev-journey 공개 전 productivity 표시 여부와 팀원 동의를 정한 뒤 `setup.sh` 실행
 
-## 2026-11-01 23:06–23:08 · dshs.app API 연동 신청 답장 작성
+## 2026-11-01 23:06–13:30 · dshs.app API 연동 구현: 신청 내역을 일정 탭 달력에 표시
 
-`session f6c6188d` · 요청 2회
+`session f6c6188d` · 개발 milkcat322 · 요청 11회
 
 ### 목표
-- dshs.app 개발자가 보낸 API 연동 안내에 대한 답장 작성(redirect URI, 사용 기능, 연락처 요청에 대한 응답)
+- dshs.app 운영자에게 API 연동 신청 답장을 작성하고, 승인 후 실제 OAuth 연동을 구현한다.
 
 ### 한 일
-- dshs.app 개발자 문서(개발자 가이드, API 문서, 로그인 문서, 클라이언트·학교 API 문서) 확인
-- 저장소 내 Supabase URL, 로컬 서버 설정 등 기존 코드 맥락 확인
-- 초안 답장 작성: 앱 정보, redirect URI, 사용 기능(scope), 연락처, 문의사항 포함
-- 사용자 피드백("일정 탭에서 신청 내역을 달력에 표시하는 것밖에 없어")을 반영해 scope를 `request.read` 하나로 좁힌 수정본 작성
+- dshs.app 운영자와 메일을 주고받으며 redirect URI, scope, 서비스 이름(dshs42), 비공식 사이트 문구를 협의하고 API 키를 발급받음
+- `dshs-oauth` Edge Function 작성: OIDC+PKCE 로그인 연결, 토큰 저장과 만료 시 refresh, 신청 내역 조회, 연결 해제
+- `dshsapp.sql`로 dshs.app 연결 정보·토큰을 담는 테이블 추가 (서버만 읽을 수 있도록 RLS 설정)
+- 내 일정 탭에 "🔗 dshs.app 연결" 버튼과 신청 내역 📮 표시(달력·목록) 추가
+- 사이트 하단과 로그인 화면에 비공식 사이트 문구 추가
+- DEVLOG 기록에 개발자 이름(`git config user.name`)이 들어가도록 devlog-worker.mjs 수정, CLAUDE.md에 규칙 추가
+- Supabase secrets에 client ID/secret 설정, Edge Function 배포, localhost에서 실제 계정으로 연결 테스트
 
 ### 결정과 이유
-- 서비스 종류를 "서버 앱"으로 명시: 토큰 교환·저장을 Supabase Edge Function에서 처리하고 브라우저에는 토큰을 두지 않는 구조이기 때문
-- 처음에는 `me.read`, `reservation.read`, `request.read`, `penalty.read`를 모두 요청했다가, 실제 필요 기능이 신청 내역 표시뿐이라는 피드백에 따라 `request.read` 단일 scope로 축소
-- 계정 연결은 별도 `me.read` 없이 로그인 시 받는 OIDC 기본 정보(`sub`)로 처리하기로 함
-- dshs.app 개발자 가이드의 "기존 기능 중복 금지" 규칙에 따라, 신청/신청 변경 자체는 다시 만들지 않고 읽기 전용으로 달력에만 표시한다고 명시
-- 자습실 좌석 신청/취소가 외부 앱에 열려 있지 않다는 문서 내용에 따라 해당 기능은 요청하지 않고 조회 가능 여부만 문의(이후 scope 축소 시 이 문의도 제거)
-- dshs.app 로그인 대체는 보류: 현재 계정이 `아이디@dshs.study` 기준으로 저장돼 있어 당장 로그인 방식을 바꾸지 않고 기존 계정에 연결하는 방식으로 답장 작성
+- Scope를 `request.read` 하나로 최소화함. 처음엔 me.read·reservation.read·penalty.read까지 요청했으나 실제로 쓸 기능이 신청 내역 표시뿐이라 줄임
+- "dshs.app으로 로그인"으로의 교체는 이번에 하지 않음. 기존 계정(`아이디@dshs.study`)에 연결하는 방식을 택해 기존 데이터를 유지
+- dshs.app 토큰과 secret은 저장소 파일이 아니라 Supabase secrets/서버 DB에만 저장
+
+### 해결한 문제
+- 증상: 실제 로그인 시 `invalid_client` 오류 → 원인: Supabase에 `DSHS_CLIENT_ID`/`DSHS_CLIENT_SECRET`이 저장되지 않아 함수가 `undefined`를 보냄 → 해결: secrets set 명령으로 값을 저장한 뒤 정상 연결 확인
 
 ### 남은 일
-- [ ] 답장의 이름(○○○)과 연락처 이메일 확정 후 실제 발송
-- [ ] Redirect URI에 쓴 Edge Function 이름(`dshs-oauth`)은 아직 미구현 상태이며, 추후 이름이 바뀌면 운영자에게 변경 요청 필요
-- [ ] refresh token(offline_access) 발급 가능 여부에 대한 개발자 답변 확인
+- [ ] DEVLOG 자동 기록에 secret 값이 실수로 들어가지 않았는지 확인
+- [ ] 아이폰 홈 화면 앱에서도 연결 동작 확인
+- [ ] "dshs.app으로 로그인" 전환 여부 추후 결정
 
 ### 배운 점
-- dshs.app는 scope 세분화가 되어 있어(`request.read` 등) 필요한 기능만 최소로 요청할 수 있음
-- 계정 연결에는 별도 scope 없이 OIDC 기본 `sub` 클레임으로 충분함
+- Supabase secrets를 설정하지 않으면 Edge Function이 조용히 `undefined` client_id를 보내 `invalid_client`로 실패함 — 배포 후 `secrets list`로 확인이 필요함
+
+### 바뀐 파일
+- `.claude/hooks/devlog-worker.mjs`
+- `CLAUDE.md`
+- `README.md`
+- `dshs-study.js`
+- `dshsapp.sql`
+- `index.html`
+- `supabase/functions/dshs-oauth/index.ts`
+- `sw.js`
+- `updates.js`
+
+<!-- flow: - **2026-11-01** dshs.app과 API 연동 승인받아 OAuth 연결 구현 완료: 내 신청 내역을 일정 탭 달력에 읽기 전용으로 표시, 비공식 사이트 문구 추가, DEVLOG에 개발자 이름 기록 추가 -->
