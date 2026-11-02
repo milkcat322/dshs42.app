@@ -183,6 +183,9 @@ function renderNav() {
   const acct = $("btnAcct");
   acct.style.display = me ? "" : "none";
   acct.title = me ? `${me.name} (${me.username})` : "";
+  const fb = $("btnFeedback");
+  fb.style.display = me ? "" : "none";
+  fb.onclick = me ? (me.is_admin ? openFeedbackList : openFeedback) : null;
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
@@ -1505,6 +1508,89 @@ function openClassForm(b, key, forAll) {
     toast("수업을 옮겼어요");
     await loadAssignments();
   };
+}
+
+// ---------- 피드백 ----------
+// 로그인한 사용자가 보내고 관리자가 읽습니다. 스크린샷은 비공개 버킷 feedback 에 저장합니다.
+const FEEDBACK_KINDS = { bug: "오류 제보", notice: "공지 오류", idea: "기능 제안", etc: "기타" };
+const FEEDBACK_HINT = {
+  bug: "어떤 화면에서 무엇을 했을 때 문제가 생겼는지 적어 주세요",
+  notice: "어떤 과목 · 분반의 어떤 공지가 잘못됐는지 적어 주세요",
+  idea: "있으면 좋겠는 기능을 적어 주세요",
+  etc: "하고 싶은 말을 적어 주세요",
+};
+
+// 사진은 긴 변 1600px JPEG 로 줄여서 올립니다 (용량 제한 5MB)
+async function shrinkImage(file) {
+  const bmp = await createImageBitmap(file);
+  const r = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * r); c.height = Math.round(bmp.height * r);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close();
+  return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("empty"))), "image/jpeg", 0.85));
+}
+
+function openFeedback() {
+  openSheet("피드백", `
+    <label class="study-label">유형</label>
+    <select class="study-input" id="fbKind">${Object.entries(FEEDBACK_KINDS).map(([k, label]) =>
+      `<option value="${k}">${label}</option>`).join("")}</select>
+    <label class="study-label">내용</label>
+    <textarea class="study-input" id="fbBody" rows="6" maxlength="2000" placeholder="${FEEDBACK_HINT.bug}"></textarea>
+    <label class="study-label">스크린샷 (선택)</label>
+    <input class="study-input" type="file" id="fbFile" accept="image/*">
+    <div class="study-foot">보낸 내용은 관리자만 볼 수 있어요.</div>
+    <div class="study-err" id="authErr"></div>
+    <button class="study-submit" id="fbSend">보내기</button>`);
+  $("fbKind").onchange = () => { $("fbBody").placeholder = FEEDBACK_HINT[$("fbKind").value]; };
+  $("fbSend").onclick = async () => {
+    const body = $("fbBody").value.trim(), file = $("fbFile").files[0];
+    if (!body) return showErr("내용을 입력해 주세요.");
+    $("fbSend").disabled = true;
+    const fail = (msg) => { $("fbSend").disabled = false; showErr(msg); };
+    let image_path = null;
+    if (file) {
+      let blob;
+      try { blob = await shrinkImage(file); }
+      catch { return fail("이 사진은 읽지 못했어요. 다른 사진을 골라 주세요."); }
+      image_path = `${me.id}/${crypto.randomUUID()}.jpg`;
+      const { error } = await sb.storage.from("feedback").upload(image_path, blob, { contentType: "image/jpeg" });
+      if (error) return fail("사진을 올리지 못했어요. 사진을 빼고 보내 보세요.");
+    }
+    const { error } = await sb.from("feedback").insert({ kind: $("fbKind").value, body, image_path });
+    if (error) return fail("보내지 못했어요. 잠시 뒤 다시 시도해 주세요.");
+    closeModal();
+    toast("피드백을 보냈어요. 고마워요!");
+  };
+}
+
+// 관리자: 받은 피드백 (최근 100건)
+async function openFeedbackList() {
+  openSheet("받은 피드백", `<div class="study-empty">불러오는 중…</div>`);
+  const { data, error } = await sb.from("feedback").select("*").order("created_at", { ascending: false }).limit(100);
+  const box = $("studyModal").querySelector(".study-sheet");
+  if (error) { box.querySelector(".study-empty").textContent = "불러오지 못했어요."; return; }
+  const paths = data.map((f) => f.image_path).filter(Boolean);
+  const signed = paths.length ? (await sb.storage.from("feedback").createSignedUrls(paths, 3600)).data || [] : [];
+  const urlOf = new Map(signed.map((x) => [x.path, x.signedUrl]));
+  const { data: who } = await sb.from("profiles").select("id, name, student_id").in("id", [...new Set(data.map((f) => f.user_id))]);
+  const nameOf = new Map((who || []).map((p) => [p.id, p.student_id ? `${p.student_id} ${p.name}` : p.name]));
+  box.querySelector(".study-empty").outerHTML = data.length ? data.map((f) => `<div class="fb-item">
+      <div class="ev-meta">${FEEDBACK_KINDS[f.kind]} · ${esc(nameOf.get(f.user_id) || "알 수 없음")} · ${esc(dayTitle(dayKey(new Date(f.created_at))))} ${hm(new Date(f.created_at))}</div>
+      <div class="fb-body">${esc(f.body)}</div>
+      ${urlOf.get(f.image_path) ? `<a href="${esc(urlOf.get(f.image_path))}" target="_blank" rel="noopener"><img class="fb-img" src="${esc(urlOf.get(f.image_path))}" alt="첨부한 스크린샷"></a>` : ""}
+      <button class="study-btn small no" data-fbdel="${f.id}">삭제</button>
+    </div>`).join("") : `<div class="study-empty">아직 받은 피드백이 없어요.</div>`;
+  box.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = async () => {
+    const f = data.find((r) => r.id === x.dataset.fbdel);
+    if (!confirm("이 피드백을 삭제할까요?")) return;
+    const { error } = await sb.from("feedback").delete().eq("id", f.id);
+    if (error) return toast("삭제하지 못했어요", true);
+    if (f.image_path) await sb.storage.from("feedback").remove([f.image_path]);
+    toast("삭제했어요");
+    openFeedbackList();
+  });
 }
 
 // 관리자: 달력에 시간표가 없으므로 과목 · 분반 · 날짜로 수업을 고릅니다
