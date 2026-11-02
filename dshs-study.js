@@ -184,7 +184,7 @@ function renderNav() {
   acct.style.display = me ? "" : "none";
   acct.title = me ? `${me.name} (${me.username})` : "";
   const fb = $("btnFeedback");
-  fb.style.display = me ? "" : "none";
+  fb.style.display = me && FEEDBACK_ON ? "" : "none";
   fb.onclick = me ? (me.is_admin ? openFeedbackList : openFeedback) : null;
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
@@ -1512,6 +1512,7 @@ function openClassForm(b, key, forAll) {
 
 // ---------- 피드백 ----------
 // 로그인한 사용자가 보내고 관리자가 읽습니다. 스크린샷은 비공개 버킷 feedback 에 저장합니다.
+const FEEDBACK_ON = false;   // 첫 배포 다음 날 true 로 바꾸고 updates.js 에 안내를 추가합니다
 const FEEDBACK_KINDS = { bug: "오류 제보", notice: "전체 분반 공지 오류", idea: "기능 제안", etc: "기타" };
 const FEEDBACK_HINT = {
   bug: "어떤 화면에서 무엇을 했을 때 문제가 생겼는지 적어 주세요",
