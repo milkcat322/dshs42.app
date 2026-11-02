@@ -7,7 +7,23 @@
 <meta name="description" content="대전과학고 2학년 2학기 개인 시간표 · 분반 · 교실 · 선생님 정보">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0a0a0f">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
+<script>
+// 화면 테마: localStorage dshs-theme = system | dark | light (기본 dark). 화면을 그리기 전에 정해 깜빡이지 않게 합니다.
+(() => {
+  const mq = matchMedia('(prefers-color-scheme: light)');
+  window.applyTheme = () => {
+    let t = 'dark';
+    try { t = localStorage.getItem('dshs-theme') || 'dark'; } catch (e) {}
+    const light = t === 'light' || (t === 'system' && mq.matches);
+    document.documentElement.dataset.theme = light ? 'light' : 'dark';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = light ? '#f5f5fa' : '#0a0a0f';
+  };
+  mq.addEventListener('change', window.applyTheme);
+  window.applyTheme();
+})();
+</script>
 <link rel="icon" href="favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,6 +50,7 @@
     --text-dim: #8888aa;
     --text-muted: #55556a;
     --glow: rgba(124, 111, 224, 0.3);
+    --bar-rgb: 10,10,15;   /* 위에 붙는 탭 줄 배경 */
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; overflow-x: hidden; }
@@ -657,13 +674,13 @@
 
     /* 아이콘 버튼과 탭: 탭은 한 줄로 두고, 둘 다 스크롤해도 위에 붙어 있습니다 */
     /* 화면 맨 위의 노치 영역은 ::before 로 덮습니다 (padding 으로 넣으면 맨 위에 있을 때도 그만큼 빈칸이 생김) */
-    .nav-bar { position: sticky; top: env(safe-area-inset-top); z-index: 50; margin: 0 -14px 12px; padding: 6px 14px 8px; background: rgba(10,10,15,0.9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+    .nav-bar { position: sticky; top: env(safe-area-inset-top); z-index: 50; margin: 0 -14px 12px; padding: 6px 14px 8px; background: rgba(var(--bar-rgb),0.9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
     .nav-bar::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: env(safe-area-inset-top); background: inherit; }
     /* 설치 안내가 없으면 맨 위에서는 아이콘 줄을 로고 줄 오른쪽에 겹쳐 두어 로고와 탭 사이를 줄입니다 */
     .nav-bar { margin-top: -45px; }
     .nav-icons { align-items: center; }
     /* 그 대신 맨 위에서는 배경을 비워 로고가 보이게 하고, 조금만 내려도 배경이 차오릅니다 */
-    .nav-bar { background: rgba(10,10,15, calc(var(--hp, 0) * 2)); }   /* 조금만 내려도 배경이 차올라 아래 내용이 비치지 않게 */
+    .nav-bar { background: rgba(var(--bar-rgb), calc(var(--hp, 0) * 2)); }   /* 조금만 내려도 배경이 차올라 아래 내용이 비치지 않게 */
     body:not(.scrolled) .nav-bar { -webkit-backdrop-filter: none; backdrop-filter: none; }
     .nav-icons { margin-bottom: 6px; }
     .icon-btn { width: 32px; height: 32px; font-size: 15px; }
@@ -734,6 +751,73 @@
   @media (max-width: 374px) {
     .timetable:not(.cmp-table) .class-cell .subj-name { font-size: 9px; }
   }
+
+  /* ---------- 라이트 테마 (설정 → 화면 테마) ----------
+     색은 대부분 위의 변수로 바뀌고, 어두운 배경에 맞춘 연한 글자색만 여기서 진하게 바꿉니다. */
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f5f5fa;
+    --surface: #ffffff;
+    --card: #eeeef5;
+    --border: #d9d9e6;
+    --accent1: #6a5cd6;
+    --accent2: #d0558a;
+    --accent3: #1fae8c;
+    --text: #1b1b28;
+    --text-dim: #5a5a76;
+    --text-muted: #8c8ca4;
+    --glow: rgba(106, 92, 214, 0.22);
+    --bar-rgb: 245,245,250;
+  }
+  :root[data-theme="light"] .timetable td { border-color: rgba(0,0,0,0.07); }
+  :root[data-theme="light"] .timetable th.day-header.mon { color: #7c3aed; }
+  :root[data-theme="light"] .timetable th.day-header.tue { color: #2563eb; }
+  :root[data-theme="light"] .timetable th.day-header.wed { color: #059669; }
+  :root[data-theme="light"] .timetable th.day-header.thu { color: #ea580c; }
+  :root[data-theme="light"] .timetable th.day-header.fri { color: #db2777; }
+  :root[data-theme="light"] .color-0 { color: #6d28d9; }
+  :root[data-theme="light"] .color-1 { color: #be185d; }
+  :root[data-theme="light"] .color-2 { color: #047857; }
+  :root[data-theme="light"] .color-3 { color: #1d4ed8; }
+  :root[data-theme="light"] .color-4 { color: #c2410c; }
+  :root[data-theme="light"] .color-5 { color: #a16207; }
+  :root[data-theme="light"] .color-6 { color: #047857; }
+  :root[data-theme="light"] .color-7 { color: #6d28d9; }
+  :root[data-theme="light"] .color-8 { color: #b91c1c; }
+  :root[data-theme="light"] .color-9 { color: #4338ca; }
+  :root[data-theme="light"] .color-10 { color: #0f766e; }
+  :root[data-theme="light"] .color-11 { color: #b45309; }
+  :root[data-theme="light"] .color-12 { color: #047857; }
+  :root[data-theme="light"] .cmp-cell > .cmp-row + .cmp-row { border-top-color: rgba(0,0,0,0.08); }
+  :root[data-theme="light"] .cmp-row.free, :root[data-theme="light"] .due-badge.over { background: rgba(0,0,0,0.03); }
+  :root[data-theme="light"] .due-pick:hover { background: rgba(0,0,0,0.05); }
+  :root[data-theme="light"] .notice-box .tx { color: #6b5a1a; }
+  :root[data-theme="light"] .notice-box .tx b, :root[data-theme="light"] .warn-note b, :root[data-theme="light"] .warn-note .hd { color: #a16207; }
+  :root[data-theme="light"] .error-msg, :root[data-theme="light"] .study-err, :root[data-theme="light"] .diag-row.bad .ms,
+  :root[data-theme="light"] .study-btn.small.no, :root[data-theme="light"] .td-due.over, :root[data-theme="light"] .due-clear,
+  :root[data-theme="light"] .study-submit.danger, :root[data-theme="light"] .set-row.warn b { color: #dc2626; }
+  :root[data-theme="light"] .set-row.warn .ev-hint { color: #b91c1c; }
+  :root[data-theme="light"] .due-badge.soon, :root[data-theme="light"] .td-due.soon, :root[data-theme="light"] .gpa-track.lib { color: #c2410c; }
+  :root[data-theme="light"] .c-asg { --c: #ca8a04; }
+  :root[data-theme="light"] .c-mint { --c: #0d9488; }
+  :root[data-theme="light"] .c-school { --c: #64748b; }
+  :root[data-theme="light"] .c-dshs { --c: #2b8fc7; }
+  :root[data-theme="light"] .c-orange { --c: #ea580c; }
+  :root[data-theme="light"] .c-blue { --c: #2563eb; }
+  :root[data-theme="light"] .fc-host.fc { --fc-border-color: rgba(0,0,0,0.09); }
+  :root[data-theme="light"] .fc-host .fc-timegrid-slot { border-bottom-color: rgba(0,0,0,0.05); }
+  :root[data-theme="light"] .fc-host .fc-day-sun .fcx-wd, :root[data-theme="light"] .fc-host .fc-daygrid .fc-day-sun .fc-col-header-cell-cushion,
+  :root[data-theme="light"] .fc-host .fc-day-sun .fc-daygrid-day-number { color: #dc2626; }
+  :root[data-theme="light"] .fc-host .fc-day-sat .fcx-wd, :root[data-theme="light"] .fc-host .fc-daygrid .fc-day-sat .fc-col-header-cell-cushion,
+  :root[data-theme="light"] .fc-host .fc-day-sat .fc-daygrid-day-number { color: #2563eb; }
+  :root[data-theme="light"] .fc-host .fc-bg-event.fcx-tt { background: rgba(100,116,139,0.08); border-left-color: rgba(100,116,139,0.35); }
+  :root[data-theme="light"] .fcx-tt-in { color: rgba(51,65,85,0.7); }
+  :root[data-theme="light"] .study-modal { background: rgba(20,20,40,0.35); }
+
+  /* 설정의 화면 테마 고르기 */
+  .theme-seg { display: inline-flex; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+  .theme-seg button { background: none; border: none; border-radius: 7px; padding: 6px 11px; font-size: 12.5px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-muted); cursor: pointer; }
+  .theme-seg button.on { background: var(--card); color: var(--text); }
 </style>
 </head>
 <body>

@@ -1680,14 +1680,33 @@ function openDshsDetail(r) {
     <a class="study-btn wide" href="https://dshs.app" target="_blank" rel="noopener">dshs.app 열기</a>`);
 }
 
-// 설정: 알림 · 학교 일정 보이기 · 계정(로그아웃과 dshs.app 연결 관리)
+// 화면 테마 (index.html 의 applyTheme 이 실제로 바꿉니다)
+const THEMES = [["system", "시스템"], ["dark", "다크"], ["light", "라이트"]];
+const THEME_KEY = "dshs-theme";
+const curTheme = () => { try { return localStorage.getItem(THEME_KEY) || "dark"; } catch { return "dark"; } };
+function themeHtml() {
+  return `<div class="set-row"><span><b>화면 테마</b><span class="ev-hint">시스템: 기기 설정(다크 · 라이트)을 따라가요</span></span>
+    <div class="theme-seg">${THEMES.map(([k, label]) =>
+      `<button type="button" data-theme-pick="${k}"${curTheme() === k ? ' class="on"' : ""}>${label}</button>`).join("")}</div></div>`;
+}
+function bindTheme() {
+  $("studyModal").querySelectorAll("[data-theme-pick]").forEach((b) => b.onclick = () => {
+    try { localStorage.setItem(THEME_KEY, b.dataset.themePick); } catch {}
+    window.applyTheme?.();
+    $("studyModal").querySelectorAll("[data-theme-pick]").forEach((x) => x.classList.toggle("on", x === b));
+  });
+}
+
+// 설정: 알림 · 학교 일정 보이기 · 화면 테마 · 계정(로그아웃과 dshs.app 연결 관리)
 function openSettings() {
-  if (!me) {   // 로그인 전: 로그인 안내만 (제목 7번 → 관리자 로그인)
+  if (!me) {   // 로그인 전: 화면 테마와 로그인 안내 (제목 7번 → 관리자 로그인)
     openSheet("설정", `
-      <div class="asg-body">로그인하면 알림 · 내 일정 달력 설정과 계정을 여기서 관리할 수 있어요.</div>
+      ${themeHtml()}
+      <div class="asg-body" style="margin-top:14px">로그인하면 알림 · 내 일정 달력 설정과 계정을 여기서 관리할 수 있어요.</div>
       <button class="study-submit dshs-login" id="doDshsLogin">dshs.app으로 로그인</button>
       <div class="study-err" id="authErr"></div>`);
     $("doDshsLogin").onclick = loginWithDshs;
+    bindTheme();
     return bindAdminTap();
   }
   const link = dshs.linked
@@ -1701,6 +1720,7 @@ function openSettings() {
   openSheet("설정", `
     <label class="set-row"><span><b>알림</b><span class="ev-hint" id="pushHint">${PUSH_HINT}</span></span>
       <input type="checkbox" id="setPush"></label>
+    ${themeHtml()}
     <div class="set-sec">내 일정 달력</div>
     ${calSettingsHtml()}
     <div class="set-sec">계정</div>
@@ -1714,6 +1734,7 @@ function openSettings() {
   if ($("doDshs")) $("doDshs").onclick = startDshs;
   if ($("dshsUnlink")) $("dshsUnlink").onclick = unlinkDshs;
   $("doLogout").onclick = () => { closeModal(); logout(); };
+  bindTheme();
   bindAdminTap();
 }
 
