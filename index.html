@@ -604,6 +604,97 @@
   .welcome-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
   .welcome-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.6; }
   .welcome-text { font-size: 14px; line-height: 1.6; }
+  /* ---------- 폰 화면 ----------
+     머리글을 한 줄로 줄이고 탭을 위에 붙여, 첫 화면에 내용이 바로 보이게 합니다. 폰 전용 스타일은 여기에 모읍니다. */
+  @media (max-width: 640px) {
+    html { -webkit-text-size-adjust: 100%; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    input, select, textarea { font-size: 16px !important; }   /* 16px 보다 작으면 아이폰이 입력할 때 화면을 확대합니다 */
+    .container { padding: 0 14px calc(20px + env(safe-area-inset-bottom)); }
+
+    /* 머리글: 왼쪽 로고, 오른쪽 버튼 */
+    .header { display: flex; align-items: center; height: 46px; margin: env(safe-area-inset-top) 0 0; text-align: left; }
+    .school-badge, .subtitle { display: none; }
+    h1 { font-size: 20px; margin: 0; }
+    .top-btns { top: calc(9px + env(safe-area-inset-top)); left: auto; right: 14px; }
+    .top-right { top: calc(9px + env(safe-area-inset-top)); right: 14px; }
+    .container:has(#btnFeedback:not([style*="none"])) .top-btns { right: 92px; }
+    .upd-btn { padding: 5px 10px; font-size: 12px; }
+
+    /* 설치 안내는 한 줄로. 자세한 설명은 설치 버튼을 누르면 나옵니다 */
+    .install-bar { padding: 8px 10px; margin-bottom: 10px; gap: 10px; border-radius: 13px; }
+    .install-icon { width: 32px; height: 32px; font-size: 17px; border-radius: 9px; }
+    .install-sub { display: none; }
+    .install-btn { padding: 7px 12px; }
+
+    /* 탭: 한 줄로 두고 스크롤해도 위에 붙어 있습니다 */
+    .study-nav { position: sticky; top: 0; z-index: 50; flex-wrap: nowrap; gap: 6px; margin: 0 -14px 12px; padding: calc(6px + env(safe-area-inset-top)) 14px 8px; background: rgba(10,10,15,0.9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+    .study-nav .study-btn { flex: 1 1 0; min-width: 0; padding: 10px 2px; font-size: 13.5px; border-radius: 11px; white-space: nowrap; }
+
+    /* 검색은 내 시간표 화면에서만 보입니다 */
+    .container:has(#studyView[style*="block"]) .search-section { display: none; }
+    .search-section { padding: 12px; margin-bottom: 16px; border-radius: 14px; }
+    .search-label { display: none; }
+    .search-row { gap: 8px; }
+    #nameInput { padding: 10px 12px; text-overflow: ellipsis; }
+    #nameInput::placeholder { font-size: 14px; }
+    .btn-search { padding: 10px 12px; font-size: 13.5px; white-space: nowrap; flex-shrink: 0; }
+    .welcome-state { padding: 24px 12px; }
+
+    /* 시간표 화면 */
+    .student-profile { gap: 12px; margin-bottom: 12px; }
+    .student-avatar { width: 42px; height: 42px; font-size: 18px; }
+    .student-info h2 { font-size: 19px; }
+    .stats-row { flex-wrap: nowrap; gap: 6px; margin-bottom: 12px; }
+    .stat-chip { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 1px; padding: 7px 2px; text-align: center; font-size: 11.5px; }
+    .stat-num { font-size: 15px; }
+    .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
+    .tab-btn { padding: 9px 2px; font-size: 12.5px; white-space: nowrap; }
+
+    /* 월~금이 옆으로 밀지 않아도 한 화면에 들어옵니다 (비교표는 칸이 많아 그대로 밉니다) */
+    .timetable-wrap { border-radius: 12px; }
+    table.timetable:not(.cmp-table) { min-width: 0; table-layout: fixed; }
+    .timetable:not(.cmp-table) th { padding: 8px 0; letter-spacing: 0; }
+    .timetable:not(.cmp-table) th:first-child { width: 22px; }
+    .timetable:not(.cmp-table) th.day-header { font-size: 12px; }
+    .timetable:not(.cmp-table) td { min-width: 0; padding: 2px; height: 46px; }
+    .timetable:not(.cmp-table) td.period-col { width: 22px; min-width: 0; font-size: 10px; }
+    .timetable:not(.cmp-table) .class-cell { padding: 2px 1px; border-radius: 6px; height: 42px; overflow: hidden; word-break: keep-all; overflow-wrap: anywhere; }
+    .timetable:not(.cmp-table) .class-cell .subj-name { font-size: 10px; line-height: 1.2; letter-spacing: -0.03em; }
+    .legend { margin-top: 12px; padding: 12px 14px; }
+
+    /* 내 일정 · 수행평가 · 할 일 */
+    .study-head { align-items: center; margin-bottom: 10px; }
+    .container:has([data-page="mytt"]) .study-head { display: none; }   /* 제목이 탭과 같고, 내 시간표 탭으로 돌아갈 수 있습니다. 관리자 전용 계정만 닫기 버튼이 필요합니다 */
+    .study-head h2 { font-size: 18px; }
+    .study-sub { display: none; }
+    .study-head .study-btn { padding: 6px 10px; font-size: 12px; }
+    .study-row { flex-wrap: nowrap; gap: 6px; margin-bottom: 12px; }
+    .study-row .study-btn { flex: 1 1 auto; min-width: 0; padding: 9px 4px; font-size: 12.5px; white-space: nowrap; }
+    .study-btn.small { min-height: 34px; }
+
+    .cal-bar { gap: 8px; margin-bottom: 8px; }
+    .cal-nav-group { width: 100%; }
+    .cal-nav { width: 34px; height: 34px; }
+    .cal-title { margin-left: auto; font-size: 15px; }
+    .cal-right { gap: 8px; }
+    .cal-right .seg { order: -1; display: flex; width: 100%; }
+    .seg-btn { flex: 1; padding: 8px 0; }
+    .kind-legend { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .kind-legend::-webkit-scrollbar { display: none; }
+    .kl { white-space: nowrap; flex-shrink: 0; }
+    .ev-meta { white-space: normal; }
+
+    /* 창은 아래에서 올라옵니다 */
+    .study-modal { align-items: flex-end; padding: 0; }
+    .study-sheet, .upd-sheet { max-width: none; max-height: 92vh; max-height: 92dvh; border-radius: 20px 20px 0 0; border-width: 1px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+    .study-x { padding: 4px 6px; }
+    .ev-dur { padding: 7px 12px; }
+    .study-toast { width: max-content; max-width: calc(100vw - 28px); }
+  }
+  @media (max-width: 374px) {
+    .timetable:not(.cmp-table) .class-cell .subj-name { font-size: 9px; }
+  }
 </style>
 </head>
 <body>
