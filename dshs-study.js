@@ -167,6 +167,10 @@ function sortClasses(list) {
 }
 const banLabel = (ban) => ban || "전체 분반";
 const mySubjects = () => [...new Set(myClasses.map((c) => c.subject))];
+// 수행평가를 보지 않는 과목은 수행평가 탭과 추가 화면에서 뺍니다. 시간표에는 그대로 있습니다.
+const NO_ASG_SUBJECTS = new Set(["미술", "체육"]);
+const asgClasses = () => myClasses.filter((c) => !NO_ASG_SUBJECTS.has(c.subject));
+const asgSubjects = () => mySubjects().filter((s) => !NO_ASG_SUBJECTS.has(s));
 
 // ---------- 헤더 ----------
 function renderNav() {
@@ -392,7 +396,7 @@ function rerender() {
 window.closeStudyView = closeStudy;
 
 function renderStudy() {
-  const subjects = me.student_id ? `${myClasses.length}과목` : `전체 ${mySubjects().length}과목`;
+  const subjects = me.student_id ? `${asgClasses().length}과목` : `전체 ${asgSubjects().length}과목`;
   const [title, sub] = {
     cal: ["내 일정", `수행평가 ${subjects} + 개인 일정`],
     notice: ["수행평가", `내 분반 수행평가 ${subjects}`],
@@ -1207,9 +1211,9 @@ function openNewForm(a) {
   // 학생은 자기 분반만, 관리자는 과목마다 "전체 분반" + 각 분반
   const opts = a ? [{ subject: a.subject, ban: a.ban }]
     : me.is_admin
-    ? mySubjects().flatMap((s) => [{ subject: s, ban: null },
+    ? asgSubjects().flatMap((s) => [{ subject: s, ban: null },
         ...myClasses.filter((c) => c.subject === s)])
-    : myClasses;
+    : asgClasses();
   view = "form";
   if (!opts.length) {
     body.innerHTML = `<div class="study-empty">수강 과목 정보를 찾지 못해 수행평가를 추가할 수 없어요.</div>
@@ -2348,7 +2352,7 @@ function renderNotice() {
 
 // 내 과목(관리자는 전체 과목)마다 공지를 묶습니다. 남은 공지가 있는 과목을 마감 가까운 순으로 위에.
 function noticeSubjects(now) {
-  return mySubjects().map((name) => {
+  return asgSubjects().map((name) => {
     const items = noticeItems().filter((a) => a.subject === name);
     const up = items.filter((a) => dueMs(a) >= +now);   // 마감 일시 없는 공지는 끝나지 않은 것으로
     const left = up.filter((a) => !cache.done.has(a.id));

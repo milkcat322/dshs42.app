@@ -12,6 +12,9 @@ window.DSHS_UPDATES = [
     id: "2026-11-02-nav-icons", date: "2026-11-02", major: false,
     title: "맨 위 탭 이름을 '시간표'로 바꾸고, 업데이트 · 계정 버튼을 탭 위 아이콘으로 옮겼어요",
     items: ["폰에서 화면을 내려도 탭과 함께 위에 붙어 있어요"],
+    id: "2026-11-02-no-asg", date: "2026-11-02", major: false,
+    title: "수행평가를 보지 않는 미술 · 체육을 수행평가 탭에서 뺐어요",
+    items: [],
   },
   {
     id: "2026-11-02-mobile", date: "2026-11-02", major: true,
