@@ -184,7 +184,7 @@ function renderNav() {
   nav.innerHTML = me
     ? tabs.map(([k, label]) =>
         `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("")
-    : `<button class="study-btn" id="btnLogin">dshs.app으로 로그인</button>`;
+    : `<button class="study-btn" id="btnLogin">로그인</button>`;
   // 설정(알림 · 학교 일정 · 계정)은 업데이트 옆에 늘 보입니다 (로그인 전에는 관리자 로그인을 여는 곳)
   const set = $("btnSettings");
   set.style.display = "";
@@ -234,41 +234,32 @@ async function logout() {
 }
 
 // ---------- 로그인 ----------
-// 학생은 dshs.app 으로만 로그인합니다 (회원가입 없음). 처음이면 dshs-oauth 가 학번으로 계정을 만듭니다.
-// 아이디 · 비밀번호 로그인은 관리자 전용이라 숨겨 두었고, 설정 창 제목 "설정" 을 7번 누르면 열립니다.
+// 회원가입은 없습니다. 새 학생은 dshs.app 으로 로그인하면 dshs-oauth 가 학번으로 계정을 만듭니다.
+// 아이디 · 비밀번호 로그인은 이미 가입한 학생과 관리자를 위해 남겨 둡니다. 관리자 로그인 창은 설정 창 제목 "설정" 을 7번 누르면 열립니다.
 function closeModal() { $("studyModal").className = "study-modal"; }
 
 function openAuth() {
   openSheet("로그인", `
     <button class="study-submit dshs-login" id="doDshsLogin">dshs.app으로 로그인</button>
-    <div class="study-err" id="authErr"></div>
-    <div class="study-foot">dshs.app 계정으로 로그인해요. 따로 가입하지 않아도 되고, 전에 아이디로 가입했다면 같은 학번 계정으로 들어가요.<br>
+    <div class="auth-or">또는 아이디로 로그인</div>
+    ${idLoginHtml("가입할 때 정한 아이디", "8자 이상")}
+    <div class="study-foot">새로 가입하지 않아도 dshs.app 계정으로 바로 로그인할 수 있어요. 전에 아이디로 가입했다면 아이디로 로그인하거나, dshs.app으로 로그인해도 같은 학번 계정으로 들어가요.<br>
       대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트예요.</div>`);
   $("doDshsLogin").onclick = loginWithDshs;
+  bindIdLogin();
 }
 
-// 설정 창 제목을 빠르게 7번 누르면 관리자 로그인
-const ADMIN_TAPS = 7;
-function bindAdminTap() {
-  const t = $("studyModal").querySelector(".sheet-title");
-  let n = 0, last = 0;
-  t.style.userSelect = "none";
-  t.onclick = () => {
-    const now = Date.now();
-    n = now - last < 1500 ? n + 1 : 1;
-    last = now;
-    if (n >= ADMIN_TAPS) openAdminLogin();
-  };
-}
-
-function openAdminLogin() {
-  openSheet("관리자 로그인", `
+// 아이디 · 비밀번호 로그인 (로그인 창과 관리자 로그인 창이 같이 씁니다)
+function idLoginHtml(idHint = "", pwHint = "") {
+  return `
     <label class="study-label">아이디</label>
-    <input class="study-input" id="loginId" autocomplete="username">
+    <input class="study-input" id="loginId" autocomplete="username" placeholder="${idHint}">
     <label class="study-label">비밀번호</label>
-    <input class="study-input" id="loginPw" type="password" autocomplete="current-password">
+    <input class="study-input" id="loginPw" type="password" autocomplete="current-password" placeholder="${pwHint}">
     <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="doLogin">로그인</button>`);
+    <button class="study-submit" id="doLogin">로그인</button>`;
+}
+function bindIdLogin() {
   const go = async () => {
     const u = $("loginId").value.trim().toLowerCase();
     const p = $("loginPw").value;
@@ -287,6 +278,25 @@ function openAdminLogin() {
   };
   $("doLogin").onclick = go;
   $("loginPw").onkeydown = (e) => { if (e.key === "Enter") go(); };
+}
+
+// 설정 창 제목을 빠르게 7번 누르면 관리자 로그인
+const ADMIN_TAPS = 7;
+function bindAdminTap() {
+  const t = $("studyModal").querySelector(".sheet-title");
+  let n = 0, last = 0;
+  t.style.userSelect = "none";
+  t.onclick = () => {
+    const now = Date.now();
+    n = now - last < 1500 ? n + 1 : 1;
+    last = now;
+    if (n >= ADMIN_TAPS) openAdminLogin();
+  };
+}
+
+function openAdminLogin() {
+  openSheet("관리자 로그인", idLoginHtml());
+  bindIdLogin();
   $("loginId").focus();
 }
 
