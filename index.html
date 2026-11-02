@@ -367,11 +367,24 @@
   .fcx-tt-in { padding: 3px 5px; display: flex; flex-direction: column; gap: 1px; overflow: hidden; color: rgba(203,213,225,0.55); font-size: 10.5px; line-height: 1.3; }
   .fcx-tt-in b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fcx-tt-in span { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; opacity: 0.8; white-space: nowrap; }
-  /* 학교 일정: 흐린 회색, 점선 */
-  .fcx-school .fcx { background: color-mix(in srgb, var(--c) 10%, var(--surface)); border-left: 3px dashed color-mix(in srgb, var(--c) 70%, transparent); color: var(--text-dim); }
+  /* 일정 종류: 색만이 아니라 모양으로도 구분합니다 (좁은 폰 화면, 색을 구분하기 어려운 사람도 알아볼 수 있게)
+     수행평가 꽉 찬 노랑 · 할 일 민트 테두리+체크 · 내 일정 왼쪽 막대(.fcx 기본) · 학교 일정 회색 점선 · 학사일정 둥근 띠 · 신청 줄무늬 */
+  .fcx-school .fcx { background: color-mix(in srgb, var(--c) 10%, var(--surface)); border: 1px dashed color-mix(in srgb, var(--c) 75%, transparent); color: var(--text-dim); }
+  .fcx-dshs .fcx { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 30%, var(--surface)) 0 6px, color-mix(in srgb, var(--c) 12%, var(--surface)) 6px 12px); border-left: 3px solid var(--c); color: #fff; }
   /* 학사일정(NEIS): 종류별 색, 옅은 바탕 */
-  .c-acad-home { --c: #34d399; } .c-acad-exam { --c: #f87171; } .c-acad-break { --c: #38bdf8; } .c-acad-holiday { --c: #f9a8d4; } .c-acad-club { --c: #c084fc; } .c-acad-event { --c: #a3e635; }
-  .fcx-acad .fcx { background: color-mix(in srgb, var(--c) 13%, var(--surface)); color: color-mix(in srgb, var(--c) 40%, #fff); }
+  .c-acad-home { --c: #34d399; } .c-acad-exam { --c: #f87171; } .c-acad-break { --c: #38bdf8; } .c-acad-holiday { --c: #f9a8d4; } .c-acad-club { --c: #c084fc; } .c-acad-event { --c: #cbd5e1; }
+  .fcx-acad .fcx { background: color-mix(in srgb, var(--c) 13%, var(--surface)); border-left: none; border-radius: 100px; padding: 1px 8px; color: color-mix(in srgb, var(--c) 40%, #fff); }
+  .fcx-acad .fcx-title { font-size: 11px; font-weight: 600; }
+  /* 달력 위 범례 */
+  .kind-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 12px; }
+  .kl { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+  .kl-mark { display: inline-block; width: 16px; height: 11px; border-radius: 3px; box-sizing: border-box; }
+  .kl-mark.k-asg { background: var(--c); }
+  .kl-mark.k-todo { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--c); }
+  .kl-mark.k-ev { background: color-mix(in srgb, var(--c) 22%, var(--surface)); border-left: 3px solid var(--c); }
+  .kl-mark.k-sch { background: color-mix(in srgb, var(--c) 10%, var(--surface)); border: 1px dashed var(--c); }
+  .kl-mark.k-acad { height: 8px; border-radius: 100px; background: color-mix(in srgb, var(--c) 45%, var(--surface)); }
+  .kl-mark.k-dshs { background: repeating-linear-gradient(135deg, var(--c) 0 3px, color-mix(in srgb, var(--c) 18%, var(--surface)) 3px 6px); }
   .acad-opt { align-items: flex-start; line-height: 1.5; }
   .acad-opt input { margin-top: 2px; flex-shrink: 0; }
   .acad-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex-shrink: 0; margin-top: 5px; }
@@ -440,8 +453,8 @@
   .fcx-time { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fcx-title { font-size: 12px; font-weight: 700; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fc-timegrid-event .fcx-title { white-space: normal; }
-  /* 수행평가: 과목과 상관없이 한 색 — 속은 비우고 노란 테두리만 (개인 일정은 색 채움) */
-  .fcx-asg .fcx { background: transparent; border: 2px solid var(--c); color: var(--text); }
+  /* 수행평가: 과목과 상관없이 한 색 — 가장 눈에 띄게 꽉 채웁니다 */
+  .fcx-asg .fcx { background: var(--c); border-left: none; color: #2a2100; }
   /* 끌어서 옮기기 · 아래 가장자리 끌어서 길이 바꾸기 */
   .fc-host .fc-timegrid-event.fc-event-draggable { cursor: grab; }
   .fc-host .fc-event-dragging { cursor: grabbing; }
@@ -451,7 +464,7 @@
   .fc-host .fc-event-mirror .fcx { box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
   .is-done .fcx { opacity: 0.45; }
   /* 할 일: 얇은 테두리 + 동그라미 체크 */
-  .fcx-todo .fcx { background: color-mix(in srgb, var(--c) 7%, transparent); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); color: var(--text); padding: 2px 6px; }
+  .fcx-todo .fcx { background: transparent; border: 1.5px solid color-mix(in srgb, var(--c) 75%, transparent); color: var(--text); padding: 2px 6px; }
   .fcx-todo .fcx-title { display: flex; align-items: center; gap: 5px; }
   .fcx-tchk { flex-shrink: 0; width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--c); display: inline-flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; color: var(--bg, #0b0b12); cursor: pointer; }
   .fcx-tchk:hover { background: color-mix(in srgb, var(--c) 35%, transparent); }
@@ -533,6 +546,13 @@
   .ev-meta { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ev-row.done .ev-title { text-decoration: line-through; color: var(--text-muted); }
   .ev-row .due-badge { flex-shrink: 0; }
+  /* 목록에서도 달력과 같은 모양으로 일정 종류를 구분합니다 */
+  .ev-kind { align-self: flex-start; font-size: 10.5px; font-weight: 700; line-height: 1.4; padding: 0 6px; border-radius: 5px; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+  .ev-row.k-asg { background: color-mix(in srgb, var(--c) 13%, var(--surface)); }
+  .ev-row.k-asg .ev-kind { background: var(--c); color: #2a2100; }
+  .ev-row.k-todo { background: transparent; border-left-width: 1px; border-color: color-mix(in srgb, var(--c) 60%, transparent); }
+  .ev-row.k-sch { border: 1px dashed color-mix(in srgb, var(--c) 75%, transparent); }
+  .ev-row.k-dshs { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 9%, var(--surface)) 0 8px, var(--surface) 8px 16px); }
   .sheet-title { font-size: 16px; font-weight: 800; }
   .study-sheet .asg-card { margin-bottom: 0; }
   .ev-allday { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-dim); margin-top: 12px; cursor: pointer; }
@@ -549,6 +569,8 @@
     .cal-right { margin-left: 0; width: 100%; justify-content: space-between; flex-wrap: wrap; }
     .fc-host .fc-timegrid-slot { height: 44px; }
     .fcx { padding: 2px 4px; }
+    .fcx-acad .fcx { padding: 1px 4px; }
+    .fc-dayGridMonth-view .fcx-title { text-overflow: clip; }
     .fcx-title { font-size: 11px; }
     /* 3일 보기: 일정 제목을 … 로 줄이지 않고 줄바꿈으로 모두 보여 줍니다 (주·월 보기는 첫 글자만 — dshs-study.js 의 compactCal) */
     .fc-threeDays-view .fcx-title, .fc-threeDays-view .fcx-time, .fc-threeDays-view .fcx-tt-in b { white-space: normal; text-overflow: clip; overflow-wrap: anywhere; }

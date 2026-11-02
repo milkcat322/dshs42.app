@@ -21,7 +21,8 @@ let tab = (() => {      // feed 화면의 탭. 마지막에 고른 보기를 기
   return window.innerWidth < 640 ? "3day" : "week";
 })();
 
-const COLORS = ["mint", "violet", "pink", "orange", "blue"];
+// 민트는 할 일 전용이라 개인 일정 색에서 뺐습니다 (예전에 민트로 저장한 일정은 그대로 민트로 보임)
+const COLORS = ["violet", "pink", "orange", "blue"];
 
 // ---------- 유틸 ----------
 const $ = (id) => document.getElementById(id);
@@ -540,7 +541,7 @@ function renderList(mode) {
         <div class="seg">${VIEWS.map(([k, label]) =>
           `<button class="seg-btn${tab === k ? " on" : ""}" data-seg="${k}">${label}</button>`).join("")}</div>
       </div>
-    </div>` +
+    </div>${legendHtml()}` +
     (tab === "list" ? listHtml(agenda()) : `<div class="fc-host" id="calHost"><div class="study-empty">달력 불러오는 중…</div></div>`);
   body.querySelectorAll("[data-seg]").forEach((b) => b.onclick = () => switchTab(b.dataset.seg));
   body.querySelectorAll("[data-nav]").forEach((b) => b.onclick = () => fc && fc[b.dataset.nav]());
@@ -692,6 +693,7 @@ function fcEvents() {
     };
     if (it.shared) base.classNames.push("fcx-shared");
     if (it.kind === "sch") base.classNames.push("fcx-school");
+    if (it.kind === "dshs") base.classNames.push("fcx-dshs");
     if (it.kind === "todo") return { ...base, classNames: [...base.classNames, "fcx-todo"], start: dayKey(it.at), allDay: true, editable: true, durationEditable: false };
     if (it.kind === "asg") return { ...base, start: dayKey(it.at), allDay: true, editable: false };
     if (it.allDay) {
@@ -718,10 +720,12 @@ function fcContent(arg) {
   const time = compact ? ""
     : p.kind === "asg" ? `${hm(p.at)} 마감`
     : arg.event.allDay ? "" : `${hm(s)}${e ? ` – ${hm(e)}` : ""}`;
-  const icon = compact ? "" : p.kind === "asg" ? "📋 " : p.kind === "sch" ? "🏫 " : p.kind === "acad" ? "🎓 " : p.kind === "dshs" ? "📮 " : p.shared ? "👥 " : "";
+  const icon = p.kind === "asg" ? "📋 " : p.kind === "sch" ? "🏫 " : p.kind === "acad" ? "🎓 " : p.kind === "dshs" ? "📮 " : p.shared ? "👥 " : "";
+  // 좁은 칸에서는 아이콘 + 첫 글자만 (… 까지 넣으면 글자가 밀려 … 만 남습니다)
+  const label = compact && icon ? `${icon.trim()}${esc([...full][0] || "")}` : `${icon}${esc(title)}`;
   return { html: `<div class="fcx" title="${esc(full)}">
     ${time ? `<div class="fcx-time">${time}</div>` : ""}
-    <div class="fcx-title">${icon}${esc(title)}</div>
+    <div class="fcx-title">${label}</div>
   </div>` };
 }
 
@@ -835,13 +839,13 @@ function agenda() {
   const sch = cache.school.map((e) => ({
     kind: "sch", id: e.id, title: e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
     allDay: e.all_day, color: "school", done: false, owner: me.is_admin,
-    tag: ["학교 일정", e.no_class && "수업 없음", me.is_admin && e.audience === "some" && `🎯 ${schoolTargets(e).length}명`,
+    tag: [e.no_class && "수업 없음", me.is_admin && e.audience === "some" && `🎯 ${schoolTargets(e).length}명`,
       e.memo.split("\n")[0]].filter(Boolean).join(" · "),
   }));
   // 기한을 정한 할 일은 그날 종일 칸에 체크박스로 둡니다
   const todos = (cache.todos || []).filter((t) => t.due_on).map((t) => ({
     kind: "todo", id: t.id, title: t.title, at: parseDay(t.due_on), end: null, allDay: true,
-    color: "mint", done: t.done, owner: true, tag: "할 일",
+    color: "mint", done: t.done, owner: true,
   }));
   return [...sch, ...asgs, ...todos, ...evs, ...dshsAgenda()].sort((x, y) => (y.allDay - x.allDay) || (x.at - y.at));
 }
@@ -854,14 +858,24 @@ function timeLabel(it) {
   return multi ? `${md(it.at)} ${hm(it.at)} – ${md(it.end)} ${hm(it.end)}` : `${hm(it.at)} – ${hm(it.end)}`;
 }
 
+// 일정 종류 이름. 달력에서는 모양으로, 목록에서는 이 이름표로 구분합니다 (모양은 index.html 의 "일정 종류" 규칙)
+const KIND_LABEL = { asg: "수행평가", todo: "할 일", ev: "내 일정", sch: "학교 일정", dshs: "dshs.app 신청" };
+function legendHtml() {
+  const kinds = [["asg", "c-asg"], ["todo", "c-mint"], ["ev", "c-violet"], ["sch", "c-school"], ["dshs", "c-dshs"]];
+  const items = kinds.map(([k, c]) => `<span class="kl ${c}"><i class="kl-mark k-${k}"></i>${KIND_LABEL[k]}</span>`);
+  if (tab !== "list") items.splice(4, 0, `<span class="kl c-acad-event"><i class="kl-mark k-acad"></i>학사일정</span>`);
+  return `<div class="kind-legend">${items.join("")}</div>`;
+}
+
 function row(it) {
   const d = it.kind === "asg" && !it.done ? dueInfo(it.at) : null;
-  return `<div class="ev-row c-${it.color}${it.done ? " done" : ""}">
+  return `<div class="ev-row k-${it.kind} c-${it.color}${it.done ? " done" : ""}">
     ${it.kind === "sch" || it.kind === "dshs" ? `<span class="ev-check sch-ic" aria-hidden="true">${it.kind === "sch" ? "🏫" : "📮"}</span>`
       : `<button class="ev-check" data-chk="${it.kind}:${it.id}" aria-label="완료 표시"${it.auto
       ? ' disabled title="지난 일정은 자동으로 완료돼요"' : ""}>${it.done ? "✓" : ""}</button>`}
     <button class="ev-main" data-open="${it.kind}:${it.id}">
-      <span class="ev-title">${it.kind === "asg" ? "📋 " : ""}${esc(it.title)}</span>
+      <span class="ev-kind">${KIND_LABEL[it.kind]}</span>
+      <span class="ev-title">${esc(it.title)}</span>
       <span class="ev-meta">${esc(timeLabel(it))}${it.tag ? ` · ${esc(it.tag)}` : ""}</span>
     </button>
     ${d ? `<span class="due-badge ${d.tone}">${d.label}</span>` : ""}
@@ -958,7 +972,7 @@ function openEventForm(ev, seed) {
   }
   // 시작을 바꾸면 끝이 이 길이만큼 따라옵니다 (처음엔 1시간)
   let dur = allDay || end <= start ? HOUR : end - start;
-  const color = ev?.color || "mint";
+  const color = ev?.color || "violet";
   openSheet(ev ? "일정 수정" : "새 일정", `
     <label class="study-label">제목</label>
     <input class="study-input" id="eTitle" maxlength="120" value="${esc(ev?.title || "")}" placeholder="예: 동아리 회의, 학원, 생일">
@@ -1551,7 +1565,7 @@ function dshsAgenda() {
     return {
       kind: "dshs", id: r.uid, title: r.title, at, end, allDay, color: "dshs", status: r.status,
       done: eventEnd({ starts_at: r.from, ends_at: end && r.to, all_day: allDay }) < now,
-      tag: ["dshs.app 신청", DSHS_STATUS[r.status], r.room].filter(Boolean).join(" · "),
+      tag: [DSHS_STATUS[r.status], r.room].filter(Boolean).join(" · "),
     };
   });
 }
