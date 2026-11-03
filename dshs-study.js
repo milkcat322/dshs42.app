@@ -110,8 +110,21 @@ function dayTitle(key) {
 async function init() {
   if (!ENABLED) { $("studyNav").style.display = "none"; return; }
   if (dshsPopupLanding()) closeDshsPopup();   // 앱이 연 로그인 창이면 화면을 그리기 전에 바로 닫습니다
+  // 로그인 기록이 없으면 검색창이 잠깐 보였다 사라지지 않도록 처음부터 로그인 안내를 띄웁니다
+  let saved = false;
+  try { saved = !!localStorage.getItem("dshs-study-auth"); } catch {}
+  applyAccess(!saved);
+  window.addEventListener("offline", () => applyAccess());
+  window.addEventListener("online", backOnline);
   // ?bundle: 여러 파일을 차례로 받지 않고 한 파일로 받습니다 (index.html 의 modulepreload 와 같은 주소)
-  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.4?bundle");
+  let createClient;
+  try {
+    ({ createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.4?bundle"));
+  } catch {
+    netDown = true;   // 인터넷 없이 처음 열어 로그인 기능을 못 불러왔으면 검색만 씁니다
+    return applyAccess();
+  }
+  $("gateLogin").onclick = openAuth;
   sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs-study-auth" },
   });
@@ -181,7 +194,9 @@ async function loadProfile() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { me = null; return; }
   const { data, error } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+  if (error && /fetch|network|load failed/i.test(error.message || "")) netDown = true;   // 서버에 닿지 못함
   if (error || !data) { me = null; return; }
+  netDown = false;
   me = data;
   if (me.student_id) {
     const nm = (window.ID_TO_NAME || {})[String(me.student_id)];
@@ -241,6 +256,27 @@ function renderNav() {
   } else {
     $("btnLogin").onclick = openAuth;
   }
+  applyAccess();
+}
+
+// ---------- 인터넷 연결 · 로그인에 따라 보이는 것 ----------
+// 인터넷이 없으면 로그인하지 않아도 시간표 검색만 보여 줍니다 (시간표는 index.html 에 들어 있어 오프라인에서도 됨).
+// 인터넷이 있으면 시간표 검색은 로그인한 사람만 씁니다. 화면을 숨기는 규칙은 index.html 의 body.offline · body.need-login.
+let netDown = false;   // 와이파이에 붙어 있어도(navigator.onLine) 서버에 닿지 못하면 오프라인으로 봅니다
+function applyAccess(guest = !me) {
+  const off = !navigator.onLine || netDown;
+  document.body.classList.toggle("offline", off);
+  document.body.classList.toggle("need-login", !off && guest);
+}
+// 다시 연결되면: 로그인 기능을 못 불러왔으면 새로 열고, 로그인 기록이 있으면 다시 읽어 내 화면으로 돌아갑니다
+async function backOnline() {
+  netDown = false;
+  if (!sb) return location.reload();
+  if (!me) {
+    await loadProfile();
+    if (me) { renderNav(); loadAssignments(); return openHome(); }
+  }
+  applyAccess();
 }
 
 // ---------- 내 시간표 ----------

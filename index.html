@@ -68,6 +68,16 @@
   .subtitle { color: var(--text-dim); font-size: 14px; font-weight: 300; }
   .search-section { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 32px; position: relative; overflow: hidden; }
   body.study-open .search-section { display: none; }   /* 내 일정 · 수행평가 · 할 일 탭에서는 검색창을 숨깁니다 */
+  /* 인터넷이 있으면 시간표 검색은 로그인해야 보이고(need-login), 인터넷이 없으면 검색만 보입니다(offline). dshs-study.js 의 applyAccess */
+  .login-gate, .offline-note { display: none; }
+  body.need-login .search-section, body.need-login #result, body.need-login #welcomeState { display: none !important; }
+  body.need-login .login-gate { display: block; }
+  body.offline .study-nav, body.offline .study-view, body.offline #btnSettings { display: none !important; }
+  body.offline.study-open .search-section { display: block; }
+  body.offline .offline-note { display: block; }
+  .login-gate { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+  .login-gate .study-submit { max-width: 260px; }
+  .offline-note { margin-bottom: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text-dim); font-size: 13px; text-align: center; }
   .search-label { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; font-family: 'IBM Plex Mono', monospace; }
   .search-row { display: flex; gap: 12px; align-items: stretch; }
   .search-input-wrap { flex: 1; position: relative; }
@@ -980,6 +990,12 @@
     </div>
     <button class="install-btn" id="installBtn">설치</button>
     <button class="install-x" id="installX" aria-label="닫기">✕</button>
+  </div>
+  <div class="offline-note">인터넷에 연결되어 있지 않아요 · 시간표 검색만 쓸 수 있어요</div>
+  <div class="login-gate" id="loginGate">
+    <div class="welcome-icon">🔒</div>
+    <div class="welcome-text">로그인하면 학생 · 선생님 · 과목 시간표를 검색할 수 있어요<br>인터넷이 없을 때는 로그인하지 않아도 볼 수 있어요</div>
+    <button class="study-submit" id="gateLogin" type="button">로그인</button>
   </div>
   <div class="search-section">
     <div class="search-label">학생 · 학번 · 선생님 · 과목 검색</div>
