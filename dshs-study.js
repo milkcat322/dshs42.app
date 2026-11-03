@@ -122,8 +122,11 @@ async function init() {
   renderNav();
   if (me) loadAssignments();
 
+  logVisit();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) logVisit(); });
   sb.auth.onAuthStateChange(async (evt) => {
     if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); renderNav(); }
+    if (evt === "SIGNED_IN") setTimeout(logVisit, 1000);   // 프로필을 읽은 뒤 (관리자면 세지 않도록)
   });
   // 검색으로 다른 시간표를 띄우거나 숨기면 "내 시간표" 탭 강조를 다시 맞춥니다
   // 학생 이름 옆 위치(data-st)도 새로 그려진 화면에 채웁니다
@@ -139,6 +142,38 @@ async function init() {
   dshsReturned();
   watchDshs();
   watchStatus();
+}
+
+// 방문 기기 수 (visits.sql). 화면에는 아무것도 보이지 않고, 관리자만 관리 탭에서 수를 봅니다.
+// 이 기기에 만든 무작위 ID 로 하루 한 번(로그인하면 한 번 더)만 보냅니다. 이름 · 학번은 보내지 않습니다.
+// 관리자로 로그인한 적 있는 기기는 로그아웃 상태에서도 세지 않습니다.
+const VISIT_KEY = "dshs-visit";
+function visitKind() {
+  const ua = navigator.userAgent;
+  const touch = navigator.maxTouchPoints > 1;
+  if (/iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua)) || (/Macintosh/.test(ua) && touch)) return "tablet";
+  if (navigator.userAgentData?.mobile || /Mobi|iPhone|iPod|Android/i.test(ua)) return "phone";
+  return "pc";
+}
+async function logVisit() {
+  try {
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (session && !me) return;   // 프로필을 아직 못 읽었으면 다음 기회에
+    const st = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");
+    if (me?.is_admin) st.skip = true;
+    if (st.skip) return localStorage.setItem(VISIT_KEY, JSON.stringify(st));
+    const today = dayKey(new Date());
+    const login = !!session;
+    if (st.day === today && (st.login || !login)) return;
+    st.id ||= crypto.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    const { error } = await sb.rpc("log_visit", { p_device: st.id, p_kind: visitKind(), p_standalone: standalone });
+    if (error) return;
+    st.login = (st.day === today && st.login) || login;
+    st.day = today;
+    localStorage.setItem(VISIT_KEY, JSON.stringify(st));
+  } catch {}
 }
 
 async function loadProfile() {
@@ -1709,6 +1744,29 @@ function studentsHtml(data, seen) {
     <div class="adm-foot">지금 남아 있는 내용만 보여요. 지운 항목과 고치기 전 내용은 나오지 않아요. 할 일 · 개인 일정 · 개인 수정 · 학생 그룹의 내용은 본인만 볼 수 있어 수와 시각만 보여요.</div>`;
 }
 
+// 방문 기기 수 (admin_visits, visits.sql): 오늘 숫자와 최근 7일 막대
+function visitsHtml(v) {
+  if (!v?.days?.length) return '<div class="adm-none">방문 기록을 불러오지 못했어요.</div>';
+  const t = v.days[v.days.length - 1];
+  const guest = t.total - t.logged_in;
+  const max = Math.max(1, ...v.days.map((d) => d.total));
+  const wd = (d) => parseDay(d.day).toLocaleDateString("ko-KR", { weekday: "short" });
+  return `<div class="adm-label">방문 기기</div>
+    <div class="adm-tiles">
+      <div class="adm-tile"><b>${t.total}</b>오늘 방문 기기</div>
+      <div class="adm-tile"><b>${t.logged_in}</b>로그인</div>
+      <div class="adm-tile"><b>${guest}</b>비로그인</div>
+    </div>
+    <div class="adm-sum">폰 ${t.phone} · 노트북·PC ${t.pc} · 태블릿 ${t.tablet}${guest ? ` (비로그인 ${guest}대 중 폰 ${t.guest_phone})` : ""}${t.standalone ? ` · 설치한 앱 ${t.standalone}` : ""}<br>최근 7일 서로 다른 기기 ${v.week_devices}대</div>
+    <div class="adm-visits">${v.days.map((d) => `<div title="${esc(dayTitle(d.day))} · ${d.total}대 (로그인 ${d.logged_in})">
+      <span>${d.total}</span>
+      <i style="height:${Math.round(d.total / max * 100)}%"><em style="height:${d.total ? Math.round(d.logged_in / d.total * 100) : 0}%"></em></i>
+      <small>${wd(d)}</small>
+    </div>`).join("")}</div>
+    <div class="adm-foot">기기 수라서 한 학생이 폰과 노트북을 쓰면 2대로 세요. 진한 부분이 로그인한 기기예요. 관리자 기기는 세지 않아요.</div>
+    <div class="adm-label">학생 현황</div>`;
+}
+
 function feedbackItemHtml(f, name, url, isNew) {
   return `<div class="adm-fb${isNew ? " new" : ""}">
     <div class="adm-fb-top"><span class="adm-chip">${FEEDBACK_KINDS[f.kind]}</span>${isNew ? '<span class="fb-new">새 피드백</span>' : ""}</div>
@@ -1757,7 +1815,7 @@ function plansHtml(plans) {
 
 // 관리 탭: 승인 대기 · 피드백 · 학생 · 계획을 나눠 한 번에 하나만 보여 줍니다.
 // 승인 대기는 loadAssignments 가 받은 cache.pending 을 씁니다. 승인 · 반려 · 삭제 뒤에는 다시 그립니다.
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans) {
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits) {
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
@@ -1771,7 +1829,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans) {
     ${box("fb", fb.error ? '<div class="adm-none">피드백을 불러오지 못했어요.</div>'
       : (rows.length ? fbHtml(fresh, true) + (old.length ? `${fresh.length ? '<div class="adm-label">지난 피드백</div>' : ""}${fbHtml(old, false)}` : "")
         : '<div class="adm-none">아직 받은 피드백이 없어요.</div>'))}
-    ${box("stu", overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>')}
+    ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
     ${box("plan", plansHtml(plans))}`;
 }
 
@@ -1784,14 +1842,14 @@ async function renderOverview() {
     fbSeen = Date.parse(fbSeenAt());
     ovPane = null;
   }
-  const [{ data, error }, fb, plans] = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
-    sb.from("admin_plans").select("*").order("created_at", { ascending: true })]);
+  const [{ data, error }, fb, plans, visits] = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
+    sb.from("admin_plans").select("*").order("created_at", { ascending: true }), sb.rpc("admin_visits", { p_days: 7 })]);
   const body = $("studyBody");
   if (view !== "overview" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
   ovPane ||= !pending.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data);
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data);
   body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => {
     ovPane = b.dataset.ovpane;
     body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x === b));
