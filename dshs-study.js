@@ -1733,14 +1733,36 @@ async function loadFeedback() {
   };
 }
 
-// 관리 탭: 승인 대기 · 피드백 · 학생을 나눠 한 번에 하나만 보여 줍니다.
+// 향후 계획: 사람마다 칸이 있고, 끝낸 항목은 아래로 내립니다 (plans.sql)
+const PLAN_OWNERS = ["반민지", "진주빈"];
+function plansHtml(plans) {
+  if (!plans) return '<div class="adm-none">계획을 불러오지 못했어요.</div>';
+  return `<div class="adm-plans">${PLAN_OWNERS.map((owner) => {
+    const list = plans.filter((p) => p.owner === owner).sort((a, b) => a.done - b.done);
+    return `<div class="adm-plan">
+      <div class="adm-plan-head"><b>${owner}</b><span>남은 일 ${list.filter((p) => !p.done).length}</span></div>
+      ${list.map((p) => `<div class="adm-plan-item${p.done ? " done" : ""}">
+        <input type="checkbox" data-plandone="${p.id}"${p.done ? " checked" : ""} aria-label="끝냄 표시">
+        <span>${esc(p.title)}</span>
+        <button data-plandel="${p.id}" aria-label="삭제">✕</button>
+      </div>`).join("") || '<div class="adm-plan-none">아직 적은 계획이 없어요.</div>'}
+      <form class="adm-plan-add" data-planadd="${owner}">
+        <input type="text" maxlength="200" placeholder="계획 추가" aria-label="${owner} 계획 추가">
+        <button class="study-btn small" type="submit">추가</button>
+      </form>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+// 관리 탭: 승인 대기 · 피드백 · 학생 · 계획을 나눠 한 번에 하나만 보여 줍니다.
 // 승인 대기는 loadAssignments 가 받은 cache.pending 을 씁니다. 승인 · 반려 · 삭제 뒤에는 다시 그립니다.
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane) {
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans) {
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
   const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
-  const seg = [["asg", "승인 대기", pending.length, true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false]];
+  const seg = [["asg", "승인", pending.length, true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false],
+    ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false]];
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
   return `<div class="adm-seg">${seg.map(([k, label, n, hot]) =>
       `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : ""}</button>`).join("")}</div>
@@ -1748,7 +1770,8 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane) {
     ${box("fb", fb.error ? '<div class="adm-none">피드백을 불러오지 못했어요.</div>'
       : (rows.length ? fbHtml(fresh, true) + (old.length ? `${fresh.length ? '<div class="adm-label">지난 피드백</div>' : ""}${fbHtml(old, false)}` : "")
         : '<div class="adm-none">아직 받은 피드백이 없어요.</div>'))}
-    ${box("stu", overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>')}`;
+    ${box("stu", overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>')}
+    ${box("plan", plansHtml(plans))}`;
 }
 
 let ovSeen, fbSeen, ovPane;   // 탭을 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
@@ -1760,13 +1783,14 @@ async function renderOverview() {
     fbSeen = Date.parse(fbSeenAt());
     ovPane = null;
   }
-  const [{ data, error }, fb] = await Promise.all([sb.rpc("admin_overview"), loadFeedback()]);
+  const [{ data, error }, fb, plans] = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
+    sb.from("admin_plans").select("*").order("created_at", { ascending: true })]);
   const body = $("studyBody");
   if (view !== "overview" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
   ovPane ||= !pending.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane);
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data);
   body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => {
     ovPane = b.dataset.ovpane;
     body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x === b));
@@ -1776,9 +1800,28 @@ async function renderOverview() {
   body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
   bindRows(body);
   body.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = () => deleteFeedback(fb.rows.find((r) => r.id === x.dataset.fbdel)));
+  bindPlans(body);
   if (fb.rows?.[0]) { try { localStorage.setItem(FB_SEEN_KEY, fb.rows[0].created_at); } catch {} }
   if (data?.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
   refreshAdminCount();
+}
+
+function bindPlans(body) {
+  const save = async (query, fail) => {
+    const { error } = await query;
+    if (error) return toast(fail, true);
+    renderOverview();
+  };
+  body.querySelectorAll("[data-plandone]").forEach((x) => x.onchange = () =>
+    save(sb.from("admin_plans").update({ done: x.checked }).eq("id", x.dataset.plandone), "저장하지 못했어요"));
+  body.querySelectorAll("[data-plandel]").forEach((x) => x.onclick = () => {
+    if (confirm("이 계획을 삭제할까요?")) save(sb.from("admin_plans").delete().eq("id", x.dataset.plandel), "삭제하지 못했어요");
+  });
+  body.querySelectorAll("[data-planadd]").forEach((f) => f.onsubmit = (e) => {
+    e.preventDefault();
+    const title = f.querySelector("input").value.trim();
+    if (title) save(sb.from("admin_plans").insert({ owner: f.dataset.planadd, title }), "추가하지 못했어요");
+  });
 }
 
 async function deleteFeedback(f) {
