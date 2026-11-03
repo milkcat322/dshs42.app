@@ -1,5 +1,5 @@
 // dshs42.app — 알림 발송 Edge Function
-// 수행평가 기한 · 내 일정 · 필수 학교 일정 알림을 웹 푸시로 보냅니다.
+// 수행평가 기한 · 내 일정 · 필수 학교 일정 알림과 관리자용 새 활동 알림을 웹 푸시로 보냅니다.
 // 누구에게 무엇을 보낼지는 plan.ts 가 정하고, 여기서는 불러오고 보내고 기록만 합니다.
 // 같은 (사람, 알림) 조합은 notify_log 때문에 두 번 가지 않습니다.
 //
@@ -9,10 +9,11 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { planNotes } from "./plan.ts";
+import { adminKey, planAdminNote, planNotes, type AdminItem } from "./plan.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const LOG_KEEP_DAYS = 3;
+const ADMIN_LOOKBACK = 10 * 60 * 1000;   // 크론이 밀려도 놓치지 않게 넉넉히 봅니다 (이미 보낸 건 notify_log 로 거릅니다)
 
 Deno.serve(async () => {
   const admin = createClient(
@@ -39,7 +40,7 @@ Deno.serve(async () => {
 
   const asgColumns = "id, subject, ban, title, due_at, status, created_by";
   const [users, assignments, personal, asgDone, events, members, school] = await Promise.all([
-    admin.from("profiles").select("id, student_id").in("id", userIds),
+    admin.from("profiles").select("id, student_id, is_admin").in("id", userIds),
     admin.from("assignments").select(asgColumns)
       .in("status", ["approved", "pending"]).gt("due_at", iso(now)).lte("due_at", iso(now + DAY)),
     admin.from("assignment_personal").select("user_id, assignment_id, title, due_at, no_due").in("user_id", userIds),
@@ -92,6 +93,38 @@ Deno.serve(async () => {
   }
   const notes = planned.filter((n) => !already.has(`${n.userId}|${n.key}`));
 
+  // 관리자 새 활동 알림. 실패해도 학생 알림은 그대로 보냅니다.
+  const admins = users.data!.filter((u) => u.is_admin).map((u) => u.id);
+  if (admins.length) {
+    const since = iso(now - ADMIN_LOOKBACK);
+    const [joined, asked, feedback] = await Promise.all([
+      admin.from("profiles").select("id, name, student_id").eq("is_admin", false).gte("created_at", since),
+      admin.from("assignments").select("id, author_name").eq("status", "pending").gte("created_at", since),
+      admin.from("feedback").select("id, user_id, profiles(name)").gte("created_at", since),
+    ]);
+    const failed = [joined, asked, feedback].find((r) => r.error);
+    if (failed) console.error("관리자 알림 조회 실패", failed.error!.message);
+    else {
+      const items: AdminItem[] = [
+        ...joined.data!.map((p) => ({ kind: "signup" as const, id: p.id, who: p.name })),
+        ...asked.data!.map((a) => ({ kind: "assignment" as const, id: a.id, who: a.author_name ?? "학생" })),
+        ...feedback.data!.filter((f) => !admins.includes(f.user_id))
+          .map((f) => ({ kind: "feedback" as const, id: f.id, who: (f.profiles as unknown as { name: string } | null)?.name ?? "학생" })),
+      ];
+      const { data: logged, error } = items.length
+        ? await admin.from("notify_log").select("user_id, key").in("key", items.map(adminKey)).in("user_id", admins)
+        : { data: [], error: null };
+      if (error) console.error("관리자 알림 기록 조회 실패", error.message);
+      else {
+        const seen = new Set(logged!.map((r) => `${r.user_id}|${r.key}`));
+        for (const id of admins) {
+          const note = planAdminNote(id, items.filter((i) => !seen.has(`${id}|${adminKey(i)}`)));
+          if (note) notes.push(note);
+        }
+      }
+    }
+  }
+
   const gone = new Set<string>();
   await Promise.all(notes.map(async (n) => {
     const payload = JSON.stringify({ title: n.title, body: n.body, tag: n.key, url: n.url });
@@ -118,7 +151,8 @@ Deno.serve(async () => {
       }
     }));
     if (results.some(Boolean)) {
-      await admin.from("notify_log").upsert({ user_id: n.userId, key: n.key }, { ignoreDuplicates: true });
+      await admin.from("notify_log").upsert(
+        (n.logKeys ?? [n.key]).map((key) => ({ user_id: n.userId, key })), { ignoreDuplicates: true });
     }
   }));
 

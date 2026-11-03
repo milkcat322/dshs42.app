@@ -72,5 +72,5 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - 회원가입 화면은 없다. 새 학생은 'dshs.app으로 로그인'으로 계정이 생긴다. 로그인 창의 아이디·비밀번호 로그인은 이미 가입한 학생·관리자용으로 남겨 두고, 관리자 로그인 창은 설정 창 제목 "설정" 을 7번 누르면 열린다 (`openAdminLogin`).
 - 'dshs.app으로 로그인'은 dshs.app 의 학번으로 계정을 찾는다 (연결된 계정 → 같은 학번 계정 → 명단에 있으면 새 계정 `d<학번>@dshs.study`, 임의 비밀번호). 세션은 Edge Function 이 만든 일회용 magiclink 토큰을 `#dshs_login=` 으로 넘겨 브라우저가 `verifyOtp` 로 만든다.
 - 사이트 하단과 로그인 창의 "학생 비공식 사이트" 문구는 dshs.app 측 요청이라 지우지 않는다.
-- 알림 계산은 `supabase/functions/send-reminders/plan.ts` 순수 함수에 둔다 (DB·푸시 없이 테스트 가능하게).
+- 알림 계산은 `supabase/functions/send-reminders/plan.ts` 순수 함수에 둔다 (DB·푸시 없이 테스트 가능하게). 관리자 새 활동 알림(`planAdminNote`)은 학생 가입 · 수행평가 승인 요청 · 피드백만 묶어 보낸다. 할 일 · 일정 · 위치처럼 본인 활동은 넣지 않는다.
 - 학사일정은 NEIS(학교 코드 `G10` / `7430032`)가 원본이다. `academic.json` 은 GitHub Actions 가 매일 덮어쓰므로 직접 고치지 않는다. NEIS 에 없는 일정(카톡 공지 등)은 `academic-extra.json` 에 적고 `node scripts/fetch-academic.mjs` 를 실행한다 (먼저 academic.json 과 비교해 이미 있는 건 넣지 않는다). 종류 분류는 `dshs-study.js` 의 `acadCat()`. 관리자가 사이트에서 고치거나 숨긴 NEIS 일정은 `school_events` 에 `neis_key`("시작일|이름|대상학년")로 저장해 원본 대신 보여 준다 (NEIS 가 날짜·이름을 바꾸면 원본이 다시 함께 보일 수 있음). 꿈지락도 학생은 고칠 수 없고 관리자가 모두에게 고친다.

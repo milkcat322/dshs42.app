@@ -134,6 +134,7 @@ async function init() {
   const opened = new URLSearchParams(location.search).get("view");
   if (me && opened === "assignments") openStudy("notice");
   else if (me && opened === "cal") openStudy("cal");
+  else if (me?.is_admin && opened === "admin") openStudy("admin");
   else if (me?.student_id) openMyTimetable();
   dshsReturned();
   watchDshs();
