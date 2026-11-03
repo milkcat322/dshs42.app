@@ -359,7 +359,7 @@ function showingMyTimetable() {
 const openHome = () => (me.student_id ? openMyTimetable() : openStudy());
 
 async function logout() {
-  await disablePush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 지웁니다
+  await forgetPush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 서버 등록만 지웁니다
   await sb.auth.signOut();
   autoPush.done = false;   // 다음에 로그인하는 사람의 알림을 다시 맞춥니다
   paintPush.known = false;
@@ -2955,6 +2955,14 @@ async function disablePush() {
   return true;
 }
 
+// 로그아웃: 서버 등록만 지우고 기기의 구독은 남겨 둡니다.
+// 구독까지 지우면 다시 로그인할 때 새로 구독해야 하는데, 폰(특히 아이폰)은 버튼을 누르지 않으면 구독을 막아서 알림이 꺼진 채로 남습니다.
+async function forgetPush() {
+  const sub = await deviceSub().catch(() => null);
+  if (sub) await sb.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+  pushOn = false;
+}
+
 // quiet: 로그인할 때 자동으로 켜는 경우 (안내를 띄우지 않음)
 async function enablePush(quiet = false) {
   const say = quiet ? () => {} : toast;
@@ -2966,7 +2974,8 @@ async function enablePush(quiet = false) {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   if (isIOS && !standalone) return say("아이폰은 홈 화면에 추가한 뒤에 알림을 켤 수 있어요", true);
 
-  const perm = await Notification.requestPermission();
+  // 자동으로 켤 때는 이미 허락된 상태라 다시 묻지 않습니다 (폰은 버튼 없이 물으면 거절로 처리하기도 함)
+  const perm = quiet ? Notification.permission : await Notification.requestPermission();
   if (perm !== "granted") return say("알림이 차단되어 있어요", true);
 
   const reg = await navigator.serviceWorker.ready;
