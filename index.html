@@ -1133,7 +1133,12 @@ const suggestionsEl = document.getElementById('suggestions');
     const sw = navigator.serviceWorker;
     const hadCtrl = !!sw.controller, opened = Date.now();
     let reg = null, waiting = false, reloading = false;
-    const reload = () => { if (!reloading) { reloading = true; location.reload(); } };
+    // 로그인 확인(dshs-study.js 의 dshsSettled)이 끝난 뒤에 다시 엽니다. 도중에 열면 로그인이 풀릴 수 있어요. 10초가 지나면 그냥 엽니다.
+    const reload = () => {
+      if (reloading) return;
+      reloading = true;
+      Promise.race([window.dshsSettled, new Promise(r => setTimeout(r, 10000))]).then(() => location.reload());
+    };
     const typing = () => /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
     sw.addEventListener('controllerchange', () => {
       if (!hadCtrl) return;   // 처음 설치된 경우는 이미 최신

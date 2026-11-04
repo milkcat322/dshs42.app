@@ -107,7 +107,14 @@ function dayTitle(key) {
 }
 
 // ---------- 시작 ----------
+// 새 버전으로 다시 열기(index.html 의 서비스 워커 부분)는 로그인 확인이 끝난 뒤에 합니다.
+// 로그인 토큰을 받거나(dshs.app 로그인에서 돌아온 직후) 새로 받는 중에 다시 열면, 받은 토큰을 저장하지 못해 로그아웃됩니다.
+let authSettled;
+window.dshsSettled = new Promise((r) => { authSettled = r; });
 async function init() {
+  try { await startApp(); } finally { authSettled(); }
+}
+async function startApp() {
   if (!ENABLED) { $("studyNav").style.display = "none"; return; }
   if (dshsPopupLanding()) closeDshsPopup();   // 앱이 연 로그인 창이면 화면을 그리기 전에 바로 닫습니다
   // 로그인 기록이 없으면 검색창이 잠깐 보였다 사라지지 않도록 처음부터 로그인 안내를 띄웁니다
@@ -244,13 +251,18 @@ async function loadProfile() {
   // 관리자는 RLS 상 모든 프로필을 볼 수 있으므로 반드시 내 id 로 좁힙니다.
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { me = null; return; }
-  const { data, error } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
-  if (error && isNetErr(error)) {   // 서버에 닿지 못함 → 지난 화면의 내 정보가 이 계정 것이면 그대로 씁니다
-    netDown = true;
+  const read = () => sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+  let { data, error } = await read();
+  if (error && !isNetErr(error)) {   // 로그인 토큰이 막 만료된 경우 등: 토큰을 새로 받아 한 번 더 읽습니다
+    await sb.auth.refreshSession().catch(() => {});
+    ({ data, error } = await read());
+  }
+  if (error) {   // 서버에 닿지 못했거나 잠깐 실패 → 로그아웃으로 보지 않고, 지난 화면의 내 정보가 이 계정 것이면 그대로 씁니다
+    if (isNetErr(error)) netDown = true;
     if (me?.id !== session.user.id) me = null;
     return;
   }
-  if (error || !data) { me = null; clearSnap(); return; }
+  if (!data) { me = null; clearSnap(); return; }
   netDown = false;
   setMe(data);
   saveSnap();
@@ -3036,7 +3048,21 @@ let pushOn = false;
 async function deviceSub() {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
   const reg = await navigator.serviceWorker.getRegistration();
+  pushReg = reg || pushReg;
   return reg ? reg.pushManager.getSubscription() : null;
+}
+// 설정 창을 열 때 받아 둡니다. 아이폰 · 아이패드는 알림 켜기를 누른 그 순간에 바로 구독해야 해서, 누른 뒤에 기다릴 틈이 없습니다.
+let pushReg = null;
+// 아이패드(iPadOS 13 이상)의 사파리는 자신을 Mac 으로 알려서, 터치가 되는 Mac 은 아이패드로 봅니다
+const isAppleMobile = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
+  || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+// 예전에 다른 키로 만든 구독이면 서버가 보내도 도착하지 않으므로 새로 만듭니다
+function sameKey(sub) {
+  const k = sub.options?.applicationServerKey;
+  if (!k) return true;   // 키를 알려 주지 않는 브라우저는 그대로 씁니다
+  const want = urlB64ToUint8Array(CFG.VAPID_PUBLIC_KEY), got = new Uint8Array(k);
+  return got.length === want.length && got.every((b, i) => b === want[i]);
 }
 
 // 설정의 알림 체크박스
@@ -3055,8 +3081,7 @@ function paintPush() {
 // 이 기기에서 알림을 켤 수 있는지 (못 켜는 기기에는 빨간 점을 띄우지 않습니다)
 function pushPossible() {
   if (!CFG.VAPID_PUBLIC_KEY || !("serviceWorker" in navigator) || !("PushManager" in window)) return false;
-  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  return !(/iPad|iPhone|iPod/.test(navigator.userAgent) && !standalone);
+  return !(isAppleMobile() && !isStandalone());
 }
 
 // 알림은 기본으로 켜 둡니다: 이 기기에서 끈 적이 없고 브라우저 알림을 이미 허락했으면, 로그인할 때 조용히 등록합니다.
@@ -3124,24 +3149,30 @@ async function forgetPush() {
 async function enablePush(quiet = false) {
   const say = quiet ? () => {} : toast;
   if (!CFG.VAPID_PUBLIC_KEY) return say("알림 키가 아직 설정되지 않았어요", true);
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    return say("이 브라우저는 알림을 지원하지 않아요", true);
+  const apple = isAppleMobile();
+  const pad = /iPad|Macintosh/.test(navigator.userAgent);
+  if (apple && !isStandalone()) return say(`${pad ? "아이패드는" : "아이폰은"} 홈 화면에 추가한 앱에서 알림을 켤 수 있어요`, true);
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    return say(apple ? "iOS 16.4 이상으로 업데이트하면 알림을 쓸 수 있어요" : "이 브라우저는 알림을 지원하지 않아요", true);
   }
-  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS && !standalone) return say("아이폰은 홈 화면에 추가한 뒤에 알림을 켤 수 있어요", true);
+  const subscribe = (reg) => reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlB64ToUint8Array(CFG.VAPID_PUBLIC_KEY),
+  });
 
-  // 자동으로 켤 때는 이미 허락된 상태라 다시 묻지 않습니다 (폰은 버튼 없이 물으면 거절로 처리하기도 함)
-  const perm = quiet ? Notification.permission : await Notification.requestPermission();
-  if (perm !== "granted") return say("알림이 차단되어 있어요", true);
-
-  const reg = await navigator.serviceWorker.ready;
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlB64ToUint8Array(CFG.VAPID_PUBLIC_KEY),
-    });
+  let sub = null;
+  if (!quiet && apple && Notification.permission === "default" && pushReg) {
+    // 아이폰 · 아이패드: 누른 순간 바로 구독하면 허락 창이 함께 뜹니다 (먼저 다른 걸 기다리면 막힘)
+    sub = await subscribe(pushReg).catch(() => null);
+    if (!sub) return say(Notification.permission === "denied" ? "알림이 차단되어 있어요" : "알림을 켜지 못했어요. 한 번 더 눌러 주세요", true);
+  } else {
+    // 자동으로 켤 때는 이미 허락된 상태라 다시 묻지 않습니다 (폰은 버튼 없이 물으면 거절로 처리하기도 함)
+    const perm = quiet ? Notification.permission : await Notification.requestPermission();
+    if (perm !== "granted") return say("알림이 차단되어 있어요", true);
+    const reg = pushReg || await navigator.serviceWorker.ready;
+    sub = await reg.pushManager.getSubscription();
+    if (sub && !sameKey(sub)) { await sub.unsubscribe().catch(() => {}); sub = null; }
+    if (!sub) sub = await subscribe(reg);
   }
   const j = sub.toJSON();
   const { error } = await sb.from("push_subscriptions").upsert({
