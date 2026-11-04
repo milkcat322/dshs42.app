@@ -334,7 +334,7 @@ function renderNav() {
   nav.innerHTML = me
     ? tabs.map(([k, label]) =>
         `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${k === "admin" ? adminTabLabel() : label}</button>`).join("")
-    : `<button class="study-btn" id="btnLogin">로그인</button>`;
+    : `<button class="study-btn" id="btnLogin">시작하기</button>`;
   // 설정(알림 · 학교 일정 · 계정)은 업데이트 옆에 늘 보입니다 (로그인 전에는 관리자 로그인을 여는 곳)
   const set = $("btnSettings");
   set.style.display = "";
@@ -504,19 +504,25 @@ async function logout() {
 
 // ---------- 로그인 ----------
 // 회원가입은 없습니다. 새 학생은 dshs.app 으로 로그인하면 dshs-oauth 가 학번으로 계정을 만듭니다.
-// 아이디 · 비밀번호 로그인은 이미 가입한 학생과 관리자를 위해 남겨 둡니다. 관리자 로그인 창은 설정 창 제목 "설정" 을 7번 누르면 열립니다.
+// 처음 오는 학생은 계정이 없으므로 '로그인' 대신 'dshs.app 계정으로 시작하기' 하나만 크게 보여 줍니다.
+// 아이디 · 비밀번호 로그인(관리자 · 예전에 아이디로 가입한 학생)은 시작하기 창 아래 작은 '관리자 · 아이디로 로그인'
+// 또는 설정 창 제목 "설정" 을 7번 누르면 열립니다.
 function closeModal() { $("studyModal").className = "study-modal"; }
 
 function openAuth() {
-  openSheet("로그인", `
-    <button class="study-submit dshs-login" id="doDshsLogin">dshs.app으로 로그인</button>
-    <div class="auth-or">또는 아이디로 로그인</div>
-    ${idLoginHtml("가입할 때 정한 아이디", "8자 이상")}
-    <div class="study-foot">새로 가입하지 않아도 dshs.app 계정으로 바로 로그인할 수 있어요. 전에 아이디로 가입했다면 아이디로 로그인하거나, dshs.app으로 로그인해도 같은 학번 계정으로 들어가요.<br>
-      대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트예요.</div>`);
+  openSheet("시작하기", `
+    <div class="asg-body">따로 가입할 필요 없어요. dshs.app 계정으로 시작하면 바로 내 시간표 · 수행평가 · 일정을 쓸 수 있어요.</div>
+    <button class="study-submit dshs-login" id="doDshsLogin">dshs.app 계정으로 시작하기</button>
+    <div class="study-err" id="authErr"></div>
+    <div class="study-foot">dshs.app 비밀번호는 이 사이트에 전달되지 않아요. 전에 아이디로 가입했어도 dshs.app으로 시작하면 같은 학번 계정으로 들어가요.<br>
+      대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트예요.</div>
+    ${adminLinkHtml()}`);
   $("doDshsLogin").onclick = loginWithDshs;
-  bindIdLogin();
+  bindAdminLink();
 }
+// 작게: 관리자 · 예전 아이디 계정용 아이디 · 비밀번호 로그인
+const adminLinkHtml = () => '<button class="auth-admin" id="openIdLogin" type="button">관리자 · 아이디로 로그인</button>';
+function bindAdminLink() { $("openIdLogin").onclick = openAdminLogin; }
 
 // 아이디 · 비밀번호 로그인 (로그인 창과 관리자 로그인 창이 같이 씁니다)
 function idLoginHtml(idHint = "", pwHint = "") {
@@ -564,7 +570,7 @@ function bindAdminTap() {
 }
 
 function openAdminLogin() {
-  openSheet("관리자 로그인", idLoginHtml());
+  openSheet("관리자 · 아이디로 로그인", idLoginHtml("아이디", "비밀번호"));
   bindIdLogin();
   $("loginId").focus();
 }
@@ -2543,10 +2549,12 @@ function openSettings() {
   if (!me) {   // 로그인 전: 화면 테마와 로그인 안내 (제목 7번 → 관리자 로그인)
     openSheet("설정", `
       ${themeHtml()}
-      <div class="asg-body" style="margin-top:14px">로그인하면 알림 · 내 일정 달력 설정과 계정을 여기서 관리할 수 있어요.</div>
-      <button class="study-submit dshs-login" id="doDshsLogin">dshs.app으로 로그인</button>
-      <div class="study-err" id="authErr"></div>`);
+      <div class="asg-body" style="margin-top:14px">dshs.app 계정으로 시작하면 알림 · 내 일정 달력 설정과 계정을 여기서 관리할 수 있어요. 따로 가입할 필요 없어요.</div>
+      <button class="study-submit dshs-login" id="doDshsLogin">dshs.app 계정으로 시작하기</button>
+      <div class="study-err" id="authErr"></div>
+      ${adminLinkHtml()}`);
     $("doDshsLogin").onclick = loginWithDshs;
+    bindAdminLink();
     bindTheme();
     return bindAdminTap();
   }

@@ -74,7 +74,7 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - `config.js` 에는 anon 키만. service_role 키·VAPID 비밀키는 Edge Function secrets 에만 둔다.
 - 외부 서비스(dshs.app 등) 호출은 브라우저가 아니라 Edge Function 을 거친다 (CORS). 크롤링·대리 로그인은 하지 않고 공식 OAuth/API 만 쓴다.
 - dshs.app 연동(`dshs-oauth`): client_secret 은 Supabase secrets(`DSHS_CLIENT_SECRET`)에만 둔다. 대화·DEVLOG·커밋에 적지 않는다 (DEVLOG 자동 요약이 그대로 올릴 수 있음). 허용 scope 는 `openid profile me.read request.read offline_access` 뿐이고, 늘리려면 dshs.app 관리자에게 메일로 요청한다. 요청 제한(60초 120회)이 사이트 전체 합산이라 브라우저는 연결한 학생이 내 일정을 보는 동안에만 1분에 한 번 받고, 한도 초과(busy) 응답이 오면 5분 쉰다. dshs.app 에 이미 있는 기능을 똑같이 만들지 않는다 (이용 규칙).
-- 회원가입 화면은 없다. 새 학생은 'dshs.app으로 로그인'으로 계정이 생긴다. 로그인 창의 아이디·비밀번호 로그인은 이미 가입한 학생·관리자용으로 남겨 두고, 관리자 로그인 창은 설정 창 제목 "설정" 을 7번 누르면 열린다 (`openAdminLogin`).
+- 회원가입 화면은 없다. 새 학생은 'dshs.app으로 로그인'으로 계정이 생긴다. 처음 온 학생은 계정이 없으므로 화면에 '로그인' 대신 'dshs.app 계정으로 시작하기'만 크게 쓴다 (`openAuth` · 막힘 화면 · 설정). 아이디·비밀번호 로그인은 관리자·예전 아이디 가입 학생용으로, 시작하기 창 아래 작은 '관리자 · 아이디로 로그인' 또는 설정 창 제목 "설정" 7번으로 연다 (`openAdminLogin`).
 - 'dshs.app으로 로그인'은 dshs.app 의 학번으로 계정을 찾는다 (연결된 계정 → 같은 학번 계정 → 명단에 있으면 새 계정 `d<학번>@dshs.study`, 임의 비밀번호). 세션은 Edge Function 이 만든 일회용 magiclink 토큰을 `#dshs_login=` 으로 넘겨 브라우저가 `verifyOtp` 로 만든다.
 - 사이트 하단과 로그인 창의 "학생 비공식 사이트" 문구는 dshs.app 측 요청이라 지우지 않는다.
 - 알림 구독 저장은 `save_push()`(`schema.sql`)로만 한다. 같은 기기(endpoint)가 다른 계정으로 남아 있으면 RLS 때문에 upsert 가 막혀 "알림이 안 켜짐"이 되므로, 이 함수가 기기를 지금 로그인한 계정으로 넘긴다. 같은 코드인데 사이트(주소)마다 알림이 다르게 동작하면 기기 · 주소별로 남은 구독 행부터 의심한다.
