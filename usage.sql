@@ -52,6 +52,10 @@ begin
         -- 그전엔 이 기기에서 비로그인으로만 쓰다가 이날 로그인
         'guest_to_login', (select count(*) from visits v where v.day = d::date and v.logged_in
                           and public.visit_was_guest(v.device, v.day)),
+        -- 비로그인 시간표 막힘 화면: 본 기기 · 로그인 버튼 누른 기기 · 본 그날 로그인까지 한 기기
+        'gate_seen',   (select count(*) from visits v where v.day = d::date and v.gate_seen_at is not null),
+        'gate_click',  (select count(*) from visits v where v.day = d::date and v.gate_click_at is not null),
+        'gate_login',  (select count(*) from visits v where v.day = d::date and v.gate_seen_at is not null and v.logged_in),
         'signups',     (select count(*) from profiles p where not p.is_admin
                           and (p.created_at at time zone 'Asia/Seoul')::date = d::date),
         'dshs_linked', (select count(*) from dshs_links l join profiles p on p.id = l.user_id
@@ -101,7 +105,12 @@ begin
       'devices_7d',    (select count(distinct device) from visits where day > today - 7),
       'guest_only_devices_7d', (select count(*) from (select device from visits where day > today - 7
                                   group by device having not bool_or(logged_in)) g),
-      'visits_since',  (select min(day) from visits)
+      'visits_since',  (select min(day) from visits),
+      'gate_since',    (select min(day) from visits where gate_seen_at is not null),
+      -- 기간 동안 막힘 화면을 본 기기 / 그중 그날이나 나중에 로그인한 기기
+      'gate_devices',  (select count(distinct device) from visits where day >= since and gate_seen_at is not null),
+      'gate_devices_login', (select count(distinct g.device) from visits g where g.day >= since and g.gate_seen_at is not null
+                          and exists (select 1 from visits l where l.device = g.device and l.day >= g.day and l.logged_in))
     )
   );
 end $$;

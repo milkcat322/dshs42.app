@@ -17,6 +17,9 @@ create table if not exists public.visits (
 );
 alter table public.visits add column if not exists user_id  uuid references public.profiles(id) on delete set null;
 alter table public.visits add column if not exists login_at timestamptz;   -- 그날 처음 로그인한 상태로 연 시각
+-- 비로그인 시간표 막힘 화면(로그인하면 검색할 수 있어요)을 그날 처음 본 시각 · 그 화면의 로그인 버튼을 처음 누른 시각
+alter table public.visits add column if not exists gate_seen_at  timestamptz;
+alter table public.visits add column if not exists gate_click_at timestamptz;
 create index if not exists visits_device_idx on public.visits (device, day);
 
 -- 표를 직접 읽고 쓰는 길은 막고, 아래 두 함수로만 씁니다.
@@ -46,6 +49,25 @@ begin
 end $$;
 revoke execute on function public.log_visit(text, text, boolean) from public;
 grant  execute on function public.log_visit(text, text, boolean) to anon, authenticated;
+
+-- 막힘 화면 기록: 'seen'(화면을 봄) · 'click'(그 화면의 로그인 버튼을 누름). 비로그인일 때만 남깁니다.
+-- 사용 분석 에이전트가 "본 기기 → 누른 기기 → 로그인한 기기"로 로그인 유도 효과를 봅니다 (usage_snapshot).
+create or replace function public.log_gate(p_device text, p_kind text, p_standalone boolean, p_event text)
+returns void language plpgsql volatile security definer set search_path = public as $$
+begin
+  if auth.uid() is not null then return; end if;
+  if p_device is null or char_length(p_device) not between 8 and 64 then return; end if;
+  if p_kind not in ('phone', 'tablet', 'pc') or p_event not in ('seen', 'click') then return; end if;
+  insert into public.visits (day, device, kind, standalone, gate_seen_at, gate_click_at)
+  values ((now() at time zone 'Asia/Seoul')::date, p_device, p_kind, coalesce(p_standalone, false),
+          now(), case when p_event = 'click' then now() end)
+  on conflict (day, device) do update
+    set gate_seen_at  = coalesce(visits.gate_seen_at, now()),
+        gate_click_at = case when p_event = 'click' then coalesce(visits.gate_click_at, now()) else visits.gate_click_at end,
+        last_at       = now();
+end $$;
+revoke execute on function public.log_gate(text, text, boolean, text) from public;
+grant  execute on function public.log_gate(text, text, boolean, text) to anon, authenticated;
 
 -- 이 기기가 p_day 전에는 비로그인으로만 썼는지 (로그인한 날 없이 비로그인으로 연 날이 하루 이상)
 create or replace function public.visit_was_guest(p_device text, p_day date)

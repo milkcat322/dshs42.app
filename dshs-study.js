@@ -134,7 +134,7 @@ async function startApp() {
     netDown = true;   // 인터넷 없이 처음 열어 로그인 기능을 못 불러왔으면 검색만 씁니다 (지난 화면의 내 시간표는 그대로)
     return applyAccess();
   }
-  $("gateLogin").onclick = openAuth;
+  $("gateLogin").onclick = gateLogin;
   sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs-study-auth" },
   });
@@ -237,13 +237,38 @@ async function logVisit() {
     const today = dayKey(new Date());
     const login = !!session;
     if (st.day === today && (st.login || !login)) return;
-    st.id ||= crypto.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
-    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-    const { error } = await sb.rpc("log_visit", { p_device: st.id, p_kind: visitKind(), p_standalone: standalone });
+    st.id = visitId();
+    const { error } = await sb.rpc("log_visit", { p_device: st.id, p_kind: visitKind(), p_standalone: isStandalone() });
     if (error) return;
-    st.login = (st.day === today && st.login) || login;
-    st.day = today;
+    const now = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");   // 그사이 logGate 가 남긴 값을 지우지 않게 다시 읽습니다
+    now.login = (now.day === today && now.login) || login;
+    now.day = today;
+    localStorage.setItem(VISIT_KEY, JSON.stringify(now));
+  } catch {}
+}
+// 기기 ID 는 바로 저장해 logVisit · logGate 가 동시에 불려도 같은 값을 씁니다
+function visitId() {
+  const st = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");
+  if (!st.id) {
+    st.id = crypto.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
     localStorage.setItem(VISIT_KEY, JSON.stringify(st));
+  }
+  return st.id;
+}
+
+// 비로그인 시간표 막힘 화면을 본 날('seen') · 그 화면의 로그인 버튼을 누른 날('click')을 하루 한 번씩 남깁니다 (visits.sql 의 log_gate).
+// 사용 분석 에이전트가 "본 기기 → 누른 기기 → 로그인한 기기"로 로그인 유도 효과를 판단합니다. 화면에는 아무것도 보이지 않습니다.
+async function logGate(ev) {
+  try {
+    if (!sb || me) return;
+    const key = ev === "click" ? "gateClick" : "gateSeen", today = dayKey(new Date());
+    const st = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");
+    if (st.skip || st[key] === today) return;
+    const { error } = await sb.rpc("log_gate", { p_device: visitId(), p_kind: visitKind(), p_standalone: isStandalone(), p_event: ev });
+    if (error) return;
+    const now = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");
+    now[key] = today;
+    localStorage.setItem(VISIT_KEY, JSON.stringify(now));
   } catch {}
 }
 
@@ -337,6 +362,7 @@ function applyAccess(guest = !me) {
   const off = !navigator.onLine || netDown;
   document.body.classList.toggle("offline", off);
   document.body.classList.toggle("need-login", !off && guest);
+  if (!off && guest && !me) logGate("seen");
 }
 // 다시 연결되면: 로그인 기능을 못 불러왔으면 새로 열고, 로그인 기록이 있으면 다시 읽어 내 화면으로 돌아갑니다
 async function backOnline() {
@@ -2590,6 +2616,27 @@ async function loginWithDshs() {
   } catch {}
   showErr("dshs.app 로그인을 시작하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
   $("doDshsLogin").disabled = false;
+}
+
+// 시간표 막힘 화면의 '로그인': 로그인 창을 거치지 않고 바로 dshs.app 로그인을 시작합니다 (화면 모양은 그대로).
+// 시작하지 못하면 로그인 창을 열어 아이디 로그인 · 다시 시도를 할 수 있게 합니다.
+async function gateLogin() {
+  const b = $("gateLogin");
+  b.disabled = true;
+  const logged = logGate("click");
+  try {
+    const handoff = newHandoff();
+    const { body } = await dshsCall("login", { return_to: location.origin + location.pathname, handoff });
+    if (body.url) {
+      await Promise.race([logged, new Promise((ok) => setTimeout(ok, 600))]);   // 이 창을 떠나기 전에 기록을 보냅니다
+      openDshsLogin(body.url, handoff);
+      b.disabled = false;
+      return;
+    }
+  } catch {}
+  b.disabled = false;
+  openAuth();
+  showErr("dshs.app 로그인을 시작하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
 }
 
 // ---------- 앱(홈 화면에 추가)에서 dshs.app 로그인 ----------

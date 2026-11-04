@@ -24,17 +24,23 @@ Supabase 프로젝트 id 는 `jsanpwlleufzgglqkrkv` 이고 DB 는 `mcp__supabase
      devices=방문 기기(관리자 제외), logged_in=로그인한 상태로 연 기기, users=로그인한 서로 다른 학생, new_devices=처음 본 기기,
      guest_returning=전에도 왔던 비로그인 기기, guest_to_login=비로그인으로만 쓰다 이날 로그인한 기기, standalone=설치한 앱으로 연 기기,
      asg_checked=수행평가 완료 체크, asg_personal=수행평가 개인 수정, status_set=위치 남김, push_on=알림 켬
+     gate_seen=비로그인 시간표 막힘 화면을 본 기기, gate_click=그 화면의 '로그인' 버튼을 누른 기기, gate_login=막힘 화면을 본 그날 로그인까지 한 기기.
+     totals 의 gate_devices / gate_devices_login = 기간 동안 막힘 화면을 본 기기 / 그중 그날이나 나중에 로그인한 기기, gate_since = 이 기록을 시작한 날.
    - `select created_at, report->>'headline' as headline, report->'suggestions' as suggestions, report->'watch' as watch from public.usage_reports order by created_at desc limit 3` — 지난 분석 (흐름을 이어 보고, 지난 제안이 반영됐는지 확인)
    - 최근 14일 피드백: `select kind, body, created_at from public.feedback where created_at > now() - interval '14 days' order by created_at`
    - 더 궁금한 게 있으면 집계 쿼리(count · group by)를 더 돌려도 된다. 단 **select 만**, 그리고 이름 · 학번 · 아이디 · 할 일 / 일정 제목 같은 개인 내용은 조회하지도 보고서에 쓰지도 않는다.
      쓸 만한 표: visits(day, device, kind, logged_in, standalone, first_at, last_at, user_id), profiles(created_at, is_admin), todos, events(source_key 가 null 이면 학생이 만든 일정), assignment_done, push_subscriptions, dshs_links. 관리자(profiles.is_admin)는 빼고 센다.
-3. **분석** — 숫자를 근거로, 단정하기 어려우면 "아직 판단하기 이르다"고 쓴다. 방문 기록(visits)은 2026-11-03 부터라 처음엔 데이터가 적다. 기기 수 ≠ 학생 수(한 학생이 폰 · 노트북을 쓰면 2대).
-4. **저장** — 아래 모양의 JSON 을 만들어 한 번에 저장한다:
+3. **로그인 유도 판단** — 막힘 화면은 로그인 사용자를 늘리려는 핵심 조치다. gate_since 이후로는 반드시
+   **본 기기 → 버튼 누른 기기 → 로그인한 기기** 단계별 수와 비율을 login 칸에 쓰고, 어느 단계에서 가장 많이 빠지는지로 판단한다.
+   (보고 안 누름 = 문구 · 버튼이 설득을 못 함, 눌렀는데 로그인 안 됨 = dshs.app 로그인 과정 문제 의심.) 막힘 화면의 '로그인' 버튼은
+   2026-11-04 부터 로그인 창을 거치지 않고 바로 dshs.app 로그인을 시작한다. 이 단계 수치를 근거로 suggestions 를 고른다.
+4. **분석** — 숫자를 근거로, 단정하기 어려우면 "아직 판단하기 이르다"고 쓴다. 방문 기록(visits)은 2026-11-03 부터라 처음엔 데이터가 적다. 기기 수 ≠ 학생 수(한 학생이 폰 · 노트북을 쓰면 2대).
+5. **저장** — 아래 모양의 JSON 을 만들어 한 번에 저장한다:
    ```sql
    select public.save_usage_report($rpt$ { ...JSON... } $rpt$::jsonb);
    ```
    오류가 나면 고쳐서 다시 저장한다. 저장은 **한 번만** 성공시킨다 (저장하면 관리자에게 푸시가 간다).
-5. 마지막 줄에 `SAVED <저장한 id>` 를 출력한다. 저장하지 못했으면 `FAILED <이유>`.
+6. 마지막 줄에 `SAVED <저장한 id>` 를 출력한다. 저장하지 못했으면 `FAILED <이유>`.
 
 ## 보고서 JSON (모두 한국어, 관리자에게 말하듯 간결하게)
 ```json
