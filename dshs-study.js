@@ -3175,9 +3175,13 @@ async function enablePush(quiet = false) {
     if (!sub) sub = await subscribe(reg);
   }
   const j = sub.toJSON();
-  const { error } = await sb.from("push_subscriptions").upsert({
-    endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_id: me.id,
-  });
+  // 같은 기기가 예전에 다른 계정으로 등록돼 있어도 지금 계정으로 넘겨받습니다 (schema.sql 의 save_push)
+  let { error } = await sb.rpc("save_push", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
+  if (error?.code === "PGRST202") {   // 함수를 아직 만들지 않은 DB
+    ({ error } = await sb.from("push_subscriptions").upsert({
+      endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_id: me.id,
+    }));
+  }
   if (error) return say("알림 등록에 실패했어요", true);
   pushOn = true;
   paintPush();

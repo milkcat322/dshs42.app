@@ -179,6 +179,21 @@ drop policy if exists push_own on public.push_subscriptions;
 create policy push_own on public.push_subscriptions
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+-- 알림 켜기: 이 기기(endpoint)를 지금 로그인한 계정으로 등록합니다.
+-- 같은 기기에서 다른 계정(예: 관리자 → 학생)으로 바꿔 로그인하면 예전 계정의 행이 남아 있어
+-- 위 정책 때문에 upsert 가 막히므로, 기기 주인을 지금 계정으로 넘기는 이 함수로만 씁니다.
+create or replace function public.save_push(p_endpoint text, p_p256dh text, p_auth text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  insert into public.push_subscriptions (endpoint, user_id, p256dh, auth)
+  values (p_endpoint, auth.uid(), p_p256dh, p_auth)
+  on conflict (endpoint) do update
+    set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth;
+end $$;
+revoke execute on function public.save_push(text, text, text) from public, anon;
+grant  execute on function public.save_push(text, text, text) to authenticated;
+
 -- ============================================================
 -- 관리자 계정은 admins.sql 로 연결합니다 (README 6단계).
 -- 학생 계정을 관리자로 올리고 싶다면:
