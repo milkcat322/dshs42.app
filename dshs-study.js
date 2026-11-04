@@ -1800,7 +1800,19 @@ function visitsHtml(v) {
       <small>${wd(d)}</small>
     </div>`).join("")}</div>
     <div class="adm-foot">기기 수라서 한 학생이 폰과 노트북을 쓰면 2대로 세요. 진한 부분이 로그인한 기기예요. 관리자 기기는 세지 않아요.</div>
+    ${visitUsersHtml(v)}
     <div class="adm-label">학생 현황</div>`;
+}
+
+// 오늘 로그인한 상태로 연 학생 (visits.sql 의 today_users). '전환'은 그전엔 이 기기에서 비로그인으로만 썼던 학생
+function visitUsersHtml(v) {
+  const users = v.today_users || [];
+  if (!users.length && !v.today_unknown) return "";
+  const KIND = { phone: "폰", tablet: "태블릿", pc: "PC" };
+  const hm = (at) => new Date(at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `<div class="adm-label">오늘 로그인한 학생 ${users.length}명</div>
+    <div class="adm-visit-users">${users.map((u) => `<span class="adm-chip${u.was_guest ? " hot" : ""}" title="${u.was_guest ? "그전엔 이 기기에서 비로그인으로만 썼어요" : ""}">${esc(u.student_id ? `${u.student_id} ${u.name}` : u.name)} · ${KIND[u.kind] || ""} ${hm(u.at)}${u.was_guest ? " · 전환" : ""}</span>`).join("")}</div>
+    ${v.today_unknown ? `<div class="adm-foot">이름 기록을 시작하기 전에 로그인한 기기 ${v.today_unknown}대는 이름 없이 셌어요.</div>` : ""}`;
 }
 
 function feedbackItemHtml(f, name, url, isNew) {
@@ -1867,6 +1879,8 @@ function opsHtml(reports) {
       <summary><b>${esc(r.title)}</b><span>${esc(ovTime(r.created_at))}</span></summary>
       ${list(r.report.issues || [], "warn")}
       ${f.count ? `<div class="adm-label">피드백 ${f.count}건${f.headline ? ` · ${esc(f.headline)}` : ""}</div>${items}${f.error ? `<div class="adm-foot">${esc(f.error)}</div>` : ""}` : '<div class="adm-label">새 피드백 없음</div>'}
+      ${(r.report.guestLogins || []).length ? `<div class="adm-label">비로그인 → 로그인</div>${list(r.report.guestLogins.map((g) =>
+        `${g.student_id ? `${g.student_id} ${g.name}` : g.name} · 그전 비로그인 ${g.guest_days}일`), "info")}` : ""}
       ${list(r.report.infos || [], "info")}
     </details>`;
   }).join("") + '<div class="adm-foot">매일 오전 8시와 오후 6시에 서버가 사이트·알림 서버·승인 대기를 점검하고, 새 피드백은 AI(Claude)가 분류·요약해요. 피드백 원문은 \'피드백\' 칸에 있어요.</div>';

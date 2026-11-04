@@ -4,6 +4,7 @@
 //                      · 하루 넘은 승인 대기 · 급한 피드백(AI 가 high 로 본 오류)
 //   참고(infos)        두 사이트 버전 · 가끔 있는 호출 실패 · 어제 방문 · 새 가입 · 알림 못 받는 관리자
 //   피드백             지난 보고서 이후 새 피드백을 AI 가 분류 · 요약 (키가 없으면 개수만)
+//   로그인 전환        비로그인으로만 쓰던 기기에서 지난 보고서 이후 로그인한 학생 (푸시 본문에도 넣음)
 
 const HOUR = 60 * 60 * 1000;
 const KIND = { bug: "오류", notice: "공지 오류", idea: "제안", etc: "기타" } as const;
@@ -20,6 +21,7 @@ export type AiItem = {
   area: string; summary: string; action: string;
 };
 export type AiFeedback = { headline: string; items: AiItem[] };
+export type GuestLogin = { name: string; student_id: number | null; kind: string; at: string; guest_days: number };
 export type Input = {
   now: number;
   sites: Site[];
@@ -31,11 +33,13 @@ export type Input = {
   yesterday: { total: number; logged_in: number } | null;
   signups: number;
   adminsWithoutDevice: string[];
+  guestLogins: GuestLogin[];
 };
 export type Report = {
   issues: string[];
   infos: string[];
   feedback: { count: number; headline: string | null; items: (AiItem & { body: string })[]; error: string | null };
+  guestLogins: GuestLogin[];
   title: string;
   body: string;
 };
@@ -91,14 +95,26 @@ export function buildReport(d: Input): Report {
   for (const name of d.adminsWithoutDevice) infos.push(`${name}: 알림을 켠 기기가 없어 이 보고서는 관리 탭에서만 보여요`);
 
   const title = issues.length ? `운영 점검 · 확인할 것 ${issues.length}건` : "운영 점검 · 이상 없음";
-  const lines = [...issues.slice(0, 3), headline ?? "새 피드백 없음"];
-  if (issues.length > 3) lines.splice(3, 0, `외 ${issues.length - 3}건`);
+  const lines = [...issues.slice(0, 3)];
+  if (issues.length > 3) lines.push(`외 ${issues.length - 3}건`);
+  const converted = guestLoginLine(d.guestLogins);
+  if (converted) lines.push(converted);
+  lines.push(headline ?? "새 피드백 없음");
   return {
     issues, infos,
     feedback: { count: d.newFeedback.length, headline, items, error: d.aiError },
+    guestLogins: d.guestLogins,
     title,
     body: lines.join("\n"),
   };
+}
+
+// "비로그인 → 로그인 2명: 2201 홍길동, 2305 김철수" (같은 학생이 기기 두 대면 한 번만, 4명 넘으면 '외 n명')
+export function guestLoginLine(list: GuestLogin[]): string | null {
+  const who = [...new Set(list.map((g) => g.student_id ? `${g.student_id} ${g.name}` : g.name))];
+  if (!who.length) return null;
+  const shown = who.slice(0, 4).join(", ") + (who.length > 4 ? ` 외 ${who.length - 4}명` : "");
+  return `비로그인 → 로그인 ${who.length}명: ${shown}`;
 }
 
 function countKinds(list: Feedback[]) {

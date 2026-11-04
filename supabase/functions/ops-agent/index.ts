@@ -1,5 +1,5 @@
 // dshs42.app — 운영 점검 에이전트
-// 매일 08:00 · 18:00 에 서비스 상태(사이트 · cron · 서버 함수 호출 · 승인 대기)를 점검하고,
+// 매일 08:00 · 18:00 에 서비스 상태(사이트 · cron · 서버 함수 호출 · 승인 대기)와 비로그인 → 로그인 전환을 점검하고,
 // 지난 보고서 이후 들어온 피드백을 Claude 로 분류 · 요약해 관리자에게 푸시로 보냅니다.
 // 보고서는 ops_reports 에 남아 관리 탭 '점검' 칸에서 봅니다. 무엇을 쓸지는 report.ts 가 정합니다.
 //
@@ -17,7 +17,7 @@ import { zodOutputFormat } from "npm:@anthropic-ai/sdk@1.4.0/helpers/zod";
 import { z } from "npm:zod@4.6.7";
 import {
   AI_SYSTEM, aiPrompt, buildReport, swVersion,
-  type AiFeedback, type Feedback, type OpsSnapshot, type Site,
+  type AiFeedback, type Feedback, type GuestLogin, type OpsSnapshot, type Site,
 } from "./report.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
   const since = iso(lastAt ?? now - DAY);
   const yesterday = new Date(now + KST - DAY).toISOString().slice(0, 10);
 
-  const [sites, ops, pending, feedback, visits, signups, admins] = await Promise.all([
+  const [sites, ops, pending, feedback, visits, signups, admins, logins] = await Promise.all([
     Promise.all(SITES.map(checkSite)),
     db.rpc("ops_snapshot"),
     db.from("assignments").select("created_at").eq("status", "pending"),
@@ -68,9 +68,10 @@ Deno.serve(async (req) => {
     db.from("visits").select("logged_in").eq("day", yesterday),
     db.from("profiles").select("id", { count: "exact", head: true }).eq("is_admin", false).gt("created_at", since),
     db.from("profiles").select("id, name").eq("is_admin", true),
+    db.rpc("ops_visit_logins", { p_since: since }),
   ]);
   for (const [name, r] of [["ops_snapshot", ops], ["assignments", pending], ["feedback", feedback],
-    ["visits", visits], ["profiles", signups], ["admins", admins]] as const) {
+    ["visits", visits], ["profiles", signups], ["admins", admins], ["ops_visit_logins", logins]] as const) {
     if (r.error) console.error(`${name} 조회 실패`, r.error.message);
   }
   const adminIds = (admins.data ?? []).map((a) => a.id);
@@ -94,12 +95,13 @@ Deno.serve(async (req) => {
     signups: signups.count ?? 0,
     adminsWithoutDevice: subs.error ? []
       : (admins.data ?? []).filter((a) => !subs.data!.some((s) => s.user_id === a.id)).map((a) => a.name),
+    guestLogins: logins.error ? [] : (logins.data ?? []) as GuestLogin[],
   });
   if (dry) return json({ dry: true, report });
 
   const saved = await db.from("ops_reports").insert({
     issues: report.issues.length, title: report.title,
-    report: { issues: report.issues, infos: report.infos, feedback: report.feedback },
+    report: { issues: report.issues, infos: report.infos, feedback: report.feedback, guestLogins: report.guestLogins },
   });
   if (saved.error) console.error("보고서 저장 실패", saved.error.message);
   await db.from("ops_reports").delete().lt("created_at", iso(now - KEEP_DAYS * DAY));
