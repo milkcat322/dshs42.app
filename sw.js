@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v101';
+const CACHE = 'dshs-study-v102';
 
 const SHELL = [
   './',
@@ -45,7 +45,7 @@ self.addEventListener('message', e => {
 
 // 네트워크 우선. 다만 네트워크가 느리면(SLOW_MS) 기다리지 않고 저장해 둔 것을 먼저 보여 주고,
 // 늦게 온 새 응답은 저장만 해 두었다가 다음에 열 때 씁니다. 저장해 둔 게 없으면 네트워크를 끝까지 기다립니다.
-const SLOW_MS = 2500;
+const SLOW_MS = 1200;
 function networkFirst(req, key) {
   const net = fetch(req).then(res => {
     if (res.ok) {

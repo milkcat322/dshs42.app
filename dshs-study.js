@@ -114,6 +114,9 @@ async function init() {
   let saved = false;
   try { saved = !!localStorage.getItem("dshs-study-auth"); } catch {}
   applyAccess(!saved);
+  // 지난번 화면을 서버 응답 없이 바로 그립니다. 아래에서 서버에 확인되면 새 내용으로 바꿉니다.
+  const fromSnap = saved && loadSnap();
+  if (fromSnap) { renderNav(); openStart(); }
   window.addEventListener("offline", () => applyAccess());
   window.addEventListener("online", backOnline);
   // ?bundle: 여러 파일을 차례로 받지 않고 한 파일로 받습니다 (index.html 의 modulepreload 와 같은 주소)
@@ -121,7 +124,7 @@ async function init() {
   try {
     ({ createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.4?bundle"));
   } catch {
-    netDown = true;   // 인터넷 없이 처음 열어 로그인 기능을 못 불러왔으면 검색만 씁니다
+    netDown = true;   // 인터넷 없이 처음 열어 로그인 기능을 못 불러왔으면 검색만 씁니다 (지난 화면의 내 시간표는 그대로)
     return applyAccess();
   }
   $("gateLogin").onclick = openAuth;
@@ -129,16 +132,21 @@ async function init() {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs-study-auth" },
   });
 
+  sbReady();
+
   await dshsSession();   // dshs.app 으로 로그인하고 돌아온 경우
-  const { data: { session } } = await sb.auth.getSession();   // ← 자동 로그인
+  const { data: { session }, error: sessErr } = await sb.auth.getSession();   // ← 자동 로그인
+  const shownId = me?.id, shownSid = me?.student_id;
   if (session) await loadProfile();
+  else if (me && !(sessErr && isNetErr(sessErr))) { me = null; myClasses = []; clearSnap(); }   // 로그인이 끝남
+  else if (me) netDown = true;   // 서버에 닿지 못함 → 지난 화면 유지
   renderNav();
   if (me) loadAssignments();
 
   logVisit();
   document.addEventListener("visibilitychange", () => { if (!document.hidden) logVisit(); });
   sb.auth.onAuthStateChange(async (evt) => {
-    if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); renderNav(); }
+    if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); clearSnap(); renderNav(); }
     if (evt === "SIGNED_IN") setTimeout(logVisit, 1000);   // 프로필을 읽은 뒤 (관리자면 세지 않도록)
   });
   // 검색으로 다른 시간표를 띄우거나 숨기면 "내 시간표" 탭 강조를 다시 맞춥니다
@@ -146,16 +154,58 @@ async function init() {
   new MutationObserver(() => { if (me) { renderNav(); paintStatus($("result")); } })
     .observe($("result"), { childList: true, attributes: true, attributeFilter: ["class"] });
 
-  // 알림을 누르고 들어오면 그 탭으로, 아니면 내 시간표로 시작합니다
+  // 지난 화면을 이미 띄웠으면 다른 계정으로 바뀐 경우에만 다시 엽니다
+  if (!fromSnap || (me && (me.id !== shownId || me.student_id !== shownSid))) openStart();
+  dshsReturned();
+  watchDshs();
+  watchStatus();
+}
+
+// 알림을 누르고 들어오면 그 탭으로, 아니면 내 시간표로 시작합니다
+function openStart() {
   const opened = new URLSearchParams(location.search).get("view");
   if (me && opened === "assignments") openStudy("notice");
   else if (me && opened === "cal") openStudy("cal");
   else if (me?.is_admin && opened === "admin") openStudy("admin");
   else if (me?.student_id) openMyTimetable();
-  dshsReturned();
-  watchDshs();
-  watchStatus();
 }
+
+// ---------- 지난 화면 먼저 ----------
+// 로그인한 학생이 열 때 서버를 기다리지 않도록, 마지막으로 받은 내 정보 · 수행평가 · 일정 · 위치를
+// 이 기기에 남겨 두고(SNAP_KEY) 다음에 열면 그것으로 먼저 그립니다. 서버 응답이 오면 새 내용으로 바꿉니다.
+// 로그아웃하거나 다른 계정이면 쓰지 않고 지웁니다. 로그인 기록(dshs-study-auth)과 같은 기기에만 남습니다.
+const SNAP_KEY = "dshs-snap";
+let sbReady;
+const sbWait = new Promise((r) => { sbReady = r; });   // 지난 화면을 띄운 뒤 서버 연결이 준비되기 전 눌러도 기다렸다 받습니다
+const isNetErr = (e) => /fetch|network|load failed|timeout/i.test(e?.message || "") || e?.status === 0;
+function authUserId() {
+  try { return JSON.parse(localStorage.getItem("dshs-study-auth"))?.user?.id || null; } catch { return null; }
+}
+function saveSnap() {
+  clearTimeout(saveSnap.t);
+  saveSnap.t = setTimeout(() => {
+    if (!me) return;
+    try {
+      localStorage.setItem(SNAP_KEY, JSON.stringify({
+        v: 1, at: Date.now(), me,
+        cache: { ...cache, done: [...cache.done], people: [...cache.people], invites: [...(cache.invites || new Map())] },
+        status: [...statusMap],
+      }));
+    } catch {}   // 저장 공간이 모자라면 다음에도 서버를 기다립니다
+  }, 400);
+}
+function loadSnap() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SNAP_KEY) || "null");
+    if (s?.v !== 1 || !s.me?.id || s.me.id !== authUserId()) { clearSnap(); return false; }
+    setMe(s.me);
+    const c = s.cache || {};
+    cache = { ...cache, ...c, done: new Set(c.done || []), people: new Map(c.people || []), invites: new Map(c.invites || []) };
+    statusMap = new Map(s.status || []);
+    return true;
+  } catch { return false; }
+}
+function clearSnap() { try { localStorage.removeItem(SNAP_KEY); } catch {} }
 
 // 방문 기기 수 (visits.sql). 화면에는 아무것도 보이지 않고, 관리자만 관리 탭에서 수를 봅니다.
 // 이 기기에 만든 무작위 ID 로 하루 한 번(로그인하면 한 번 더)만 보냅니다. 이름 · 학번은 보내지 않습니다.
@@ -194,9 +244,17 @@ async function loadProfile() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { me = null; return; }
   const { data, error } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
-  if (error && /fetch|network|load failed/i.test(error.message || "")) netDown = true;   // 서버에 닿지 못함
-  if (error || !data) { me = null; return; }
+  if (error && isNetErr(error)) {   // 서버에 닿지 못함 → 지난 화면의 내 정보가 이 계정 것이면 그대로 씁니다
+    netDown = true;
+    if (me?.id !== session.user.id) me = null;
+    return;
+  }
+  if (error || !data) { me = null; clearSnap(); return; }
   netDown = false;
+  setMe(data);
+  saveSnap();
+}
+function setMe(data) {
   me = data;
   if (me.student_id) {
     const nm = (window.ID_TO_NAME || {})[String(me.student_id)];
@@ -243,7 +301,7 @@ function renderNav() {
   const set = $("btnSettings");
   set.style.display = "";
   set.onclick = openSettings;
-  if (me?.is_admin && !refreshAdminCount.on) {   // 1분마다 처리할 일 수 확인
+  if (sb && me?.is_admin && !refreshAdminCount.on) {   // 1분마다 처리할 일 수 확인 (지난 화면을 먼저 띄울 때는 서버 연결 뒤에)
     refreshAdminCount.on = true;
     refreshAdminCount();
     setInterval(() => { if (me?.is_admin && !document.hidden) refreshAdminCount(); }, 60000);
@@ -251,8 +309,7 @@ function renderNav() {
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
-    autoPush();
-    loadStatus();
+    if (sb) { autoPush(); loadStatus(); }
   } else {
     $("btnLogin").onclick = openAuth;
   }
@@ -272,10 +329,10 @@ function applyAccess(guest = !me) {
 async function backOnline() {
   netDown = false;
   if (!sb) return location.reload();
-  if (!me) {
-    await loadProfile();
-    if (me) { renderNav(); loadAssignments(); return openHome(); }
-  }
+  const had = me;
+  await loadProfile();   // 지난 화면으로 버티던 중이면 새 내용으로 바꿉니다
+  if (me && !had) { renderNav(); loadAssignments(); return openHome(); }
+  if (me) { renderNav(); loadAssignments(); loadStatus(true); }
   applyAccess();
 }
 
@@ -312,6 +369,7 @@ async function loadStatus(force = false) {
   if (error) return;   // status.sql 을 아직 실행하지 않았으면 위치 없이 보여 줍니다
   statusMap = new Map(data.map((r) => [r.student_id, r]));
   paintStatus();
+  saveSnap();
 }
 // 내 일정·시간표를 보는 동안 1분마다 새로 받습니다
 function watchStatus() {
@@ -541,6 +599,8 @@ function renderStudy() {
 }
 
 async function loadAssignments() {
+  if (!sb) await sbWait;   // 지난 화면에서 탭을 먼저 누른 경우
+  if (!me) return;
   loadDshs();   // dshs.app 신청 내역은 따로 받아서, 오면 달력에 더합니다
   const [asg, personal, evs, done, people, todos, school, invites] = await Promise.all([
     sb.from("assignments").select("*").order("due_at", { ascending: true }),
@@ -578,6 +638,7 @@ async function loadAssignments() {
   cache.items = rows.filter((a) => a.status === "approved");
   cache.mine = rows.filter((a) => a.created_by === me.id);
   cache.pending = rows.filter((a) => a.status === "pending");
+  saveSnap();
   // 작성 중인 공지 추가 폼은 덮어쓰지 않습니다
   if ($("studyView").style.display === "block" && view !== "form") rerender();
 }
@@ -1907,6 +1968,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
 
 let ovSeen, fbSeen, ovPane;   // 탭을 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
 async function renderOverview() {
+  if (!sb) await sbWait;
   if (!$("studyBody")) return;
   if (ovSeen === undefined) {
     ovSeen = Infinity;
