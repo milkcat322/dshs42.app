@@ -1,17 +1,18 @@
--- 사용 분석 에이전트 (usage-agent Edge Function)
--- 매일 밤 22시(한국 시간)에 방문 · 로그인 · 기능 사용 통계를 모아 Claude 가 분석하고,
--- "로그인 사용자를 늘리려면 / 학생이 더 편하려면 무엇을 고칠지" 제안을 여기에 남깁니다.
--- 관리 탭 '분석' 칸에서 봅니다. 쓰기는 서버(service_role)만 합니다.
+-- 사용 분석 에이전트 (관리자 노트북의 Claude Code · scripts/usage-agent)
+-- 매일 밤 22시(한국 시간)에 관리자 노트북의 Claude Code 가 Supabase MCP 로 usage_snapshot() 과 집계 쿼리를 읽어
+-- 로그인 / 비로그인 현황 · 사용 양상 · 업데이트 반응을 분석하고 "무엇을 고칠지" 제안을 save_usage_report() 로 남깁니다.
+-- 저장하면 usage-agent Edge Function 이 관리자 기기에 푸시합니다. 관리 탭 '분석' 칸에서 봅니다.
+-- API 키는 쓰지 않습니다 (노트북의 Claude Code 로그인을 씁니다). 노트북이 꺼져 있었으면 다음에 켰을 때 밀린 분석을 합니다.
 -- visits.sql · ops.sql 뒤에 실행합니다. 여러 번 실행해도 안전합니다.
 --
--- Claude 에 보내는 것은 날짜 · 시간대별 '수'뿐입니다. 이름 · 학번 · 할 일 · 일정 제목 등 내용은 보내지 않습니다.
+-- 보고서에는 이름 · 학번 · 할 일 · 일정 제목 같은 개인 내용을 넣지 않습니다 (수와 비율만).
 
 create table if not exists public.usage_reports (
   id          uuid primary key default gen_random_uuid(),
   created_at  timestamptz not null default now(),
   title       text not null,
-  report      jsonb,              -- AI 분석 { headline, summary, login, usage, updates[], suggestions[], watch[] } (없으면 null)
-  stats       jsonb not null      -- 분석에 쓴 수치 (usage_snapshot 결과 + 계산값)
+  report      jsonb not null,     -- 분석 { headline, summary, login, usage, updates[], suggestions[], watch[], caveats }
+  stats       jsonb not null      -- 저장할 때의 usage_snapshot(14)
 );
 create index if not exists usage_reports_created_idx on public.usage_reports (created_at desc);
 
@@ -22,7 +23,7 @@ create policy usage_reports_admin_read on public.usage_reports
 revoke all on public.usage_reports from anon;
 grant select on public.usage_reports to authenticated;
 
--- 최근 p_days 일의 사용 통계 (관리자 계정 활동은 뺍니다). service_role 만 부를 수 있습니다.
+-- 최근 p_days 일의 사용 통계 (관리자 계정 활동은 뺍니다). 학생 · 관리자 화면에서는 부를 수 없습니다 (MCP · service_role 만).
 create or replace function public.usage_snapshot(p_days int default 14)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 declare
@@ -107,17 +108,40 @@ end $$;
 revoke execute on function public.usage_snapshot(int) from public, anon, authenticated;
 grant  execute on function public.usage_snapshot(int) to service_role;
 
--- 보고서는 90일만 보관합니다 (usage-agent 가 실행할 때 지웁니다)
+-- 분석 저장: Claude Code 가 MCP 로 부릅니다. 필요한 칸이 없으면 오류를 내서 다시 쓰게 합니다.
+-- 수치(stats)는 이 함수가 직접 usage_snapshot(14) 로 채웁니다. 90일 지난 보고서는 지웁니다.
+-- 저장 뒤 usage-agent Edge Function 을 불러 관리자에게 푸시합니다 (키는 send-reminders cron 에 이미 있는 헤더를 씁니다).
+create or replace function public.save_usage_report(p_report jsonb)
+returns uuid language plpgsql volatile security definer set search_path = public as $$
+declare
+  k text;
+  new_id uuid;
+  hdr text;
+begin
+  foreach k in array array['headline', 'summary', 'login', 'usage', 'updates', 'suggestions', 'watch', 'caveats'] loop
+    if p_report -> k is null then raise exception '보고서에 % 칸이 없어요', k; end if;
+  end loop;
+  if jsonb_typeof(p_report -> 'suggestions') <> 'array' or jsonb_array_length(p_report -> 'suggestions') = 0 then
+    raise exception 'suggestions 는 하나 이상인 배열이어야 해요';
+  end if;
+  insert into public.usage_reports (title, report, stats)
+  values ('사용 분석 · ' || left(p_report ->> 'headline', 60), p_report, public.usage_snapshot(14))
+  returning id into new_id;
+  delete from public.usage_reports where created_at < now() - interval '90 days';
 
-/* ------------------------------------------------------------
-   주기 실행 — 매일 22시 (한국 시간). UTC 로 13시입니다. SQL Editor 에서 한 번만 실행합니다.
-   키를 붙여 넣지 않도록 send-reminders cron 에 이미 들어 있는 Authorization 헤더를 그대로 씁니다.
+  select substring(command from 'headers\s*:=\s*''([^'']+)''') into hdr
+    from cron.job where jobname = 'dshs-study-reminders';
+  if hdr is not null then
+    perform net.http_post(
+      url := 'https://jsanpwlleufzgglqkrkv.supabase.co/functions/v1/usage-agent',
+      headers := hdr::jsonb,
+      body := jsonb_build_object('id', new_id),
+      timeout_milliseconds := 30000);
+  end if;
+  return new_id;
+end $$;
+revoke execute on function public.save_usage_report(jsonb) from public, anon, authenticated;
+grant  execute on function public.save_usage_report(jsonb) to service_role;
 
-   select cron.schedule('dshs-study-usage-agent', '0 13 * * *', format(
-     $f$select net.http_post(
-          url := 'https://jsanpwlleufzgglqkrkv.supabase.co/functions/v1/usage-agent',
-          headers := %L::jsonb,
-          timeout_milliseconds := 30000)$f$,
-     (select substring(command from 'headers\s*:=\s*''([^'']+)''')
-        from cron.job where jobname = 'dshs-study-reminders')));
------------------------------------------------------------- */
+-- 처음 만든 방식(서버에서 매일 22시)의 예약이 남아 있으면 지웁니다. 이제 노트북의 scripts/usage-agent 가 실행합니다.
+select cron.unschedule(jobid) from cron.job where jobname = 'dshs-study-usage-agent';

@@ -1972,23 +1972,23 @@ function opsHtml(reports) {
   }).join("") + '<div class="adm-foot">매일 오전 8시 · 정오 · 오후 4시 · 오후 8시 · 자정에 서버가 사이트·알림 서버·승인 대기를 점검하고, 새 피드백은 AI(Claude)가 분류·요약해요. 피드백 원문은 \'피드백\' 칸에 있어요.</div>';
 }
 
-// 사용 분석 에이전트(usage-agent)가 매일 22시에 남긴 보고서 (usage.sql)
-// 로그인 / 비로그인 현황 · 사용 양상 · 업데이트 반응을 AI(Claude)가 분석하고 고칠 방향을 제안합니다.
+// 사용 분석 에이전트가 매일 밤 10시에 남긴 보고서 (usage.sql · scripts/usage-agent)
+// 관리자 노트북의 Claude Code 가 로그인 / 비로그인 현황 · 사용 양상 · 업데이트 반응을 분석하고 고칠 방향을 제안합니다.
 function usageHtml(reports) {
   if (!reports) return '<div class="adm-none">사용 분석을 불러오지 못했어요.</div>';
-  if (!reports.length) return '<div class="adm-none">아직 사용 분석이 없어요. 매일 밤 10시에 만들어져요.</div>';
+  if (!reports.length) return '<div class="adm-none">아직 사용 분석이 없어요. 매일 밤 10시에 관리자 노트북에서 만들어져요.</div>';
   const GOAL = { login: "로그인 늘리기", convenience: "편의", both: "로그인 · 편의" };
   const EFFORT = { low: "금방", mid: "보통", high: "큰 작업" };
   const VERDICT = { good: "반응 좋음", mixed: "엇갈림", none: "변화 없음", unknown: "아직 모름" };
   const para = (label, text) => text ? `<div class="adm-label">${label}</div><div class="adm-use-text">${esc(text)}</div>` : "";
   return reports.map((r, i) => {
-    const a = r.report, d = r.stats?.derived || {}, reach = d.reach || {}, day = d.today_so_far;
+    const a = r.report || {}, t = r.stats?.totals || {}, day = (r.stats?.days || []).find((x) => x.day === r.stats?.today);
     const tiles = `<div class="adm-tiles">
-        <div class="adm-tile"><b>${reach.active_7d ?? "-"}</b>최근 7일 로그인 학생</div>
-        <div class="adm-tile"><b>${reach.students ?? "-"}<small>/${reach.roster ?? "-"}</small></b>가입한 학생</div>
-        <div class="adm-tile"><b>${day ? `${day.login_rate}%` : "-"}</b>그날 로그인 기기 비율</div>
+        <div class="adm-tile"><b>${t.active_users_7d ?? "-"}</b>최근 7일 로그인 학생</div>
+        <div class="adm-tile"><b>${t.students ?? "-"}<small>/${t.roster ?? "-"}</small></b>가입한 학생</div>
+        <div class="adm-tile"><b>${day?.devices ? `${Math.round(day.logged_in / day.devices * 100)}%` : "-"}</b>그날 로그인 기기 비율</div>
       </div>`;
-    const body = a ? `<div class="adm-use-text">${esc(a.summary)}</div>
+    const body = `<div class="adm-use-text">${esc(a.summary)}</div>
       ${tiles}
       ${para("로그인 · 비로그인", a.login)}
       ${para("사용 양상", a.usage)}
@@ -2000,13 +2000,12 @@ function usageHtml(reports) {
           <div class="adm-fb-text">${esc(x.why)}</div>
           <button class="study-btn small" data-useplan="${esc(x.title)}">계획에 넣기</button></div>`).join("")}` : ""}
       ${a.watch?.length ? `<div class="adm-label">다음에 지켜볼 것</div><ul class="adm-ops-list info">${a.watch.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
-      ${a.caveats ? `<div class="adm-foot">${esc(a.caveats)}</div>` : ""}`
-      : `${tiles}<div class="adm-foot">${esc(r.stats?.ai_error || "AI 분석 없이 수치만 남겼어요.")}</div>`;
+      ${a.caveats ? `<div class="adm-foot">${esc(a.caveats)}</div>` : ""}`;
     return `<details class="adm-fb adm-ops"${i ? "" : " open"}>
       <summary><b>${esc(r.title)}</b><span>${esc(ovTime(r.created_at))}</span></summary>
       ${body}
     </details>`;
-  }).join("") + '<div class="adm-foot">매일 밤 10시에 최근 14일의 방문 · 로그인 · 기능 사용 수를 모아 AI(Claude)가 분석해요. AI 에는 수만 보내고 이름 · 학번 · 내용은 보내지 않아요.</div>';
+  }).join("") + '<div class="adm-foot">매일 밤 10시에 관리자 노트북의 Claude Code 가 최근 14일의 방문 · 로그인 · 기능 사용 수와 업데이트 기록을 보고 분석해요. 노트북이 꺼져 있었으면 다음에 켰을 때 해요. 보고서에는 이름 · 학번을 넣지 않아요.</div>';
 }
 
 // ---------- 승인 칸: 같은 수행평가 합치기 제안 · 처리 기록 ----------
