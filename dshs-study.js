@@ -1851,13 +1851,34 @@ function plansHtml(plans) {
 
 // 관리 탭: 승인 대기 · 피드백 · 학생 · 계획을 나눠 한 번에 하나만 보여 줍니다.
 // 승인 대기는 loadAssignments 가 받은 cache.pending 을 씁니다. 승인 · 반려 · 삭제 뒤에는 다시 그립니다.
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits) {
+// 운영 점검 에이전트(ops-agent)가 매일 8시 · 18시에 남긴 보고서 (ops.sql)
+function opsHtml(reports) {
+  if (!reports) return '<div class="adm-none">점검 보고서를 불러오지 못했어요.</div>';
+  if (!reports.length) return '<div class="adm-none">아직 점검 보고서가 없어요. 매일 오전 8시와 오후 6시에 만들어져요.</div>';
+  const URGENCY = { high: "급함", normal: "보통", low: "낮음" };
+  const list = (xs, cls) => xs.length ? `<ul class="adm-ops-list ${cls}">${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  return reports.map((r, i) => {
+    const f = r.report.feedback || {};
+    const items = (f.items || []).map((x) => `<div class="adm-ops-fb">
+        <div class="adm-fb-top"><span class="adm-chip">${esc(FEEDBACK_KINDS[x.category] || x.category)}</span><span class="adm-chip">${esc(x.area)}</span>${x.urgency === "high" ? '<span class="fb-new">급함</span>' : `<span class="adm-chip">${URGENCY[x.urgency] || ""}</span>`}</div>
+        <div class="adm-fb-text"><b>${esc(x.summary)}</b> — ${esc(x.action)}</div>
+      </div>`).join("");
+    return `<details class="adm-fb adm-ops${r.issues ? " new" : ""}"${i ? "" : " open"}>
+      <summary><b>${esc(r.title)}</b><span>${esc(ovTime(r.created_at))}</span></summary>
+      ${list(r.report.issues || [], "warn")}
+      ${f.count ? `<div class="adm-label">피드백 ${f.count}건${f.headline ? ` · ${esc(f.headline)}` : ""}</div>${items}${f.error ? `<div class="adm-foot">${esc(f.error)}</div>` : ""}` : '<div class="adm-label">새 피드백 없음</div>'}
+      ${list(r.report.infos || [], "info")}
+    </details>`;
+  }).join("") + '<div class="adm-foot">매일 오전 8시와 오후 6시에 서버가 사이트·알림 서버·승인 대기를 점검하고, 새 피드백은 AI(Claude)가 분류·요약해요. 피드백 원문은 \'피드백\' 칸에 있어요.</div>';
+}
+
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits, ops) {
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
   const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
   const seg = [["asg", "승인", pending.length, true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false],
-    ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false]];
+    ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false], ["ops", "점검", ops?.[0]?.issues ?? 0, true]];
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
   return `<div class="adm-seg">${seg.map(([k, label, n, hot]) =>
       `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : ""}</button>`).join("")}</div>
@@ -1866,7 +1887,8 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
       : (rows.length ? fbHtml(fresh, true) + (old.length ? `${fresh.length ? '<div class="adm-label">지난 피드백</div>' : ""}${fbHtml(old, false)}` : "")
         : '<div class="adm-none">아직 받은 피드백이 없어요.</div>'))}
     ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
-    ${box("plan", plansHtml(plans))}`;
+    ${box("plan", plansHtml(plans))}
+    ${box("ops", opsHtml(ops))}`;
 }
 
 let ovSeen, fbSeen, ovPane;   // 탭을 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
@@ -1876,16 +1898,18 @@ async function renderOverview() {
     ovSeen = Infinity;
     try { ovSeen = Date.parse(localStorage.getItem(OV_SEEN_KEY)) || Infinity; } catch {}
     fbSeen = Date.parse(fbSeenAt());
-    ovPane = null;
+    // 점검 알림을 누르고 들어오면 '점검' 칸부터 (?view=admin&pane=ops)
+    ovPane = new URLSearchParams(location.search).get("pane") === "ops" ? "ops" : null;
   }
-  const [{ data, error }, fb, plans, visits] = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
-    sb.from("admin_plans").select("*").order("created_at", { ascending: true }), sb.rpc("admin_visits", { p_days: 7 })]);
+  const [{ data, error }, fb, plans, visits, ops] = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
+    sb.from("admin_plans").select("*").order("created_at", { ascending: true }), sb.rpc("admin_visits", { p_days: 7 }),
+    sb.from("ops_reports").select("*").order("created_at", { ascending: false }).limit(14)]);
   const body = $("studyBody");
   if (view !== "overview" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
   ovPane ||= !pending.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data);
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data);
   body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => {
     ovPane = b.dataset.ovpane;
     body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x === b));
