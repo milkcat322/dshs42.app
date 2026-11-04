@@ -124,7 +124,14 @@ window.DSHS_CONFIG = {
 
 ## 5. Netlify 배포
 
-GitHub 저장소(`milkcat322/dshs-study`)에 연결되어 있어서, `main` 에 푸시하면 자동으로 배포됩니다.
+사이트가 둘이고, 각각 다른 GitHub 저장소의 `main` 에 연결되어 푸시하면 자동으로 배포됩니다.
+
+| 사이트 | 저장소 | git 원격 이름 | 언제 올리나 |
+|---|---|---|---|
+| beta (`dshs42-beta.netlify.app`) | `milkcat322/dshs-study` | `origin` | 평소 개발 (Check Push) |
+| 메인 (`dshs42.app`) | `milkcat322/dshs42.app` | `prod` | beta 에서 확인한 뒤, 요청할 때만 (`/deploy-main`) |
+
+메인 저장소는 beta 의 `main` 을 그대로 받는 곳이라 직접 고치지 않습니다. 원격 설정은 PC 마다 따로라, 처음이면 `git remote add prod https://github.com/milkcat322/dshs42.app.git` 을 한 번 실행합니다.
 
 ## 6. 관리자 계정 만들기
 
