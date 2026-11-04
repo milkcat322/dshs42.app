@@ -23,7 +23,7 @@
 - **2026-11-04** 운영 점검 에이전트(매일 8시·18시 관리자 푸시, 관리 탭 '점검' 칸)와 방문 기기 로그인 학생 표시·전환 알림 도입, 열기·탭 전환 속도 개선(저장본 우선 열기), 분반별 같은 수행평가 합치기 제안·처리 기록 추가, dshs42.app v106 배포 <!-- session 63e1ed0b -->
 - **2026-11-04** beta(origin) 내용을 메인 웹 전용 저장소(prod, milkcat322/dshs42.app)에 처음으로 배포, 앱 업데이트 시 로그아웃·아이패드 알림 미작동·dshs42.app 알림 미작동 민원 수정, 시간표 검색 온/오프라인·로그인 분기 도입 <!-- session 020762cc -->
 - **2026-11-04** 관리 탭 계획 항목 수정, 점검·합치기 제안 시간을 8·12·16·20·0시로 변경, 노트북 Claude Code가 로그인 전환을 분석해 제안하는 사용 분석 에이전트 도입, 막힘 화면 본 수·누른 수 기록과 바로 dshs.app 로그인, "시작하기" 버튼 하나와 작은 관리자 로그인 링크로 로그인 화면 개편, dshs42.app v112 배포 <!-- session 028c2f0e -->
-- **2026-11-05** 수행평가 공지에 댓글 기능 추가(assignment_comments 표, 공지 RLS 따름, 합치기 시 댓글 이동) <!-- session ee85017d -->
+- **2026-11-05** 관리자 전용 기능을 학생 사이트에서 분리해 별도 관리자 웹사이트(admin/)로 만드는 작업 착수(build-admin.mjs, feature/admin-site 브랜치) <!-- session ee85017d -->
 <!-- 개발 흐름 끝 -->
 
 ## 쓰는 법
@@ -1992,41 +1992,49 @@
 ### 배운 점
 - 브라우저는 주소별로 로그인과 알림 구독을 따로 기억하므로, 서버의 관리자 알림(`planAdminNote`)은 그대로 두고 받을 사이트만 추가하면 됨
 
-## 2026-11-05 08:27–08:31 · 수행평가 공지 댓글 기능 추가
+## 2026-11-05 08:27–08:52 · 수행평가 공지 댓글 기능 추가 및 관리자 전용 사이트 분리 착수
 
-`session ee85017d` · 개발 milkcat322 · 요청 2회
+`session ee85017d` · 개발 milkcat322 · 요청 4회
 
 ### 목표
-- 수행평가 공지에 댓글을 달 수 있게 해달라는 요청 처리
+- 수행평가 공지에 댓글 기능 추가
+- 관리자 전용 기능을 학생 사이트에서 떼어내 별도 관리자 웹사이트로 분리
 
 ### 한 일
-- 수행평가 DB 구조(`assignments`, RLS 정책)와 상세 창(`openAsgDetail`), merge 로직(`merge.sql`) 조사
-- `assignment_comments` 표 설계·작성(`comments.sql`), 공지와 같은 RLS 범위를 따르게 구성
-- 상세 창에 댓글 목록·입력 칸 추가(`dshs-study.js`, `index.html` 스타일)
-- 공지 합치기 시 댓글을 새 공지로 옮기도록 `merge.sql` 수정
-- sw.js 캐시 버전 v113 반영, `updates.js`에 업데이트 안내 추가, README·CLAUDE.md에 실행 순서·주의점 반영
-- anon 키로 Supabase에 직접 조회해 표 생성과 RLS 동작(비로그인 시 빈 목록) 확인 후 커밋·DEVLOG 작성
+- `comments.sql`로 `assignment_comments` 표와 RLS 정책 작성, 공지 RLS를 그대로 따르게 함
+- `merge.sql`에 수행평가 합치기 시 댓글을 새 공지로 옮기는 처리 추가
+- `dshs-study.js`의 상세 창(`openAsgDetail`)에 댓글 목록·입력 UI 추가, `index.html`에 스타일 추가
+- `updates.js`에 업데이트 안내 항목 추가, `sw.js` 캐시 버전 v113으로 올림
+- README·CLAUDE.md의 SQL 실행 순서·주의점 갱신
+- Supabase SQL Editor에서 사용자가 SQL 실행 후, anon 키로 표 생성과 권한 제한을 확인하고 커밋·푸시
+- `feature/admin-site` 브랜치를 만들어 관리자 사이트 분리 작업 시작: `scripts/build-admin.mjs` 빌드 스크립트와 `admin/index.html`, `admin/sw.js`, `admin/manifest.webmanifest` 작성
 
 ### 결정과 이유
-- 댓글 읽기/쓰기 권한을 화면이 아니라 DB RLS로 제어: 승인된 공지는 같은 과목·분반 학생, 대기·반려 공지는 작성자와 관리자만 보도록 해 승인 전 관리자와의 대화 용도로도 쓰게 함
-- 댓글 수정 기능은 두지 않고 삭제만 허용(본인·관리자), 작성자 이름은 서버가 채워 위조 방지
-- 공지 삭제 시 댓글도 함께 삭제(연쇄 삭제)
+- 댓글 읽기·쓰기 권한은 화면이 아니라 DB RLS로 제한. 승인 대기·반려 공지는 작성자와 관리자만 보게 해 승인 전 비공개 소통 창구로도 쓸 수 있게 함
+- 관리자 전용 웹사이트 분리는 AskUserQuestion으로 제시한 세 가지 추천안을 모두 채택, 영향 범위가 커서 `feature/admin-site` 브랜치에서 진행
 
 ### 해결한 문제
-- 증상: 댓글 기능 코드는 작성했지만 `assignment_comments` 표가 없어 작동하지 않음 → 원인: DB 스키마 변경은 자동 권한 검사로 직접 실행 불가 → 해결: 사용자가 Supabase SQL Editor에서 `comments.sql`·수정된 `merge.sql`을 직접 실행, 완료 확인 후 Check Push 진행
+- 증상: 댓글 기능 코드를 다 짰는데도 동작 확인이 안 됨 → 원인: `assignment_comments` 표를 만드는 DDL은 자동 권한 검사로 직접 실행이 막힘 → 해결: 사용자가 Supabase SQL Editor에서 직접 실행하고, anon 키로 표 존재와 RLS 동작을 확인한 뒤 Check Push 진행
 
 ### 남은 일
-- [ ] 새 댓글 등록 시 공지 작성자에게 푸시 알림
-- [ ] 공지 목록 줄에 댓글 수 표시
+- [ ] 로그인한 학생 계정으로 댓글 작성·삭제 직접 테스트
+- [ ] 새 댓글 알림, 목록에 댓글 수 표시 (미구현)
+- [ ] 관리자 전용 사이트 분리 작업 이어서 진행
+- [ ] beta 확인 후 dshs42.app(메인 웹) 반영
+
+### 배운 점
+- DEVLOG의 "개발 …" 란은 Claude 로그인 계정과 무관하게 해당 PC의 git `user.name`을 그대로 씀. 다른 Claude 계정으로 로그인해도 이 PC에서 작업하면 같은 이름(`milkcat322`)으로 기록됨
 
 ### 바뀐 파일
 - `CLAUDE.md`
 - `README.md`
+- `admin/`
 - `comments.sql`
 - `dshs-study.js`
 - `index.html`
 - `merge.sql`
+- `scripts/build-admin.mjs`
 - `sw.js`
 - `updates.js`
 
-<!-- flow: - **2026-11-05** 수행평가 공지에 댓글 기능 추가(assignment_comments 표, 공지 RLS 따름, 합치기 시 댓글 이동) -->
+<!-- flow: - **2026-11-05** 관리자 전용 기능을 학생 사이트에서 분리해 별도 관리자 웹사이트(admin/)로 만드는 작업 착수(build-admin.mjs, feature/admin-site 브랜치) -->
