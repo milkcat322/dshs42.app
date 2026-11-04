@@ -33,6 +33,9 @@ visits.sql                ★ 관리 탭의 방문 기기 수 (비로그인 포�
 ops.sql                   ★ 운영 점검 보고서 (ops-agent 가 매일 8시 · 18시에 남김 · 관리자만 봄)
 supabase/functions/ops-agent/index.ts       운영 점검 에이전트 (사이트 · 서버 · 승인 대기 점검 + 피드백 AI 요약 → 관리자 푸시)
 supabase/functions/ops-agent/report.ts      점검 결과로 보고서 문장 만들기 (순수 함수)
+merge.sql                 ★ 분반별 같은 수행평가 합치기 제안 · 합치기 함수 (merge-suggest 가 3시간마다 찾음 · 관리자만)
+supabase/functions/merge-suggest/index.ts   같은 과목 · 다른 분반 · 비슷한 이름의 수행평가 찾아 제안 남기기
+supabase/functions/merge-suggest/suggest.ts 묶는 규칙 (순수 함수)
 supabase/functions/dshs-oauth/index.ts      dshs.app 로그인 연결 · 신청 내역 조회
 updates.js                업데이트 소식 (주요 업데이트는 접속 시 한 번 팝업 · 좌측 상단 📢 업데이트에서 전체 내역)
 academic.json             학사일정 (NEIS 에서 매일 자동 갱신 · 직접 고치지 않음)
@@ -69,6 +72,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `status.sql` → `invites.sql` → `groups.sql` 을 차례로 **Run** (내 위치 · 가입 전 친구 초대 · 관리자 그룹)
    이어서 `overview.sql` → `plans.sql` → `visits.sql` 을 차례로 **Run** (관리자 현황판 · 향후 계획 · 방문 기기 수)
    이어서 `ops.sql` 을 **Run** (운영 점검 보고서). 맨 아래 주석의 `cron.schedule` 도 한 번 실행하면 매일 08:00 · 18:00 에 점검이 돌아갑니다
+   이어서 `merge.sql` 을 **Run** (같은 수행평가 합치기 제안). 맨 아래 주석의 `cron.schedule` 도 한 번 실행하면 3시간마다 찾습니다
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
 

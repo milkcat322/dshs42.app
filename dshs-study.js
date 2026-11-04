@@ -1786,12 +1786,13 @@ let adminCount = 0;
 const adminTabLabel = () => `관리${adminCount ? `<span class="nav-count">${adminCount > 99 ? "99+" : adminCount}</span>` : ""}`;
 async function refreshAdminCount() {
   if (!me?.is_admin) return;
-  const [pend, fresh] = await Promise.all([
+  const [pend, fresh, merge] = await Promise.all([
     sb.from("assignments").select("id", { count: "exact", head: true }).eq("status", "pending"),
     sb.from("feedback").select("id", { count: "exact", head: true }).gt("created_at", fbSeenAt()),
+    sb.from("merge_suggestions").select("id", { count: "exact", head: true }).eq("status", "open"),
   ]);
   if (pend.error || fresh.error) return;
-  adminCount = pend.count + fresh.count;
+  adminCount = pend.count + fresh.count + (merge.error ? 0 : merge.count);
   const tab = document.querySelector('#studyNav [data-page="admin"]');
   if (tab) tab.innerHTML = adminTabLabel();
 }
@@ -1970,17 +1971,119 @@ function opsHtml(reports) {
   }).join("") + '<div class="adm-foot">매일 오전 8시와 오후 6시에 서버가 사이트·알림 서버·승인 대기를 점검하고, 새 피드백은 AI(Claude)가 분류·요약해요. 피드백 원문은 \'피드백\' 칸에 있어요.</div>';
 }
 
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits, ops) {
+// ---------- 승인 칸: 같은 수행평가 합치기 제안 · 처리 기록 ----------
+// merge-suggest 서버 함수가 3시간마다 같은 과목 · 다른 분반 · 비슷한 이름의 수행평가를 찾아 merge_suggestions 에 남깁니다 (merge.sql).
+// 마감이 같으면 이름을 고쳐 전체 분반 공지로 합치고(merge_assignments), 마감이 다르면 확인만 합니다(dismiss_merge).
+// 처리 기록: 승인 · 반려한 수행평가(누가 · 언제)와 합치기 · 확인 기록. 처리해도 지우지 않고 여기에 남습니다.
+async function loadReviewLog() {
+  const [sug, done] = await Promise.all([
+    sb.from("merge_suggestions").select("*").order("created_at", { ascending: false }).limit(100),
+    sb.from("assignments").select("id, subject, ban, title, due_at, status, created_at, reviewed_by, reviewed_at, author_name, merged_from")
+      .neq("status", "pending").order("reviewed_at", { ascending: false, nullsFirst: false }).limit(300),
+  ]);
+  const rows = done.data || [], sugs = sug.error ? [] : sug.data;   // merge.sql 을 아직 실행하지 않았으면 제안 없이
+  const ids = [...new Set([...rows.map((a) => a.reviewed_by), ...sugs.map((x) => x.resolved_by)].filter(Boolean))];
+  const { data: who } = ids.length ? await sb.from("profiles").select("id, name").in("id", ids) : { data: [] };
+  return {
+    open: sugs.filter((x) => x.status === "open"),
+    resolved: sugs.filter((x) => x.status !== "open"),
+    reviewed: done.error ? null : rows,
+    nameOf: Object.fromEntries((who || []).map((p) => [p.id, p.name])),
+  };
+}
+
+const shortDue = (iso) => (iso ? new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }) : "마감 없음");
+// 그 과목의 분반 중 이 묶음에 없는 분반 (합치면 그 분반에도 보이게 됨)
+function missingBans(subject, items) {
+  const have = new Set(items.map((a) => a.ban));
+  return [...new Set(allClassList().filter((c) => c.subject === subject && c.ban).map((c) => c.ban))]
+    .filter((b) => !have.has(b)).sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+function mergeHtml(log) {
+  if (!log?.open.length) return "";
+  const same = log.open.filter((x) => x.kind === "same"), diff = log.open.filter((x) => x.kind === "diff_due");
+  const rows = (x, showDue) => x.items.map((a) => `<li><b>${esc(a.ban || "전체")}</b> ${esc(a.title)}${showDue ? ` <span class="adm-merge-due">${esc(shortDue(a.due_at))}</span>` : ""}${a.status === "pending" ? ' <span class="st-badge pending">대기</span>' : ""}</li>`).join("");
+  const sameHtml = same.map((x) => {
+    const miss = missingBans(x.subject, x.items);
+    return `<div class="adm-fb adm-merge new">
+      <div class="adm-fb-top"><span class="adm-chip hot">합치기 제안</span><span class="adm-chip">${esc(x.subject)}</span></div>
+      <div class="adm-fb-text">${esc(x.items.map((a) => a.ban).join(" · "))}에 이런 이름의 수행평가가 같은 마감(${esc(shortDue(x.items[0].due_at))})으로 올라와 있어요.</div>
+      <ul class="adm-merge-list">${rows(x, false)}</ul>
+      <div class="adm-fb-text">아래 이름으로 <b>전체 분반 공지</b> 하나로 합칠까요? 원래 공지는 지워지고, 완료 체크는 새 공지로 옮겨져요.</div>
+      ${miss.length ? `<div class="adm-merge-warn">${esc(miss.join(" · "))}에는 없던 공지라, 합치면 ${esc(miss.join(" · "))}에도 보여요.</div>` : ""}
+      <input class="adm-merge-title" type="text" maxlength="120" value="${esc(x.title)}" data-mtitle="${x.id}" aria-label="합칠 공지 이름">
+      <div class="asg-actions">
+        <button class="study-btn small ok" data-merge="${x.id}">전체 분반 공지로 합치기</button>
+        <button class="study-btn small" data-mskip="${x.id}">합치지 않기</button>
+      </div>
+    </div>`;
+  }).join("");
+  const diffHtml = diff.map((x) => `<div class="adm-fb adm-merge">
+      <div class="adm-fb-top"><span class="adm-chip">${esc(x.subject)}</span><span class="adm-chip">마감이 달라요</span></div>
+      <ul class="adm-merge-list">${rows(x, true)}</ul>
+      <div class="asg-actions"><button class="study-btn small" data-mskip="${x.id}">확인</button></div>
+    </div>`).join("");
+  return (same.length ? `<div class="adm-label">같은 수행평가 합치기 ${same.length}</div>${sameHtml}` : "")
+    + (diff.length ? `<details class="adm-acc adm-merge-acc"${same.length ? "" : " open"}><summary>이름은 같은데 마감이 분반마다 달라요<span>${diff.length}</span></summary>
+        <p>분반마다 수업 날이 달라 마감이 다른 경우가 많아요. 공지가 맞는지만 보고 확인을 눌러 주세요.</p>${diffHtml}</details>` : "");
+}
+
+function reviewLogHtml(log) {
+  if (!log) return "";
+  const who = (id) => log.nameOf[id] || "관리자";
+  const items = [
+    ...(log.reviewed || []).map((a) => ({
+      at: a.reviewed_at || a.created_at,
+      html: `<div class="adm-log-row">
+        <div><b>${esc(a.subject)} · ${esc(banLabel(a.ban))}</b> ${esc(a.title)}${a.status === "rejected" ? ' <span class="st-badge rejected">반려됨</span>' : ""}</div>
+        <div class="adm-log-sub">${a.merged_from ? `${esc(a.merged_from.map((m) => m.ban).join(" · "))} → 전체 분반으로 합침 · ${esc(who(a.reviewed_by))}`
+          : a.reviewed_by ? `${esc(who(a.reviewed_by))} ${a.status === "rejected" ? "반려" : "승인"}` : `${esc(a.author_name || "관리자")} 작성`} · ${esc(ovTime(a.reviewed_at || a.created_at))} · ${esc(shortDue(a.due_at))}</div>
+      </div>`,
+    })),
+    ...log.resolved.filter((x) => x.status === "dismissed").map((x) => ({
+      at: x.resolved_at,
+      html: `<div class="adm-log-row">
+        <div><b>${esc(x.subject)}</b> ${esc(x.title)} <span class="adm-chip">${x.kind === "same" ? "합치지 않음" : "마감 다름 확인"}</span></div>
+        <div class="adm-log-sub">${esc(x.items.map((a) => a.ban).join(" · "))} · ${esc(who(x.resolved_by))} · ${esc(ovTime(x.resolved_at))}</div>
+      </div>`,
+    })),
+  ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  return `<details class="adm-acc"><summary>처리 기록 · 승인한 수행평가 전체<span>${log.reviewed ? items.length : "불러오지 못함"}</span></summary>
+    ${items.map((x) => x.html).join("") || '<div class="adm-none">아직 처리한 수행평가가 없어요.</div>'}</details>`;
+}
+
+function bindMerge(body) {
+  body.querySelectorAll("[data-merge]").forEach((b) => b.onclick = async () => {
+    const title = body.querySelector(`[data-mtitle="${b.dataset.merge}"]`).value.trim();
+    if (!title) return toast("이름을 적어 주세요", true);
+    if (!confirm(`'${title}' 전체 분반 공지 하나로 합칠까요? 원래 분반 공지는 지워져요.`)) return;
+    b.disabled = true;
+    const { error } = await sb.rpc("merge_assignments", { p_id: b.dataset.merge, p_title: title });
+    if (error) { b.disabled = false; return toast(error.message?.match(/[가-힣]/) ? error.message : "합치지 못했어요", true); }
+    toast("전체 분반 공지로 합쳤어요");
+    await loadAssignments();
+  });
+  body.querySelectorAll("[data-mskip]").forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    const { error } = await sb.rpc("dismiss_merge", { p_id: b.dataset.mskip });
+    if (error) { b.disabled = false; return toast("처리하지 못했어요", true); }
+    await loadAssignments();
+  });
+}
+
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits, ops, log) {
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
   const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
-  const seg = [["asg", "승인", pending.length, true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false],
+  const seg = [["asg", "승인", pending.length + (log?.open.length || 0), true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false],
     ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false], ["ops", "점검", ops?.[0]?.issues ?? 0, true]];
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
   return `<div class="adm-seg">${seg.map(([k, label, n, hot]) =>
       `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : ""}</button>`).join("")}</div>
-    ${box("asg", pending.length ? pending.map((a) => card(a, { admin: true })).join("") : '<div class="adm-none">승인 대기 중인 수행평가가 없어요.</div>')}
+    ${box("asg", mergeHtml(log) + (pending.length ? `${log?.open.length ? '<div class="adm-label">승인 대기</div>' : ""}${pending.map((a) => card(a, { admin: true })).join("")}`
+      : '<div class="adm-none">승인 대기 중인 수행평가가 없어요.</div>') + reviewLogHtml(log))}
     ${box("fb", fb.error ? '<div class="adm-none">피드백을 불러오지 못했어요.</div>'
       : (rows.length ? fbHtml(fresh, true) + (old.length ? `${fresh.length ? '<div class="adm-label">지난 피드백</div>' : ""}${fbHtml(old, false)}` : "")
         : '<div class="adm-none">아직 받은 피드백이 없어요.</div>'))}
@@ -2005,20 +2108,20 @@ async function renderOverview(cached = false) {
   if (!sb) await sbWait;
   const res = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
     sb.from("admin_plans").select("*").order("created_at", { ascending: true }), sb.rpc("admin_visits", { p_days: 7 }),
-    sb.from("ops_reports").select("*").order("created_at", { ascending: false }).limit(14)]);
+    sb.from("ops_reports").select("*").order("created_at", { ascending: false }).limit(14), loadReviewLog()]);
   const sig = JSON.stringify(res);
   if (cached && ovLast && sig === ovLast.sig) return;   // 먼저 그린 것과 같으면 그대로
   ovLast = Object.assign(res, { sig });
   paintOverview(res);
 }
 function paintOverview(res) {
-  const [{ data, error }, fb, plans, visits, ops] = res;
+  const [{ data, error }, fb, plans, visits, ops, log] = res;
   const body = $("studyBody");
   if (view !== "overview" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
-  ovPane ||= !pending.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data);
+  ovPane ||= !pending.length && !log?.open.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data, log);
   body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => {
     ovPane = b.dataset.ovpane;
     body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x === b));
@@ -2026,6 +2129,7 @@ function paintOverview(res) {
   });
   body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
   body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
+  bindMerge(body);
   bindRows(body);
   body.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = () => deleteFeedback(fb.rows.find((r) => r.id === x.dataset.fbdel)));
   bindPlans(body);
