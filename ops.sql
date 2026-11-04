@@ -1,5 +1,5 @@
 -- 운영 점검 에이전트 (ops-agent Edge Function)
--- 매일 08:00 · 18:00 에 서비스 상태와 피드백을 점검해 관리자에게 푸시로 알리고, 보고서를 여기에 남깁니다.
+-- 매일 오전 8시 · 정오 · 오후 4시 · 오후 8시 · 자정에 서비스 상태와 피드백을 점검해 관리자에게 푸시로 알리고, 보고서를 여기에 남깁니다.
 -- 관리 탭 '점검' 칸에서 최근 보고서를 봅니다. 쓰기는 서버(service_role)만 합니다.
 -- visits.sql 뒤에 실행합니다 (is_admin_user 를 씁니다). 여러 번 실행해도 안전합니다.
 
@@ -55,10 +55,11 @@ grant  execute on function public.ops_snapshot() to service_role;
 -- 보고서는 60일만 보관합니다 (ops-agent 가 실행할 때 지웁니다)
 
 /* ------------------------------------------------------------
-   주기 실행 — 매일 08:00 · 18:00 (한국 시간). UTC 로 23시 · 9시입니다. SQL Editor 에서 한 번만 실행합니다.
+   주기 실행 — 매일 0 · 8 · 12 · 16 · 20시 (한국 시간). UTC 로 15 · 23 · 3 · 7 · 11시입니다.
+   같은 이름으로 다시 실행하면 시각만 바뀝니다 (merge-suggest 도 같은 시각에 돕니다). SQL Editor 에서 한 번만 실행합니다.
    키를 붙여 넣지 않도록 send-reminders cron 에 이미 들어 있는 Authorization 헤더를 그대로 씁니다.
 
-   select cron.schedule('dshs-study-ops-agent', '0 9,23 * * *', format(
+   select cron.schedule('dshs-study-ops-agent', '0 3,7,11,15,23 * * *', format(
      $f$select net.http_post(
           url := 'https://jsanpwlleufzgglqkrkv.supabase.co/functions/v1/ops-agent',
           headers := %L::jsonb,

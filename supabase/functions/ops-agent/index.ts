@@ -1,13 +1,13 @@
 // dshs42.app — 운영 점검 에이전트
-// 매일 08:00 · 18:00 에 서비스 상태(사이트 · cron · 서버 함수 호출 · 승인 대기)와 비로그인 → 로그인 전환을 점검하고,
+// 매일 오전 8시 · 정오 · 오후 4시 · 오후 8시 · 자정에 서비스 상태(사이트 · cron · 서버 함수 호출 · 승인 대기)와 비로그인 → 로그인 전환을 점검하고,
 // 지난 보고서 이후 들어온 피드백을 Claude 로 분류 · 요약해 관리자에게 푸시로 보냅니다.
 // 보고서는 ops_reports 에 남아 관리 탭 '점검' 칸에서 봅니다. 무엇을 쓸지는 report.ts 가 정합니다.
 //
 // 배포:   supabase functions deploy ops-agent
 // 비밀값: ANTHROPIC_API_KEY (없으면 피드백은 개수만 알립니다) · VAPID_* 는 send-reminders 와 같은 값
-// 실행:   ops.sql 맨 아래 "주기 실행" 주석 (매일 08:00 · 18:00)
+// 실행:   ops.sql 맨 아래 "주기 실행" 주석 (매일 0 · 8 · 12 · 16 · 20시)
 //         ?dry=1   저장 · 푸시 없이 보고서만 돌려줍니다 (확인용)
-//         ?force=1 6시간 안에 보낸 보고서가 있어도 다시 보냅니다
+//         ?force=1 3시간 안에 보낸 보고서가 있어도 다시 보냅니다
 // service_role 키로만 부를 수 있습니다.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
   const last = await db.from("ops_reports").select("created_at").order("created_at", { ascending: false }).limit(1);
   if (last.error) return new Response(last.error.message, { status: 500 });
   const lastAt = last.data[0] ? Date.parse(last.data[0].created_at) : null;
-  if (!dry && !force && lastAt && now - lastAt < 6 * HOUR) return json({ skipped: "6시간 안에 보낸 보고서가 있어요" });
+  if (!dry && !force && lastAt && now - lastAt < 3 * HOUR) return json({ skipped: "3시간 안에 보낸 보고서가 있어요" });
   const since = iso(lastAt ?? now - DAY);
   const yesterday = new Date(now + KST - DAY).toISOString().slice(0, 10);
 

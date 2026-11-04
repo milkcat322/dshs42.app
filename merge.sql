@@ -1,5 +1,5 @@
 -- 분반별로 따로 올라온 같은 수행평가 → 전체 분반 공지로 합치기 제안 (merge-suggest Edge Function)
--- 3시간마다 서버가 같은 과목 · 다른 분반 · 비슷한 이름의 수행평가를 찾아 여기에 남기고,
+-- 매일 0 · 8 · 12 · 16 · 20시(한국 시간)에 서버가 같은 과목 · 다른 분반 · 비슷한 이름의 수행평가를 찾아 여기에 남기고,
 -- 관리 탭 '승인' 칸에서 관리자가 이름을 고쳐 합치거나(마감이 같을 때) 확인만 합니다(마감이 다를 때).
 -- 합치면 전체 분반 공지 하나를 새로 만들고 원래 공지는 지웁니다. 완료 체크는 새 공지로 옮깁니다.
 -- 원래 공지 내용은 새 공지의 merged_from 에 남습니다 (관리 탭 '처리 기록'에서 보임).
@@ -87,10 +87,10 @@ grant  execute on function public.dismiss_merge(uuid) to authenticated;
 grant  execute on function public.merge_assignments(uuid, text) to authenticated;
 
 /* ------------------------------------------------------------
-   주기 실행 — 3시간마다. SQL Editor 에서 한 번만 실행합니다.
+   주기 실행 — 매일 0 · 8 · 12 · 16 · 20시 (한국 시간, 운영 점검과 같은 시각). SQL Editor 에서 한 번만 실행합니다.
    키를 붙여 넣지 않도록 send-reminders cron 에 이미 들어 있는 Authorization 헤더를 그대로 씁니다.
 
-   select cron.schedule('dshs-study-merge-suggest', '0 */3 * * *', format(
+   select cron.schedule('dshs-study-merge-suggest', '0 3,7,11,15,23 * * *', format(
      $f$select net.http_post(
           url := 'https://jsanpwlleufzgglqkrkv.supabase.co/functions/v1/merge-suggest',
           headers := %L::jsonb,
