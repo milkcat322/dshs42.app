@@ -135,6 +135,7 @@ async function startApp() {
     return applyAccess();
   }
   $("gateLogin").onclick = gateLogin;
+  $("gateAdmin").onclick = openAdminLogin;
   sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs-study-auth" },
   });
@@ -325,7 +326,8 @@ const asgSubjects = () => mySubjects().filter((s) => !NO_ASG_SUBJECTS.has(s));
 // ---------- 헤더 ----------
 function renderNav() {
   const nav = $("studyNav");
-  nav.style.display = "flex";
+  // 로그인 전에는 위쪽 메뉴를 숨깁니다. 시작하기는 시간표 막힘 화면의 버튼 하나뿐이고, 그 아래 작은 관리자 로그인이 있습니다.
+  nav.style.display = me ? "flex" : "none";
   const open = $("studyView").style.display === "block";
   // 학생 계정은 맨 왼쪽에 "시간표" (내 시간표 · 검색. 관리자 계정은 학번이 없어 내 시간표가 없음)
   const pages = me?.is_admin ? [...PAGES, ["admin", "관리"]] : PAGES;   // 관리 탭은 관리자만
@@ -334,7 +336,7 @@ function renderNav() {
   nav.innerHTML = me
     ? tabs.map(([k, label]) =>
         `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${k === "admin" ? adminTabLabel() : label}</button>`).join("")
-    : `<button class="study-btn" id="btnLogin">시작하기</button>`;
+    : "";
   // 설정(알림 · 학교 일정 · 계정)은 업데이트 옆에 늘 보입니다 (로그인 전에는 관리자 로그인을 여는 곳)
   const set = $("btnSettings");
   set.style.display = "";
@@ -348,8 +350,6 @@ function renderNav() {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
       (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
     if (sb) { autoPush(); loadStatus(); }
-  } else {
-    $("btnLogin").onclick = openAuth;
   }
   applyAccess();
 }
