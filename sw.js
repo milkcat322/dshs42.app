@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v102';
+const CACHE = 'dshs-study-v103';
 
 const SHELL = [
   './',
@@ -26,7 +26,8 @@ const STATIC_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => Promise.allSettled(SHELL.map(u => c.add(u))))
+      // 브라우저 캐시를 거치지 않고 서버에서 새로 받습니다 (새 버전 파일이 옛 파일과 섞이지 않도록)
+      .then(c => Promise.allSettled(SHELL.map(u => c.add(new Request(u, { cache: 'reload' })))))
       .then(() => self.skipWaiting())
   );
 });
@@ -64,6 +65,12 @@ function networkFirst(req, key) {
   });
 }
 
+function cacheFirst(req, key) {
+  return caches.open(CACHE).then(c => c.match(key, { ignoreSearch: key === './index.html' })
+    .then(hit => hit || (key === './index.html' ? c.match('./') : undefined))
+    .then(hit => hit || networkFirst(req, key)));
+}
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -84,15 +91,21 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 스크립트·설정·데이터 파일(학사일정 academic.json 등): 항상 최신을 먼저 (고치면 새로고침 한 번에 반영되도록)
-  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.json')) {
+  // 데이터 파일(학사일정 academic.json 등): 매일 바뀌므로 네트워크 우선
+  if (url.pathname.endsWith('.json')) {
     e.respondWith(networkFirst(req, req));
     return;
   }
 
-  // 앱 문서: 네트워크 우선(최신 시간표), 실패하면 캐시로 오프라인 동작
+  // 앱 문서 · 스크립트: 이 버전(CACHE)에 받아 둔 것을 서버를 기다리지 않고 바로 씁니다.
+  // 새 버전은 sw.js 의 CACHE 가 바뀌면 브라우저가 알아채 install 에서 새로 받고, 페이지가 알아서 다시 엽니다(index.html).
+  // 그래서 프론트 파일을 고치면 CACHE 버전을 꼭 올려야 합니다.
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
-    e.respondWith(networkFirst(req, './index.html'));
+    e.respondWith(cacheFirst(req, './index.html'));
+    return;
+  }
+  if (url.pathname.endsWith('.js')) {
+    e.respondWith(cacheFirst(req, req));
     return;
   }
 

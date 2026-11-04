@@ -1126,11 +1126,26 @@ const suggestionsEl = document.getElementById('suggestions');
   window.addEventListener('appinstalled', () => bar.classList.remove('show'));
 
   // 서비스 워커 등록 (오프라인 + 설치 조건)
-  // 새 버전은 sw.js 가 바로 적용하고 페이지·스크립트는 늘 최신을 받으므로 새로고침 안내는 띄우지 않습니다.
-  // 바뀐 내용은 아래 "업데이트 소식" 이 알려 줍니다.
+  // 페이지·스크립트는 서비스 워커가 받아 둔 것으로 바로 열고(서버를 기다리지 않음), 새 버전은 뒤에서 받습니다.
+  // 새 버전이 준비되면(controllerchange) 연 지 얼마 안 됐을 때는 바로, 쓰는 중이면 화면을 떠날 때 다시 엽니다.
+  // 새로고침 안내는 띄우지 않고, 바뀐 내용은 아래 "업데이트 소식" 이 알려 줍니다.
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    const sw = navigator.serviceWorker;
+    const hadCtrl = !!sw.controller, opened = Date.now();
+    let reg = null, waiting = false, reloading = false;
+    const reload = () => { if (!reloading) { reloading = true; location.reload(); } };
+    const typing = () => /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+    sw.addEventListener('controllerchange', () => {
+      if (!hadCtrl) return;   // 처음 설치된 경우는 이미 최신
+      if (Date.now() - opened < 15000 && !typing()) reload();
+      else waiting = true;
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (waiting) reload(); }
+      else reg?.update().catch(() => {});   // 앱으로 돌아오면 새 버전이 있는지 확인
+    });
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      sw.register('sw.js').then(r => { reg = r; }).catch(() => {});
     });
   }
 })();

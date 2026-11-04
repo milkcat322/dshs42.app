@@ -202,6 +202,7 @@ function loadSnap() {
     const c = s.cache || {};
     cache = { ...cache, ...c, done: new Set(c.done || []), people: new Map(c.people || []), invites: new Map(c.invites || []) };
     statusMap = new Map(s.status || []);
+    haveData = !!s.cache;
     return true;
   } catch { return false; }
 }
@@ -549,7 +550,9 @@ function openStudy(p) {
   document.body.classList.toggle("study-open", !!me?.student_id);
   renderStudy();
   renderNav();
-  loadAssignments();
+  // 받아 둔 내용(지난 화면 · 앞서 받은 것)이 있으면 '불러오는 중' 없이 바로 그리고, 서버에서 새로 받아 바뀐 것만 다시 그립니다
+  if (haveData) page === "admin" ? renderOverview(true) : rerender();
+  loadAssignments({ quiet: true });
 }
 function closeStudy() {
   destroyCal();
@@ -598,9 +601,13 @@ function renderStudy() {
   if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
 }
 
-async function loadAssignments() {
+// quiet: 탭을 눌러 화면을 이미 그린 경우. 30초 안에 받았으면 다시 받지 않고, 받은 내용이 같으면 다시 그리지 않습니다.
+// 일정 추가 · 수정 뒤처럼 인자 없이 부르면 늘 새로 받아 다시 그립니다.
+let haveData = false, dataAt = 0, dataSig = "";
+async function loadAssignments({ quiet = false } = {}) {
   if (!sb) await sbWait;   // 지난 화면에서 탭을 먼저 누른 경우
   if (!me) return;
+  if (quiet && haveData && Date.now() - dataAt < 30000) return;
   loadDshs();   // dshs.app 신청 내역은 따로 받아서, 오면 달력에 더합니다
   const [asg, personal, evs, done, people, todos, school, invites] = await Promise.all([
     sb.from("assignments").select("*").order("due_at", { ascending: true }),
@@ -633,12 +640,16 @@ async function loadAssignments() {
     if (body) body.innerHTML = `<div class="study-empty">불러오지 못했어요.</div>`;
     return;
   }
+  const sig = JSON.stringify([data, personal.data, evs.data, done.data, people.data, todos.data, school.data, invites.data]);
+  const same = haveData && sig === dataSig;
+  haveData = true; dataAt = Date.now(); dataSig = sig;
   const mineOnly = new Map((personal.data || []).map((p) => [p.assignment_id, p]));
   const rows = (data || []).map((a) => withPersonal(a, mineOnly.get(a.id)));
   cache.items = rows.filter((a) => a.status === "approved");
   cache.mine = rows.filter((a) => a.created_by === me.id);
   cache.pending = rows.filter((a) => a.status === "pending");
   saveSnap();
+  if (quiet && same) return;
   // 작성 중인 공지 추가 폼은 덮어쓰지 않습니다
   if ($("studyView").style.display === "block" && view !== "form") rerender();
 }
@@ -1967,8 +1978,9 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
 }
 
 let ovSeen, fbSeen, ovPane;   // 탭을 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
-async function renderOverview() {
-  if (!sb) await sbWait;
+// cached: 탭을 눌러 들어온 경우 앞서 받은 관리 화면을 먼저 그리고 새로 받습니다
+let ovLast = null;
+async function renderOverview(cached = false) {
   if (!$("studyBody")) return;
   if (ovSeen === undefined) {
     ovSeen = Infinity;
@@ -1977,9 +1989,18 @@ async function renderOverview() {
     // 점검 알림을 누르고 들어오면 '점검' 칸부터 (?view=admin&pane=ops)
     ovPane = new URLSearchParams(location.search).get("pane") === "ops" ? "ops" : null;
   }
-  const [{ data, error }, fb, plans, visits, ops] = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
+  if (cached && ovLast) paintOverview(ovLast);
+  if (!sb) await sbWait;
+  const res = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
     sb.from("admin_plans").select("*").order("created_at", { ascending: true }), sb.rpc("admin_visits", { p_days: 7 }),
     sb.from("ops_reports").select("*").order("created_at", { ascending: false }).limit(14)]);
+  const sig = JSON.stringify(res);
+  if (cached && ovLast && sig === ovLast.sig) return;   // 먼저 그린 것과 같으면 그대로
+  ovLast = Object.assign(res, { sig });
+  paintOverview(res);
+}
+function paintOverview(res) {
+  const [{ data, error }, fb, plans, visits, ops] = res;
   const body = $("studyBody");
   if (view !== "overview" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
