@@ -731,6 +731,18 @@
   .ev-row .due-badge { flex-shrink: 0; }
   .sheet-title { font-size: 16px; font-weight: 800; }
   .study-sheet .asg-card { margin-bottom: 0; }
+  .cm-box { margin-top: 14px; padding-top: 4px; border-top: 1px solid var(--border); }
+  .cm-box .study-label small { font-weight: 400; color: var(--text-muted); }
+  .cm-list { display: flex; flex-direction: column; gap: 7px; }
+  .cm-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; }
+  .cm-head { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); }
+  .cm-head b { color: var(--text-dim); font-weight: 700; }
+  .cm-del { margin-left: auto; background: none; border: 0; padding: 2px 4px; font-size: 11px; color: var(--text-muted); cursor: pointer; font-family: inherit; }
+  .cm-body { font-size: 13px; color: var(--text); line-height: 1.6; margin-top: 3px; white-space: pre-wrap; word-break: break-word; }
+  .cm-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
+  .cm-new { display: flex; align-items: flex-end; gap: 8px; margin-top: 10px; }
+  .cm-new .study-input { flex: 1; resize: none; padding: 9px 12px; }
+  .cm-new .study-btn { flex: none; min-height: 40px; }
   .ev-allday { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-dim); margin-top: 12px; cursor: pointer; }
   .ev-allday input { accent-color: var(--accent1); width: 16px; height: 16px; }
   .ev-when { display: flex; gap: 6px; }

@@ -1170,10 +1170,68 @@ function openAsgDetail(a) {
       : "승인되지 않아 분반 친구들에게는 보이지 않아요. 내 일정에는 그대로 남아 있어요."}</div>` : ""}
     <button class="study-submit${done ? " ghost" : ""}" id="aDone">${done ? "완료 취소" : "완료로 표시"}</button>
     ${canEditAsg(a) ? '<button class="study-submit ghost" id="aEdit">수정</button>' : ""}
-    ${canDelAsg(a) ? '<button class="study-submit ghost danger" id="aDel">삭제</button>' : ""}`);
+    ${canDelAsg(a) ? '<button class="study-submit ghost danger" id="aDel">삭제</button>' : ""}
+    <div class="cm-box">
+      <div class="study-label">댓글 <small id="cmCount"></small></div>
+      <div class="cm-list" id="cmList" data-aid="${a.id}"><div class="cm-empty">불러오는 중…</div></div>
+      <div class="cm-new">
+        <textarea class="study-input" id="cmText" rows="1" maxlength="500" placeholder="${a.status === "approved"
+          ? "댓글 달기 (이 공지를 보는 친구들이 함께 봐요)" : "댓글 달기 (승인 전이라 관리자와 나만 봐요)"}"></textarea>
+        <button class="study-btn small" id="cmSend">등록</button>
+      </div>
+    </div>`);
   $("aDone").onclick = async () => { closeModal(); await toggleDone("asg", a.id); };
   if ($("aEdit")) $("aEdit").onclick = () => { closeModal(); openStudy("notice"); openNewForm(a); };
   if ($("aDel")) $("aDel").onclick = async () => { if (await removeItem(a.id)) closeModal(); };
+  $("cmSend").onclick = () => sendComment(a.id);
+  $("cmText").onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendComment(a.id); }
+  };
+  loadComments(a.id);
+}
+
+// ---------- 수행평가 댓글 (comments.sql: 공지를 볼 수 있는 사람만 읽고 씀) ----------
+const cmOpen = (aid) => $("cmList")?.dataset.aid === aid;   // 받는 사이 창을 닫거나 다른 공지를 열었으면 그리지 않음
+
+async function loadComments(aid) {
+  if (!sb) await sbWait;
+  const { data, error } = await sb.from("assignment_comments")
+    .select("id, user_id, author_name, body, created_at")
+    .eq("assignment_id", aid).order("created_at");
+  if (!cmOpen(aid)) return;
+  if (error) { $("cmList").innerHTML = `<div class="cm-empty">댓글을 불러오지 못했어요.</div>`; return; }
+  $("cmCount").textContent = data.length || "";
+  $("cmList").innerHTML = data.length
+    ? data.map((c) => {
+        const t = new Date(c.created_at);
+        const mine = c.user_id === me?.id;
+        return `<div class="cm-item">
+          <div class="cm-head"><b>${esc(c.author_name || "알 수 없음")}${mine ? " (나)" : ""}</b><span>${md(t)} ${hm(t)}</span>
+            ${mine || me?.is_admin ? `<button class="cm-del" data-cmdel="${c.id}">삭제</button>` : ""}</div>
+          <div class="cm-body">${esc(c.body)}</div>
+        </div>`;
+      }).join("")
+    : `<div class="cm-empty">아직 댓글이 없어요. 궁금한 점이나 알게 된 내용을 남겨 보세요.</div>`;
+  $("cmList").querySelectorAll("[data-cmdel]").forEach((b) => b.onclick = async () => {
+    if (!confirm("이 댓글을 지울까요?")) return;
+    const { error } = await sb.from("assignment_comments").delete().eq("id", b.dataset.cmdel);
+    if (error) return toast("지우지 못했어요", true);
+    loadComments(aid);
+  });
+}
+
+async function sendComment(aid) {
+  const box = $("cmText"), btn = $("cmSend");
+  const body = box.value.trim();
+  if (!body || btn.disabled) return;
+  if (!sb) await sbWait;
+  btn.disabled = true;
+  const { error } = await sb.from("assignment_comments").insert({ assignment_id: aid, body });
+  if (!cmOpen(aid)) return;
+  btn.disabled = false;
+  if (error) return toast(isNetErr(error) ? "인터넷 연결을 확인해 주세요" : "댓글을 올리지 못했어요", true);
+  box.value = "";
+  loadComments(aid);
 }
 
 // 길이 버튼: 누르면 끝 = 시작 + 길이

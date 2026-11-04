@@ -75,6 +75,9 @@ begin
   select distinct on (user_id) user_id, new_id, done_at from public.assignment_done where assignment_id = any(s.ids)
   on conflict do nothing;
 
+  -- 댓글도 새 공지로 옮깁니다 (comments.sql)
+  update public.assignment_comments set assignment_id = new_id where assignment_id = any(s.ids);
+
   delete from public.assignments where id = any(s.ids);
   update public.merge_suggestions set status = 'merged', title = p_title, resolved_by = auth.uid(), resolved_at = now(), merged_id = new_id
    where id = p_id;
