@@ -38,6 +38,11 @@
   .sch-title { font-size: 14px; font-weight: 700; line-height: 1.45; word-break: break-word; }
   .sch-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
   .sch-chips .adm-chip { font-size: 11px; }
+  /* 분석 칸 제안 아래 '계획에 넣기 [진주빈] [반민지]' 한 줄 (넣은 사람은 초록 ✓) */
+  .adm-useplan { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .adm-useplan > span { font-size: 12px; font-weight: 600; color: var(--text-dim); margin-right: 2px; }
+  .adm-useplan .study-btn { margin-top: 0; }   /* 학생 CSS 의 .adm-use-row .study-btn 여백 때문에 버튼만 내려가던 것 */
+  .adm-useplan .study-btn.ok:disabled { opacity: 1; cursor: default; }
   .adm-log-row.click { cursor: pointer; }
   .adm-log-row.click:hover b { color: var(--accent1); }
   @media (max-width: 640px) {

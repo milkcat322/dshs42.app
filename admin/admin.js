@@ -586,7 +586,8 @@ function opsHtml(reports) {
 }
 
 // 사용 분석 에이전트가 매일 밤 10시에 남긴 보고서 (usage.sql · scripts/usage-agent)
-function usageHtml(reports) {
+function usageHtml(reports, plans) {
+  const inPlan = (owner, title) => (plans || []).some((p) => p.owner === owner && p.title === title.slice(0, 200));
   if (!reports) return '<div class="adm-none">사용 분석을 불러오지 못했어요.</div>';
   if (!reports.length) return '<div class="adm-none">아직 사용 분석이 없어요. 매일 밤 10시에 관리자 노트북에서 만들어져요.</div>';
   const GOAL = { login: "로그인 늘리기", convenience: "편의", both: "로그인 · 편의" };
@@ -610,8 +611,10 @@ function usageHtml(reports) {
       ${a.suggestions?.length ? `<div class="adm-label">고칠 방향 제안</div>${a.suggestions.map((x, k) => `<div class="adm-use-row">
           <div class="adm-fb-top"><b>${k + 1}. ${esc(x.title)}</b><span class="adm-chip">${GOAL[x.goal] || ""}</span><span class="adm-chip">${EFFORT[x.effort] || ""}</span></div>
           <div class="adm-fb-text">${esc(x.why)}</div>
-          <div class="asg-actions"><span class="adm-chip">계획에 넣기</span>${PLAN_OWNERS.map((o) =>
-            `<button class="study-btn small" data-useplan="${esc(x.title)}" data-owner="${o}">${o}</button>`).join("")}</div></div>`).join("")}` : ""}
+          <div class="adm-useplan"><span>계획에 넣기</span>${PLAN_OWNERS.map((o) => {
+            const added = inPlan(o, x.title);   // 이미 그 사람 계획에 있으면 초록
+            return `<button class="study-btn small${added ? " ok" : ""}" data-useplan="${esc(x.title)}" data-owner="${o}"${added ? " disabled" : ""}>${added ? "✓ " : ""}${o}</button>`;
+          }).join("")}</div></div>`).join("")}` : ""}
       ${a.watch?.length ? `<div class="adm-label">다음에 지켜볼 것</div><ul class="adm-ops-list info">${a.watch.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
       ${a.caveats ? `<div class="adm-foot">${esc(a.caveats)}</div>` : ""}`;
     return `<details class="adm-fb adm-ops"${i ? "" : " open"}>
@@ -763,7 +766,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
     ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
     ${box("plan", plansHtml(plans))}
     ${box("ops", opsHtml(ops))}
-    ${box("use", usageHtml(usage))}
+    ${box("use", usageHtml(usage, plans))}
     ${box("push", pushLogHtml(pushes))}`;
 }
 
