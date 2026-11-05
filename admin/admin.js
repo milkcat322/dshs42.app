@@ -610,7 +610,8 @@ function usageHtml(reports) {
       ${a.suggestions?.length ? `<div class="adm-label">고칠 방향 제안</div>${a.suggestions.map((x, k) => `<div class="adm-use-row">
           <div class="adm-fb-top"><b>${k + 1}. ${esc(x.title)}</b><span class="adm-chip">${GOAL[x.goal] || ""}</span><span class="adm-chip">${EFFORT[x.effort] || ""}</span></div>
           <div class="adm-fb-text">${esc(x.why)}</div>
-          <button class="study-btn small" data-useplan="${esc(x.title)}">계획에 넣기</button></div>`).join("")}` : ""}
+          <div class="asg-actions"><span class="adm-chip">계획에 넣기</span>${PLAN_OWNERS.map((o) =>
+            `<button class="study-btn small" data-useplan="${esc(x.title)}" data-owner="${o}">${o}</button>`).join("")}</div></div>`).join("")}` : ""}
       ${a.watch?.length ? `<div class="adm-label">다음에 지켜볼 것</div><ul class="adm-ops-list info">${a.watch.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
       ${a.caveats ? `<div class="adm-foot">${esc(a.caveats)}</div>` : ""}`;
     return `<details class="adm-fb adm-ops"${i ? "" : " open"}>
@@ -858,9 +859,9 @@ function bindPlans(body) {
   };
   body.querySelectorAll("[data-plantext]").forEach((x) => x.onclick = () => edit(x.dataset.plantext));
   body.querySelectorAll("[data-planedit]").forEach((x) => x.onclick = () => edit(x.dataset.planedit));
-  // 분석 칸의 제안을 계획에 넣기 (지금 로그인한 관리자 칸으로)
+  // 분석 칸의 제안을 계획에 넣기 (누른 사람 이름의 칸으로)
   body.querySelectorAll("[data-useplan]").forEach((b) => b.onclick = () => {
-    const owner = PLAN_OWNERS.includes(me?.name) ? me.name : PLAN_OWNERS[0];
+    const owner = b.dataset.owner;
     b.disabled = true;
     save(sb.from("admin_plans").insert({ owner, title: b.dataset.useplan.slice(0, 200) }), "추가하지 못했어요")
       .then((ok) => ok ? toast(`${owner} 계획에 넣었어요`) : (b.disabled = false));
