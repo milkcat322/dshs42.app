@@ -23,7 +23,7 @@
 - **2026-11-04** 운영 점검 에이전트(매일 8시·18시 관리자 푸시, 관리 탭 '점검' 칸)와 방문 기기 로그인 학생 표시·전환 알림 도입, 열기·탭 전환 속도 개선(저장본 우선 열기), 분반별 같은 수행평가 합치기 제안·처리 기록 추가, dshs42.app v106 배포 <!-- session 63e1ed0b -->
 - **2026-11-04** beta(origin) 내용을 메인 웹 전용 저장소(prod, milkcat322/dshs42.app)에 처음으로 배포, 앱 업데이트 시 로그아웃·아이패드 알림 미작동·dshs42.app 알림 미작동 민원 수정, 시간표 검색 온/오프라인·로그인 분기 도입 <!-- session 020762cc -->
 - **2026-11-04** 관리 탭 계획 항목 수정, 점검·합치기 제안 시간을 8·12·16·20·0시로 변경, 노트북 Claude Code가 로그인 전환을 분석해 제안하는 사용 분석 에이전트 도입, 막힘 화면 본 수·누른 수 기록과 바로 dshs.app 로그인, "시작하기" 버튼 하나와 작은 관리자 로그인 링크로 로그인 화면 개편, dshs42.app v112 배포 <!-- session 028c2f0e -->
-- **2026-11-05** feature/admin-site를 main에 병합해 beta에 반영 완료, 메인 웹(prod) 배포를 시작(세션 종료 시점에 진행 중) <!-- session ee85017d -->
+- **2026-11-05** 수행평가 공지에 댓글 기능 추가, 메인 웹(dshs42.app) 배포 완료로 관리 기능이 메인에서도 학생 사이트와 분리, 관리자 사이트 분석 제안에 담당자(진주빈·반민지) 선택 추가 <!-- session ee85017d -->
 - **2026-11-05** 관리자 사이트에 기기 등록(비밀번호·계속 로그인)과 관리 탭 '알림' 칸 추가, 관리자 푸시 발송 기록(admin_push_log) 도입(feature/admin-site 브랜치, main 병합·prod 반영은 아직) <!-- session 65786edb -->
 <!-- 개발 흐름 끝 -->
 
@@ -2002,46 +2002,46 @@
 - `sw.js`
 - `updates.js`
 
-## 2026-11-05 08:27–09:25 · 수행평가 공지 댓글 기능 추가와 관리자 전용 사이트 main 병합·메인 배포 시작
+## 2026-11-05 08:51–10:46 · 수행평가 공지 댓글 추가, 관리자 전용 사이트 분리와 메인 웹 배포
 
-`session ee85017d` · 개발 milkcat322 · 요청 9회
+`session ee85017d` · 개발 milkcat322 · 요청 11회
 
 ### 목표
-- 수행평가 공지에 댓글 기능 추가
-- 관리자 기능을 학생 사이트에서 분리해 관리자 전용 사이트로 만들기
-- 완성된 관리자 사이트를 main에 병합하고 메인 웹(dshs42.app)까지 배포
+- 수행평가 공지에 댓글을 달 수 있게 하기
+- 학생 사이트에 섞여 있던 관리자 기능을 별도 관리자 웹사이트로 분리
+- 분리한 결과를 beta와 메인 웹(dshs42.app)에 배포
 
 ### 한 일
-- `assignment_comments` 표를 만들고 RLS로 공지 열람 범위를 따르게 한 뒤, 수행평가 상세 창에 댓글 목록·입력 칸을 추가
-- 수행평가 합치기 시 댓글도 새 공지로 옮기도록 `merge.sql` 수정
-- 학생 사이트(`dshs-study.js`)에서 관리 탭·학교 일정 관리·관리자 승인 코드 약 700줄을 걷어내고, `admin/` 디렉토리에 별도 관리자 사이트(`admin.js`, `index.html`, `sw.js`, `manifest.webmanifest`)를 새로 구성
-- 관리자 사이트 빌드·배포 스크립트(`scripts/build-admin.mjs`, `scripts/deploy-admin.mjs`) 작성, `milkcat322/dshs42-admin` 저장소에 배포
-- 관리자 사이트에 비밀번호 한 칸만으로 기기를 등록하는 로그인(계속 로그인) 구현
-- `admin_push_log` 표를 추가해 관리자에게 보낸 푸시(새 활동, 운영 점검, 사용 분석) 기록을 남기고, 관리 탭에 '알림' 칸 추가
-- `send-reminders`, `ops-agent`, `usage-agent` 서버 함수에 `admin_push_log` 기록 코드 추가
-- `feature/admin-site`를 `main`에 병합해 beta(`dshs42-beta.netlify.app`)에 반영 확인
-- 메인 웹(prod) 배포를 시작
+- assignment_comments 표 설계(comments.sql), 수행평가 상세 창에 댓글 목록·입력 칸 추가, 공지 합치기 시 댓글도 새 공지로 이동
+- 관리 탭·학교 일정 관리·관리자 바로 승인 등 관리자 전용 코드를 학생 사이트(dshs-study.js)에서 약 700줄 제거하고 admin/ 폴더로 분리(admin/admin.js, admin/index.html, admin/sw.js, admin/manifest.webmanifest)
+- 관리자 사이트 빌드·배포 스크립트 작성(scripts/build-admin.mjs, scripts/deploy-admin.mjs) 후 milkcat322/dshs42-admin 저장소에 배포
+- _headers로 beta 학사일정(academic.json)을 관리자 사이트가 읽을 수 있게 CORS 허용
+- 관리자 사이트 로그인을 아이디 없이 비밀번호 한 칸 + 기기 등록(계속 로그인) 방식으로 구현
+- 관리 탭에 '알림' 칸 추가, admin_push_log 표(adminpush.sql) 설계와 send-reminders·ops-agent·usage-agent 세 서버 함수에 발송 기록 로깅 추가
+- feature/admin-site를 main에 병합해 beta에 반영하고, 이어서 메인 웹(dshs42.app)에도 배포
+- 관리자 사이트 분석 제안의 '계획에 넣기'를 진주빈·반민지 선택 버튼으로 변경
+- headless Chrome으로 관리자 사이트 로그인·등록 화면과 관리 기능 제거 후 학생 사이트 화면이 오류 없이 뜨는지 확인
 
 ### 결정과 이유
-- 관리 기능을 별도 사이트(`admin/`)로 분리하기로 함. 이유: 학생 사이트를 가볍게 유지하고 관리자 UI를 독립적으로 발전시키기 위함(사용자가 AskUserQuestion 추천안을 모두 채택)
-- 관리자 로그인은 아이디 입력 없이 비밀번호 한 칸 + 기기 등록 방식으로 결정. `milkcat322`, `qksalornt` 두 계정에 순차 로그인 시도하는 구조라 두 계정 비밀번호를 같게 맞춤
-- DB 구조를 바꾸는 SQL(`comments.sql`, `adminpush.sql`)은 Claude가 직접 실행하지 못해 사용자가 Supabase SQL Editor에서 직접 실행
-- 비밀번호는 대화·코드·DEVLOG 어디에도 남기지 않고, 변경 시 SQL 템플릿의 빈 자리만 제공
+- 관리자 기능을 학생 사이트와 완전히 분리해 별도 사이트(admin/)로 운영. 세 방향 질문에 모두 추천안으로 확정
+- 관리자 로그인은 아이디 없이 비밀번호 한 칸 + 기기 등록 방식으로. 반복 로그인 부담을 줄이기 위함
+- comments.sql·merge.sql·adminpush.sql 등 DB를 바꾸는 SQL은 Claude가 직접 실행하지 않고 사용자가 Supabase SQL Editor에서 직접 Run. 자동 권한 검사에 막히는 구조 때문
+- 관리자 계정 비밀번호 변경은 SQL Editor에서 auth.users를 직접 update하는 방식으로 안내. Supabase 대시보드의 재설정 메일은 받을 수 없는 더미 이메일(@dshs.study)이라 쓸 수 없음
+- send-reminders·ops-agent·usage-agent 재배포는 Supabase CLI가 있는 다른 기기에서 사용자가 직접 실행. 이 PC에 CLI가 없음
 
 ### 해결한 문제
-- 증상: 관리자 사이트 배포 직후 `dshs42-admin.netlify.app`이 404 → 원인: Netlify 배포가 아직 끝나지 않음 → 해결: 시간을 두고 재확인해 정상 로드 확인
-- 증상: 기기 등록 화면이 "불러오는 중"에서 멈춤 → 원인: headless 테스트 환경에서 라이브러리 로딩 시간 부족 → 해결: 재시도로 정상 동작 확인(코드 결함 아님)
-- 증상: 관리 탭 '알림' 칸에 기록이 쌓이지 않음 → 원인: `send-reminders`/`ops-agent`/`usage-agent` 서버 함수가 아직 `admin_push_log` 기록 코드로 재배포되지 않음 → 해결: 세 함수에 로깅 코드를 추가(재배포는 Supabase CLI가 있는 다른 기기에서 필요, 세션 내 완료 못함)
+- 증상: 배포 직후 dshs42-admin.netlify.app이 404 → 원인: Netlify 배포가 아직 끝나지 않음 → 해결: 잠시 뒤 재확인해 정상 로드 확인
+- 증상: 관리자 사이트 기기 등록 화면이 '불러오는 중'에서 멈춤 → 원인: 오류가 아니라 서버 라이브러리 로드 시간 부족 → 해결: 다시 열어 정상 동작 확인
+- 증상: push가 훅에 막힘 → 원인: DEVLOG 갱신 전에 push 시도 → 해결: devlog-worker 실행 후 커밋하고 push
 
 ### 남은 일
-- [ ] `send-reminders`, `ops-agent`, `usage-agent` 서버 함수를 Supabase CLI로 재배포
-- [ ] `adminpush.sql` 실행 여부 재확인
-- [ ] 메인 웹(prod, dshs42.app) 배포 마무리 — 세션 종료 시점에 push 전 DEVLOG 기록을 요구하는 훅에 걸려 진행 중이었음
+- [ ] 관리자가 남의 댓글을 지우는 화면 추가(DB 권한은 이미 있음)
+- [ ] 수행평가 목록 줄에 댓글 수 표시
+- [ ] 수행평가 댓글 작성 시 공지 작성자에게 가는 푸시 알림
 
 ### 배운 점
-- Netlify 배포는 직후 확인 시 지연으로 404가 날 수 있어 시간을 두고 재확인해야 함
-- DB 스키마를 바꾸는 작업은 자동 권한 검사로 막히므로 사용자가 SQL Editor에서 직접 실행해야 함
-- 메인 웹으로 push하기 전에도 DEVLOG 기록을 먼저 남기도록 하는 훅이 동일하게 적용됨
+- DEVLOG의 `개발 …` 칸은 Claude 로그인 계정이 아니라 그 PC의 `git config user.name`을 읽어 적힌다
+- 비밀번호 등 민감 값은 대화나 SQL 결과에 남지 않도록 DEVLOG 작성 직후 매번 검색해 확인했다
 
 ### 바뀐 파일
 - `.gitignore`
@@ -2066,7 +2066,7 @@
 - `sw.js`
 - `updates.js`
 
-<!-- flow: - **2026-11-05** feature/admin-site를 main에 병합해 beta에 반영 완료, 메인 웹(prod) 배포를 시작(세션 종료 시점에 진행 중) -->
+<!-- flow: - **2026-11-05** 수행평가 공지에 댓글 기능 추가, 메인 웹(dshs42.app) 배포 완료로 관리 기능이 메인에서도 학생 사이트와 분리, 관리자 사이트 분석 제안에 담당자(진주빈·반민지) 선택 추가 -->
 
 ## 2026-11-04 16:18 · 관리자 웹 분리·dshs42.app 배포 방식 논의
 
