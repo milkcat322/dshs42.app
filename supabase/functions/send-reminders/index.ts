@@ -126,6 +126,7 @@ Deno.serve(async () => {
   }
 
   const gone = new Set<string>();
+  const adminSent: { title: string; body: string; url: string; devices: number; delivered: number }[] = [];
   await Promise.all(notes.map(async (n) => {
     const payload = JSON.stringify({ title: n.title, body: n.body, tag: n.key, url: n.url });
     const devices = subs.filter((s) => s.user_id === n.userId && !gone.has(s.endpoint));
@@ -154,7 +155,23 @@ Deno.serve(async () => {
       await admin.from("notify_log").upsert(
         (n.logKeys ?? [n.key]).map((key) => ({ user_id: n.userId, key })), { ignoreDuplicates: true });
     }
+    if (admins.includes(n.userId)) {
+      adminSent.push({ title: n.title, body: n.body, url: n.url, devices: devices.length, delivered: results.filter(Boolean).length });
+    }
   }));
+
+  // 관리자에게 간 새 활동 알림을 관리자 사이트 '알림' 칸에 남깁니다 (adminpush.sql). 같은 내용은 한 줄로 묶습니다.
+  if (adminSent.length) {
+    const rows = new Map<string, { source: string; title: string; body: string; url: string; devices: number; delivered: number }>();
+    for (const a of adminSent) {
+      const k = `${a.title}\n${a.body}`;
+      const r = rows.get(k) ?? { source: "activity", title: a.title, body: a.body, url: a.url, devices: 0, delivered: 0 };
+      r.devices += a.devices; r.delivered += a.delivered;
+      rows.set(k, r);
+    }
+    const { error } = await admin.from("admin_push_log").insert([...rows.values()]);
+    if (error) console.error("관리자 알림 기록 실패", error.message);
+  }
 
   await admin.from("notify_log").delete().lt("sent_at", iso(now - LOG_KEEP_DAYS * DAY));
 

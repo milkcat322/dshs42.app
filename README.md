@@ -35,6 +35,7 @@ ops.sql                   ★ 운영 점검 보고서 (ops-agent 가 매일 0 ·
 supabase/functions/ops-agent/index.ts       운영 점검 에이전트 (사이트 · 서버 · 승인 대기 점검 + 피드백 AI 요약 → 관리자 푸시)
 supabase/functions/ops-agent/report.ts      점검 결과로 보고서 문장 만들기 (순수 함수)
 usage.sql                 ★ 사용 분석 보고서 · 통계 함수 · 저장 함수 (관리자만 봄)
+adminpush.sql             ★ 관리자에게 보낸 알림 기록 (관리자 사이트 관리 탭 '알림' 칸 · 관리자만 봄)
 scripts/usage-agent/                        사용 분석 에이전트 — 관리자 노트북의 Claude Code 가 매일 밤 10시 분석 (prompt.md · run.mjs · install.sh)
 supabase/functions/usage-agent/index.ts     분석이 저장되면 관리자에게 푸시
 merge.sql                 ★ 분반별 같은 수행평가 합치기 제안 · 합치기 함수 (merge-suggest 가 0 · 8 · 12 · 16 · 20시에 찾음 · 관리자만)
@@ -94,6 +95,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `ops.sql` 을 **Run** (운영 점검 보고서). 맨 아래 주석의 `cron.schedule` 도 한 번 실행하면 매일 0 · 8 · 12 · 16 · 20시에 점검이 돌아갑니다
    이어서 `merge.sql` 을 **Run** (같은 수행평가 합치기 제안). 맨 아래 주석의 `cron.schedule` 도 한 번 실행하면 매일 0 · 8 · 12 · 16 · 20시에 찾습니다
    이어서 `usage.sql` 을 **Run** (사용 분석 보고서). 분석은 관리자 노트북에서 `bash scripts/usage-agent/install.sh` 로 켭니다 (Claude Code 로그인 + Supabase MCP 연결 필요)
+   이어서 `adminpush.sql` 을 **Run** (관리자에게 보낸 알림 기록 · 관리자 사이트 '알림' 칸)
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
 

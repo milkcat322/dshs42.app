@@ -180,33 +180,40 @@ function start() {
   }
 }
 
+// 기기 등록: 처음 한 번만 관리자 비밀번호를 넣으면 이 기기가 관리자 계정으로 로그인된 채로 남습니다
+// (로그인 유지 · 토큰 자동 갱신). 다음부터는 이 화면 없이 바로 열립니다.
+// 비밀번호 한 칸으로 관리자 계정들에 차례로 로그인해 봅니다. 비밀번호는 코드 · 저장소에 두지 않고 Supabase 계정에만 있습니다.
+const ADMIN_IDS = ["milkcat322", "qksalornt"];   // admins.sql 의 관리자 계정
 function renderLogin() {
   $("studyNav").innerHTML = "";
   $("studyView").innerHTML = `<div class="gate">
-    <h2>관리자 로그인</h2>
-    <div class="study-sub">관리자 계정의 아이디 · 비밀번호로 로그인해요.</div>
-    <label class="study-label">아이디</label>
-    <input class="study-input" id="loginId" autocomplete="username">
-    <label class="study-label">비밀번호</label>
+    <h2>이 기기 등록</h2>
+    <div class="study-sub">처음 한 번만 관리자 비밀번호를 넣으면, 이 기기에서는 다음부터 바로 열려요.</div>
+    <input class="study-input" id="loginId" autocomplete="username" value="${ADMIN_IDS[0]}" hidden>
+    <label class="study-label">관리자 비밀번호</label>
     <input class="study-input" id="loginPw" type="password" autocomplete="current-password">
     <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="doLogin">로그인</button>
+    <button class="study-submit" id="doLogin">등록</button>
   </div>`;
   const go = async () => {
-    const u = $("loginId").value.trim().toLowerCase(), p = $("loginPw").value;
-    if (!u || !p) return showErr("아이디와 비밀번호를 입력해 주세요.");
+    const p = $("loginPw").value;
+    if (!p) return showErr("비밀번호를 입력해 주세요.");
     $("doLogin").disabled = true;
-    const { error } = await sb.auth.signInWithPassword({ email: `${u}@${EMAIL_DOMAIN}`, password: p });
+    let error;
+    for (const u of ADMIN_IDS) {
+      ({ error } = await sb.auth.signInWithPassword({ email: `${u}@${EMAIL_DOMAIN}`, password: p }));
+      if (!error || isNetErr(error)) break;
+    }
     $("doLogin").disabled = false;
-    if (error) return showErr(isNetErr(error) ? "서버에 연결하지 못했어요." : "아이디나 비밀번호가 맞지 않아요.");
+    if (error) return showErr(isNetErr(error) ? "서버에 연결하지 못했어요." : "비밀번호가 맞지 않아요.");
     await loadProfile();
     if (!me) { await sb.auth.signOut(); return showErr("계정 정보(프로필)를 찾지 못했어요."); }
-    if (me.is_admin) toast(`${me.name}님, 반가워요`);
+    if (me.is_admin) toast("이 기기를 등록했어요");
     start();
   };
   $("doLogin").onclick = go;
   $("loginPw").onkeydown = (e) => { if (e.key === "Enter") go(); };
-  $("loginId").focus();
+  $("loginPw").focus();
 }
 
 function renderNotAdmin() {
@@ -226,7 +233,7 @@ async function logout() {
   autoPush.done = false;
   await sb.auth.signOut();
   me = null;
-  toast("로그아웃했어요");
+  toast("이 기기 등록을 해제했어요");
   start();
 }
 
@@ -613,6 +620,25 @@ function usageHtml(reports) {
   }).join("") + '<div class="adm-foot">매일 밤 10시에 관리자 노트북의 Claude Code 가 최근 14일의 방문 · 로그인 · 기능 사용 수와 업데이트 기록을 보고 분석해요. 노트북이 꺼져 있었으면 다음에 켰을 때 해요. 보고서에는 이름 · 학번을 넣지 않아요.</div>';
 }
 
+// ---------- 알림 칸: 관리자에게 보낸 최근 알림 (adminpush.sql 의 admin_push_log) ----------
+// send-reminders(새 활동) · ops-agent(점검) · usage-agent(분석)가 관리자 기기로 푸시를 보낼 때 남깁니다.
+const PUSH_SOURCE = { activity: "새 활동", ops: "운영 점검", usage: "사용 분석" };
+function pushLogHtml(rows) {
+  if (!rows) return '<div class="adm-none">알림 기록을 불러오지 못했어요. adminpush.sql 을 실행했는지 확인해 주세요.</div>';
+  if (!rows.length) return '<div class="adm-none">아직 보낸 알림이 없어요. 기록은 이 기능을 켠 뒤부터 쌓여요.</div>';
+  const pane = (url) => new URLSearchParams((url || "").split("?")[1] || "").get("pane") || (url?.includes("view=admin") ? "asg" : null);
+  return rows.map((r) => {
+    const to = pane(r.url);
+    const got = !r.devices ? "알림 켠 관리자 기기가 없어 아무도 받지 못했어요"
+      : r.delivered === r.devices ? `관리자 기기 ${r.devices}대에 보냄` : `관리자 기기 ${r.devices}대 중 ${r.delivered}대에 보냄`;
+    return `<div class="adm-fb${r.delivered ? "" : " new"}">
+      <div class="adm-fb-top"><span class="adm-chip">${PUSH_SOURCE[r.source] || r.source}</span><b>${esc(r.title)}</b></div>
+      ${r.body ? `<div class="adm-fb-text" style="white-space:pre-wrap">${esc(r.body)}</div>` : ""}
+      <div class="adm-fb-foot"><span>${esc(ovTime(r.created_at))} · ${esc(got)}</span>${to ? `<button class="study-btn small" data-gopane="${to}">열기</button>` : ""}</div>
+    </div>`;
+  }).join("") + '<div class="adm-foot">관리자 기기로 보낸 최근 알림 50개예요 (60일 보관). 빨간 줄은 받은 기기가 없었던 알림이에요. 설정에서 이 기기의 알림을 켤 수 있어요.</div>';
+}
+
 // ---------- 승인 칸: 같은 수행평가 합치기 제안 · 처리 기록 ----------
 // merge-suggest 서버 함수가 매일 0 · 8 · 12 · 16 · 20시에 같은 과목 · 다른 분반 · 비슷한 이름의 수행평가를 찾아 merge_suggestions 에 남깁니다 (merge.sql).
 // 마감이 같으면 이름을 고쳐 전체 분반 공지로 합치고(merge_assignments), 마감이 다르면 확인만 합니다(dismiss_merge).
@@ -717,13 +743,14 @@ function bindMerge(body) {
   });
 }
 
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits, ops, log, usage) {
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits, ops, log, usage, pushes) {
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
   const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
   const seg = [["asg", "승인", pending.length + (log?.open.length || 0), true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false],
-    ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false], ["ops", "점검", ops?.[0]?.issues ?? 0, true], ["use", "분석", 0, false]];
+    ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false], ["ops", "점검", ops?.[0]?.issues ?? 0, true], ["use", "분석", 0, false],
+    ["push", "알림", 0, false]];
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
   return `<div class="adm-seg">${seg.map(([k, label, n, hot]) =>
       `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : ""}</button>`).join("")}</div>
@@ -735,7 +762,8 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
     ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
     ${box("plan", plansHtml(plans))}
     ${box("ops", opsHtml(ops))}
-    ${box("use", usageHtml(usage))}`;
+    ${box("use", usageHtml(usage))}
+    ${box("push", pushLogHtml(pushes))}`;
 }
 
 let ovSeen, fbSeen, ovPane;   // 처음 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
@@ -747,32 +775,35 @@ async function renderOverview(cached = false) {
     try { ovSeen = Date.parse(localStorage.getItem(OV_SEEN_KEY)) || Infinity; } catch {}
     fbSeen = Date.parse(fbSeenAt());
     // 점검 알림을 누르고 들어오면 '점검' 칸부터 (?view=admin&pane=ops), 사용 분석 알림이면 '분석' 칸부터 (pane=use)
-    ovPane = ["asg", "fb", "stu", "plan", "ops", "use"].find((k) => k === new URLSearchParams(location.search).get("pane")) || null;
+    ovPane = ["asg", "fb", "stu", "plan", "ops", "use", "push"].find((k) => k === new URLSearchParams(location.search).get("pane")) || null;
   }
   if (cached && ovLast) paintOverview(ovLast);
   const [res] = await Promise.all([Promise.all([sb.rpc("admin_overview"), loadFeedback(),
     sb.from("admin_plans").select("*").order("created_at", { ascending: true }), sb.rpc("admin_visits", { p_days: 7 }),
     sb.from("ops_reports").select("*").order("created_at", { ascending: false }).limit(14), loadReviewLog(),
-    sb.from("usage_reports").select("*").order("created_at", { ascending: false }).limit(7)]), loadPending()]);
+    sb.from("usage_reports").select("*").order("created_at", { ascending: false }).limit(7),
+    sb.from("admin_push_log").select("*").order("created_at", { ascending: false }).limit(50)]), loadPending()]);
   const sig = JSON.stringify([res, cache.pending]);
   if (cached && ovLast && sig === ovLast.sig) return;   // 먼저 그린 것과 같으면 그대로
   ovLast = Object.assign(res, { sig });
   paintOverview(res);
 }
 function paintOverview(res) {
-  const [{ data, error }, fb, plans, visits, ops, log, usage] = res;
+  const [{ data, error }, fb, plans, visits, ops, log, usage, pushes] = res;
   const body = $("studyBody");
   if (page !== "admin" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   logRows = log?.reviewed || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
   ovPane ||= !pending.length && !log?.open.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data, log, usage.error ? null : usage.data);
-  body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => {
-    ovPane = b.dataset.ovpane;
-    body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x === b));
-    body.querySelectorAll("[data-pane]").forEach((x) => { x.hidden = x.dataset.pane !== ovPane; });
-  });
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data, log, usage.error ? null : usage.data, pushes.error ? null : pushes.data);
+  const showPane = (k) => {
+    ovPane = k;
+    body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x.dataset.ovpane === k));
+    body.querySelectorAll("[data-pane]").forEach((x) => { x.hidden = x.dataset.pane !== k; });
+  };
+  body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => showPane(b.dataset.ovpane));
+  body.querySelectorAll("[data-gopane]").forEach((b) => b.onclick = () => { showPane(b.dataset.gopane); scrollTo({ top: 0, behavior: "smooth" }); });
   const pend = (id) => pending.find((a) => a.id === id);
   body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
   body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
@@ -1232,11 +1263,9 @@ function openSettings() {
     <div class="set-row" style="display:block"><b>화면 테마</b>
       <div class="theme-grid">${THEMES.map(([k, label, bg, ac]) =>
         `<button type="button" data-theme-pick="${k}"${curTheme() === k ? ' class="on"' : ""}><i style="background:linear-gradient(135deg, ${bg} 50%, ${ac} 50%)"></i>${label}</button>`).join("")}</div></div>
-    <div class="set-sec">계정</div>
-    <div class="ev-title">${esc(me.name)}</div>
-    <div class="ev-meta">${esc(me.username)} · 관리자</div>
     <a class="study-btn wide" href="${esc(STUDENT_URL)}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">학생 사이트 열기</a>
-    <button class="study-btn wide" id="doLogout">로그아웃</button>`);
+    <div class="study-foot">이 기기는 관리자 기기로 등록돼 있어요 (${esc(me.username)}).<br>
+      <button class="auth-admin" id="doLogout" type="button">이 기기 등록 해제</button> · 기기를 잃어버렸거나 다른 사람에게 줄 때만 눌러요</div>`);
   $("setPush").onchange = togglePush;
   paintPush(); refreshPush();
   $("studyModal").querySelectorAll("[data-theme-pick]").forEach((b) => b.onclick = () => {
@@ -1244,7 +1273,7 @@ function openSettings() {
     window.applyTheme?.();
     $("studyModal").querySelectorAll("[data-theme-pick]").forEach((x) => x.classList.toggle("on", x === b));
   });
-  $("doLogout").onclick = logout;
+  $("doLogout").onclick = () => { if (confirm("이 기기 등록을 해제할까요? 다시 쓰려면 비밀번호를 넣어야 하고, 이 기기로 관리자 알림이 오지 않아요.")) logout(); };
 }
 
 // ---------- 웹 푸시 ----------
