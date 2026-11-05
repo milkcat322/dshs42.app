@@ -23,7 +23,7 @@
 - **2026-11-04** 운영 점검 에이전트(매일 8시·18시 관리자 푸시, 관리 탭 '점검' 칸)와 방문 기기 로그인 학생 표시·전환 알림 도입, 열기·탭 전환 속도 개선(저장본 우선 열기), 분반별 같은 수행평가 합치기 제안·처리 기록 추가, dshs42.app v106 배포 <!-- session 63e1ed0b -->
 - **2026-11-04** beta(origin) 내용을 메인 웹 전용 저장소(prod, milkcat322/dshs42.app)에 처음으로 배포, 앱 업데이트 시 로그아웃·아이패드 알림 미작동·dshs42.app 알림 미작동 민원 수정, 시간표 검색 온/오프라인·로그인 분기 도입 <!-- session 020762cc -->
 - **2026-11-04** 관리 탭 계획 항목 수정, 점검·합치기 제안 시간을 8·12·16·20·0시로 변경, 노트북 Claude Code가 로그인 전환을 분석해 제안하는 사용 분석 에이전트 도입, 막힘 화면 본 수·누른 수 기록과 바로 dshs.app 로그인, "시작하기" 버튼 하나와 작은 관리자 로그인 링크로 로그인 화면 개편, dshs42.app v112 배포 <!-- session 028c2f0e -->
-- **2026-11-05** 수행평가 공지에 댓글 기능 추가, 관리자 전용 사이트(admin/)로 분리해 학생 사이트에서 관리자 코드 제거, 관리자 사이트에 비밀번호 단독 기기 등록 로그인과 관리자 푸시 발송 기록(admin_push_log)·관리 탭 '알림' 칸 도입, feature/admin-site를 main에 병합(prod 반영은 아직) <!-- session ee85017d -->
+- **2026-11-05** feature/admin-site를 main에 병합해 beta에 반영 완료, 메인 웹(prod) 배포를 시작(세션 종료 시점에 진행 중) <!-- session ee85017d -->
 - **2026-11-05** 관리자 사이트에 기기 등록(비밀번호·계속 로그인)과 관리 탭 '알림' 칸 추가, 관리자 푸시 발송 기록(admin_push_log) 도입(feature/admin-site 브랜치, main 병합·prod 반영은 아직) <!-- session 65786edb -->
 <!-- 개발 흐름 끝 -->
 
@@ -2002,68 +2002,71 @@
 - `sw.js`
 - `updates.js`
 
-## 2026-11-05 08:27–09:21 · 수행평가 공지 댓글 추가, 관리자 전용 사이트 분리와 기기 등록·알림 도입
+## 2026-11-05 08:27–09:25 · 수행평가 공지 댓글 기능 추가와 관리자 전용 사이트 main 병합·메인 배포 시작
 
-`session ee85017d` · 개발 milkcat322 · 요청 8회
+`session ee85017d` · 개발 milkcat322 · 요청 9회
 
 ### 목표
-- 수행평가 공지에 댓글을 달 수 있게 한다
-- 관리자 계정으로 쓰던 기능을 학생 사이트에서 떼어내 별도의 관리자 전용 웹사이트로 만든다
-- 관리자 사이트에 비밀번호만으로 기기 등록하는 로그인과 발송한 알림을 보는 '알림' 칸을 추가한다
+- 수행평가 공지에 댓글 기능 추가
+- 관리자 기능을 학생 사이트에서 분리해 관리자 전용 사이트로 만들기
+- 완성된 관리자 사이트를 main에 병합하고 메인 웹(dshs42.app)까지 배포
 
 ### 한 일
-- `assignment_comments` 표(공지 RLS를 그대로 따름)를 설계하고, 수행평가 상세 창에 댓글 목록·입력 칸을 추가, 같은 수행평가 합치기 시 댓글도 새 공지로 옮기도록 `merge.sql` 수정
-- 관리 탭·학교 일정 관리·관리자 알림 등 관리자 전용 코드를 `admin/` 폴더로 떼어내고, 학생 사이트(`dshs-study.js`)에서 약 700줄 제거
-- 빌드·배포 스크립트(`scripts/build-admin.mjs`, `scripts/deploy-admin.mjs`)를 작성해 별도 저장소(`dshs42-admin`)로 배포하는 체계 구축
-- 관리자 사이트 로그인을 아이디 없이 비밀번호 한 칸으로 바꾸고, 한 번 등록한 기기는 다시 묻지 않게 구현
-- 관리 탭에 '알림' 칸을 추가하고, `admin_push_log` 표와 `send-reminders`·`ops-agent`·`usage-agent` 세 서버 함수에 발송 기록 로직 추가
-- `feature/admin-site` 브랜치를 `main`에 병합
+- `assignment_comments` 표를 만들고 RLS로 공지 열람 범위를 따르게 한 뒤, 수행평가 상세 창에 댓글 목록·입력 칸을 추가
+- 수행평가 합치기 시 댓글도 새 공지로 옮기도록 `merge.sql` 수정
+- 학생 사이트(`dshs-study.js`)에서 관리 탭·학교 일정 관리·관리자 승인 코드 약 700줄을 걷어내고, `admin/` 디렉토리에 별도 관리자 사이트(`admin.js`, `index.html`, `sw.js`, `manifest.webmanifest`)를 새로 구성
+- 관리자 사이트 빌드·배포 스크립트(`scripts/build-admin.mjs`, `scripts/deploy-admin.mjs`) 작성, `milkcat322/dshs42-admin` 저장소에 배포
+- 관리자 사이트에 비밀번호 한 칸만으로 기기를 등록하는 로그인(계속 로그인) 구현
+- `admin_push_log` 표를 추가해 관리자에게 보낸 푸시(새 활동, 운영 점검, 사용 분석) 기록을 남기고, 관리 탭에 '알림' 칸 추가
+- `send-reminders`, `ops-agent`, `usage-agent` 서버 함수에 `admin_push_log` 기록 코드 추가
+- `feature/admin-site`를 `main`에 병합해 beta(`dshs42-beta.netlify.app`)에 반영 확인
+- 메인 웹(prod) 배포를 시작
 
 ### 결정과 이유
-- 관리자 인증을 아이디+비밀번호 대신 비밀번호 단독 + 기기 등록 방식으로 결정. 사용자가 명확히 요청한 방식이며, 실제로는 내부적으로 `milkcat322`·`qksalornt` 두 계정에 같은 비밀번호로 로그인을 시도하는 구조
-- 관리자 기능을 완전히 별도 사이트로 분리. 학생 사이트 코드와 공격 표면을 줄이고, 두 사이트가 같은 스타일·명단 자산을 공유하도록 설계
-- `main` 병합은 관리자 사이트에서 실제 동작을 확인한 뒤에 진행(먼저 합치면 beta에서 관리 탭이 바로 사라지는 위험 때문)
+- 관리 기능을 별도 사이트(`admin/`)로 분리하기로 함. 이유: 학생 사이트를 가볍게 유지하고 관리자 UI를 독립적으로 발전시키기 위함(사용자가 AskUserQuestion 추천안을 모두 채택)
+- 관리자 로그인은 아이디 입력 없이 비밀번호 한 칸 + 기기 등록 방식으로 결정. `milkcat322`, `qksalornt` 두 계정에 순차 로그인 시도하는 구조라 두 계정 비밀번호를 같게 맞춤
+- DB 구조를 바꾸는 SQL(`comments.sql`, `adminpush.sql`)은 Claude가 직접 실행하지 못해 사용자가 Supabase SQL Editor에서 직접 실행
+- 비밀번호는 대화·코드·DEVLOG 어디에도 남기지 않고, 변경 시 SQL 템플릿의 빈 자리만 제공
 
 ### 해결한 문제
-- 증상: 관리자 사이트 등록 화면이 "불러오는 중"에서 멈춤 → 원인: headless 브라우저 테스트에서 라이브러리 로드 시간이 모자랐음 → 해결: 재시도로 정상 동작 확인
-- 증상: 배포한 관리자 사이트 주소가 404 → 원인: Netlify 배포가 아직 끝나지 않은 상태였음 → 해결: 재확인 후 정상 접속 확인
-- 증상: 관리자 계정 비밀번호를 바꿀 방법을 못 찾음 → 원인: Supabase 대시보드에는 비밀번호 직접 설정 칸이 없고 재설정 메일 방식뿐인데 관리자 이메일은 실제 수신 불가 → 해결: SQL Editor에서 `crypt()`로 비밀번호 직접 갱신
+- 증상: 관리자 사이트 배포 직후 `dshs42-admin.netlify.app`이 404 → 원인: Netlify 배포가 아직 끝나지 않음 → 해결: 시간을 두고 재확인해 정상 로드 확인
+- 증상: 기기 등록 화면이 "불러오는 중"에서 멈춤 → 원인: headless 테스트 환경에서 라이브러리 로딩 시간 부족 → 해결: 재시도로 정상 동작 확인(코드 결함 아님)
+- 증상: 관리 탭 '알림' 칸에 기록이 쌓이지 않음 → 원인: `send-reminders`/`ops-agent`/`usage-agent` 서버 함수가 아직 `admin_push_log` 기록 코드로 재배포되지 않음 → 해결: 세 함수에 로깅 코드를 추가(재배포는 Supabase CLI가 있는 다른 기기에서 필요, 세션 내 완료 못함)
 
 ### 남은 일
-- [ ] 다른 기기에서 `supabase functions deploy send-reminders ops-agent usage-agent` 재배포
-- [ ] `adminpush.sql` 실행 확인
-- [ ] 관리자가 남의 댓글을 지우는 화면 추가(DB 권한은 이미 있음)
-- [ ] 새 댓글 푸시 알림, 목록에 댓글 수 표시
-- [ ] `dshs42.app`(prod)에 이번 변경 반영
+- [ ] `send-reminders`, `ops-agent`, `usage-agent` 서버 함수를 Supabase CLI로 재배포
+- [ ] `adminpush.sql` 실행 여부 재확인
+- [ ] 메인 웹(prod, dshs42.app) 배포 마무리 — 세션 종료 시점에 push 전 DEVLOG 기록을 요구하는 훅에 걸려 진행 중이었음
 
 ### 배운 점
-- DEVLOG의 '개발' 칸은 Claude 로그인 계정이 아니라 해당 PC의 `git config user.name`을 그대로 씀
-- Supabase 대시보드에는 사용자 비밀번호를 직접 정하는 UI가 없어 SQL로 처리해야 함
+- Netlify 배포는 직후 확인 시 지연으로 404가 날 수 있어 시간을 두고 재확인해야 함
+- DB 스키마를 바꾸는 작업은 자동 권한 검사로 막히므로 사용자가 SQL Editor에서 직접 실행해야 함
+- 메인 웹으로 push하기 전에도 DEVLOG 기록을 먼저 남기도록 하는 훅이 동일하게 적용됨
 
 ### 바뀐 파일
-- `comments.sql`
-- `merge.sql`
-- `dshs-study.js`
-- `index.html`
-- `updates.js`
-- `sw.js`
+- `.gitignore`
 - `CLAUDE.md`
 - `README.md`
-- `.gitignore`
-- `config.js`
 - `_headers`
-- `admin/index.html`
 - `admin/admin.js`
-- `admin/sw.js`
+- `admin/index.html`
 - `admin/manifest.webmanifest`
+- `admin/sw.js`
+- `adminpush.sql`
+- `comments.sql`
+- `config.js`
+- `dshs-study.js`
+- `index.html`
+- `merge.sql`
 - `scripts/build-admin.mjs`
 - `scripts/deploy-admin.mjs`
-- `adminpush.sql`
-- `supabase/functions/send-reminders/index.ts`
 - `supabase/functions/ops-agent/index.ts`
+- `supabase/functions/send-reminders/index.ts`
 - `supabase/functions/usage-agent/index.ts`
+- `sw.js`
+- `updates.js`
 
-<!-- flow: - **2026-11-05** 수행평가 공지에 댓글 기능 추가, 관리자 전용 사이트(admin/)로 분리해 학생 사이트에서 관리자 코드 제거, 관리자 사이트에 비밀번호 단독 기기 등록 로그인과 관리자 푸시 발송 기록(admin_push_log)·관리 탭 '알림' 칸 도입, feature/admin-site를 main에 병합(prod 반영은 아직) -->
+<!-- flow: - **2026-11-05** feature/admin-site를 main에 병합해 beta에 반영 완료, 메인 웹(prod) 배포를 시작(세션 종료 시점에 진행 중) -->
 
 ## 2026-11-04 16:18 · 관리자 웹 분리·dshs42.app 배포 방식 논의
 
