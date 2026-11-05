@@ -586,7 +586,7 @@ function opsHtml(reports) {
 }
 
 // 사용 분석 에이전트가 매일 밤 10시에 남긴 보고서 (usage.sql · scripts/usage-agent)
-function usageHtml(reports, plans) {
+function usageHtml(reports, plans, tasks) {
   const inPlan = (owner, title) => (plans || []).some((p) => p.owner === owner && p.title === title.slice(0, 200));
   if (!reports) return '<div class="adm-none">사용 분석을 불러오지 못했어요.</div>';
   if (!reports.length) return '<div class="adm-none">아직 사용 분석이 없어요. 매일 밤 10시에 관리자 노트북에서 만들어져요.</div>';
@@ -614,7 +614,9 @@ function usageHtml(reports, plans) {
           <div class="adm-useplan"><span>계획에 넣기</span>${PLAN_OWNERS.map((o) => {
             const added = inPlan(o, x.title);   // 이미 그 사람 계획에 있으면 초록
             return `<button class="study-btn small${added ? " ok" : ""}" data-useplan="${esc(x.title)}" data-owner="${o}"${added ? " disabled" : ""}>${added ? "✓ " : ""}${o}</button>`;
-          }).join("")}</div></div>`).join("")}` : ""}
+          }).join("")}${(tasks || []).some((t) => t.title === x.title.slice(0, 200))
+            ? '<button class="study-btn small ok" disabled>✓ 제작 맡김</button>'
+            : `<button class="study-btn small" data-usedev="${esc(x.title)}" data-why="${esc(x.why || "")}" data-report="${r.id}">🛠 제작 맡기기</button>`}</div></div>`).join("")}` : ""}
       ${a.watch?.length ? `<div class="adm-label">다음에 지켜볼 것</div><ul class="adm-ops-list info">${a.watch.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
       ${a.caveats ? `<div class="adm-foot">${esc(a.caveats)}</div>` : ""}`;
     return `<details class="adm-fb adm-ops"${i ? "" : " open"}>
@@ -626,7 +628,7 @@ function usageHtml(reports, plans) {
 
 // ---------- 알림 칸: 관리자에게 보낸 최근 알림 (adminpush.sql 의 admin_push_log) ----------
 // send-reminders(새 활동) · ops-agent(점검) · usage-agent(분석)가 관리자 기기로 푸시를 보낼 때 남깁니다.
-const PUSH_SOURCE = { activity: "새 활동", ops: "운영 점검", usage: "사용 분석" };
+const PUSH_SOURCE = { activity: "새 활동", ops: "운영 점검", usage: "사용 분석", build: "제작" };
 function pushLogHtml(rows) {
   if (!rows) return '<div class="adm-none">알림 기록을 불러오지 못했어요. adminpush.sql 을 실행했는지 확인해 주세요.</div>';
   if (!rows.length) return '<div class="adm-none">아직 보낸 알림이 없어요. 기록은 이 기능을 켠 뒤부터 쌓여요.</div>';
@@ -641,6 +643,91 @@ function pushLogHtml(rows) {
       <div class="adm-fb-foot"><span>${esc(ovTime(r.created_at))} · ${esc(got)}</span>${to ? `<button class="study-btn small" data-gopane="${to}">열기</button>` : ""}</div>
     </div>`;
   }).join("") + '<div class="adm-foot">관리자 기기로 보낸 최근 알림 50개예요 (60일 보관). 빨간 줄은 받은 기기가 없었던 알림이에요. 설정에서 이 기기의 알림을 켤 수 있어요.</div>';
+}
+
+// ---------- 제작 칸: Claude 제작 맡기기 (agenttasks.sql · scripts/build-agent) ----------
+// 초안을 고쳐 '제작 승인'하면 관리자 노트북의 Claude 가 agent-<번호> 브랜치에서 만들고 미리보기 주소와 함께 알려요.
+// 미리보기를 보고 '수정 요청'(메모)하면 다시 만들고(최대 3번), '최종 승인'하면 main 에 합쳐 beta 에 올라가요.
+const DEV_LABEL = {
+  draft: "초안", approved: "제작 대기", building: "제작 중", review: "확인해 주세요", revise: "수정 대기",
+  accepted: "합치는 중", merged: "beta 반영", rejected: "버림", failed: "실패", needs_human: "사람 손 필요",
+};
+const DEV_HOT = new Set(["review", "failed", "needs_human"]);
+const DEV_MAX = 3;
+function devHtml(tasks) {
+  if (!tasks) return '<div class="adm-none">제작 목록을 불러오지 못했어요. agenttasks.sql 을 실행했는지 확인해 주세요.</div>';
+  const chip = (t) => `<span class="${DEV_HOT.has(t.status) ? "fb-new" : "adm-chip"}">${DEV_LABEL[t.status]}</span>`;
+  const head = (t) => `<div class="adm-fb-top">${chip(t)}<b>${esc(t.title)}</b>${t.rounds ? `<span class="adm-chip">${t.rounds}/${DEV_MAX}번째</span>` : ""}</div>`;
+  const foot = (t, btns) => `<div class="adm-fb-foot"><span>${esc(ovTime(t.updated_at))}</span><span>${btns}</span></div>`;
+  const field = "width:100%;box-sizing:border-box;margin-top:8px;font:inherit";
+  const ta = (attr, val, ph) => `<textarea ${attr} rows="4" maxlength="4000" placeholder="${ph}" style="${field}">${esc(val)}</textarea>`;
+  const btn = (attr, id, label) => `<button class="study-btn small" ${attr}="${id}">${label}</button>`;
+  const card = (t) => {
+    if (t.status === "draft") return `<div class="adm-fb new">${head(t)}
+      <input type="text" data-devtitle="${t.id}" maxlength="200" value="${esc(t.title)}" aria-label="제목" style="${field}">
+      ${ta(`data-devspec="${t.id}"`, t.spec, "Claude 에게 맡길 내용 (무엇을 · 어디를 · 어떻게)")}
+      ${foot(t, `${btn("data-devsave", t.id, "저장")} ${btn("data-devgo", t.id, "제작 승인")} ${btn("data-devdrop", t.id, "버리기")}`)}</div>`;
+    const info = `${t.preview_url ? `<div class="adm-fb-text"><a href="${esc(t.preview_url)}" target="_blank" rel="noopener">미리보기 열기 ↗</a>${t.branch ? ` · <code>${esc(t.branch)}</code>` : ""}</div>` : ""}
+      ${t.summary ? `<div class="adm-fb-text" style="white-space:pre-wrap">${esc(t.summary)}</div>` : ""}
+      ${t.error ? `<div class="adm-fb-text" style="color:#ff6b6d;white-space:pre-wrap">${esc(t.error)}</div>` : ""}
+      ${t.note && t.status !== "review" ? `<div class="adm-foot">수정 요청: ${esc(t.note)}</div>` : ""}`;
+    if (t.status === "review") {
+      const more = t.rounds < DEV_MAX;
+      return `<div class="adm-fb new">${head(t)}${info}
+      ${more ? ta(`data-devnote="${t.id}"`, "", "고칠 점이 있으면 적고 '수정 요청'") : ""}
+      ${foot(t, `${more ? `${btn("data-devfix", t.id, "수정 요청")} ` : ""}${btn("data-devok", t.id, "최종 승인")} ${btn("data-devdrop", t.id, "버리기")}`)}</div>`;
+    }
+    const retry = ["failed", "needs_human"].includes(t.status) ? `${btn("data-devdraft", t.id, "초안으로")} ${btn("data-devdrop", t.id, "버리기")}` : "";
+    return `<div class="adm-fb${DEV_HOT.has(t.status) ? " new" : ""}">${head(t)}${info}${foot(t, retry)}</div>`;
+  };
+  const over = (t) => ["merged", "rejected"].includes(t.status);
+  const live = tasks.filter((t) => !over(t)), done = tasks.filter(over);
+  return `<form class="adm-plan-add" data-devadd><input type="text" maxlength="200" placeholder="Claude 에게 맡길 일 (초안으로 만들어요)" aria-label="제작 맡기기"><button class="study-btn small" type="submit">추가</button></form>
+    ${live.map(card).join("") || '<div class="adm-none">진행 중인 제작이 없어요. 분석 칸의 제안에서 \'🛠 제작 맡기기\'를 누르거나 위에 적어요.</div>'}
+    ${done.length ? `<details class="adm-fb"><summary><b>끝난 제작 ${done.length}</b></summary>${done.map(card).join("")}</details>` : ""}
+    <div class="adm-foot">'제작 승인'하면 관리자 노트북의 Claude 가 10분 안에 받아 따로 브랜치에서 만들어요 (노트북이 켜져 있어야 해요). 다 되면 미리보기 주소와 함께 알림이 와요. '최종 승인'한 것만 beta 에 올라가요. DB 를 바꾸는 일은 Claude 가 하지 않고 '사람 손 필요'로 멈춰요.</div>`;
+}
+
+function bindDev(body, tasks, showPane) {
+  const set = async (id, patch, msg) => {
+    const { error } = await sb.from("agent_tasks").update(patch).eq("id", id);
+    if (error) return toast("저장하지 못했어요", true);
+    if (msg) toast(msg);
+    renderOverview();
+  };
+  const val = (sel) => body.querySelector(sel)?.value.trim() ?? "";
+  const draft = (id) => ({ title: val(`[data-devtitle="${id}"]`) || tasks.find((t) => t.id === id)?.title, spec: val(`[data-devspec="${id}"]`) });
+  const on = (attr, fn) => body.querySelectorAll(`[data-${attr}]`).forEach((b) => b.onclick = () => fn(b.dataset[attr], b));
+  on("devsave", (id) => set(id, draft(id), "저장했어요"));
+  on("devgo", (id) => {
+    const d = draft(id);
+    if (!d.spec) return toast("맡길 내용을 적어 주세요", true);
+    if (confirm("이 내용으로 제작을 맡길까요? 노트북의 Claude 가 만들기 시작해요.")) set(id, { ...d, status: "approved" }, "제작을 맡겼어요");
+  });
+  on("devfix", (id) => {
+    const note = val(`[data-devnote="${id}"]`);
+    if (!note) return toast("고칠 점을 적어 주세요", true);
+    set(id, { status: "revise", note }, "수정을 요청했어요");
+  });
+  on("devok", (id) => { if (confirm("최종 승인할까요? main 에 합쳐 beta 사이트에 올라가요.")) set(id, { status: "accepted" }, "최종 승인했어요"); });
+  on("devdraft", (id) => set(id, { status: "draft", error: null }));
+  on("devdrop", (id) => { if (confirm("이 제작을 버릴까요?")) set(id, { status: "rejected" }, "버렸어요"); });
+  const add = async (row) => {
+    const { error } = await sb.from("agent_tasks").insert(row);
+    if (error) return toast("추가하지 못했어요", true);
+    showPane("dev");
+    renderOverview();
+  };
+  body.querySelectorAll("[data-devadd]").forEach((f) => f.onsubmit = (e) => {
+    e.preventDefault();
+    const title = f.querySelector("input").value.trim();
+    if (title) add({ title, spec: "" });
+  });
+  // 분석 칸의 제안 → 초안 (고친 뒤 '제작 승인')
+  on("usedev", (title, b) => {
+    b.disabled = true;
+    add({ title: title.slice(0, 200), spec: `${title}\n\n이유: ${b.dataset.why}`.slice(0, 4000), source: { report: b.dataset.report } });
+  });
 }
 
 // ---------- 승인 칸: 같은 수행평가 합치기 제안 · 처리 기록 ----------
@@ -747,14 +834,14 @@ function bindMerge(body) {
   });
 }
 
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits, ops, log, usage, pushes) {
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits, ops, log, usage, pushes, tasks) {
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
   const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
   const seg = [["asg", "승인", pending.length + (log?.open.length || 0), true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false],
     ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false], ["ops", "점검", ops?.[0]?.issues ?? 0, true], ["use", "분석", 0, false],
-    ["push", "알림", 0, false]];
+    ["dev", "제작", tasks?.filter((t) => DEV_HOT.has(t.status)).length ?? 0, true], ["push", "알림", 0, false]];
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
   return `<div class="adm-seg">${seg.map(([k, label, n, hot]) =>
       `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : ""}</button>`).join("")}</div>
@@ -766,7 +853,8 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
     ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
     ${box("plan", plansHtml(plans))}
     ${box("ops", opsHtml(ops))}
-    ${box("use", usageHtml(usage, plans))}
+    ${box("use", usageHtml(usage, plans, tasks))}
+    ${box("dev", devHtml(tasks))}
     ${box("push", pushLogHtml(pushes))}`;
 }
 
@@ -779,28 +867,29 @@ async function renderOverview(cached = false) {
     try { ovSeen = Date.parse(localStorage.getItem(OV_SEEN_KEY)) || Infinity; } catch {}
     fbSeen = Date.parse(fbSeenAt());
     // 점검 알림을 누르고 들어오면 '점검' 칸부터 (?view=admin&pane=ops), 사용 분석 알림이면 '분석' 칸부터 (pane=use)
-    ovPane = ["asg", "fb", "stu", "plan", "ops", "use", "push"].find((k) => k === new URLSearchParams(location.search).get("pane")) || null;
+    ovPane = ["asg", "fb", "stu", "plan", "ops", "use", "dev", "push"].find((k) => k === new URLSearchParams(location.search).get("pane")) || null;
   }
   if (cached && ovLast) paintOverview(ovLast);
   const [res] = await Promise.all([Promise.all([sb.rpc("admin_overview"), loadFeedback(),
     sb.from("admin_plans").select("*").order("created_at", { ascending: true }), sb.rpc("admin_visits", { p_days: 7 }),
     sb.from("ops_reports").select("*").order("created_at", { ascending: false }).limit(14), loadReviewLog(),
     sb.from("usage_reports").select("*").order("created_at", { ascending: false }).limit(7),
-    sb.from("admin_push_log").select("*").order("created_at", { ascending: false }).limit(50)]), loadPending()]);
+    sb.from("admin_push_log").select("*").order("created_at", { ascending: false }).limit(50),
+    sb.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(60)]), loadPending()]);
   const sig = JSON.stringify([res, cache.pending]);
   if (cached && ovLast && sig === ovLast.sig) return;   // 먼저 그린 것과 같으면 그대로
   ovLast = Object.assign(res, { sig });
   paintOverview(res);
 }
 function paintOverview(res) {
-  const [{ data, error }, fb, plans, visits, ops, log, usage, pushes] = res;
+  const [{ data, error }, fb, plans, visits, ops, log, usage, pushes, tasks] = res;
   const body = $("studyBody");
   if (page !== "admin" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   logRows = log?.reviewed || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
   ovPane ||= !pending.length && !log?.open.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data, log, usage.error ? null : usage.data, pushes.error ? null : pushes.data);
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data, log, usage.error ? null : usage.data, pushes.error ? null : pushes.data, tasks.error ? null : tasks.data);
   const showPane = (k) => {
     ovPane = k;
     body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x.dataset.ovpane === k));
@@ -819,6 +908,7 @@ function paintOverview(res) {
   bindMerge(body);
   body.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = () => deleteFeedback(fb.rows.find((r) => r.id === x.dataset.fbdel)));
   bindPlans(body);
+  bindDev(body, tasks.data || [], showPane);
   if (fb.rows?.[0]) { try { localStorage.setItem(FB_SEEN_KEY, fb.rows[0].created_at); } catch {} }
   if (data?.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
   refreshAdminCount();
