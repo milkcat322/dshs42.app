@@ -2132,3 +2132,32 @@
 - 바뀐 파일 없음
 <!-- flow: - **2026-11-05** 관리자 사이트에 기기 등록(비밀번호·계속 로그인)과 관리 탭 '알림' 칸 추가, 관리자 푸시 발송 기록(admin_push_log) 도입(feature/admin-site 브랜치, main 병합·prod 반영은 아직) -->
 - 코드 변경 없음(기록 커밋만 push)
+
+## 2026-11-05 08:52 · 사용 분석 launchd 미설치 원인 확인 및 설치
+
+### 목표
+- 밤 10시 사용 분석이 안 돈 원인 파악 후 복구
+
+### 한 일
+- `usage_reports` 표 확인: 보고서 1개뿐 (11/4 15:31 수동 `--force` 실행분, 푸시 200)
+- 기록 파일에 11/4 22시 실행 기록 없음 확인
+- 민지가 `! bash scripts/usage-agent/install.sh` 직접 실행 → `app.dshs42.usage-agent` 등록
+- 설치 직후 RunAtLoad 로 밀린 분석 실행, 08:57 저장 완료 및 관리자 기기 푸시
+- origin/main 에 기록 커밋 3개 push (코드 변경 없음)
+
+### 결정과 이유
+- 상주 작업 등록은 Claude 권한으로 막혀 있어 민지가 직접 `install.sh` 실행
+- 분석 저장 확인 후 push (설치 전에는 push 보류)
+
+### 해결한 문제
+- 어젯밤 10시 분석 안 돎 → `~/Library/LaunchAgents` 에 파일 없고 `launchctl list` 에도 없음, `install.sh` 를 실행하지 않은 채 시험 실행만 함 → `install.sh` 실행으로 launchd 등록
+
+### 남은 일
+- [ ] 아침에 폰 푸시가 없으면 `~/Library/Logs/dshs42-usage-agent.log` 확인 (`저장함 …` 줄이 성공)
+
+### 배운 점
+- 분석은 터미널이 아니라 launchd 가 돌려서 터미널을 닫아도 계속 작동하고 재부팅 후 로그인하면 복구됨
+- 노트북이 켜져 있어야 하고, 잠자기·꺼짐 중이면 실패가 아니라 다음에 켰을 때 실행
+- Claude Code 로그인과 Supabase MCP 연결이 유지돼야 함
+- 실패 알림은 한 시간마다 재시도해 3번째 실패 때 이 맥에만 뜸 (폰 푸시는 성공한 분석 결과만)
+- beta 와 dshs42.app 은 같은 DB 를 써서 원인이 하나
