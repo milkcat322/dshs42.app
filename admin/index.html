@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>dshs42 관리</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="color-scheme" content="dark light">
+<!-- 관리자 사이트. scripts/build-admin.mjs 가 학생 사이트의 테마 · 스타일 · 명단을 함께 묶어 admin-dist/ 로 만듭니다 -->
+<script src="theme.js"></script>
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="dshs42 관리">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://esm.sh" crossorigin>
+<link rel="modulepreload" href="https://esm.sh/@supabase/supabase-js@2.45.4?bundle">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="student.css">
+<style>
+  /* 관리자 사이트에만 있는 것. 나머지 모양은 학생 사이트의 student.css 를 그대로 씁니다 */
+  .admin-badge { display: inline-block; padding: 4px 12px; border-radius: 999px; background: rgba(255,77,79,0.14); color: #ff6b6d; font-size: 12px; font-weight: 700; }
+  .nav-icons { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 10px; }
+  .study-view { display: block; }
+  .gate { box-sizing: border-box; width: 100%; max-width: 380px; margin: 40px auto; padding: 22px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+  .gate h2 { font-size: 18px; margin-bottom: 4px; }
+  .sch-tools { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; font-size: 13px; color: var(--text-dim); }
+  .sch-tools label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .sch-month { margin: 20px 2px 8px; font-size: 13px; font-weight: 800; color: var(--text-dim); }
+  .sch-row { display: flex; gap: 12px; align-items: flex-start; width: 100%; padding: 11px 14px; margin-bottom: 6px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: inherit; cursor: pointer; }
+  .sch-row:hover { border-color: var(--accent1); }
+  .sch-row.hidden-ev { opacity: 0.5; }
+  .sch-date { flex: none; width: 92px; font-size: 12.5px; font-weight: 700; color: var(--text-dim); line-height: 1.5; }
+  .sch-main { flex: 1; min-width: 0; }
+  .sch-title { font-size: 14px; font-weight: 700; line-height: 1.45; word-break: break-word; }
+  .sch-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .sch-chips .adm-chip { font-size: 11px; }
+  .adm-log-row.click { cursor: pointer; }
+  .adm-log-row.click:hover b { color: var(--accent1); }
+  @media (max-width: 640px) {
+    .container { padding-top: env(safe-area-inset-top); }
+    .header { display: block; height: auto; margin: 14px 0 10px; }
+    .header h1 { font-size: 22px; visibility: visible; margin-top: 6px; }   /* 학생 사이트는 폰에서 h1 을 숨기고 움직이는 로고를 씁니다 */
+    .gate { margin: 20px auto; }
+    .sch-date { width: 74px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <span class="admin-badge">관리자 전용</span>
+    <h1>dshs42 관리</h1>
+  </div>
+  <div class="nav-icons">
+    <button class="icon-btn" id="btnSettings" type="button" title="설정" aria-label="설정" style="display:none">⚙️</button>
+  </div>
+  <div class="study-nav" id="studyNav"></div>
+  <div class="study-view" id="studyView"><div class="study-empty">불러오는 중…</div></div>
+  <p class="site-note">대전과학고등학교 및 dshs.app에서 공식적으로 제공하거나 운영하는 사이트가 아닌 학생 비공식 사이트의 관리자 화면입니다.</p>
+</div>
+<div class="study-modal" id="studyModal"></div>
+<div class="study-toast" id="studyToast"></div>
+<script src="school-data.js"></script>
+<script src="config.js"></script>
+<script type="module" src="admin.js"></script>
+<script>
+  // 알림을 받으려면 서비스 워커가 있어야 합니다 (이 사이트 전용 sw.js)
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

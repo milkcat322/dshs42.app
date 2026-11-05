@@ -1,0 +1,4 @@
+# Netlify 응답 헤더
+# 학사일정(공개 정보)은 관리자 사이트(dshs42-admin)가 매일 바뀐 내용을 바로 읽을 수 있게 다른 주소에서도 읽기를 허락합니다
+/academic.json
+  Access-Control-Allow-Origin: *

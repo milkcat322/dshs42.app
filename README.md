@@ -45,10 +45,25 @@ updates.js                업데이트 소식 (주요 업데이트는 접속 시
 academic.json             학사일정 (NEIS 에서 매일 자동 갱신 · 직접 고치지 않음)
 academic-extra.json       NEIS 에 없는 일정(카톡 공지 등)을 직접 적는 곳 → academic.json 에 합쳐짐
 scripts/fetch-academic.mjs  학사일정 받기 (GitHub Actions 가 매일 실행)
+_headers                  Netlify 응답 헤더 (academic.json 을 관리자 사이트가 읽을 수 있게)
+admin/                    관리자 사이트 (관리 탭 · 학교 일정 관리 · 관리자 알림) — index.html · admin.js · sw.js
+scripts/build-admin.mjs   관리자 사이트 묶기 → admin-dist/ (학생 사이트의 스타일 · 명단 · config.js 를 함께 넣음)
+scripts/deploy-admin.mjs  관리자 사이트 배포 → 관리자 저장소 milkcat322/dshs42-admin → Netlify
 DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일 · 최신이 맨 아래)
 CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공용 규칙
 .claude/                  Claude Code 공용 설정 · 자동 git pull/push 훅
 ```
+
+### 사이트 세 개
+
+| 사이트 | 저장소 | 올리는 법 |
+|---|---|---|
+| beta `dshs42-beta.netlify.app` | 이 저장소 `main` (origin) | Check Push 하면 바로 배포 |
+| 메인 `dshs42.app` | `milkcat322/dshs42.app` (prod) | `/deploy-main` (beta 확인 뒤) |
+| 관리자 `ADMIN_URL` (config.js) | `milkcat322/dshs42-admin` | `node scripts/deploy-admin.mjs` (admin/ 을 커밋한 뒤) |
+
+관리자 사이트는 학생 사이트와 같은 DB 를 쓰고 관리자 계정(아이디 · 비밀번호)으로만 들어갑니다. 관리자 알림(승인 요청 · 피드백 · 점검 · 분석)은 관리자 사이트에서 켠 기기로 옵니다.
+관리자 저장소에는 묶은 결과만 있으니 직접 고치지 말고 `admin/admin.js` 를 고친 뒤 다시 배포하세요. 로컬에서 보려면 `node scripts/build-admin.mjs` 후 `admin-dist/` 를 아무 정적 서버로 엽니다.
 
 작업을 시작하기 전에 [DEVLOG.md](DEVLOG.md) 맨 아래의 최근 기록과 **남은 일** 을 먼저 확인해 주세요.
 
