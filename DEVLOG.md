@@ -2209,3 +2209,5 @@
 ### 배운 점
 - DEVLOG 자동 기록은 `detached` + `unref`로 터미널과 분리돼 창을 닫아도 계속 돈다.
 - 사용 분석(밤 10시)은 launchd로 돌아 터미널과 무관하지만, 노트북이 켜져 있고 Claude Code·Supabase MCP 로그인이 유지돼야 한다. 꺼져 있었다면 다음에 켤 때 밀린 분석이 실행된다.
+
+## 2026-11-05 09:24 · 아니 분석 결과가 https://dshs42-admin.netlify.a
