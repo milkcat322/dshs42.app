@@ -35,6 +35,7 @@ ops.sql                   ★ 운영 점검 보고서 (ops-agent 가 매일 0 ·
 supabase/functions/ops-agent/index.ts       운영 점검 에이전트 (사이트 · 서버 · 승인 대기 점검 + 피드백 AI 요약 → 관리자 푸시)
 supabase/functions/ops-agent/report.ts      점검 결과로 보고서 문장 만들기 (순수 함수)
 usage.sql                 ★ 사용 분석 보고서 · 통계 함수 · 저장 함수 (관리자만 봄)
+adminpush.sql             ★ 관리자에게 보낸 알림 기록 (관리자 사이트 관리 탭 '알림' 칸 · 관리자만 봄)
 scripts/usage-agent/                        사용 분석 에이전트 — 관리자 노트북의 Claude Code 가 매일 밤 10시 분석 (prompt.md · run.mjs · install.sh)
 supabase/functions/usage-agent/index.ts     분석이 저장되면 관리자에게 푸시
 merge.sql                 ★ 분반별 같은 수행평가 합치기 제안 · 합치기 함수 (merge-suggest 가 0 · 8 · 12 · 16 · 20시에 찾음 · 관리자만)
@@ -45,10 +46,25 @@ updates.js                업데이트 소식 (주요 업데이트는 접속 시
 academic.json             학사일정 (NEIS 에서 매일 자동 갱신 · 직접 고치지 않음)
 academic-extra.json       NEIS 에 없는 일정(카톡 공지 등)을 직접 적는 곳 → academic.json 에 합쳐짐
 scripts/fetch-academic.mjs  학사일정 받기 (GitHub Actions 가 매일 실행)
+_headers                  Netlify 응답 헤더 (academic.json 을 관리자 사이트가 읽을 수 있게)
+admin/                    관리자 사이트 (관리 탭 · 학교 일정 관리 · 관리자 알림) — index.html · admin.js · sw.js
+scripts/build-admin.mjs   관리자 사이트 묶기 → admin-dist/ (학생 사이트의 스타일 · 명단 · config.js 를 함께 넣음)
+scripts/deploy-admin.mjs  관리자 사이트 배포 → 관리자 저장소 milkcat322/dshs42-admin → Netlify
 DEVLOG.md                 개발 로그 (무엇을 왜 바꿨는지, 남은 일 · 최신이 맨 아래)
 CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공용 규칙
 .claude/                  Claude Code 공용 설정 · 자동 git pull/push 훅
 ```
+
+### 사이트 세 개
+
+| 사이트 | 저장소 | 올리는 법 |
+|---|---|---|
+| beta `dshs42-beta.netlify.app` | 이 저장소 `main` (origin) | Check Push 하면 바로 배포 |
+| 메인 `dshs42.app` | `milkcat322/dshs42.app` (prod) | `/deploy-main` (beta 확인 뒤) |
+| 관리자 `ADMIN_URL` (config.js) | `milkcat322/dshs42-admin` | `node scripts/deploy-admin.mjs` (admin/ 을 커밋한 뒤) |
+
+관리자 사이트는 학생 사이트와 같은 DB 를 쓰고 관리자 계정(아이디 · 비밀번호)으로만 들어갑니다. 관리자 알림(승인 요청 · 피드백 · 점검 · 분석)은 관리자 사이트에서 켠 기기로 옵니다.
+관리자 저장소에는 묶은 결과만 있으니 직접 고치지 말고 `admin/admin.js` 를 고친 뒤 다시 배포하세요. 로컬에서 보려면 `node scripts/build-admin.mjs` 후 `admin-dist/` 를 아무 정적 서버로 엽니다.
 
 작업을 시작하기 전에 [DEVLOG.md](DEVLOG.md) 맨 아래의 최근 기록과 **남은 일** 을 먼저 확인해 주세요.
 
@@ -79,6 +95,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `ops.sql` 을 **Run** (운영 점검 보고서). 맨 아래 주석의 `cron.schedule` 도 한 번 실행하면 매일 0 · 8 · 12 · 16 · 20시에 점검이 돌아갑니다
    이어서 `merge.sql` 을 **Run** (같은 수행평가 합치기 제안). 맨 아래 주석의 `cron.schedule` 도 한 번 실행하면 매일 0 · 8 · 12 · 16 · 20시에 찾습니다
    이어서 `usage.sql` 을 **Run** (사용 분석 보고서). 분석은 관리자 노트북에서 `bash scripts/usage-agent/install.sh` 로 켭니다 (Claude Code 로그인 + Supabase MCP 연결 필요)
+   이어서 `adminpush.sql` 을 **Run** (관리자에게 보낸 알림 기록 · 관리자 사이트 '알림' 칸)
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
 

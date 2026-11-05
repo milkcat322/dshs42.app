@@ -52,6 +52,11 @@ Deno.serve(async (req) => {
       if (code === 404 || code === 410) await db.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
     }
   }));
+  // 관리자 사이트 '알림' 칸에 남깁니다 (adminpush.sql)
+  const logged = await db.from("admin_push_log").insert({
+    source: "usage", title: r.title, body, url: "/?view=admin&pane=use", devices: sent + failed, delivered: sent,
+  });
+  if (logged.error) console.error("관리자 알림 기록 실패", logged.error.message);
   return new Response(JSON.stringify({ sent, failed }), { headers: { "Content-Type": "application/json" } });
 });
 

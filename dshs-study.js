@@ -11,7 +11,7 @@ let me = null;          // { id, username, student_id, name, is_admin }
 let myClasses = [];     // 로컬 시간표 데이터에서 가져온 내 수강 분반 [{ subject, ban }]
 let cache = { items: [], pending: [], mine: [], events: [], done: new Set(), people: new Map(), todos: null, school: [] };
 let page = "cal";       // 열린 탭: cal(내 일정) | notice(수행평가) | todo(할 일)
-let view = "feed";      // studyBody 에 떠 있는 화면: feed | notice | admin | form | todo
+let view = "feed";      // studyBody 에 떠 있는 화면: feed | notice | form | todo
 let fc = null;          // FullCalendar 인스턴스 (달력 탭일 때만)
 let fcDate = null;      // 달력을 다시 그릴 때 돌아갈 날짜
 
@@ -172,10 +172,22 @@ async function startApp() {
 // 알림을 누르고 들어오면 그 탭으로, 아니면 내 시간표로 시작합니다
 function openStart() {
   const opened = new URLSearchParams(location.search).get("view");
-  if (me && opened === "assignments") openStudy("notice");
+  if (me?.is_admin) openAdminMoved();
+  else if (me && opened === "assignments") openStudy("notice");
   else if (me && opened === "cal") openStudy("cal");
-  else if (me?.is_admin && opened === "admin") openStudy("admin");
   else if (me?.student_id) openMyTimetable();
+}
+
+// 관리 기능(관리 탭 · 학교 일정 관리)은 관리자 사이트(admin/ · CFG.ADMIN_URL)로 옮겼습니다.
+// 관리자 계정으로 학생 사이트에 들어오면 관리자 사이트로 안내하고, 이 기기로 관리자 알림이 오지 않게 등록을 지웁니다.
+const ADMIN_URL = CFG.ADMIN_URL || "https://dshs42-admin.netlify.app";
+function openAdminMoved() {
+  if (sb) forgetPush();
+  openSheet("관리자 계정", `
+    <div class="asg-body">관리 기능(수행평가 승인 · 피드백 · 학생 현황 · 학교 일정 관리)은 관리자 사이트로 옮겼어요. 관리자 알림도 관리자 사이트에서 켜요.</div>
+    <a class="study-submit" href="${esc(ADMIN_URL)}" style="display:block;text-align:center;text-decoration:none">관리자 사이트 열기</a>
+    <button class="study-submit ghost" id="amLogout">이 사이트에서 로그아웃</button>`);
+  $("amLogout").onclick = () => { closeModal(); logout(); };
 }
 
 // ---------- 지난 화면 먼저 ----------
@@ -329,27 +341,20 @@ function renderNav() {
   // 로그인 전에는 위쪽 메뉴를 숨깁니다. 시작하기는 시간표 막힘 화면의 버튼 하나뿐이고, 그 아래 작은 관리자 로그인이 있습니다.
   nav.style.display = me ? "flex" : "none";
   const open = $("studyView").style.display === "block";
-  // 학생 계정은 맨 왼쪽에 "시간표" (내 시간표 · 검색. 관리자 계정은 학번이 없어 내 시간표가 없음)
-  const pages = me?.is_admin ? [...PAGES, ["admin", "관리"]] : PAGES;   // 관리 탭은 관리자만
-  const tabs = me?.student_id ? [["mytt", "시간표"], ...pages] : pages;
+  // 학생 계정은 맨 왼쪽에 "시간표" (내 시간표 · 검색). 관리자 계정은 관리자 사이트로 안내하는 버튼 하나만
+  const tabs = me?.is_admin ? [["moved", "관리자 사이트로"]] : me?.student_id ? [["mytt", "시간표"], ...PAGES] : PAGES;
   const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && page === k);
   nav.innerHTML = me
-    ? tabs.map(([k, label]) =>
-        `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${k === "admin" ? adminTabLabel() : label}</button>`).join("")
+    ? tabs.map(([k, label]) => `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("")
     : "";
   // 설정(알림 · 학교 일정 · 계정)은 업데이트 옆에 늘 보입니다 (로그인 전에는 관리자 로그인을 여는 곳)
   const set = $("btnSettings");
   set.style.display = "";
   set.onclick = openSettings;
-  if (sb && me?.is_admin && !refreshAdminCount.on) {   // 1분마다 처리할 일 수 확인 (지난 화면을 먼저 띄울 때는 서버 연결 뒤에)
-    refreshAdminCount.on = true;
-    refreshAdminCount();
-    setInterval(() => { if (me?.is_admin && !document.hidden) refreshAdminCount(); }, 60000);
-  }
   if (me) {
     nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () =>
-      (b.dataset.page === "mytt" ? openMyTimetable() : openStudy(b.dataset.page)));
-    if (sb) { autoPush(); loadStatus(); }
+      (b.dataset.page === "mytt" ? openMyTimetable() : b.dataset.page === "moved" ? openAdminMoved() : openStudy(b.dataset.page)));
+    if (sb && !me.is_admin) { autoPush(); loadStatus(); }
   }
   applyAccess();
 }
@@ -488,8 +493,8 @@ function showingMyTimetable() {
   const r = $("result");
   return r.classList.contains("show") && !!r.querySelector(".student-profile")?.textContent.includes(`학번 ${me.student_id}`);
 }
-// 로그인 직후 첫 화면: 학생은 내 시간표, 관리자는 내 일정
-const openHome = () => (me.student_id ? openMyTimetable() : openStudy());
+// 로그인 직후 첫 화면: 학생은 내 시간표, 관리자 계정은 관리자 사이트 안내 (학번 없는 예전 계정은 내 일정)
+const openHome = () => (me.is_admin ? openAdminMoved() : me.student_id ? openMyTimetable() : openStudy());
 
 async function logout() {
   await forgetPush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 서버 등록만 지웁니다
@@ -579,13 +584,13 @@ function showErr(msg) { const e = $("authErr"); e.textContent = msg; e.classList
 
 // ---------- 탭: 내 일정 · 수행평가 공지 · 할 일 ----------
 const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"]];
-const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", admin: "overview" };
+const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo" };
 
 // 내 일정: 수행평가(내 분반 공지 + 내가 올린 것)와 개인 일정을 한 달력에 모두 보여줍니다
 function openStudy(p) {
+  if (me?.is_admin) return openAdminMoved();
   page = PAGE_VIEW[p] ? p : "cal";
   view = PAGE_VIEW[page];
-  ovSeen = undefined;
   destroyCal();
   $("result").classList.remove("show");
   $("welcomeState").style.display = "none";
@@ -595,7 +600,7 @@ function openStudy(p) {
   renderStudy();
   renderNav();
   // 받아 둔 내용(지난 화면 · 앞서 받은 것)이 있으면 '불러오는 중' 없이 바로 그리고, 서버에서 새로 받아 바뀐 것만 다시 그립니다
-  if (haveData) page === "admin" ? renderOverview(true) : rerender();
+  if (haveData) rerender();
   loadAssignments({ quiet: true });
 }
 function closeStudy() {
@@ -609,7 +614,6 @@ function closeStudy() {
 function rerender() {
   if (view === "notice") renderNotice();
   else if (view === "todo") renderTodo();
-  else if (view === "overview") renderOverview();
   else renderList(view);
 }
 window.closeStudyView = closeStudy;
@@ -620,7 +624,6 @@ function renderStudy() {
     cal: ["내 일정", `수행평가 ${subjects} + 개인 일정`],
     notice: ["수행평가", `내 분반 수행평가 ${subjects}`],
     todo: ["할 일", "체크하면서 하나씩 끝내요"],
-    admin: ["관리", "수행평가 승인과 피드백을 처리해요"],
   }[page];
   $("studyView").innerHTML = `
     <div class="study-head">
@@ -632,7 +635,6 @@ function renderStudy() {
     </div>
     ${page === "cal" ? `<div class="study-row">
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
-      ${me.is_admin ? '<button class="study-btn" id="btnSchool">학교 일정 추가</button>' : ""}
     </div>
     <div id="dshsHint"></div>` : ""}
     ${page === "notice" ? `<div class="study-row">
@@ -640,7 +642,6 @@ function renderStudy() {
     </div>` : ""}
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
-  if ($("btnSchool")) $("btnSchool").onclick = () => openSchoolForm(null);
   paintDshs();
   if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
 }
@@ -650,7 +651,7 @@ function renderStudy() {
 let haveData = false, dataAt = 0, dataSig = "";
 async function loadAssignments({ quiet = false } = {}) {
   if (!sb) await sbWait;   // 지난 화면에서 탭을 먼저 누른 경우
-  if (!me) return;
+  if (!me || me.is_admin) return;   // 관리자 계정은 관리자 사이트에서 씁니다
   if (quiet && haveData && Date.now() - dataAt < 30000) return;
   loadDshs();   // dshs.app 신청 내역은 따로 받아서, 오면 달력에 더합니다
   const [asg, personal, evs, done, people, todos, school, invites] = await Promise.all([
@@ -713,11 +714,11 @@ function withPersonal(a, p) {
 const dueMs = (a) => (a.due_at ? Date.parse(a.due_at) : Infinity);
 const byDue = (a, b) => (dueMs(a) > dueMs(b)) - (dueMs(a) < dueMs(b));   // 마감 없는 공지는 맨 뒤
 const asgDue = (a) => (a.due_at ? dueInfo(a.due_at) : { label: "D-?", tone: "ok", when: null });
-// 수정: 승인된 수행평가는 누구나 (학생은 내 계정에서만 바뀝니다), 아직 나만 보이는 것은 작성자, 관리자는 전체.
-// 삭제: 관리자, 또는 작성자가 아직 분반 공지가 아닌(대기·반려) 자기 공지를
-const editsOnlyForMe = (a) => !me.is_admin && a.status === "approved";
-const canEditAsg = (a) => me.is_admin || a.status === "approved" || a.created_by === me.id;
-const canDelAsg = (a) => me.is_admin || (a.created_by === me.id && a.status !== "approved");
+// 수정: 승인된 수행평가는 누구나 (내 계정에서만 바뀝니다), 아직 나만 보이는 것은 작성자.
+// 삭제: 작성자가 아직 분반 공지가 아닌(대기·반려) 자기 공지를. 모두에게 고치고 지우는 건 관리자 사이트에서 합니다.
+const editsOnlyForMe = (a) => a.status === "approved";
+const canEditAsg = (a) => a.status === "approved" || a.created_by === me.id;
+const canDelAsg = (a) => a.created_by === me.id && a.status !== "approved";
 
 // 승인 전 수행평가의 상태. D-day 옆에 함께 보여 줍니다
 const stBadge = (status) => (status === "pending" ? '<span class="st-badge pending">대기</span>'
@@ -737,11 +738,6 @@ function card(a, opts = {}) {
     ${a.submit_to ? `<div class="asg-due">제출: ${esc(a.submit_to)}</div>` : ""}
     ${opts.check ? `<div class="asg-actions">
       <button class="study-btn small${done ? " on" : ""}" data-adone="${a.id}">${done ? "완료함" : "완료 표시"}</button>
-      ${editBtn}${delBtn}
-    </div>` : ""}
-    ${opts.admin ? `<div class="asg-actions">
-      <button class="study-btn small ok" data-ok="${a.id}">승인</button>
-      <button class="study-btn small no" data-no="${a.id}">반려</button>
       ${editBtn}${delBtn}
     </div>` : ""}
   </div>`;
@@ -787,14 +783,9 @@ function bindRows(root) {
 const findAsg = (id) => cache.items.find((a) => a.id === id) || cache.mine.find((a) => a.id === id) || cache.pending.find((a) => a.id === id);
 function openItem(kind, id) {
   if (kind === "asg") openAsgDetail(findAsg(id));
-  else if (kind === "sch") {
-    const se = cache.school.find((x) => x.id === id);
-    me.is_admin ? openSchoolForm(se) : openSchoolDetail(se);
-  } else if (kind === "tt") return;
-  else if (kind === "acad") {
-    const a = acadList.find((e) => e.id === id);
-    me.is_admin ? openSchoolForm(neisDraft(a)) : openAcadDetail(a);
-  }
+  else if (kind === "sch") openSchoolDetail(cache.school.find((x) => x.id === id));
+  else if (kind === "tt") return;
+  else if (kind === "acad") openAcadDetail(acadList.find((e) => e.id === id));
   else if (kind === "dshs") openDshsDetail(dshs.items.find((r) => r.uid === id));
   else if (kind === "todo") openTodoForm(cache.todos.find((t) => t.id === id));
   else {
@@ -973,28 +964,8 @@ async function moveEvent(arg) {
       fc?.refetchEvents();
     });
   }
-  if (kind === "acad") {   // NEIS 일정 (관리자만 끌 수 있음): 처음 옮기면 모두에게 보이는 수정본이 생깁니다
-    const a = acadList.find((x) => x.id === id);
-    const { id: _id, school_event_targets: _t, ...draft } = neisDraft(a);
-    const { error } = await sb.from("school_events").insert({ ...draft, ...row });
-    if (error) { arg.revert(); return toast("옮기지 못했어요", true); }
-    toast("학교 일정을 옮겼어요");
-    return loadAssignments();
-  }
-  if (kind === "sch") {   // 학교 일정 (관리자만 끌 수 있음)
-    const se = cache.school.find((x) => x.id === id);
-    const prev = { starts_at: se.starts_at, ends_at: se.ends_at, all_day: se.all_day };
-    const { error } = await sb.from("school_events").update(row).eq("id", id);
-    if (error) { arg.revert(); return toast("옮기지 못했어요", true); }
-    Object.assign(se, row);
-    fc.refetchEvents();
-    return undoToast("학교 일정을 옮겼어요", async () => {
-      const { error } = await sb.from("school_events").update(prev).eq("id", id);
-      if (error) return false;
-      Object.assign(se, prev);
-      fc?.refetchEvents();
-    });
-  }
+  // 학교 일정 · 학사일정은 학생이 옮길 수 없습니다 (관리자 사이트에서 고침)
+  if (kind === "acad" || kind === "sch") { arg.revert(); return; }
   // 지난 일정을 미래로 옮기면 완료를 취소합니다 (함께하는 친구 체크는 DB 트리거가 풉니다).
   // 미래 일정끼리 옮기는 건 완료 여부를 건드리지 않습니다.
   const ev = cache.events.find((x) => x.id === id);
@@ -1060,13 +1031,11 @@ function agenda() {
     owner: ownsEvent(e), shared: eventPeople(e).length > 0,
     tag: [shareLabel(e), e.memo.split("\n")[0]].filter(Boolean).join(" · "),
   }));
-  // 관리자가 숨긴 학사일정은 관리자에게만 흐리게 보여 줍니다 (눌러서 되돌릴 수 있게)
-  const sch = [...liveSchool(), ...(me.is_admin ? cache.school.filter((e) => e.hidden) : [])]
-    .filter((e) => acadShown(e.category)).map((e) => ({
-    kind: "sch", id: e.id, title: e.hidden ? `숨김 · ${e.title}` : e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
-    allDay: e.all_day, color: "school", done: !!e.hidden, owner: me.is_admin,
-    tag: [e.no_class && "수업 없음", me.is_admin && e.audience === "some" && `${schoolTargets(e).length}명 대상`,
-      e.memo.split("\n")[0]].filter(Boolean).join(" · "),
+  // 학교 일정 (관리자가 관리자 사이트에서 만들고 고침. 숨긴 일정은 빠짐)
+  const sch = liveSchool().filter((e) => acadShown(e.category)).map((e) => ({
+    kind: "sch", id: e.id, title: e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
+    allDay: e.all_day, color: "school", done: false, owner: false,
+    tag: [e.no_class && "수업 없음", e.memo.split("\n")[0]].filter(Boolean).join(" · "),
   }));
   // 기한을 정한 할 일은 그날 종일 칸에 체크박스로 둡니다
   const todos = (cache.todos || []).filter((t) => t.due_on).map((t) => ({
@@ -1207,7 +1176,7 @@ async function loadComments(aid) {
         const mine = c.user_id === me?.id;
         return `<div class="cm-item">
           <div class="cm-head"><b>${esc(c.author_name || "알 수 없음")}${mine ? " (나)" : ""}</b><span>${md(t)} ${hm(t)}</span>
-            ${mine || me?.is_admin ? `<button class="cm-del" data-cmdel="${c.id}">삭제</button>` : ""}</div>
+            ${mine ? `<button class="cm-del" data-cmdel="${c.id}">삭제</button>` : ""}</div>
           <div class="cm-body">${esc(c.body)}</div>
         </div>`;
       }).join("")
@@ -1573,12 +1542,8 @@ function openNewForm(a) {
   const noDue = !!a && !a.due_at;
   // 고칠 때 제출처: 목록에 있으면 그걸 고르고, 없으면 "그 외" 에 적어 둡니다
   const place = a?.submit_to ? (SUBMIT_PLACES.includes(a.submit_to) ? a.submit_to : "etc") : "";
-  // 학생은 자기 분반만, 관리자는 과목마다 "전체 분반" + 각 분반
-  const opts = a ? [{ subject: a.subject, ban: a.ban }]
-    : me.is_admin
-    ? asgSubjects().flatMap((s) => [{ subject: s, ban: null },
-        ...myClasses.filter((c) => c.subject === s)])
-    : asgClasses();
+  // 자기 분반만 (전체 분반 공지는 관리자 사이트에서 올림)
+  const opts = a ? [{ subject: a.subject, ban: a.ban }] : asgClasses();
   view = "form";
   if (!opts.length) {
     body.innerHTML = `<div class="study-empty">수강 과목 정보를 찾지 못해 수행평가를 추가할 수 없어요.</div>
@@ -1609,9 +1574,7 @@ function openNewForm(a) {
       <button class="study-submit" id="nSave">${a ? "저장하기" : "추가하기"}</button>
       <div class="study-foot">${a
         ? editsOnlyForMe(a) ? "고친 내용은 내 계정에만 보여요. 분반 친구들에게는 그대로예요."
-        : a.status === "approved" ? "고치면 분반 친구들에게도 바로 바뀐 내용으로 보여요." : "과목·분반은 바꿀 수 없어요. 바꾸려면 지우고 다시 추가해 주세요."
-        : me.is_admin
-        ? "관리자가 추가하면 승인 없이 바로 그 분반 수강생에게 보여요."
+        : "과목·분반은 바꿀 수 없어요. 바꾸려면 지우고 다시 추가해 주세요."
         : "처음에는 나만 보이고, 관리자가 승인하면 같은 분반 친구들에게도 보여요."}</div>
     </div>
     ${a?.personal ? '<button class="study-btn wide" id="nReset">↩ 원래 내용으로 되돌리기</button>' : ""}
@@ -1653,13 +1616,7 @@ function openNewForm(a) {
       const res = await sb.from("assignments").update(fields).eq("id", a.id).select("id");
       error = res.error || (!res.data?.length && { message: "수정 권한이 없어요" });
     } else {
-      const row = { subject, ban, ...fields, created_by: me.id, status: "pending" };
-      if (me.is_admin) {           // 관리자가 올린 수행평가는 바로 분반 전체에 보입니다
-        row.status = "approved";
-        row.reviewed_by = me.id;
-        row.reviewed_at = new Date().toISOString();
-      }
-      ({ error } = await sb.from("assignments").insert(row));
+      ({ error } = await sb.from("assignments").insert({ subject, ban, ...fields, created_by: me.id, status: "pending" }));
     }
     $("nSave").disabled = false;
     if (error) {
@@ -1669,7 +1626,7 @@ function openNewForm(a) {
       err.classList.add("show");
       return;
     }
-    toast(a ? editsOnlyForMe(a) ? "내 계정에서만 고쳤어요" : "고쳤어요" : me.is_admin ? "바로 추가했어요" : "나만 보이게 추가했어요. 승인되면 분반 친구들에게도 보여요");
+    toast(a ? editsOnlyForMe(a) ? "내 계정에서만 고쳤어요" : "고쳤어요" : "나만 보이게 추가했어요. 승인되면 분반 친구들에게도 보여요");
     view = "notice";
     await loadAssignments();
   };
@@ -1692,15 +1649,6 @@ function savePersonal(a, f) {
   return sb.from("assignment_personal").upsert({
     ...p, user_id: me.id, assignment_id: a.id, updated_at: new Date().toISOString(),
   });
-}
-
-async function review(id, status) {
-  const { error } = await sb.from("assignments")
-    .update({ status, reviewed_by: me.id, reviewed_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) return toast("처리하지 못했어요", true);
-  toast(status === "approved" ? "승인했어요" : "반려했어요");
-  await loadAssignments();
 }
 
 async function removeItem(id) {
@@ -1802,7 +1750,7 @@ function ttBlock(id, block, start, end) {
 
 // ---------- 피드백 ----------
 // 로그인한 사용자가 보내고 관리자가 읽습니다. 스크린샷은 비공개 버킷 feedback 에 저장합니다.
-// 보내기는 📢 업데이트 창의 '피드백' 탭에서, 관리자는 탭 위 💬 아이콘으로 바로 받은 피드백을 봅니다.
+// 보내기는 📢 업데이트 창의 '피드백' 탭에서, 받은 피드백은 관리자 사이트(admin/)의 관리 탭에서 봅니다.
 const FEEDBACK_KINDS = { bug: "오류 제보", notice: "전체 분반 공지 오류", idea: "기능 제안", etc: "기타" };
 const FEEDBACK_HINT = {
   bug: "어떤 화면에서 무엇을 했을 때 문제가 생겼는지 적어 주세요",
@@ -1864,470 +1812,9 @@ function openFeedback() {
     if (error) return fail("보내지 못했어요. 잠시 뒤 다시 시도해 주세요.");
     closeModal();
     toast("피드백을 보냈어요. 고마워요!");
-    if (me.is_admin) refreshAdminCount();
   };
 }
 window.openFeedback = openFeedback;
-
-// 관리자: 관리 탭에 처리할 일(승인 대기 + 마지막으로 본 뒤 새로 온 피드백) 수를 빨갛게 보여 줍니다 (피드백은 이 기기 기준)
-const FB_SEEN_KEY = "dshs-fb-seen";
-const fbSeenAt = () => { try { return localStorage.getItem(FB_SEEN_KEY) || "1970-01-01T00:00:00Z"; } catch { return "1970-01-01T00:00:00Z"; } };
-let adminCount = 0;
-const adminTabLabel = () => `관리${adminCount ? `<span class="nav-count">${adminCount > 99 ? "99+" : adminCount}</span>` : ""}`;
-async function refreshAdminCount() {
-  if (!me?.is_admin) return;
-  const [pend, fresh, merge] = await Promise.all([
-    sb.from("assignments").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    sb.from("feedback").select("id", { count: "exact", head: true }).gt("created_at", fbSeenAt()),
-    sb.from("merge_suggestions").select("id", { count: "exact", head: true }).eq("status", "open"),
-  ]);
-  if (pend.error || fresh.error) return;
-  adminCount = pend.count + fresh.count + (merge.error ? 0 : merge.count);
-  const tab = document.querySelector('#studyNav [data-page="admin"]');
-  if (tab) tab.innerHTML = adminTabLabel();
-}
-
-// 관리자: 관리 탭의 학생 현황. 데이터는 admin_overview() 한 번으로 받습니다 (overview.sql).
-// 본인만 보는 내용(할 일 · 개인 일정 등)은 서버에서 제목 없이 수만 옵니다.
-// 마지막으로 본 뒤 생긴 활동은 강조합니다 (이 기기 기준, 처음 열 때는 강조 없음).
-const OV_SEEN_KEY = "dshs-overview-seen";
-const ovTime = (s) => {
-  if (!s) return "기록 없음";
-  const d = new Date(s);
-  return `${dayTitle(dayKey(d))} ${hm(d)}`;
-};
-const ovWho = (r) => `${r.student_id ? `${r.student_id} ` : ""}${esc(r.name)}`;
-const OV_COUNTS = [["assignments", "수행평가"], ["personal", "개인 수정"], ["done", "완료 표시"], ["events", "일정"],
-  ["todos", "할 일"], ["groups", "그룹"], ["feedback", "피드백"], ["push", "알림 기기"]];
-const OV_KINDS = [["signup", "가입", "명"], ["assignment", "수행평가", "건"], ["event", "일정", "개"], ["todo", "할 일", "개"],
-  ["done", "완료 표시", "건"], ["personal", "개인 수정", "건"], ["group", "그룹", "개"], ["status", "위치 표시", "건"], ["feedback", "피드백", "건"]];
-
-// 관리 탭 아래쪽 학생 현황에서 숫자를 보고 하면 좋을 일을 고릅니다. 새 규칙은 여기에 한 줄씩 더합니다.
-function overviewTips(data) {
-  const joined = data.students;
-  const weekAgo = Date.now() - 7 * 86400000;
-  const idle = joined.filter((s) => !s.location && OV_COUNTS.every(([k]) => k === "push" || !s[k])).length;
-  const noPush = joined.filter((s) => !s.push).length;
-  const away = joined.filter((s) => !s.last_login || Date.parse(s.last_login) < weekAgo).length;
-  const writers = joined.filter((s) => s.assignments > 0).length;
-  const tips = [];
-  if (data.not_joined.length >= data.roster * 0.3) tips.push(`아직 ${data.not_joined.length}명이 가입하지 않았어요. 단톡방에 사이트 주소와 'dshs.app으로 로그인' 방법을 공지해 보세요.`);
-  if (idle >= 3) tips.push(`가입만 하고 아직 쓰지 않은 학생이 ${idle}명이에요. 수행평가와 일정 쓰는 법을 짧게 소개해 보세요.`);
-  if (noPush >= 3) tips.push(`알림 켠 기기가 없는 학생이 ${noPush}명이에요. 설정에서 알림을 켜야 마감 알림을 받는다고 안내해 보세요.`);
-  if (away >= 3) tips.push(`7일 넘게 로그인 기록이 없는 학생이 ${away}명이에요. 로그인을 유지한 채 쓰는 학생도 포함될 수 있어요.`);
-  if (joined.length >= 10 && writers < joined.length * 0.3) tips.push(`수행평가를 올린 학생이 ${writers}명뿐이에요. 과목이나 분반별로 올려 줄 학생을 정해 보세요.`);
-  return tips;
-}
-
-function studentsHtml(data, seen) {
-  const first = seen === Infinity;   // 처음 열면 최근 24시간을 요약하고 강조는 하지 않습니다
-  const since = first ? Date.now() - 86400000 : seen;
-  const fresh = data.activity.filter((a) => Date.parse(a.at) > since);
-  const kindCount = (k) => fresh.filter((a) => a.kind === k).length;
-  const freshBits = OV_KINDS.filter(([k]) => kindCount(k)).map(([k, label, unit]) => `${label} ${kindCount(k)}${unit}`);
-  const today = dayKey(new Date());
-  const activeToday = data.students.filter((s) => s.last_login && dayKey(new Date(s.last_login)) === today).length;
-  const activity = data.activity.map((a) => {
-    const isNew = !first && Date.parse(a.at) > seen;
-    return `<div class="adm-row${isNew ? " new" : ""}">
-      <div class="adm-row-top"><b>${ovWho(a)}</b><span>${esc(ovTime(a.at))}</span></div>
-      <div class="adm-row-sub">${esc(a.text)}</div>
-    </div>`;
-  }).join("");
-  const students = data.students.map((s) => {
-    const counts = OV_COUNTS.filter(([k]) => s[k] > 0).map(([k, label]) => `${label} ${s[k]}`);
-    return `<div class="adm-row">
-      <div class="adm-row-top"><b>${ovWho(s)}</b>${s.location ? `<span>📍 ${esc(s.location)}</span>` : ""}</div>
-      <div class="adm-row-sub">${counts.length ? counts.join(" · ") : "아직 활동 없음"}</div>
-      <div class="adm-row-sub dim">마지막 로그인 ${esc(ovTime(s.last_login))}</div>
-    </div>`;
-  }).join("");
-  return `<div class="adm-tiles">
-      <div class="adm-tile"><b>${data.students.length}<small>/${data.roster}</small></b>가입</div>
-      <div class="adm-tile"><b>${activeToday}</b>오늘 로그인</div>
-      <div class="adm-tile"><b>${fresh.length}${fresh.length >= 100 ? "+" : ""}</b>${first ? "24시간 활동" : "새 활동"}</div>
-    </div>
-    <div class="adm-sum">${first ? "최근 24시간" : "지난번 본 뒤"} · ${freshBits.length ? esc(freshBits.join(", ")) : "새 활동 없음"}</div>
-    ${overviewTips(data).map((t) => `<div class="adm-tip">${esc(t)}</div>`).join("")}
-    <details class="adm-acc"><summary>최근 활동<span>${data.activity.length}</span></summary>${activity || '<div class="adm-none">아직 활동이 없어요.</div>'}</details>
-    <details class="adm-acc"><summary>가입한 학생<span>${data.students.length}</span></summary>${students || '<div class="adm-none">아직 가입한 학생이 없어요.</div>'}</details>
-    <details class="adm-acc"><summary>아직 가입 안 한 학생<span>${data.not_joined.length}</span></summary><p>${data.not_joined.map(ovWho).join(" · ")}</p></details>
-    <div class="adm-foot">지금 남아 있는 내용만 보여요. 지운 항목과 고치기 전 내용은 나오지 않아요. 할 일 · 개인 일정 · 개인 수정 · 학생 그룹의 내용은 본인만 볼 수 있어 수와 시각만 보여요.</div>`;
-}
-
-// 방문 기기 수 (admin_visits, visits.sql): 오늘 숫자와 최근 7일 막대
-function visitsHtml(v) {
-  if (!v?.days?.length) return '<div class="adm-none">방문 기록을 불러오지 못했어요.</div>';
-  const t = v.days[v.days.length - 1];
-  const guest = t.total - t.logged_in;
-  const max = Math.max(1, ...v.days.map((d) => d.total));
-  const wd = (d) => parseDay(d.day).toLocaleDateString("ko-KR", { weekday: "short" });
-  return `<div class="adm-label">방문 기기</div>
-    <div class="adm-tiles">
-      <div class="adm-tile"><b>${t.total}</b>오늘 방문 기기</div>
-      <div class="adm-tile"><b>${t.logged_in}</b>로그인</div>
-      <div class="adm-tile"><b>${guest}</b>비로그인</div>
-    </div>
-    <div class="adm-sum">폰 ${t.phone} · 노트북·PC ${t.pc} · 태블릿 ${t.tablet}${guest ? ` (비로그인 ${guest}대 중 폰 ${t.guest_phone})` : ""}${t.standalone ? ` · 설치한 앱 ${t.standalone}` : ""}<br>최근 7일 서로 다른 기기 ${v.week_devices}대</div>
-    <div class="adm-visits">${v.days.map((d) => `<div title="${esc(dayTitle(d.day))} · ${d.total}대 (로그인 ${d.logged_in})">
-      <span>${d.total}</span>
-      <i style="height:${Math.round(d.total / max * 100)}%"><em style="height:${d.total ? Math.round(d.logged_in / d.total * 100) : 0}%"></em></i>
-      <small>${wd(d)}</small>
-    </div>`).join("")}</div>
-    <div class="adm-foot">기기 수라서 한 학생이 폰과 노트북을 쓰면 2대로 세요. 진한 부분이 로그인한 기기예요. 관리자 기기는 세지 않아요.</div>
-    ${visitUsersHtml(v)}
-    <div class="adm-label">학생 현황</div>`;
-}
-
-// 오늘 로그인한 상태로 연 학생 (visits.sql 의 today_users). '전환'은 그전엔 이 기기에서 비로그인으로만 썼던 학생
-function visitUsersHtml(v) {
-  const users = v.today_users || [];
-  if (!users.length && !v.today_unknown) return "";
-  const KIND = { phone: "폰", tablet: "태블릿", pc: "PC" };
-  const hm = (at) => new Date(at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
-  return `<div class="adm-label">오늘 로그인한 학생 ${users.length}명</div>
-    <div class="adm-visit-users">${users.map((u) => `<span class="adm-chip${u.was_guest ? " hot" : ""}" title="${u.was_guest ? "그전엔 이 기기에서 비로그인으로만 썼어요" : ""}">${esc(u.student_id ? `${u.student_id} ${u.name}` : u.name)} · ${KIND[u.kind] || ""} ${hm(u.at)}${u.was_guest ? " · 전환" : ""}</span>`).join("")}</div>
-    ${v.today_unknown ? `<div class="adm-foot">이름 기록을 시작하기 전에 로그인한 기기 ${v.today_unknown}대는 이름 없이 셌어요.</div>` : ""}`;
-}
-
-function feedbackItemHtml(f, name, url, isNew) {
-  return `<div class="adm-fb${isNew ? " new" : ""}">
-    <div class="adm-fb-top"><span class="adm-chip">${FEEDBACK_KINDS[f.kind]}</span>${isNew ? '<span class="fb-new">새 피드백</span>' : ""}</div>
-    <div class="adm-fb-text">${esc(f.body)}</div>
-    ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener"><img class="fb-img" src="${esc(url)}" alt="첨부한 스크린샷"></a>` : ""}
-    <div class="adm-fb-foot"><span>${esc(name || "알 수 없음")} · ${esc(ovTime(f.created_at))}</span><button class="study-btn small no" data-fbdel="${f.id}">삭제</button></div>
-  </div>`;
-}
-
-// 최근 피드백 100건과 스크린샷 주소 · 보낸 학생 이름을 받습니다
-async function loadFeedback() {
-  const { data, error } = await sb.from("feedback").select("*").order("created_at", { ascending: false }).limit(100);
-  if (error) return { error };
-  const paths = data.map((f) => f.image_path).filter(Boolean);
-  const signed = paths.length ? (await sb.storage.from("feedback").createSignedUrls(paths, 3600)).data || [] : [];
-  const { data: who } = data.length
-    ? await sb.from("profiles").select("id, name, student_id").in("id", [...new Set(data.map((f) => f.user_id))])
-    : { data: [] };
-  return {
-    rows: data,
-    urlOf: new Map(signed.map((x) => [x.path, x.signedUrl])),
-    nameOf: new Map((who || []).map((p) => [p.id, p.student_id ? `${p.student_id} ${p.name}` : p.name])),
-  };
-}
-
-// 향후 계획: 사람마다 칸이 있고, 끝낸 항목은 아래로 내립니다 (plans.sql)
-const PLAN_OWNERS = ["반민지", "진주빈"];
-function plansHtml(plans) {
-  if (!plans) return '<div class="adm-none">계획을 불러오지 못했어요.</div>';
-  return `<div class="adm-plans">${PLAN_OWNERS.map((owner) => {
-    const list = plans.filter((p) => p.owner === owner).sort((a, b) => a.done - b.done);
-    return `<div class="adm-plan">
-      <div class="adm-plan-head"><b>${owner}</b><span>남은 일 ${list.filter((p) => !p.done).length}</span></div>
-      ${list.map((p) => `<div class="adm-plan-item${p.done ? " done" : ""}">
-        <input type="checkbox" data-plandone="${p.id}"${p.done ? " checked" : ""} aria-label="끝냄 표시">
-        <span data-plantext="${p.id}" title="눌러서 고치기">${esc(p.title)}</span>
-        <button data-planedit="${p.id}" aria-label="고치기">✎</button>
-        <button data-plandel="${p.id}" aria-label="삭제">✕</button>
-      </div>`).join("") || '<div class="adm-plan-none">아직 적은 계획이 없어요.</div>'}
-      <form class="adm-plan-add" data-planadd="${owner}">
-        <input type="text" maxlength="200" placeholder="계획 추가" aria-label="${owner} 계획 추가">
-        <button class="study-btn small" type="submit">추가</button>
-      </form>
-    </div>`;
-  }).join("")}</div>`;
-}
-
-// 관리 탭: 승인 대기 · 피드백 · 학생 · 계획을 나눠 한 번에 하나만 보여 줍니다.
-// 승인 대기는 loadAssignments 가 받은 cache.pending 을 씁니다. 승인 · 반려 · 삭제 뒤에는 다시 그립니다.
-// 운영 점검 에이전트(ops-agent)가 매일 0 · 8 · 12 · 16 · 20시에 남긴 보고서 (ops.sql)
-function opsHtml(reports) {
-  if (!reports) return '<div class="adm-none">점검 보고서를 불러오지 못했어요.</div>';
-  if (!reports.length) return '<div class="adm-none">아직 점검 보고서가 없어요. 매일 오전 8시 · 정오 · 오후 4시 · 오후 8시 · 자정에 만들어져요.</div>';
-  const URGENCY = { high: "급함", normal: "보통", low: "낮음" };
-  const list = (xs, cls) => xs.length ? `<ul class="adm-ops-list ${cls}">${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
-  return reports.map((r, i) => {
-    const f = r.report.feedback || {};
-    const items = (f.items || []).map((x) => `<div class="adm-ops-fb">
-        <div class="adm-fb-top"><span class="adm-chip">${esc(FEEDBACK_KINDS[x.category] || x.category)}</span><span class="adm-chip">${esc(x.area)}</span>${x.urgency === "high" ? '<span class="fb-new">급함</span>' : `<span class="adm-chip">${URGENCY[x.urgency] || ""}</span>`}</div>
-        <div class="adm-fb-text"><b>${esc(x.summary)}</b> — ${esc(x.action)}</div>
-      </div>`).join("");
-    return `<details class="adm-fb adm-ops${r.issues ? " new" : ""}"${i ? "" : " open"}>
-      <summary><b>${esc(r.title)}</b><span>${esc(ovTime(r.created_at))}</span></summary>
-      ${list(r.report.issues || [], "warn")}
-      ${f.count ? `<div class="adm-label">피드백 ${f.count}건${f.headline ? ` · ${esc(f.headline)}` : ""}</div>${items}${f.error ? `<div class="adm-foot">${esc(f.error)}</div>` : ""}` : '<div class="adm-label">새 피드백 없음</div>'}
-      ${(r.report.guestLogins || []).length ? `<div class="adm-label">비로그인 → 로그인</div>${list(r.report.guestLogins.map((g) =>
-        `${g.student_id ? `${g.student_id} ${g.name}` : g.name} · 그전 비로그인 ${g.guest_days}일`), "info")}` : ""}
-      ${list(r.report.infos || [], "info")}
-    </details>`;
-  }).join("") + '<div class="adm-foot">매일 오전 8시 · 정오 · 오후 4시 · 오후 8시 · 자정에 서버가 사이트·알림 서버·승인 대기를 점검하고, 새 피드백은 AI(Claude)가 분류·요약해요. 피드백 원문은 \'피드백\' 칸에 있어요.</div>';
-}
-
-// 사용 분석 에이전트가 매일 밤 10시에 남긴 보고서 (usage.sql · scripts/usage-agent)
-// 관리자 노트북의 Claude Code 가 로그인 / 비로그인 현황 · 사용 양상 · 업데이트 반응을 분석하고 고칠 방향을 제안합니다.
-function usageHtml(reports) {
-  if (!reports) return '<div class="adm-none">사용 분석을 불러오지 못했어요.</div>';
-  if (!reports.length) return '<div class="adm-none">아직 사용 분석이 없어요. 매일 밤 10시에 관리자 노트북에서 만들어져요.</div>';
-  const GOAL = { login: "로그인 늘리기", convenience: "편의", both: "로그인 · 편의" };
-  const EFFORT = { low: "금방", mid: "보통", high: "큰 작업" };
-  const VERDICT = { good: "반응 좋음", mixed: "엇갈림", none: "변화 없음", unknown: "아직 모름" };
-  const para = (label, text) => text ? `<div class="adm-label">${label}</div><div class="adm-use-text">${esc(text)}</div>` : "";
-  return reports.map((r, i) => {
-    const a = r.report || {}, t = r.stats?.totals || {}, day = (r.stats?.days || []).find((x) => x.day === r.stats?.today);
-    const tiles = `<div class="adm-tiles">
-        <div class="adm-tile"><b>${t.active_users_7d ?? "-"}</b>최근 7일 로그인 학생</div>
-        <div class="adm-tile"><b>${t.students ?? "-"}<small>/${t.roster ?? "-"}</small></b>가입한 학생</div>
-        <div class="adm-tile"><b>${day?.devices ? `${Math.round(day.logged_in / day.devices * 100)}%` : "-"}</b>그날 로그인 기기 비율</div>
-      </div>`;
-    const body = `<div class="adm-use-text">${esc(a.summary)}</div>
-      ${tiles}
-      ${para("로그인 · 비로그인", a.login)}
-      ${para("사용 양상", a.usage)}
-      ${a.updates?.length ? `<div class="adm-label">업데이트 반응</div>${a.updates.map((u) => `<div class="adm-use-row">
-          <div class="adm-fb-top"><span class="adm-chip">${VERDICT[u.verdict] || ""}</span><b>${esc(u.title)}</b></div>
-          <div class="adm-fb-text">${esc(u.reaction)}</div></div>`).join("")}` : ""}
-      ${a.suggestions?.length ? `<div class="adm-label">고칠 방향 제안</div>${a.suggestions.map((x, k) => `<div class="adm-use-row">
-          <div class="adm-fb-top"><b>${k + 1}. ${esc(x.title)}</b><span class="adm-chip">${GOAL[x.goal] || ""}</span><span class="adm-chip">${EFFORT[x.effort] || ""}</span></div>
-          <div class="adm-fb-text">${esc(x.why)}</div>
-          <button class="study-btn small" data-useplan="${esc(x.title)}">계획에 넣기</button></div>`).join("")}` : ""}
-      ${a.watch?.length ? `<div class="adm-label">다음에 지켜볼 것</div><ul class="adm-ops-list info">${a.watch.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
-      ${a.caveats ? `<div class="adm-foot">${esc(a.caveats)}</div>` : ""}`;
-    return `<details class="adm-fb adm-ops"${i ? "" : " open"}>
-      <summary><b>${esc(r.title)}</b><span>${esc(ovTime(r.created_at))}</span></summary>
-      ${body}
-    </details>`;
-  }).join("") + '<div class="adm-foot">매일 밤 10시에 관리자 노트북의 Claude Code 가 최근 14일의 방문 · 로그인 · 기능 사용 수와 업데이트 기록을 보고 분석해요. 노트북이 꺼져 있었으면 다음에 켰을 때 해요. 보고서에는 이름 · 학번을 넣지 않아요.</div>';
-}
-
-// ---------- 승인 칸: 같은 수행평가 합치기 제안 · 처리 기록 ----------
-// merge-suggest 서버 함수가 매일 0 · 8 · 12 · 16 · 20시에 같은 과목 · 다른 분반 · 비슷한 이름의 수행평가를 찾아 merge_suggestions 에 남깁니다 (merge.sql).
-// 마감이 같으면 이름을 고쳐 전체 분반 공지로 합치고(merge_assignments), 마감이 다르면 확인만 합니다(dismiss_merge).
-// 처리 기록: 승인 · 반려한 수행평가(누가 · 언제)와 합치기 · 확인 기록. 처리해도 지우지 않고 여기에 남습니다.
-async function loadReviewLog() {
-  const [sug, done] = await Promise.all([
-    sb.from("merge_suggestions").select("*").order("created_at", { ascending: false }).limit(100),
-    sb.from("assignments").select("id, subject, ban, title, due_at, status, created_at, reviewed_by, reviewed_at, author_name, merged_from")
-      .neq("status", "pending").order("reviewed_at", { ascending: false, nullsFirst: false }).limit(300),
-  ]);
-  const rows = done.data || [], sugs = sug.error ? [] : sug.data;   // merge.sql 을 아직 실행하지 않았으면 제안 없이
-  const ids = [...new Set([...rows.map((a) => a.reviewed_by), ...sugs.map((x) => x.resolved_by)].filter(Boolean))];
-  const { data: who } = ids.length ? await sb.from("profiles").select("id, name").in("id", ids) : { data: [] };
-  return {
-    open: sugs.filter((x) => x.status === "open"),
-    resolved: sugs.filter((x) => x.status !== "open"),
-    reviewed: done.error ? null : rows,
-    nameOf: Object.fromEntries((who || []).map((p) => [p.id, p.name])),
-  };
-}
-
-const shortDue = (iso) => (iso ? new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }) : "마감 없음");
-// 그 과목의 분반 중 이 묶음에 없는 분반 (합치면 그 분반에도 보이게 됨)
-function missingBans(subject, items) {
-  const have = new Set(items.map((a) => a.ban));
-  return [...new Set(allClassList().filter((c) => c.subject === subject && c.ban).map((c) => c.ban))]
-    .filter((b) => !have.has(b)).sort((a, b) => a.localeCompare(b, "ko"));
-}
-
-function mergeHtml(log) {
-  if (!log?.open.length) return "";
-  const same = log.open.filter((x) => x.kind === "same"), diff = log.open.filter((x) => x.kind === "diff_due");
-  const rows = (x, showDue) => x.items.map((a) => `<li><b>${esc(a.ban || "전체")}</b> ${esc(a.title)}${showDue ? ` <span class="adm-merge-due">${esc(shortDue(a.due_at))}</span>` : ""}${a.status === "pending" ? ' <span class="st-badge pending">대기</span>' : ""}</li>`).join("");
-  const sameHtml = same.map((x) => {
-    const miss = missingBans(x.subject, x.items);
-    return `<div class="adm-fb adm-merge new">
-      <div class="adm-fb-top"><span class="adm-chip hot">합치기 제안</span><span class="adm-chip">${esc(x.subject)}</span></div>
-      <div class="adm-fb-text">${esc(x.items.map((a) => a.ban).join(" · "))}에 이런 이름의 수행평가가 같은 마감(${esc(shortDue(x.items[0].due_at))})으로 올라와 있어요.</div>
-      <ul class="adm-merge-list">${rows(x, false)}</ul>
-      <div class="adm-fb-text">아래 이름으로 <b>전체 분반 공지</b> 하나로 합칠까요? 원래 공지는 지워지고, 완료 체크는 새 공지로 옮겨져요.</div>
-      ${miss.length ? `<div class="adm-merge-warn">${esc(miss.join(" · "))}에는 없던 공지라, 합치면 ${esc(miss.join(" · "))}에도 보여요.</div>` : ""}
-      <input class="adm-merge-title" type="text" maxlength="120" value="${esc(x.title)}" data-mtitle="${x.id}" aria-label="합칠 공지 이름">
-      <div class="asg-actions">
-        <button class="study-btn small ok" data-merge="${x.id}">전체 분반 공지로 합치기</button>
-        <button class="study-btn small" data-mskip="${x.id}">합치지 않기</button>
-      </div>
-    </div>`;
-  }).join("");
-  const diffHtml = diff.map((x) => `<div class="adm-fb adm-merge">
-      <div class="adm-fb-top"><span class="adm-chip">${esc(x.subject)}</span><span class="adm-chip">마감이 달라요</span></div>
-      <ul class="adm-merge-list">${rows(x, true)}</ul>
-      <div class="asg-actions"><button class="study-btn small" data-mskip="${x.id}">확인</button></div>
-    </div>`).join("");
-  return (same.length ? `<div class="adm-label">같은 수행평가 합치기 ${same.length}</div>${sameHtml}` : "")
-    + (diff.length ? `<details class="adm-acc adm-merge-acc"${same.length ? "" : " open"}><summary>이름은 같은데 마감이 분반마다 달라요<span>${diff.length}</span></summary>
-        <p>분반마다 수업 날이 달라 마감이 다른 경우가 많아요. 공지가 맞는지만 보고 확인을 눌러 주세요.</p>${diffHtml}</details>` : "");
-}
-
-function reviewLogHtml(log) {
-  if (!log) return "";
-  const who = (id) => log.nameOf[id] || "관리자";
-  const items = [
-    ...(log.reviewed || []).map((a) => ({
-      at: a.reviewed_at || a.created_at,
-      html: `<div class="adm-log-row">
-        <div><b>${esc(a.subject)} · ${esc(banLabel(a.ban))}</b> ${esc(a.title)}${a.status === "rejected" ? ' <span class="st-badge rejected">반려됨</span>' : ""}</div>
-        <div class="adm-log-sub">${a.merged_from ? `${esc(a.merged_from.map((m) => m.ban).join(" · "))} → 전체 분반으로 합침 · ${esc(who(a.reviewed_by))}`
-          : a.reviewed_by ? `${esc(who(a.reviewed_by))} ${a.status === "rejected" ? "반려" : "승인"}` : `${esc(a.author_name || "관리자")} 작성`} · ${esc(ovTime(a.reviewed_at || a.created_at))} · ${esc(shortDue(a.due_at))}</div>
-      </div>`,
-    })),
-    ...log.resolved.filter((x) => x.status === "dismissed").map((x) => ({
-      at: x.resolved_at,
-      html: `<div class="adm-log-row">
-        <div><b>${esc(x.subject)}</b> ${esc(x.title)} <span class="adm-chip">${x.kind === "same" ? "합치지 않음" : "마감 다름 확인"}</span></div>
-        <div class="adm-log-sub">${esc(x.items.map((a) => a.ban).join(" · "))} · ${esc(who(x.resolved_by))} · ${esc(ovTime(x.resolved_at))}</div>
-      </div>`,
-    })),
-  ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-  return `<details class="adm-acc"><summary>처리 기록 · 승인한 수행평가 전체<span>${log.reviewed ? items.length : "불러오지 못함"}</span></summary>
-    ${items.map((x) => x.html).join("") || '<div class="adm-none">아직 처리한 수행평가가 없어요.</div>'}</details>`;
-}
-
-function bindMerge(body) {
-  body.querySelectorAll("[data-merge]").forEach((b) => b.onclick = async () => {
-    const title = body.querySelector(`[data-mtitle="${b.dataset.merge}"]`).value.trim();
-    if (!title) return toast("이름을 적어 주세요", true);
-    if (!confirm(`'${title}' 전체 분반 공지 하나로 합칠까요? 원래 분반 공지는 지워져요.`)) return;
-    b.disabled = true;
-    const { error } = await sb.rpc("merge_assignments", { p_id: b.dataset.merge, p_title: title });
-    if (error) { b.disabled = false; return toast(error.message?.match(/[가-힣]/) ? error.message : "합치지 못했어요", true); }
-    toast("전체 분반 공지로 합쳤어요");
-    await loadAssignments();
-  });
-  body.querySelectorAll("[data-mskip]").forEach((b) => b.onclick = async () => {
-    b.disabled = true;
-    const { error } = await sb.rpc("dismiss_merge", { p_id: b.dataset.mskip });
-    if (error) { b.disabled = false; return toast("처리하지 못했어요", true); }
-    await loadAssignments();
-  });
-}
-
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits, ops, log, usage) {
-  const rows = fb.rows || [];
-  const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
-  const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
-  const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
-  const seg = [["asg", "승인", pending.length + (log?.open.length || 0), true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false],
-    ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false], ["ops", "점검", ops?.[0]?.issues ?? 0, true], ["use", "분석", 0, false]];
-  const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
-  return `<div class="adm-seg">${seg.map(([k, label, n, hot]) =>
-      `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : ""}</button>`).join("")}</div>
-    ${box("asg", mergeHtml(log) + (pending.length ? `${log?.open.length ? '<div class="adm-label">승인 대기</div>' : ""}${pending.map((a) => card(a, { admin: true })).join("")}`
-      : '<div class="adm-none">승인 대기 중인 수행평가가 없어요.</div>') + reviewLogHtml(log))}
-    ${box("fb", fb.error ? '<div class="adm-none">피드백을 불러오지 못했어요.</div>'
-      : (rows.length ? fbHtml(fresh, true) + (old.length ? `${fresh.length ? '<div class="adm-label">지난 피드백</div>' : ""}${fbHtml(old, false)}` : "")
-        : '<div class="adm-none">아직 받은 피드백이 없어요.</div>'))}
-    ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
-    ${box("plan", plansHtml(plans))}
-    ${box("ops", opsHtml(ops))}
-    ${box("use", usageHtml(usage))}`;
-}
-
-let ovSeen, fbSeen, ovPane;   // 탭을 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
-// cached: 탭을 눌러 들어온 경우 앞서 받은 관리 화면을 먼저 그리고 새로 받습니다
-let ovLast = null;
-async function renderOverview(cached = false) {
-  if (!$("studyBody")) return;
-  if (ovSeen === undefined) {
-    ovSeen = Infinity;
-    try { ovSeen = Date.parse(localStorage.getItem(OV_SEEN_KEY)) || Infinity; } catch {}
-    fbSeen = Date.parse(fbSeenAt());
-    // 점검 알림을 누르고 들어오면 '점검' 칸부터 (?view=admin&pane=ops)
-    // 사용 분석 알림이면 '분석' 칸부터 (?view=admin&pane=use)
-    ovPane = ["ops", "use"].find((k) => k === new URLSearchParams(location.search).get("pane")) || null;
-  }
-  if (cached && ovLast) paintOverview(ovLast);
-  if (!sb) await sbWait;
-  const res = await Promise.all([sb.rpc("admin_overview"), loadFeedback(),
-    sb.from("admin_plans").select("*").order("created_at", { ascending: true }), sb.rpc("admin_visits", { p_days: 7 }),
-    sb.from("ops_reports").select("*").order("created_at", { ascending: false }).limit(14), loadReviewLog(),
-    sb.from("usage_reports").select("*").order("created_at", { ascending: false }).limit(7)]);
-  const sig = JSON.stringify(res);
-  if (cached && ovLast && sig === ovLast.sig) return;   // 먼저 그린 것과 같으면 그대로
-  ovLast = Object.assign(res, { sig });
-  paintOverview(res);
-}
-function paintOverview(res) {
-  const [{ data, error }, fb, plans, visits, ops, log, usage] = res;
-  const body = $("studyBody");
-  if (view !== "overview" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
-  const pending = cache.pending || [];
-  // 처음에는 처리할 일이 있는 칸을 엽니다
-  ovPane ||= !pending.length && !log?.open.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data, log, usage.error ? null : usage.data);
-  body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => {
-    ovPane = b.dataset.ovpane;
-    body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x === b));
-    body.querySelectorAll("[data-pane]").forEach((x) => { x.hidden = x.dataset.pane !== ovPane; });
-  });
-  body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
-  body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
-  bindMerge(body);
-  bindRows(body);
-  body.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = () => deleteFeedback(fb.rows.find((r) => r.id === x.dataset.fbdel)));
-  bindPlans(body);
-  if (fb.rows?.[0]) { try { localStorage.setItem(FB_SEEN_KEY, fb.rows[0].created_at); } catch {} }
-  if (data?.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
-  refreshAdminCount();
-}
-
-function bindPlans(body) {
-  const save = async (query, fail) => {
-    const { error } = await query;
-    if (error) { toast(fail, true); return false; }
-    renderOverview();
-    return true;
-  };
-  body.querySelectorAll("[data-plandone]").forEach((x) => x.onchange = () =>
-    save(sb.from("admin_plans").update({ done: x.checked }).eq("id", x.dataset.plandone), "저장하지 못했어요"));
-  body.querySelectorAll("[data-plandel]").forEach((x) => x.onclick = () => {
-    if (confirm("이 계획을 삭제할까요?")) save(sb.from("admin_plans").delete().eq("id", x.dataset.plandel), "삭제하지 못했어요");
-  });
-  // 고치기: 글자를 누르거나 ✎ → 그 자리에서 입력창. 엔터 · 다른 곳 누르면 저장, Esc 는 취소
-  const edit = (id) => {
-    const span = body.querySelector(`[data-plantext="${id}"]`);
-    if (!span || span.querySelector("input")) return;
-    const before = span.textContent;
-    const input = Object.assign(document.createElement("input"), { type: "text", maxLength: 200, value: before, className: "adm-plan-edit" });
-    input.setAttribute("aria-label", "계획 고치기");
-    span.replaceChildren(input);
-    input.focus();
-    input.setSelectionRange(before.length, before.length);
-    let done = false;
-    const finish = (keep) => {
-      if (done) return;
-      done = true;
-      const title = input.value.trim();
-      if (!keep || !title || title === before) return span.replaceChildren(before);
-      save(sb.from("admin_plans").update({ title }).eq("id", id), "고치지 못했어요");
-    };
-    input.onkeydown = (e) => {
-      if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); finish(true); }
-      else if (e.key === "Escape") finish(false);
-    };
-    input.onblur = () => finish(true);
-  };
-  body.querySelectorAll("[data-plantext]").forEach((x) => x.onclick = () => edit(x.dataset.plantext));
-  body.querySelectorAll("[data-planedit]").forEach((x) => x.onclick = () => edit(x.dataset.planedit));
-  // 분석 칸의 제안을 계획에 넣기 (지금 로그인한 관리자 칸으로)
-  body.querySelectorAll("[data-useplan]").forEach((b) => b.onclick = () => {
-    const owner = PLAN_OWNERS.includes(me?.name) ? me.name : PLAN_OWNERS[0];
-    b.disabled = true;
-    save(sb.from("admin_plans").insert({ owner, title: b.dataset.useplan.slice(0, 200) }), "추가하지 못했어요")
-      .then((ok) => ok ? toast(`${owner} 계획에 넣었어요`) : (b.disabled = false));
-  });
-  body.querySelectorAll("[data-planadd]").forEach((f) => f.onsubmit = (e) => {
-    e.preventDefault();
-    const title = f.querySelector("input").value.trim();
-    if (title) save(sb.from("admin_plans").insert({ owner: f.dataset.planadd, title }), "추가하지 못했어요");
-  });
-}
-
-async function deleteFeedback(f) {
-  if (!confirm("이 피드백을 삭제할까요?")) return;
-  const { error } = await sb.from("feedback").delete().eq("id", f.id);
-  if (error) return toast("삭제하지 못했어요", true);
-  if (f.image_path) await sb.storage.from("feedback").remove([f.image_path]);
-  toast("삭제했어요");
-  renderOverview();
-}
 
 // ---------- 학사일정 (NEIS) ----------
 // 학교 홈페이지의 학사일정을 scripts/fetch-academic.mjs 가 매일 academic.json 으로 받아 둡니다.
@@ -2399,7 +1886,7 @@ function acadEvents(from, to) {
   return myAcad().filter((e) => acadShown(e.cat) && e.end >= lo && e.start < hi).map((e) => {
     const after = parseDay(e.end); after.setDate(after.getDate() + 1);   // FullCalendar 종일 일정의 끝은 다음 날(미포함)
     return {
-      id: `acad:${e.id}`, title: e.name, start: e.start, end: dayKey(after), allDay: true, editable: !!me.is_admin,
+      id: `acad:${e.id}`, title: e.name, start: e.start, end: dayKey(after), allDay: true, editable: false,
       classNames: ["c-school"], extendedProps: { kind: "acad" },
     };
   });
@@ -2412,16 +1899,6 @@ function acadAgenda() {
     kind: "acad", id: e.id, title: e.name, at: parseDay(e.start), allDay: true, done: false, color: "school",
     end: e.end > e.start ? new Date(`${e.end}T23:59`) : null,
   }));
-}
-
-// 관리자가 NEIS 일정을 처음 고칠 때 쓰는 초안 (학교 일정 폼이 그대로 받습니다). 저장하기 전에는 DB 에 없습니다.
-function neisDraft(a) {
-  return {
-    id: null, title: a.name, memo: a.memo || "", all_day: true, notify: false, audience: "all", hidden: false,
-    starts_at: parseDay(a.start).toISOString(), ends_at: a.end > a.start ? new Date(`${a.end}T23:59`).toISOString() : null,
-    no_class: a.type === "공휴일" || a.type === "휴업일" || a.name.includes("지필평가"),
-    category: a.cat, neis_key: a.key, school_event_targets: [],
-  };
 }
 
 function openAcadDetail(e) {
@@ -2832,16 +2309,12 @@ function dshsReturned() {
   history.replaceState(null, "", location.pathname + (rest ? `?${rest}` : ""));
 }
 
-// 학교 일정 대상 (학번 목록)
-const schoolTargets = (e) => (e.school_event_targets || []).map((t) => t.student_id);
-
 // 전체 학생 명단 (시간표 데이터에서)
 function roster() {
   return Object.entries(window.SCHOOL_DATA || {})
     .map(([name, v]) => ({ sid: v.id, name, classes: v.classes || {} }))
     .sort((a, b) => a.sid - b.sid);
 }
-const homeroom = (sid) => Math.floor(sid / 100) % 10;   // 2113 → 1반
 
 function schoolWhen(e) {
   const s = new Date(e.starts_at), en = e.ends_at ? new Date(e.ends_at) : null;
@@ -2857,203 +2330,6 @@ function openSchoolDetail(e) {
       ${e.memo ? `<div class="asg-body">${esc(e.memo)}</div>` : ""}
     </div>
     <div class="study-foot">${e.neis_key ? "학교 홈페이지 학사일정을 관리자가 고친 일정이에요." : "관리자가 올린 일정이에요."}</div>`);
-}
-
-// 관리자: 학교 일정 추가·수정 (대상: 전체 / 특정 인원)
-// e.neis_key 가 있으면 NEIS 일정을 고치는 중입니다. e.id 가 없으면 아직 고친 적이 없는 원본입니다 (neisDraft).
-function openSchoolForm(e, seed) {
-  const neis = !!e?.neis_key;
-  const now = new Date();
-  const start = e ? new Date(e.starts_at) : seed?.start || new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9);
-  const allDay = e ? e.all_day : seed ? seed.allDay : true;
-  const end = e?.ends_at ? new Date(e.ends_at) : allDay ? start : new Date(+start + HOUR);
-  const people = roster();
-  const nameOf = new Map(people.map((p) => [p.sid, p.name]));
-  const before = e ? schoolTargets(e) : [];
-  let picked = new Set(before);
-  let audience = e?.audience || "all";
-  const subjects = [...new Set(people.flatMap((p) => Object.keys(p.classes)))].sort((a, b) => a.localeCompare(b, "ko"));
-  const rooms = [...new Set(people.map((p) => homeroom(p.sid)))].sort();
-
-  openSheet(e ? "학교 일정 수정" : "학교 일정 추가", `
-    ${neis ? `<div class="study-foot">학교 홈페이지(NEIS)에서 온 일정이에요. 여기서 고치면 이 사이트에서만 바뀌고, 원본은 그대로예요.</div>` : ""}
-    <label class="study-label">제목</label>
-    <input class="study-input" id="sTitle" maxlength="120" value="${esc(e?.title || "")}" placeholder="예: 체육대회, 2학기 기말고사, 개교기념일">
-    <label class="study-label">종류</label>
-    <select class="study-input" id="sCat">${ACAD_CATS.map(([k, label]) =>
-      `<option value="${k}"${k === (e?.category || "event") ? " selected" : ""}>${label}</option>`).join("")}</select>
-    <label class="ev-allday"><input type="checkbox" id="sAll"${allDay ? " checked" : ""}> 하루 종일 <span class="ev-hint">(끄면 시간을 정할 수 있어요)</span></label>
-    <label class="study-label">시작</label>
-    <div class="ev-when"><input class="study-input" type="date" id="sSd" value="${dayKey(start)}"><input class="study-input" type="time" id="sSt" step="300" value="${allDay ? "09:00" : hm(start)}"></div>
-    <label class="study-label">끝</label>
-    <div class="ev-when"><input class="study-input" type="date" id="sEd" value="${dayKey(end)}"><input class="study-input" type="time" id="sEt" step="300" value="${allDay ? "10:00" : hm(end)}"></div>
-    <label class="ev-allday sch-noclass"><input type="checkbox" id="sNo"${e?.no_class ? " checked" : ""}> 수업 없는 날 <span class="ev-hint">(이 기간엔 달력에 시간표를 깔지 않아요)</span></label>
-    <label class="ev-allday"><input type="checkbox" id="sNotify"${e?.notify ? " checked" : ""}> <span style="white-space:nowrap">필수 일정</span> <span class="ev-hint">(30분 전 알림 · 하루 종일은 07:50)</span></label>
-    <label class="study-label">메모 (선택)</label>
-    <textarea class="study-input" id="sMemo" rows="2" maxlength="2000" placeholder="장소, 준비물 등">${esc(e?.memo || "")}</textarea>
-
-    <div${neis ? ' style="display:none"' : ""}>
-    <label class="study-label">누구에게 보일까요</label>
-    <div class="seg aud-seg">
-      <button type="button" class="seg-btn" data-aud="all">전체</button>
-      <button type="button" class="seg-btn" data-aud="some">특정 인원</button>
-    </div>
-    <div id="audSome">
-      <div class="aud-count" id="audCount"></div>
-      <div class="fr-chips" id="audChips"></div>
-      <div class="aud-quick">
-        <span class="aud-label">반</span>
-        ${rooms.map((r) => `<button type="button" class="study-btn small" data-room="${r}">${r}반</button>`).join("")}
-      </div>
-      <div class="aud-quick" id="audGroups">
-        <span class="aud-label">그룹</span>
-        <span class="aud-hint">불러오는 중…</span>
-      </div>
-      <div class="aud-quick">
-        <span class="aud-label">분반</span>
-        <select class="study-input" id="audSubj"><option value="">과목 고르기</option>${subjects.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
-        <select class="study-input" id="audBan" disabled><option value="">분반</option></select>
-        <button type="button" class="study-btn small" id="audSubjAdd" disabled>추가</button>
-      </div>
-      <input class="study-input" id="audQ" autocomplete="off" placeholder="이름·학번으로 한 명씩 추가">
-      <div class="fr-results" id="audRes"></div>
-    </div>
-    </div>
-
-    <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="sSave">${e ? "저장" : "추가"}</button>
-    ${neis && e.id ? '<button class="study-submit ghost" id="sRevert">원래 일정으로 되돌리기</button>' : ""}
-    ${e && !e.hidden ? `<button class="study-submit ghost danger" id="sDel">${neis ? "달력에서 숨기기" : "학교 일정 삭제"}</button>` : ""}`);
-  const sheet = $("studyModal").querySelector(".study-sheet");
-  const at = (d, t) => (d ? new Date(`${d}T${t || "00:00"}`) : null);
-
-  const syncAll = () => {
-    sheet.classList.toggle("allday", $("sAll").checked);
-    sheet.querySelector(".sch-noclass").style.display = $("sAll").checked ? "" : "none";
-  };
-  $("sAll").onchange = () => { syncAll(); $("sAll").checked ? $("sEd").value = $("sSd").value : $("sSd").onchange(); };
-  $("sSd").onchange = () => {
-    if ($("sAll").checked) { if ($("sEd").value < $("sSd").value) $("sEd").value = $("sSd").value; }
-    else { const s = at($("sSd").value, $("sSt").value); const en = new Date(+s + HOUR); $("sEd").value = dayKey(en); $("sEt").value = hm(en); }
-  };
-  $("sSt").onchange = $("sSd").onchange;
-  syncAll();
-
-  const drawAud = () => {
-    sheet.querySelectorAll("[data-aud]").forEach((b) => b.classList.toggle("on", b.dataset.aud === audience));
-    $("audSome").style.display = audience === "some" ? "" : "none";
-    const ids = [...picked].sort((a, b) => a - b);
-    $("audCount").textContent = ids.length ? `${ids.length}명에게 보여요` : "아직 아무도 고르지 않았어요";
-    $("audChips").innerHTML = ids.map((sid) =>
-      `<span class="fr-chip">${esc(nameOf.get(sid) || sid)}<small>${sid}</small><button type="button" data-unpick="${sid}" aria-label="빼기">✕</button></span>`).join("") +
-      (ids.length > 1 ? `<button type="button" class="aud-clear" id="audClear">모두 빼기</button>` : "");
-    $("audChips").querySelectorAll("[data-unpick]").forEach((b) => b.onclick = () => { picked.delete(+b.dataset.unpick); drawAud(); });
-    if ($("audClear")) $("audClear").onclick = () => { picked.clear(); drawAud(); };
-  };
-  sheet.querySelectorAll("[data-aud]").forEach((b) => b.onclick = () => { audience = b.dataset.aud; drawAud(); });
-  sheet.querySelectorAll("[data-room]").forEach((b) => b.onclick = () => {
-    people.filter((p) => homeroom(p.sid) === +b.dataset.room).forEach((p) => picked.add(p.sid));
-    drawAud();
-  });
-  $("audSubj").onchange = () => {
-    const subj = $("audSubj").value;
-    const bans = [...new Set(people.map((p) => p.classes[subj]).filter(Boolean))].sort();
-    $("audBan").innerHTML = `<option value="*">전체 분반</option>` + bans.map((x) => `<option>${esc(x)}</option>`).join("");
-    $("audBan").disabled = $("audSubjAdd").disabled = !subj;
-  };
-  $("audSubjAdd").onclick = () => {
-    const subj = $("audSubj").value, ban = $("audBan").value;
-    people.filter((p) => p.classes[subj] && (ban === "*" || p.classes[subj] === ban)).forEach((p) => picked.add(p.sid));
-    drawAud();
-  };
-  mountGroups("audGroups", () => [...picked], (sids) => { sids.forEach((sid) => picked.add(sid)); drawAud(); });
-
-  $("audQ").oninput = () => {
-    const q = $("audQ").value.trim();
-    const list = q ? people.filter((p) => !picked.has(p.sid) && (p.name.includes(q) || String(p.sid).startsWith(q))).slice(0, 8) : [];
-    $("audRes").innerHTML = !q ? "" : list.length
-      ? list.map((p) => `<button type="button" class="fr-item" data-pick="${p.sid}"><b>${esc(p.name)}</b><span>${p.sid}</span></button>`).join("")
-      : `<div class="fr-empty">명단에 없어요.</div>`;
-    $("audRes").querySelectorAll("[data-pick]").forEach((b) => b.onclick = () => {
-      picked.add(+b.dataset.pick); drawAud();
-      $("audQ").value = ""; $("audRes").innerHTML = ""; $("audQ").focus();
-    });
-  };
-  drawAud();
-
-  $("sSave").onclick = async () => {
-    const title = $("sTitle").value.trim();
-    const sd = $("sSd").value, ed = $("sEd").value || sd, all = $("sAll").checked;
-    if (!title) return showErr("제목을 입력해 주세요.");
-    if (!sd) return showErr("시작 날짜를 정해 주세요.");
-    let starts, ends;
-    if (all) {
-      if (ed < sd) return showErr("끝나는 날이 시작보다 빨라요.");
-      starts = at(sd); ends = ed > sd ? at(ed, "23:59") : null;
-    } else {
-      starts = at(sd, $("sSt").value); ends = at(ed, $("sEt").value);
-      if (!ends || ends <= starts) return showErr("끝나는 시간이 시작보다 빨라요.");
-    }
-    if (audience === "some" && !picked.size) return showErr("보여줄 사람을 한 명 이상 골라 주세요.");
-    const row = {
-      title, memo: $("sMemo").value.trim(), all_day: all, no_class: all && $("sNo").checked, notify: $("sNotify").checked, audience,
-      starts_at: starts.toISOString(), ends_at: ends ? ends.toISOString() : null,
-      category: $("sCat").value, neis_key: e?.neis_key || null, hidden: false,
-    };
-    $("sSave").disabled = true;
-    const { data: saved, error } = e?.id
-      ? await sb.from("school_events").update(row).eq("id", e.id).select("id").single()
-      : await sb.from("school_events").insert(row).select("id").single();
-    if (error) { $("sSave").disabled = false; return showErr("저장하지 못했어요: " + error.message); }
-    // 대상 맞추기: 전체 공개로 바꾸면 대상 목록은 비웁니다
-    const want = audience === "some" ? [...picked] : [];
-    const add = want.filter((sid) => !before.includes(sid));
-    const drop = before.filter((sid) => !want.includes(sid));
-    const results = await Promise.all([
-      add.length && sb.from("school_event_targets").insert(add.map((sid) => ({ event_id: saved.id, student_id: sid }))),
-      drop.length && sb.from("school_event_targets").delete().eq("event_id", saved.id).in("student_id", drop),
-    ]);
-    closeModal();
-    if (results.some((r) => r && r.error)) toast("일정은 저장했지만 대상 일부를 맞추지 못했어요", true);
-    else toast(audience === "all" ? "모두에게 보이는 학교 일정이에요" : `${want.length}명에게 보이는 학교 일정이에요`);
-    await loadAssignments();
-  };
-  // 원본 NEIS 일정은 지울 수 없으니, 숨겼다는 표시를 남겨 달력에서 뺍니다 (관리자 달력에는 흐리게 남아 되돌릴 수 있어요)
-  if ($("sRevert")) $("sRevert").onclick = async () => {
-    const { error } = await sb.from("school_events").delete().eq("id", e.id);
-    if (error) return showErr("되돌리지 못했어요.");
-    closeModal();
-    toast("학교 홈페이지 일정으로 되돌렸어요");
-    await loadAssignments();
-  };
-  if ($("sDel") && neis) $("sDel").onclick = async () => {
-    if (!confirm("이 일정을 모두의 달력에서 숨길까요?")) return;
-    const hide = { hidden: true, notify: false, no_class: false };
-    const { error } = e.id
-      ? await sb.from("school_events").update(hide).eq("id", e.id)
-      : await sb.from("school_events").insert({ title: e.title, memo: e.memo, starts_at: e.starts_at, ends_at: e.ends_at,
-          all_day: true, audience: "all", category: e.category, neis_key: e.neis_key, ...hide });
-    if (error) return showErr("숨기지 못했어요.");
-    closeModal();
-    toast("숨겼어요. 흐리게 보이는 일정을 눌러 되돌릴 수 있어요");
-    await loadAssignments();
-  };
-  if ($("sDel") && !neis) $("sDel").onclick = async () => {
-    if (!confirm("이 학교 일정을 모두의 달력에서 지울까요?")) return;
-    const snap = { id: e.id, title: e.title, memo: e.memo, starts_at: e.starts_at, ends_at: e.ends_at,
-      all_day: e.all_day, no_class: e.no_class, notify: e.notify, audience: e.audience, category: e.category };
-    const targets = before.map((sid) => ({ event_id: e.id, student_id: sid }));
-    const { error } = await sb.from("school_events").delete().eq("id", e.id);
-    if (error) return showErr("삭제하지 못했어요.");
-    closeModal();
-    undoToast("학교 일정을 지웠어요", async () => {
-      const { error } = await sb.from("school_events").insert(snap);
-      if (error) return false;
-      if (targets.length) await sb.from("school_event_targets").insert(targets);
-      await loadAssignments();
-    });
-    await loadAssignments();
-  };
 }
 
 // ---------- 수행평가 공지 탭 ----------

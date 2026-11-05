@@ -10,4 +10,7 @@ window.DSHS_CONFIG = {
   SUPABASE_URL: "https://jsanpwlleufzgglqkrkv.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzYW5wd2xsZXVmemdnbHFrcmt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwOTc4ODEsImV4cCI6MjEwODY3Mzg4MX0.hxqptnpMQXfQ_jztsXqxnpx5ZQITCWP6pOie8sySlNM",
   VAPID_PUBLIC_KEY: "BIX8--TywfEp92OPeHlIJjml8hzrk4YCFNxBsoMJ6ckn8nX-9cpm5voycfpD642uMRe5jCzAV2yDB_cj8agi4Fo",
+  // 관리자 사이트 (milkcat322/dshs42-admin) · 관리자 사이트에서 보는 학생 사이트
+  ADMIN_URL: "https://dshs42-admin.netlify.app",
+  STUDENT_URL: "https://dshs42.app",
 };

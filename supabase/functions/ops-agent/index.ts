@@ -128,6 +128,13 @@ Deno.serve(async (req) => {
     }
   }));
 
+  // 관리자 사이트 '알림' 칸에 남깁니다 (adminpush.sql). 60일 지난 기록은 지웁니다.
+  const logged = await db.from("admin_push_log").insert({
+    source: "ops", title: report.title, body: report.body, url: "/?view=admin&pane=ops", devices: sent + failed, delivered: sent,
+  });
+  if (logged.error) console.error("관리자 알림 기록 실패", logged.error.message);
+  await db.from("admin_push_log").delete().lt("created_at", iso(now - 60 * DAY));
+
   return json({ title: report.title, issues: report.issues.length, feedback: report.feedback.count, sent, failed });
 });
 

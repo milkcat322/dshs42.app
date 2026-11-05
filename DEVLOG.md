@@ -23,7 +23,7 @@
 - **2026-11-04** 운영 점검 에이전트(매일 8시·18시 관리자 푸시, 관리 탭 '점검' 칸)와 방문 기기 로그인 학생 표시·전환 알림 도입, 열기·탭 전환 속도 개선(저장본 우선 열기), 분반별 같은 수행평가 합치기 제안·처리 기록 추가, dshs42.app v106 배포 <!-- session 63e1ed0b -->
 - **2026-11-04** beta(origin) 내용을 메인 웹 전용 저장소(prod, milkcat322/dshs42.app)에 처음으로 배포, 앱 업데이트 시 로그아웃·아이패드 알림 미작동·dshs42.app 알림 미작동 민원 수정, 시간표 검색 온/오프라인·로그인 분기 도입 <!-- session 020762cc -->
 - **2026-11-04** 관리 탭 계획 항목 수정, 점검·합치기 제안 시간을 8·12·16·20·0시로 변경, 노트북 Claude Code가 로그인 전환을 분석해 제안하는 사용 분석 에이전트 도입, 막힘 화면 본 수·누른 수 기록과 바로 dshs.app 로그인, "시작하기" 버튼 하나와 작은 관리자 로그인 링크로 로그인 화면 개편, dshs42.app v112 배포 <!-- session 028c2f0e -->
-- **2026-11-05** 수행평가 공지에 댓글 기능 추가(assignment_comments 표, 공지 RLS 따름, 합치기 시 댓글 이동) <!-- session ee85017d -->
+- **2026-11-05** 관리자 사이트에 기기 등록(비밀번호·계속 로그인)과 관리 탭 '알림' 칸 추가, 관리자 푸시 발송 기록(admin_push_log) 도입(feature/admin-site 브랜치, main 병합·prod 반영은 아직) <!-- session ee85017d -->
 <!-- 개발 흐름 끝 -->
 
 ## 쓰는 법
@@ -2001,40 +2001,66 @@
 - `sw.js`
 - `updates.js`
 
-## 2026-11-05 08:27–08:31 · 수행평가 공지 댓글 기능 추가
+## 2026-11-05 08:27–09:14 · 수행평가 공지 댓글 기능 추가 및 관리자 전용 사이트 분리
 
-`session ee85017d` · 개발 milkcat322 · 요청 2회
+`session ee85017d` · 개발 milkcat322 · 요청 5회
 
 ### 목표
-- 수행평가 공지에 댓글을 달 수 있게 해달라는 요청 처리
+- 수행평가 공지에 댓글을 달 수 있게 한다
+- 관리자 전용 기능(관리 탭·학교 일정 관리)을 학생 사이트에서 떼어내 별도 관리자 사이트로 만든다
 
 ### 한 일
-- 수행평가 DB 구조(`assignments`, RLS 정책)와 상세 창(`openAsgDetail`), merge 로직(`merge.sql`) 조사
-- `assignment_comments` 표 설계·작성(`comments.sql`), 공지와 같은 RLS 범위를 따르게 구성
-- 상세 창에 댓글 목록·입력 칸 추가(`dshs-study.js`, `index.html` 스타일)
-- 공지 합치기 시 댓글을 새 공지로 옮기도록 `merge.sql` 수정
-- sw.js 캐시 버전 v113 반영, `updates.js`에 업데이트 안내 추가, README·CLAUDE.md에 실행 순서·주의점 반영
-- anon 키로 Supabase에 직접 조회해 표 생성과 RLS 동작(비로그인 시 빈 목록) 확인 후 커밋·DEVLOG 작성
+- `comments.sql`로 `assignment_comments` 표를 만들고, 공지 상세 창에 댓글 목록·입력 칸을 추가
+- `merge.sql`을 고쳐 같은 수행평가를 합칠 때 댓글도 새 공지로 옮기게 함
+- 사용자가 Supabase SQL Editor에서 SQL을 실행한 뒤, anon 키로 표 생성과 권한(RLS) 동작을 확인
+- Check Push로 beta(origin/main)에 댓글 기능 커밋 반영
+- `admin/` 디렉터리로 관리자 전용 사이트(관리 탭, 학교 일정 관리, 설정)를 새로 작성하고 `scripts/build-admin.mjs`·`scripts/deploy-admin.mjs`로 `milkcat322/dshs42-admin` 저장소에 배포
+- 학생 사이트에서 관리 탭·학교 일정 추가/수정/드래그·관리자 즉시승인 코드 약 700줄 제거, 관리자 계정 로그인 시 "관리자 사이트 열기" 안내만 표시
+- `_headers`로 CORS를 열어 관리자 사이트가 beta의 학사 데이터를 받아가게 함
+- `adminpush.sql`로 `admin_push_log` 표를 추가하고 `send-reminders`·`ops-agent`·`usage-agent` 세 서버 함수에 관리자 알림 발송 기록 로직을 넣음
+- 관리자 사이트에 비밀번호 한 칸 기기 등록(계속 로그인)과 관리 탭 '알림' 칸을 추가
+- headless Chrome으로 로그인 화면과 관리자 코드 제거 후 학생 화면이 오류 없이 뜨는지 확인
 
 ### 결정과 이유
-- 댓글 읽기/쓰기 권한을 화면이 아니라 DB RLS로 제어: 승인된 공지는 같은 과목·분반 학생, 대기·반려 공지는 작성자와 관리자만 보도록 해 승인 전 관리자와의 대화 용도로도 쓰게 함
-- 댓글 수정 기능은 두지 않고 삭제만 허용(본인·관리자), 작성자 이름은 서버가 채워 위조 방지
-- 공지 삭제 시 댓글도 함께 삭제(연쇄 삭제)
+- 관리자 사이트 분리 방향은 AskUserQuestion으로 제시한 추천안을 그대로 채택(관리 탭 통합 UI, 학교 일정 별도 탭, 드래그 이동 기능은 제외)
+- `feature/admin-site` 브랜치에서 작업하고 아직 main에 합치지 않음. main에 합치면 beta에서 관리 탭이 바로 사라지므로, 관리자 사이트가 실제로 열리는 것을 먼저 확인
+- 관리자 사이트는 학생 사이트의 `.adm-*` 스타일과 학사 데이터를 그대로 가져다 쓰도록 해 코드 중복을 막음(학생 사이트에 남은 `.adm-*` 스타일은 그래서 삭제하지 않음)
 
 ### 해결한 문제
-- 증상: 댓글 기능 코드는 작성했지만 `assignment_comments` 표가 없어 작동하지 않음 → 원인: DB 스키마 변경은 자동 권한 검사로 직접 실행 불가 → 해결: 사용자가 Supabase SQL Editor에서 `comments.sql`·수정된 `merge.sql`을 직접 실행, 완료 확인 후 Check Push 진행
+- 증상: `dshs42-admin.netlify.app` 접속 시 404 → 원인: Netlify 배포가 아직 끝나지 않음 → 해결: 잠시 후 재확인해 정상 로딩 확인
+- 증상: 관리자 사이트 등록 화면이 '불러오는 중'에서 멈춤 → 원인: 서버 라이브러리 로딩 시간 부족 → 해결: 다시 열어 정상 렌더링 확인
 
 ### 남은 일
-- [ ] 새 댓글 등록 시 공지 작성자에게 푸시 알림
-- [ ] 공지 목록 줄에 댓글 수 표시
+- [ ] 로그인한 학생의 댓글 작성·삭제 동작을 beta에서 직접 확인
+- [ ] 관리자 계정으로 관리자 사이트에 들어가 관리 탭·학교 일정 화면 확인
+- [ ] `feature/admin-site`를 main에 병합하고 dshs42.app(prod)에 반영
+- [ ] 관리자가 남의 댓글을 지우는 화면 추가(DB 권한은 이미 있음)
+- [ ] 새 댓글 등록 시 공지 작성자 푸시 알림, 목록에 댓글 수 표시
+
+### 배운 점
+- DEVLOG의 "개발 ○○" 칸은 로그인한 Claude 계정이 아니라 그 PC의 `git config user.name`을 그대로 씀
+- headless Chrome으로는 로그인 화면 렌더링까지만 확인 가능하고, 관리자 비밀번호가 없으면 로그인 뒤 화면은 검증할 수 없음
 
 ### 바뀐 파일
+- `.gitignore`
 - `CLAUDE.md`
 - `README.md`
+- `_headers`
+- `admin/admin.js`
+- `admin/index.html`
+- `admin/manifest.webmanifest`
+- `admin/sw.js`
+- `adminpush.sql`
 - `comments.sql`
+- `config.js`
 - `dshs-study.js`
 - `index.html`
 - `merge.sql`
+- `scripts/build-admin.mjs`
+- `scripts/deploy-admin.mjs`
+- `supabase/functions/ops-agent/index.ts`
+- `supabase/functions/send-reminders/index.ts`
+- `supabase/functions/usage-agent/index.ts`
 - `sw.js`
 - `updates.js`
 
@@ -2100,3 +2126,4 @@
 
 ### 바뀐 파일
 - 바뀐 파일 없음
+<!-- flow: - **2026-11-05** 관리자 사이트에 기기 등록(비밀번호·계속 로그인)과 관리 탭 '알림' 칸 추가, 관리자 푸시 발송 기록(admin_push_log) 도입(feature/admin-site 브랜치, main 병합·prod 반영은 아직) -->
