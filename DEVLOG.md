@@ -2273,3 +2273,32 @@ supabase/functions/ops-agent/index.ts
 supabase/functions/send-reminders/index.ts
 supabase/functions/usage-agent/index.ts
 sw.js
+
+## 2026-11-05 08:52 · 매일 밤 10시 사용 분석 launchd 설치와 push
+
+### 목표
+- beta와 dshs42.app에서 분석 결과가 안 오는 원인을 찾아 고치기
+
+### 한 일
+- `usage_reports` 표에 보고서가 1개뿐인 것 확인 (11/4 15:31 수동 `--force` 실행분, 푸시는 정상, `usage-agent` 응답 200)
+- 11/4 22시 분석은 실행 기록이 없고, 기록 파일에도 15:30 수동 실행 한 줄뿐인 것 확인
+- 민지가 `! bash scripts/usage-agent/install.sh` 직접 실행, `app.dshs42.usage-agent` 등록됨
+- 설치 직후 RunAtLoad로 밀린 분석이 돌아 08:57에 저장됨
+- beta 저장소(origin/main)에 기록 커밋 3개 push (코드 변경 없음, 팀원의 새 커밋 없음)
+
+### 결정과 이유
+- 설치는 Claude가 하지 않고 민지가 직접 실행: 상주 작업 등록이라 Claude 권한으로 막혀 있음
+- push는 설치 후 분석 저장을 확인한 뒤에 진행
+
+### 해결한 문제
+- beta, dshs42.app에 분석 결과가 안 옴 → 두 곳이 같은 DB를 쓰는데 매시간 `run.mjs`를 깨우는 launchd가 이 맥에 설치돼 있지 않았음 (`~/Library/LaunchAgents`에 파일 없고 `launchctl list`에도 없음. `install.sh`를 실행하지 않은 것으로 추정) → `install.sh` 실행으로 launchd 등록
+
+### 남은 일
+- [ ] 아침에 폰에 분석 푸시가 안 오면 `~/Library/Logs/dshs42-usage-agent.log` 확인 (`저장함 …` 줄이 나오면 성공)
+
+### 배운 점
+- 분석은 터미널이 아니라 macOS launchd가 돌려서 터미널·Claude Code를 닫아도 계속 작동하고, 재부팅 후 로그인하면 다시 살아남
+- 노트북이 꺼져 있거나 잠자기 중이면 분석이 안 돌고, 다음에 깨어났을 때 밀린 분석을 함
+- Claude Code 로그인과 Supabase MCP 연결이 유지돼야 하고, 한 시간마다 재시도해 3번째도 실패하면 맥 알림("사용 분석을 3번 실패했어요")이 뜸. 밤 10시 실패면 새벽 1시쯤
+- 실패 알림은 폰이 아니라 이 맥에만 뜨고, 폰 푸시는 성공한 분석 결과뿐
+- 실행 자체가 안 된 경우(꺼짐·잠자기)는 실패가 아니라서 알림이 없음
