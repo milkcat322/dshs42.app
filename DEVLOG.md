@@ -2217,3 +2217,59 @@
 ## 2026-11-05 09:24 · 아니 분석 결과가 https://dshs42-admin.netlify.a
 
 ## 2026-11-05 09:40 · 이거 왜 닫으면 안되는거냐?
+
+## 2026-11-05 08:52–22:59 · (자동 요약 실패)
+
+`session fab67848` · 개발 sxcrxta · 요청 6회
+
+세션 중 커밋:
+f97903a 사용 분석 결과가 관리자 사이트에 보이는지 확인
+b0535fa "닫으면 안 되나" 질문 확인과 세션 시작 git pull 실패 수습
+3ad716c devlog: 11/05 09:40 이거 왜 닫으면 안되는거냐?
+31b79c1 devlog: 11/05 09:24 아니 분석 결과가 https://dshs42-admin.netlify.a
+e64b128 "닫으면 안 되나" 질문 확인과 세션 시작 git pull 실패 수습
+a986989 수행평가 공지 댓글 추가와 관리자 전용 사이트 분리
+1e603b1 devlog: 11/05 계획에 넣기 표시 개선
+67a0e6b 관리자 사이트: 계획에 넣은 사람 버튼 초록 표시, '계획에 넣기' 줄 정렬
+0e673db Merge branch 'main' of https://github.com/milkcat322/dshs-study
+d6f7c84 devlog: 11/05 계획에 넣기 담당자 선택
+06724a7 사용 분석 결과 저장·확인 경로 점검과 상주 작업 설치
+78bffb7 사용 분석 결과가 오지 않던 원인(상주 작업 미설치) 확인과 설치
+c98e8a9 devlog: 11/05 08:52 사용 분석 launchd 미설치 원인 확인 및 설치
+18313fe 관리자 사이트: 분석 제안 '계획에 넣기'에서 진주빈·반민지 고르기
+02cc0e7 devlog: 11/05 메인 웹 배포
+7ffcdd8 Merge branch 'main' of https://github.com/milkcat322/dshs-study
+8914eea devlog: 11/05 관리자 전용 사이트 main 반영
+a83aeab 사용 분석 결과 알림이 오지 않던 원인(상주 작업 미설치) 확인과 설치
+3b57b73 Merge remote-tracking branch 'origin/feature/admin-site'
+b83da2a devlog: 11/05 관리자 사이트 기기 등록·알림 칸
+2f3247f 관리자 사이트: 기기 등록(비밀번호 한 칸·계속 로그인), 관리 탭 '알림' 칸과 관리자 푸시 기록(admin_push_log)
+361cd59 devlog: 11/05 관리자 전용 사이트 분리
+20c7371 devlog: 11/05 사용 분석 상주 작업 미설치 원인 확인과 설치
+887ea2e 관리자 전용 사이트 분리: admin/ (관리 탭·학교 일정 관리·관리자 알림), 묶기·배포 스크립트, 학생 사이트에서 관리자 코드 제거
+04e57af 수행평가 공지 댓글 기능 추가 및 관리자 전용 사이트 분리 착수
+4d6d278 사용 분석 결과가 알림으로 오지 않는 문제 점검 시작
+01fa176 devlog: 11/05 08:51 아니 왜 beta에서 분석 결과가 왜 안오 아니 왜 beta에서 분석 결
+75e42e6 관리자 전용 웹·dshs42.app git 배포 제안 해석과 git 상태 점검
+c799790 관리자 전용 웹·dshs42.app git 배포 제안 해석과 git 상태 점검
+2076252 관리자 전용 웹·dshs42.app git 배포 제안 해석과 git 상태 점검
+ddea29d devlog: 11/04 16:18 관리자 웹 분리·dshs42.app 배포 방식 논의
+
+바뀐 파일(커밋 + 커밋 안 된 것):
+.gitignore
+CLAUDE.md
+README.md
+_headers
+admin/admin.js
+admin/index.html
+admin/manifest.webmanifest
+admin/sw.js
+adminpush.sql
+config.js
+dshs-study.js
+scripts/build-admin.mjs
+scripts/deploy-admin.mjs
+supabase/functions/ops-agent/index.ts
+supabase/functions/send-reminders/index.ts
+supabase/functions/usage-agent/index.ts
+sw.js
