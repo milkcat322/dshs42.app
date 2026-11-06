@@ -237,29 +237,34 @@ async function logout() {
   start();
 }
 
-// ---------- 탭 ----------
-const PAGES = [["admin", "관리"], ["school", "학교 일정"]];
+// ---------- 탭: 맨 위 카드 한 줄 (처리 · 학생 · 리포트 · 개발 · 학교 일정) ----------
+// 처리 · 학생 · 리포트 · 개발은 '관리' 화면의 큰 칸(OV_GROUP), 학교 일정은 따로 된 화면입니다. 카드의 숫자는 navStat (paintOverview 가 채움).
+const NAV = [["asg", "📥", "처리"], ["stu", "👥", "학생"], ["rep", "📊", "리포트"], ["lab", "🛠", "개발"], ["school", "📅", "학교 일정"]];
 let adminCount = 0;
-const adminTabLabel = () => `관리${adminCount ? `<span class="nav-count">${adminCount > 99 ? "99+" : adminCount}</span>` : ""}`;
+let navStat = {};
 function renderNav() {
   const nav = $("studyNav");
-  nav.innerHTML = PAGES.map(([k, label]) =>
-    `<button class="study-btn${page === k ? " primary" : ""}" data-page="${k}">${k === "admin" ? adminTabLabel() : label}</button>`).join("");
-  nav.querySelectorAll("[data-page]").forEach((b) => b.onclick = () => openPage(b.dataset.page));
+  const cur = page === "school" ? "school" : OV_GROUP[ovPane || "asg"];
+  nav.className = "adm-nav";
+  nav.innerHTML = NAV.map(([k, icon, label]) => {
+    const st = navStat[k] || {};
+    return `<button class="${cur === k ? "on" : ""}${st.hot ? " hot" : ""}" data-nav="${k}">
+      <span class="adm-nav-top"><i>${icon}</i>${label}</span><b>${st.v ?? "&nbsp;"}</b></button>`;
+  }).join("");
+  nav.querySelectorAll("[data-nav]").forEach((b) => b.onclick = () => {
+    const k = b.dataset.nav;
+    if (k === "school") return page === "school" ? null : openPage("school");
+    ovPane = ovSubLast[k];
+    if (page !== "admin") return openPage("admin");
+    ovShow?.(ovPane);
+  });
 }
 function openPage(p) {
   page = p;
   renderNav();
-  const [title, sub] = {
-    admin: ["관리", "수행평가 승인과 피드백을 처리하고 학생 현황 · 점검 보고서를 봐요"],
-    school: ["학교 일정", "모든 학생 달력에 보이는 학교 일정을 추가하고 고쳐요"],
-  }[p];
   $("studyView").innerHTML = `
-    <div class="study-head"><div><h2>${title}</h2><div class="study-sub">${sub}</div></div></div>
-    ${p === "admin" ? `<div class="study-row"><button class="study-btn primary" id="btnAsg">+ 수행평가 공지 올리기</button></div>` : ""}
-    ${p === "school" ? `<div class="study-row"><button class="study-btn primary" id="btnSchool">+ 학교 일정 추가</button></div>` : ""}
+    ${p === "school" ? `<div class="adm-bar"><span>모든 학생 달력에 보이는 학교 일정</span><button class="study-btn primary small" id="btnSchool">+ 학교 일정 추가</button></div>` : ""}
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
-  if ($("btnAsg")) $("btnAsg").onclick = () => openAsgForm(null);
   if ($("btnSchool")) $("btnSchool").onclick = () => openSchoolForm(null);
   if (p === "admin") renderOverview(true);
   else renderSchool();
@@ -287,8 +292,8 @@ async function refreshAdminCount() {
   ]);
   if (pend.error || fresh.error) return;
   adminCount = pend.count + fresh.count + (merge.error ? 0 : merge.count);
-  const tab = document.querySelector('#studyNav [data-page="admin"]');
-  if (tab) tab.innerHTML = adminTabLabel();
+  navStat.asg = { v: adminCount, hot: adminCount > 0 };
+  renderNav();
   document.title = adminCount ? `(${adminCount}) dshs42 관리` : "dshs42 관리";
 }
 
@@ -862,22 +867,17 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
   const nOps = ops?.[0]?.issues ?? 0, nPlan = plans?.filter((p) => !p.done).length ?? 0;
   const badge = (n, hot) => n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : "";
   const group = OV_GROUP[pane];
-  const groups = [["asg", "승인 · 피드백", badge(nAsg + fresh.length, true)], ["stu", "학생", badge(overview?.students.length ?? 0, false)],
-    ["rep", "리포트", badge(nOps, true)], ["lab", "개발", badge(nDev, true) || badge(nPlan, false)]];
   const subs = { rep: [["ops", "점검", badge(nOps, true)], ["use", "분석", ""], ["push", "알림 기록", ""]],
     lab: [["dev", "제작", badge(nDev, true)], ["plan", "계획", badge(nPlan, false)]] };
-  // 맨 위 요약: 처리할 것이 있는 칸으로 바로 갑니다
   const lastOps = ops?.[0];
-  const sum = [["asg", nAsg, "승인 대기"], ["fb", fresh.length, "새 피드백"], ["dev", nDev, "확인할 제작"],
-    ["ops", lastOps ? (nOps || "정상") : "-", lastOps ? `점검 · ${ovTime(lastOps.created_at)}` : "점검"]];
+  navStat = { asg: { v: nAsg + fresh.length, hot: nAsg + fresh.length > 0 }, stu: { v: overview?.students.length ?? "-" },
+    rep: { v: lastOps ? (nOps || "정상") : "-", hot: nOps > 0 }, lab: { v: nDev || nPlan, hot: nDev > 0 } };
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
-  return `<div class="adm-sum">${sum.map(([k, n, label]) =>
-      `<button class="${typeof n === "number" && n ? "hot" : ""}" data-ovpane="${k}"><b>${n}</b><span>${esc(label)}</span></button>`).join("")}</div>
-    <div class="adm-seg four">${groups.map(([g, label, b]) =>
-      `<button class="${group === g ? "on" : ""}" data-ovgroup="${g}">${label}${b}</button>`).join("")}</div>
+  return `
     ${Object.entries(subs).map(([g, xs]) => `<div class="adm-sub" data-subof="${g}"${group === g ? "" : " hidden"}>${xs.map(([k, label, b]) =>
       `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${b}</button>`).join("")}</div>`).join("")}
-    ${box("asg", mergeHtml(log)
+    ${box("asg", `<div class="adm-bar"><span>수행평가 승인 · 학생 피드백</span><button class="study-btn primary small" id="btnAsg">+ 수행평가 공지 올리기</button></div>`
+      + mergeHtml(log)
       + `<div class="adm-label">승인 대기${pending.length ? ` ${pending.length}` : ""}</div>`
       + (pending.length ? pending.map(card).join("") : '<div class="adm-empty">승인 대기 중인 수행평가가 없어요.</div>')
       + `<div class="adm-label" id="fbSec">새 피드백${fresh.length ? ` ${fresh.length}` : ""}</div>`
@@ -893,7 +893,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
     ${box("push", pushLogHtml(pushes))}`;
 }
 
-let ovSeen, fbSeen, ovPane;   // 처음 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
+let ovSeen, fbSeen, ovPane, ovShow;   // 처음 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
 // 관리 탭은 5칸(승인 · 피드백 · 학생 · 리포트 · 개발)이고, 리포트 · 개발은 안에서 작은 칸으로 나뉩니다.
 // ovPane 은 실제 칸(asg · fb · stu · ops · use · push · dev · plan), OV_GROUP 은 그 칸이 속한 큰 칸입니다. 알림의 ?pane= 도 실제 칸 이름.
 const OV_GROUP = { asg: "asg", fb: "asg", stu: "stu", ops: "rep", use: "rep", push: "rep", dev: "lab", plan: "lab" };
@@ -934,13 +934,15 @@ function paintOverview(res) {
     ovPane = k;
     const g = OV_GROUP[k];
     ovSubLast[g] = k;
-    body.querySelectorAll("[data-ovgroup]").forEach((x) => x.classList.toggle("on", x.dataset.ovgroup === g));
+    $("studyNav").querySelectorAll("[data-nav]").forEach((x) => x.classList.toggle("on", x.dataset.nav === g));
     body.querySelectorAll("[data-subof]").forEach((x) => { x.hidden = x.dataset.subof !== g; });
     body.querySelectorAll(".adm-sub [data-ovpane]").forEach((x) => x.classList.toggle("on", x.dataset.ovpane === k));
     body.querySelectorAll("[data-pane]").forEach((x) => { x.hidden = x.dataset.pane !== k; });
   };
   body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => showPane(b.dataset.ovpane));
-  body.querySelectorAll("[data-ovgroup]").forEach((b) => b.onclick = () => showPane(ovSubLast[b.dataset.ovgroup]));
+  ovShow = showPane;
+  renderNav();
+  if ($("btnAsg")) $("btnAsg").onclick = () => openAsgForm(null);
   body.querySelectorAll("[data-gopane]").forEach((b) => b.onclick = () => { showPane(b.dataset.gopane); scrollTo({ top: 0, behavior: "smooth" }); });
   const pend = (id) => pending.find((a) => a.id === id);
   body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));

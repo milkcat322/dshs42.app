@@ -43,15 +43,18 @@
   .adm-useplan > span { font-size: 12px; font-weight: 600; color: var(--text-dim); margin-right: 2px; }
   .adm-useplan .study-btn { margin-top: 0; }   /* 학생 CSS 의 .adm-use-row .study-btn 여백 때문에 버튼만 내려가던 것 */
   .adm-useplan .study-btn.ok:disabled { opacity: 1; cursor: default; }
-  /* 관리 탭: 맨 위 요약 4칸 → 큰 칸 5개 → (리포트 · 개발만) 작은 칸 */
-  .adm-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
-  .adm-sum button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 4px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; color: var(--text-dim); font: 500 12px 'Noto Sans KR', sans-serif; cursor: pointer; transition: border-color .15s, transform .15s; }
-  .adm-sum button:hover { border-color: var(--accent1); transform: translateY(-1px); }
-  .adm-sum b { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.2; }
-  .adm-sum button.hot { border-color: rgba(255,77,79,0.55); background: rgba(255,77,79,0.08); }
-  .adm-sum button.hot b { color: #ff6b6d; }
-  .adm-sum span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .adm-seg.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* 맨 위 카드 한 줄(처리 · 학생 · 리포트 · 개발 · 학교 일정) → (리포트 · 개발만) 작은 칸 */
+  .study-nav.adm-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .adm-nav button { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; color: var(--text-dim); font: 600 13px 'Noto Sans KR', sans-serif; text-align: left; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+  .adm-nav button:hover { border-color: var(--accent1); transform: translateY(-1px); }
+  .adm-nav-top { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .adm-nav i { font-style: normal; font-size: 15px; }
+  .adm-nav b { font-size: 22px; font-weight: 800; line-height: 1.1; color: var(--text); }
+  .adm-nav button.on { border-color: var(--accent1); background: rgba(124,108,240,0.14); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent1); }
+  .adm-nav button.hot b { color: #ff6b6d; }
+  .adm-nav button.hot:not(.on) { border-color: rgba(255,77,79,0.5); }
+  .adm-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; font-size: 13px; color: var(--text-dim); }
+  .adm-bar .study-btn { margin: 0; flex: none; }
   .adm-empty { padding: 14px; margin-bottom: 6px; text-align: center; font-size: 13px; color: var(--text-dim); background: var(--card); border: 1px dashed var(--border); border-radius: 12px; }
   #fbSec { scroll-margin-top: 16px; }
   .adm-sub { display: flex; gap: 6px; margin: -6px 0 14px; padding: 0 2px; }
@@ -62,13 +65,14 @@
   .adm-sub span.hot { background: #ff4d4f; color: #fff; }
   .adm-field { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font: inherit; font-size: 14px; }
   .adm-field:focus { outline: none; border-color: var(--accent1); }
-  @media (max-width: 480px) {
-    .adm-seg.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .adm-seg.four button { font-size: 12.5px; gap: 3px; padding: 0 2px; }
-    .adm-seg.four span { min-width: 16px; padding: 0 3px; font-size: 10.5px; line-height: 17px; }
-    .adm-sum { gap: 6px; }
-    .adm-sum button { padding: 10px 2px; font-size: 11px; }
-    .adm-sum b { font-size: 18px; }
+  @media (max-width: 560px) {
+    .study-nav.adm-nav { gap: 5px; }
+    .adm-nav button { align-items: center; padding: 9px 2px; gap: 3px; font-size: 11px; text-align: center; }
+    .adm-nav-top { flex-direction: column; gap: 1px; }
+    .adm-nav i { font-size: 17px; }
+    .adm-nav b { font-size: 16px; }
+    .adm-bar > span { display: none; }
+    .adm-bar { justify-content: flex-end; }
   }
   .adm-log-row.click { cursor: pointer; }
   .adm-log-row.click:hover b { color: var(--accent1); }
