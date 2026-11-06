@@ -1,6 +1,7 @@
 // dshs42.app — 사용 분석 알림
 // 분석 자체는 관리자 노트북의 Claude Code 가 합니다 (scripts/usage-agent). API 키는 쓰지 않습니다.
-// save_usage_report() (usage.sql) 가 보고서를 저장한 뒤 { id } 로 이 함수를 불러, 관리자 기기에 짧게 푸시합니다.
+// save_usage_report() (usage.sql) 가 보고서를 저장하고 제안을 '제안' 칸 초안(agent_tasks)으로 넣은 뒤 { id } 로 이 함수를 불러,
+// 관리자 기기에 "개발 제안이 왔어요" 를 짧게 푸시합니다 (누르면 관리자 사이트 '제안' 칸).
 //
 // 배포:   supabase functions deploy usage-agent
 // 비밀값: VAPID_* 는 send-reminders 와 같은 값
@@ -22,10 +23,10 @@ Deno.serve(async (req) => {
   if (error || !r) return new Response(error?.message ?? "보고서가 없어요", { status: 404 });
 
   const t = r.stats?.totals ?? {};
-  const first = String(r.report?.summary ?? "").split(/(?<=[.다요])\s/)[0];
-  const top = r.report?.suggestions?.[0]?.title;
-  const body = [`최근 7일 로그인 학생 ${t.active_users_7d ?? "-"}명 · 가입 ${t.students ?? "-"}/${t.roster ?? "-"}명`, first,
-    top ? `제안: ${top}` : ""].filter(Boolean).join("\n");
+  const sug = (r.report?.suggestions ?? []).map((x: { title?: string }) => x.title).filter(Boolean);
+  const title = sug.length ? `🛠 개발 제안 ${sug.length}개 · 승인해 주세요` : r.title;
+  const body = [...sug.map((x: string) => `• ${x}`), `최근 7일 로그인 학생 ${t.active_users_7d ?? "-"}명 · 가입 ${t.students ?? "-"}/${t.roster ?? "-"}명`]
+    .join("\n");
 
   const { data: admins } = await db.from("profiles").select("id").eq("is_admin", true);
   const ids = (admins ?? []).map((a) => a.id);
@@ -38,7 +39,7 @@ Deno.serve(async (req) => {
     Deno.env.get("VAPID_PRIVATE_KEY")!,
   );
   const payload = JSON.stringify({
-    title: r.title, body, tag: `usage:${new Date(Date.now() + KST).toISOString().slice(0, 10)}`, url: "/?view=admin&pane=use",
+    title, body, tag: `usage:${new Date(Date.now() + KST).toISOString().slice(0, 10)}`, url: "/?view=admin&pane=dev",
   });
   let sent = 0, failed = 0;
   await Promise.all((subs ?? []).map(async (s) => {
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
   }));
   // 관리자 사이트 '알림' 칸에 남깁니다 (adminpush.sql)
   const logged = await db.from("admin_push_log").insert({
-    source: "usage", title: r.title, body, url: "/?view=admin&pane=use", devices: sent + failed, delivered: sent,
+    source: "usage", title, body, url: "/?view=admin&pane=dev", devices: sent + failed, delivered: sent,
   });
   if (logged.error) console.error("관리자 알림 기록 실패", logged.error.message);
   return new Response(JSON.stringify({ sent, failed }), { headers: { "Content-Type": "application/json" } });

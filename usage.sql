@@ -138,6 +138,15 @@ begin
   returning id into new_id;
   delete from public.usage_reports where created_at < now() - interval '90 days';
 
+  -- 제안을 관리자 사이트 '제안' 칸의 초안으로 (agenttasks.sql). 같은 제목이 이미 있으면(버린 것 포함) 다시 넣지 않습니다.
+  insert into public.agent_tasks (title, spec, source)
+  select left(btrim(x ->> 'title'), 200),
+         left(coalesce(nullif(btrim(x ->> 'spec'), ''), (x ->> 'title') || E'\n\n이유: ' || coalesce(x ->> 'why', '')), 4000),
+         jsonb_build_object('report', new_id, 'why', x ->> 'why', 'goal', x ->> 'goal', 'effort', x ->> 'effort')
+    from jsonb_array_elements(p_report -> 'suggestions') x
+   where coalesce(btrim(x ->> 'title'), '') <> ''
+     and not exists (select 1 from public.agent_tasks t where t.title = left(btrim(x ->> 'title'), 200));
+
   select substring(command from 'headers\s*:=\s*''([^'']+)''') into hdr
     from cron.job where jobname = 'dshs-study-reminders';
   if hdr is not null then

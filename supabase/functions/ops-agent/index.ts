@@ -1,7 +1,7 @@
 // dshs42.app — 운영 점검 에이전트
 // 매일 오전 8시 · 정오 · 오후 4시 · 오후 8시 · 자정에 서비스 상태(사이트 · cron · 서버 함수 호출 · 승인 대기)와 비로그인 → 로그인 전환을 점검하고,
-// 지난 보고서 이후 들어온 피드백을 Claude 로 분류 · 요약해 관리자에게 푸시로 보냅니다.
-// 보고서는 ops_reports 에 남아 관리 탭 '점검' 칸에서 봅니다. 무엇을 쓸지는 report.ts 가 정합니다.
+// 지난 보고서 이후 들어온 피드백을 Claude 로 분류 · 요약합니다. 보고서는 ops_reports 에 남기고(관리자 사이트에는 화면 없음),
+// 문제(issues)나 급한 피드백이 있을 때만 관리자에게 푸시합니다. 무엇을 쓸지는 report.ts 가 정합니다.
 //
 // 배포:   supabase functions deploy ops-agent
 // 비밀값: ANTHROPIC_API_KEY (없으면 피드백은 개수만 알립니다) · VAPID_* 는 send-reminders 와 같은 값
@@ -106,14 +106,18 @@ Deno.serve(async (req) => {
   if (saved.error) console.error("보고서 저장 실패", saved.error.message);
   await db.from("ops_reports").delete().lt("created_at", iso(now - KEEP_DAYS * DAY));
 
-  // 푸시
+  // 푸시: 문제가 있거나 급한 피드백이 있을 때만 보냅니다 (이상 없으면 조용히 기록만. 관리자 사이트에는 점검 화면이 없습니다)
+  const urgentFb = (report.feedback.items ?? []).filter((i) => i.urgency === "high").length;
+  if (!report.issues.length && !urgentFb) {
+    return json({ title: report.title, issues: 0, feedback: report.feedback.count, quiet: true });
+  }
   webpush.setVapidDetails(
     Deno.env.get("VAPID_SUBJECT") ?? "mailto:admin@dshs.study",
     Deno.env.get("VAPID_PUBLIC_KEY")!,
     Deno.env.get("VAPID_PRIVATE_KEY")!,
   );
   const payload = JSON.stringify({
-    title: report.title, body: report.body, tag: `ops:${new Date(now + KST).toISOString().slice(0, 13)}`, url: "/?view=admin&pane=ops",
+    title: report.title, body: report.body, tag: `ops:${new Date(now + KST).toISOString().slice(0, 13)}`, url: "/?view=admin",
   });
   let sent = 0, failed = 0;
   await Promise.all((subs.data ?? []).map(async (s) => {
@@ -130,7 +134,7 @@ Deno.serve(async (req) => {
 
   // 관리자 사이트 '알림' 칸에 남깁니다 (adminpush.sql). 60일 지난 기록은 지웁니다.
   const logged = await db.from("admin_push_log").insert({
-    source: "ops", title: report.title, body: report.body, url: "/?view=admin&pane=ops", devices: sent + failed, delivered: sent,
+    source: "ops", title: report.title, body: report.body, url: "/?view=admin", devices: sent + failed, delivered: sent,
   });
   if (logged.error) console.error("관리자 알림 기록 실패", logged.error.message);
   await db.from("admin_push_log").delete().lt("created_at", iso(now - 60 * DAY));

@@ -44,7 +44,7 @@
   .adm-useplan .study-btn { margin-top: 0; }   /* 학생 CSS 의 .adm-use-row .study-btn 여백 때문에 버튼만 내려가던 것 */
   .adm-useplan .study-btn.ok:disabled { opacity: 1; cursor: default; }
   /* 맨 위 카드 한 줄(처리 · 학생 · 리포트 · 개발 · 학교 일정) → (리포트 · 개발만) 작은 칸 */
-  .study-nav.adm-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .study-nav.adm-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
   .adm-nav button { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; color: var(--text-dim); font: 600 13px 'Noto Sans KR', sans-serif; text-align: left; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
   .adm-nav button:hover { border-color: var(--accent1); transform: translateY(-1px); }
   .adm-nav-top { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -74,6 +74,15 @@
     .adm-bar > span { display: none; }
     .adm-bar { justify-content: flex-end; }
   }
+  /* 제안 칸 */
+  .adm-goal { padding: 14px 16px; margin-bottom: 12px; border-radius: 14px; background: rgba(124,108,240,0.10); border: 1px solid rgba(124,108,240,0.35); font-size: 14px; line-height: 1.55; }
+  .adm-goal b { color: var(--accent1); margin-right: 6px; }
+  .adm-goal span { display: block; margin-top: 4px; font-size: 12.5px; color: var(--text-dim); }
+  .adm-spec { margin-top: 8px; }
+  .adm-spec summary { cursor: pointer; font-size: 12.5px; color: var(--text-dim); }
+  .adm-dev-act { display: flex; gap: 8px; margin-top: 12px; }
+  .adm-dev-act .study-btn { margin: 0; }
+  .adm-dev-act .study-btn.primary { flex: 1; padding: 11px; font-weight: 700; }
   /* 학교 일정 달력 */
   .acal-view { margin: 0 0 12px; }
   .acal-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
