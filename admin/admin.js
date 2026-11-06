@@ -245,7 +245,7 @@ let navStat = {};
 function renderNav() {
   const nav = $("studyNav");
   const cur = page === "school" ? "school" : OV_GROUP[ovPane || "asg"];
-  nav.className = "adm-nav";
+  nav.classList.add("adm-nav");
   nav.innerHTML = NAV.map(([k, icon, label]) => {
     const st = navStat[k] || {};
     return `<button class="${cur === k ? "on" : ""}${st.hot ? " hot" : ""}" data-nav="${k}">
