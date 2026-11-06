@@ -2408,3 +2408,28 @@ sw.js
 
 ### 배운 점
 - 시간표 원본 데이터는 `index.html`의 `SCHOOL_DATA` 상수에 들어 있어 여기서 학급·교시별 조회를 할 수 있다.
+
+## 2026-11-06 08:41 · Netlify beta 프로젝트 Branch deploys 활성화
+
+### 목표
+- Netlify beta 프로젝트(`dshs42-beta`)에서 Branch deploys를 켜서, 제작 에이전트(`scripts/build-agent`)가 만드는 `agent-<번호>` 브랜치를 개별 미리보기 주소로 배포되게 하기
+
+### 한 일
+- Netlify 설정 경로 안내: Project configuration → Build & deploy → Continuous deployment → Branches and deploy contexts → Configure → Branch deploys → **All** → Save
+- 민지가 직접 설정하고 스크린샷으로 확인. 화면에 `Branch deploys: Deploy all branches pushed to the repository` 표시되어 정상 활성화 확인
+- 브랜치 push 시 배포 주소 형식 확인: `https://<브랜치이름>--dshs42-beta.netlify.app` (예: `agent-3--dshs42-beta.netlify.app`)
+
+### 결정과 이유
+- Branch deploys는 **All**로 설정. 제작 에이전트가 `agent-<번호>` 브랜치를 그때그때 새로 만들기 때문에, 브랜치를 하나씩 등록하는 "Let me add individual branches" 방식은 맞지 않음
+- Build agent 기능이 아직 1단계(개발 중)라 이번 변경은 repo에 올리지 않음
+
+### 해결한 문제
+- 증상: 민지가 안내를 보고 어디서 설정하는지 헷갈림(스크린샷과 함께 "어쩌라고") → 원인: 안내가 처음부터의 전체 경로 위주였고, 민지는 이미 Build hooks 화면에 있었음 → 해결: 현재 화면 기준으로 "Branches and deploy contexts → Configure → All → Save"만 다시 안내
+
+### 남은 일
+- [ ] 제작 에이전트 2단계에서 관리자 알림에 브랜치 미리보기 주소 넣기
+- [ ] 미리보기에서 만든 테스트 데이터 정리 (브랜치 미리보기도 beta와 같은 `config.js`로 실제 서비스 DB에 연결됨)
+
+### 배운 점
+- `/`가 들어간 브랜치명(`feature/이름`)은 배포 주소에서 `-`로 바뀜 (`feature-이름--dshs42-beta...`)
+- Deploy Previews(PR별 미리보기)는 Branch deploys와 별도 설정
