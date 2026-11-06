@@ -349,23 +349,28 @@ async function removeAsg(a) {
 const SUBMIT_PLACES = ["클래스룸", "dshs앱", "패들렛", "메일"];
 
 // 관리자가 올리는 수행평가 공지(바로 승인) · 수행평가 고치기. a 가 있으면 고치기 (과목 · 분반은 그대로)
-function openAsgForm(a) {
-  const dueDay = new Date();
-  dueDay.setDate(dueDay.getDate() + 7);
+// seedDay: 학교 일정 달력에서 날짜를 눌러 올릴 때 그날 23:59 를 마감으로
+function openAsgForm(a, seedDay) {
+  const dueDay = seedDay ? parseDay(seedDay) : new Date();
+  if (!seedDay) dueDay.setDate(dueDay.getDate() + 7);
   const dueVal = a ? (a.due_at ? `${dayKey(new Date(a.due_at))}T${hm(new Date(a.due_at))}` : "") : `${dayKey(dueDay)}T23:59`;
   const noDue = !!a && !a.due_at;
   const place = a?.submit_to ? (SUBMIT_PLACES.includes(a.submit_to) ? a.submit_to : "etc") : "";
   const classes = allClassList().filter((c) => !NO_ASG_SUBJECTS.has(c.subject));
   const subjects = [...new Set(classes.map((c) => c.subject))];
-  const opts = a ? [{ subject: a.subject, ban: a.ban }]
-    : subjects.flatMap((s) => [{ subject: s, ban: null }, ...classes.filter((c) => c.subject === s)]);
+  // 관리자는 올린 뒤에도 과목 · 분반을 바꿀 수 있어요 (notice.sql 의 assignments_guard 가 관리자만 허락)
+  const opts = subjects.flatMap((s) => [{ subject: s, ban: null }, ...classes.filter((c) => c.subject === s)]);
+  if (a && !opts.some((o) => o.subject === a.subject && o.ban === a.ban)) opts.unshift({ subject: a.subject, ban: a.ban });
+  const cur = a ? opts.findIndex((o) => o.subject === a.subject && o.ban === a.ban) : -1;
   openSheet(a ? "수행평가 수정" : "수행평가 공지 올리기", `
     <label class="study-label">과목 · 분반</label>
-    <select class="study-input" id="nClass"${a ? " disabled" : ""}>
-      ${opts.map((o, i) => `<option value="${i}">${esc(o.subject)} · ${esc(banLabel(o.ban))}</option>`).join("")}
+    <select class="study-input" id="nClass">
+      ${opts.map((o, i) => `<option value="${i}"${i === cur ? " selected" : ""}>${esc(o.subject)} · ${esc(banLabel(o.ban))}</option>`).join("")}
     </select>
     <label class="study-label">제목</label>
     <input class="study-input" id="nTitle" maxlength="120" placeholder="예: 3단원 실험 보고서 제출" value="${esc(a?.title ?? "")}">
+    <label class="study-label">내용 (선택)</label>
+    <textarea class="study-input" id="nBody" rows="3" maxlength="2000" placeholder="범위, 분량, 준비물 등">${esc(a?.body ?? "")}</textarea>
     <label class="study-label">마감 일시</label>
     <input class="study-input" id="nDue" type="datetime-local" value="${dueVal}"${noDue ? " disabled" : ""}>
     <label class="ev-allday"><input type="checkbox" id="nNoDue"${noDue ? " checked" : ""}> 마감 일시 없음 <span class="ev-hint">(D-? 로 보여요)</span></label>
@@ -397,7 +402,7 @@ function openAsgForm(a) {
     if (!title) return showErr("제목을 입력해 주세요.");
     if (!noDueNow && !due) return showErr("마감 일시를 정하거나 \"마감 일시 없음\" 을 골라 주세요.");
     if (placeNow === "etc" && !submitTo) return showErr("제출처를 적어 주세요.");
-    const fields = { title, submit_to: submitTo || null, due_at: noDueNow ? null : new Date(due).toISOString() };
+    const fields = { subject, ban, title, body: $("nBody").value.trim(), submit_to: submitTo || null, due_at: noDueNow ? null : new Date(due).toISOString() };
     $("nSave").disabled = true;
     let error;
     if (a) {
@@ -405,7 +410,7 @@ function openAsgForm(a) {
       error = res.error || (!res.data?.length && { message: "수정 권한이 없어요" });
     } else {
       ({ error } = await sb.from("assignments").insert({
-        subject, ban, ...fields, created_by: me.id, status: "approved", reviewed_by: me.id, reviewed_at: new Date().toISOString(),
+        ...fields, created_by: me.id, status: "approved", reviewed_by: me.id, reviewed_at: new Date().toISOString(),
       }));
     }
     $("nSave").disabled = false;
@@ -466,7 +471,7 @@ function studentsHtml(data, seen) {
   }).join("");
   const students = data.students.map((s) => {
     const counts = OV_COUNTS.filter(([k]) => s[k] > 0).map(([k, label]) => `${label} ${s[k]}`);
-    return `<div class="adm-row">
+    return `<div class="adm-row${s.student_id ? " click" : ""}"${s.student_id ? ` data-stucal="${s.student_id}" title="이 학생 달력 보기"` : ""}>
       <div class="adm-row-top"><b>${ovWho(s)}</b>${s.location ? `<span>📍 ${esc(s.location)}</span>` : ""}</div>
       <div class="adm-row-sub">${counts.length ? counts.join(" · ") : "아직 활동 없음"}</div>
       <div class="adm-row-sub dim">마지막 로그인 ${esc(ovTime(s.last_login))}</div>
@@ -941,6 +946,13 @@ function paintOverview(res) {
   };
   body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => showPane(b.dataset.ovpane));
   ovShow = showPane;
+  // 학생을 누르면 학교 일정 달력을 그 학생 기준으로
+  body.querySelectorAll("[data-stucal]").forEach((r) => r.onclick = () => {
+    calStudent = +r.dataset.stucal;
+    calMonth = null;
+    schPref.view = "cal";
+    openPage("school");
+  });
   renderNav();
   if ($("btnAsg")) $("btnAsg").onclick = () => openAsgForm(null);
   body.querySelectorAll("[data-gopane]").forEach((b) => b.onclick = () => { showPane(b.dataset.gopane); scrollTo({ top: 0, behavior: "smooth" }); });
@@ -1082,10 +1094,12 @@ const SCH_PREF = "dshs42-admin-school";
 let schPref = (() => { try { return { past: false, grades: false, ...JSON.parse(localStorage.getItem(SCH_PREF) || "{}") }; } catch { return { past: false, grades: false }; } })();
 
 async function renderSchool() {
-  const [ok] = await Promise.all([loadSchool(), loadAcademic()]);
+  const cal = schPref.view === "cal";
+  const [ok] = await Promise.all([loadSchool(), loadAcademic(), cal ? loadCalAsg() : null]);
   const body = $("studyBody");
   if (page !== "school" || !body) return;
   if (!ok) { body.innerHTML = '<div class="adm-none">학교 일정을 불러오지 못했어요.</div>'; return; }
+  if (cal) return renderSchoolCal(body);
   const today = dayKey(new Date());
   const g = String(GRADE);
   const replaced = new Set(cache.school.map((x) => x.neis_key).filter(Boolean));
@@ -1129,7 +1143,7 @@ async function renderSchool() {
       <span class="sch-main"><span class="sch-title">${esc(it.title)}</span><span class="sch-chips">${chips.join("")}</span></span>
     </button>`;
   };
-  body.innerHTML = `<div class="sch-tools">
+  body.innerHTML = `${schViewSeg()}<div class="sch-tools">
       <label><input type="checkbox" id="schPast"${schPref.past ? " checked" : ""}> 지난 일정도 보기</label>
       <label><input type="checkbox" id="schGrades"${schPref.grades ? " checked" : ""}> 다른 학년 일정도 보기</label>
       <span>${items.length}개</span>
@@ -1138,15 +1152,170 @@ async function renderSchool() {
       || '<div class="adm-none">보여 줄 학교 일정이 없어요.</div>'}
     <div class="adm-foot">NEIS 는 학교 홈페이지 학사일정이에요 (매일 자동으로 받아 와요). 여기서 고치거나 숨기면 이 사이트의 학생 달력에만 반영되고 원본은 그대로예요.
       학생 달력에는 ${GRADE}학년 일정만 보여요. 숨긴 일정은 흐리게 남아 있어 눌러서 되돌릴 수 있어요.</div>`;
-  const savePref = () => { try { localStorage.setItem(SCH_PREF, JSON.stringify(schPref)); } catch {} };
-  $("schPast").onchange = () => { schPref.past = $("schPast").checked; savePref(); renderSchool(); };
-  $("schGrades").onchange = () => { schPref.grades = $("schGrades").checked; savePref(); renderSchool(); };
+  bindSchView(body);
+  $("schPast").onchange = () => { schPref.past = $("schPast").checked; saveSchPref(); renderSchool(); };
+  $("schGrades").onchange = () => { schPref.grades = $("schGrades").checked; saveSchPref(); renderSchool(); };
   body.querySelectorAll("[data-sopen]").forEach((b) => b.onclick = () => {
     const [kind, id] = b.dataset.sopen.split(":");
     if (kind === "sch") openSchoolForm(cache.school.find((x) => x.id === id));
     else openSchoolForm(neisDraft(acadList.find((x) => x.id === id)));
   });
 }
+
+// ---------- 학교 일정 달력 ----------
+// 학교 일정(직접 추가 · NEIS) + 수행평가(마감일)를 달 단위로 봅니다. 날짜를 누르면 그날 목록과 '+ 학교 일정 / + 수행평가'.
+// 학생을 고르면 그 학생 달력에 보이는 공용 일정만 남깁니다: 대상에 든 학교 일정 · 그 학년 NEIS · 듣는 과목 분반의 수행평가 (+ 완료 표시).
+// 개인 일정 · 할 일은 보여 주지 않습니다 (본인만 보는 내용).
+let calAsg = [];
+let calStudent = null;      // 고른 학생 학번 (없으면 전체)
+let calDone = new Set();    // 고른 학생이 완료 표시한 수행평가 id (admin_student_done)
+let calMonth = null;        // "YYYY-MM"
+async function loadCalAsg() {
+  const { data, error } = await sb.from("assignments")
+    .select("id, subject, ban, title, body, due_at, submit_to, status, created_at, created_by, author_name")
+    .neq("status", "rejected").not("due_at", "is", null).order("due_at");
+  if (!error) calAsg = data;
+  calDone = new Set();
+  if (calStudent) {
+    const { data: done } = await sb.rpc("admin_student_done", { p_student_id: calStudent });
+    calDone = new Set(done || []);
+  }
+}
+const CAT_COLOR = { home: "#4caf7d", exam: "#ff6b6d", break: "#5aa9ff", holiday: "#f0a43a", club: "#b58cff", event: "#8888aa" };
+
+// 그 학생에게 보이는 일정인지
+function calVisible(it, stu) {
+  if (!stu) return true;
+  if (it.kind === "asg") {
+    const ban = stu.classes[it.a.subject];
+    return ban !== undefined && (!it.a.ban || it.a.ban === ban);
+  }
+  if (it.kind === "acad") return !it.grades || it.grades.includes(String(Math.floor(stu.sid / 1000)));
+  if (it.e.hidden) return false;
+  if (it.e.audience === "some") return schoolTargets(it.e).includes(stu.sid);
+  return !it.grades || it.grades.includes(String(Math.floor(stu.sid / 1000)));
+}
+
+function calItems() {
+  const replaced = new Set(cache.school.map((x) => x.neis_key).filter(Boolean));
+  return [
+    ...cache.school.map((e) => {
+      const s = new Date(e.starts_at), en = e.ends_at ? new Date(e.ends_at) : s;
+      return { kind: "sch", e, id: e.id, start: dayKey(s), end: dayKey(en), title: e.title, cat: e.category || "event",
+        grades: e.neis_key ? e.neis_key.split("|").pop() : null };
+    }),
+    ...(acadList || []).filter((a) => a.name !== "토요휴업일" && !replaced.has(a.key)).map((a) => ({
+      kind: "acad", a, id: a.id, start: a.start, end: a.end, title: a.name, cat: a.cat, grades: a.grades.join(""),
+    })),
+    ...(schPref.asg === false ? [] : calAsg.map((a) => {
+      const k = dayKey(new Date(a.due_at));
+      return { kind: "asg", a, id: a.id, start: k, end: k, title: `${a.subject} ${a.title}` };
+    })),
+  ];
+}
+
+function renderSchoolCal(body) {
+  const today = dayKey(new Date());
+  calMonth ||= today.slice(0, 7);
+  const [y, m] = calMonth.split("-").map(Number);
+  const first = new Date(y, m - 1, 1);
+  const gridStart = new Date(y, m - 1, 1 - first.getDay());
+  const days = Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
+  const lastRow = days.findLastIndex((d) => d.getMonth() === m - 1);
+  const shown = days.slice(0, Math.ceil((lastRow + 1) / 7) * 7);
+  const stu = calStudent ? roster().find((p) => p.sid === calStudent) : null;
+  const g = String(GRADE);
+  const items = calItems().filter((it) => calVisible(it, stu))
+    .filter((it) => stu || schPref.grades || !it.grades || it.grades.includes(g));
+  const on = (key) => items.filter((it) => it.start <= key && key <= it.end)
+    .sort((a, b) => (a.kind === "asg") - (b.kind === "asg") || a.title.localeCompare(b.title, "ko"));
+  const chip = (it) => {
+    const done = it.kind === "asg" && calDone.has(it.id);
+    const color = it.kind === "asg" ? "var(--accent1)" : CAT_COLOR[it.cat] || CAT_COLOR.event;
+    const dim = (it.kind === "sch" && it.e.hidden) || it.a?.status === "pending" || done;
+    return `<span class="acal-chip${it.kind === "asg" ? " asg" : ""}${dim ? " dim" : ""}" style="--c:${color}" data-copen="${it.kind}:${it.id}" title="${esc(it.title)}">${done ? "✓ " : ""}${esc(it.title)}</span>`;
+  };
+  const cell = (d) => {
+    const key = dayKey(d), list = on(key);
+    const cls = [d.getMonth() !== m - 1 ? "out" : "", key === today ? "today" : "", d.getDay() === 0 ? "sun" : d.getDay() === 6 ? "sat" : ""].join(" ");
+    return `<div class="acal-cell ${cls}" data-cday="${key}"><span class="acal-d">${d.getDate()}</span>
+      ${list.slice(0, 3).map(chip).join("")}${list.length > 3 ? `<span class="acal-more">+${list.length - 3}</span>` : ""}</div>`;
+  };
+  const people = roster();
+  const asgCount = stu ? items.filter((it) => it.kind === "asg" && it.start.startsWith(calMonth)).length : 0;
+  const doneCount = stu ? items.filter((it) => it.kind === "asg" && it.start.startsWith(calMonth) && calDone.has(it.id)).length : 0;
+  body.innerHTML = `${schViewSeg()}
+    <div class="acal-bar">
+      <button class="study-btn small" data-cmove="-1" aria-label="지난달">‹</button>
+      <b class="acal-title">${y}년 ${m}월</b>
+      <button class="study-btn small" data-cmove="1" aria-label="다음달">›</button>
+      <button class="study-btn small" data-cmove="0">오늘</button>
+      <select class="study-input acal-stu" id="calStu" aria-label="학생 고르기">
+        <option value="">모든 일정 (학생 고르기)</option>
+        ${people.map((p) => `<option value="${p.sid}"${p.sid === calStudent ? " selected" : ""}>${p.sid} ${esc(p.name)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="sch-tools">
+      <label><input type="checkbox" id="calAsgOn"${schPref.asg === false ? "" : " checked"}> 수행평가도 보기</label>
+      ${stu ? "" : `<label><input type="checkbox" id="schGrades"${schPref.grades ? " checked" : ""}> 다른 학년 일정도 보기</label>`}
+      ${stu ? `<span>${esc(stu.name)} 달력 · 이달 수행평가 ${asgCount}개 중 완료 ${doneCount}개</span>` : ""}
+    </div>
+    <div class="acal">
+      ${["일", "월", "화", "수", "목", "금", "토"].map((w, i) => `<div class="acal-w${i === 0 ? " sun" : i === 6 ? " sat" : ""}">${w}</div>`).join("")}
+      ${shown.map(cell).join("")}
+    </div>
+    <div class="acal-legend">${ACAD_CATS.map(([k, label]) => `<span style="--c:${CAT_COLOR[k]}">${label}</span>`).join("")}<span style="--c:var(--accent1)">수행평가</span></div>
+    <div class="adm-foot">날짜를 누르면 그날 일정을 보고 학교 일정 · 수행평가를 추가할 수 있어요. 흐린 것은 숨긴 일정 · 승인 전 수행평가${stu ? " · 완료한 수행평가" : ""}예요.
+      ${stu ? "학생을 고르면 그 학생 달력에 보이는 공용 일정만 보여요 (개인 일정 · 할 일은 보이지 않아요)." : ""}</div>`;
+  bindSchView(body);
+  body.querySelectorAll("[data-cmove]").forEach((b) => b.onclick = () => {
+    const n = +b.dataset.cmove;
+    const d = n ? new Date(y, m - 1 + n, 1) : new Date();
+    calMonth = dayKey(d).slice(0, 7);
+    renderSchoolCal(body);
+  });
+  $("calStu").onchange = async () => {
+    calStudent = +$("calStu").value || null;
+    await loadCalAsg();
+    renderSchoolCal(body);
+  };
+  $("calAsgOn").onchange = () => { schPref.asg = $("calAsgOn").checked; saveSchPref(); renderSchoolCal(body); };
+  if ($("schGrades")) $("schGrades").onchange = () => { schPref.grades = $("schGrades").checked; saveSchPref(); renderSchoolCal(body); };
+  const open = (kindId) => {
+    const [kind, id] = kindId.split(":");
+    if (kind === "sch") openSchoolForm(cache.school.find((x) => x.id === id));
+    else if (kind === "acad") openSchoolForm(neisDraft(acadList.find((x) => x.id === id)));
+    else openAsgForm(calAsg.find((x) => x.id === id));
+  };
+  body.querySelectorAll("[data-copen]").forEach((c) => c.onclick = (e) => { e.stopPropagation(); open(c.dataset.copen); });
+  body.querySelectorAll("[data-cday]").forEach((c) => c.onclick = () => {
+    const key = c.dataset.cday, list = on(key);
+    openSheet(dayTitle(key), `
+      ${list.map((it) => `<button class="sch-row" data-copen="${it.kind}:${it.id}">
+        <span class="acal-dot" style="--c:${it.kind === "asg" ? "var(--accent1)" : CAT_COLOR[it.cat] || CAT_COLOR.event}"></span>
+        <span class="sch-main"><span class="sch-title">${it.kind === "asg" && calDone.has(it.id) ? "✓ " : ""}${esc(it.title)}</span>
+        <span class="sch-chips"><span class="adm-chip">${it.kind === "asg" ? `수행평가 · ${esc(banLabel(it.a.ban))}${it.a.status === "pending" ? " · 승인 전" : ""}` : `${catLabel(it.cat)}${it.kind === "acad" ? " · NEIS" : ""}`}</span></span></span>
+      </button>`).join("") || '<div class="adm-none">이날은 일정이 없어요.</div>'}
+      <div class="acal-add"><button class="study-submit" id="cAddSch">+ 학교 일정</button><button class="study-submit" id="cAddAsg">+ 수행평가</button></div>`);
+    const m2 = $("studyModal");
+    m2.querySelectorAll("[data-copen]").forEach((b) => b.onclick = () => open(b.dataset.copen));
+    $("cAddSch").onclick = () => openSchoolForm(null, { start: new Date(`${key}T09:00`), allDay: true });
+    $("cAddAsg").onclick = () => openAsgForm(null, key);
+  });
+}
+
+// 목록 · 달력 고르기
+const schViewSeg = () => `<div class="adm-sub acal-view">${[["list", "목록"], ["cal", "달력"]].map(([k, label]) =>
+  `<button class="${(schPref.view || "list") === k ? "on" : ""}" data-sview="${k}">${label}</button>`).join("")}</div>`;
+function bindSchView(body) {
+  body.querySelectorAll("[data-sview]").forEach((b) => b.onclick = () => {
+    if ((schPref.view || "list") === b.dataset.sview) return;
+    schPref.view = b.dataset.sview;
+    saveSchPref();
+    renderSchool();
+  });
+}
+const saveSchPref = () => { try { localStorage.setItem(SCH_PREF, JSON.stringify(schPref)); } catch {} };
 
 // 그룹: 자주 쓰는 대상(학번 목록)을 이름 붙여 저장합니다 (groups.sql). 관리자 그룹은 관리자끼리 함께 써요.
 function mountGroups(boxId, getSids, addSids) {

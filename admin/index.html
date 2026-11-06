@@ -74,6 +74,38 @@
     .adm-bar > span { display: none; }
     .adm-bar { justify-content: flex-end; }
   }
+  /* 학교 일정 달력 */
+  .acal-view { margin: 0 0 12px; }
+  .acal-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .acal-bar .study-btn { margin: 0; min-width: 36px; }
+  .acal-title { font-size: 17px; font-weight: 800; padding: 0 6px; white-space: nowrap; }
+  .acal-stu { width: auto; min-width: 180px; margin: 0 0 0 auto; padding: 8px 10px; font-size: 13.5px; }
+  .acal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .acal-w { padding: 4px 0; text-align: center; font-size: 12px; font-weight: 700; color: var(--text-dim); }
+  .acal-w.sun, .acal-cell.sun .acal-d { color: #ff6b6d; }
+  .acal-w.sat, .acal-cell.sat .acal-d { color: #5aa9ff; }
+  .acal-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 92px; padding: 5px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; overflow: hidden; }
+  .acal-cell:hover { border-color: var(--accent1); }
+  .acal-cell.out { opacity: 0.4; }
+  .acal-cell.today { box-shadow: inset 0 0 0 2px var(--accent1); }
+  .acal-d { font-size: 12px; font-weight: 700; margin-bottom: 1px; }
+  .acal-chip { display: block; padding: 1px 5px; border-radius: 5px; border-left: 3px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); font-size: 11px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .acal-chip:hover { background: color-mix(in srgb, var(--c) 32%, transparent); }
+  .acal-chip.dim { opacity: 0.45; }
+  .acal-more { font-size: 10.5px; color: var(--text-dim); padding-left: 4px; }
+  .acal-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 2px 0; font-size: 12px; color: var(--text-dim); }
+  .acal-legend span::before, .acal-dot { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: var(--c); vertical-align: middle; }
+  .acal-dot { flex: none; margin-top: 6px; }
+  .acal-add { display: flex; gap: 8px; margin-top: 12px; }
+  .acal-add .study-submit { flex: 1; margin-top: 0; }
+  .adm-row.click { cursor: pointer; }
+  .adm-row.click:hover b { color: var(--accent1); }
+  @media (max-width: 560px) {
+    .acal { gap: 2px; }
+    .acal-cell { min-height: 64px; padding: 3px 2px; border-radius: 7px; }
+    .acal-chip { padding: 0 3px; font-size: 9.5px; border-left-width: 2px; }
+    .acal-stu { min-width: 0; width: 100%; margin: 4px 0 0; }
+  }
   .adm-log-row.click { cursor: pointer; }
   .adm-log-row.click:hover b { color: var(--accent1); }
   @media (max-width: 640px) {

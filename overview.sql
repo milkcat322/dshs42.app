@@ -83,3 +83,18 @@ end $$;
 
 revoke execute on function public.admin_overview() from public, anon;
 grant  execute on function public.admin_overview() to authenticated;
+
+-- 관리자 사이트 학교 일정 달력에서 학생을 고르면, 그 학생이 완료 표시한 수행평가 id 만 돌려줍니다 (제목 · 개인 내용 없음).
+create or replace function public.admin_student_done(p_student_id integer)
+returns setof uuid language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin_user(auth.uid()) then
+    raise exception 'admin only';
+  end if;
+  return query
+    select d.assignment_id from public.assignment_done d
+      join public.profiles p on p.id = d.user_id
+     where p.student_id = p_student_id;
+end $$;
+revoke execute on function public.admin_student_done(integer) from public, anon;
+grant  execute on function public.admin_student_done(integer) to authenticated;
