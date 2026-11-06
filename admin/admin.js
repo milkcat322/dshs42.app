@@ -667,21 +667,6 @@ const DEV_GUIDE = `<details class="adm-acc"><summary>제안을 승인하면 생�
   "<b>확인</b> — 수정 요청(메모, 최대 3번) → 같은 브랜치에서 다시 제작 · 최종 승인 → main 에 합쳐 beta 배포 + '반영됨' 알림 · 버리기 → 브랜치 삭제.",
   "<b>사람 손 필요</b> — DB 를 바꿔야 하거나 합치다 충돌하면 멈추고 알려요.",
 ])}</details>`;
-// 관리 탭 맨 아래 기능 안내 (기능을 더하면 여기에도 한 줄)
-const ADMIN_GUIDE = `<details class="adm-acc"><summary>관리자 사이트 기능 안내</summary>${ol([
-  "<b>맨 위 요약</b> — 승인 대기 · 새 피드백 · 확인할 제작 · 마지막 점검. 누르면 그 칸으로 가요.",
-  "<b>승인</b> — 학생이 올린 수행평가 공지 승인 · 반려 · 수정, 같은 수행평가 합치기, 처리 기록.",
-  "<b>피드백</b> — 학생이 보낸 피드백(스크린샷 포함)을 보고 지워요.",
-  "<b>학생</b> — 오늘 로그인한 학생 · 방문 기기 수 · 학생별 사용 현황과 제안.",
-  "<b>리포트 › 점검</b> — 하루 5번 서버가 사이트 · 알림 · 승인 대기를 점검한 보고서와 AI 피드백 요약.",
-  "<b>리포트 › 분석</b> — 매일 밤 10시 노트북 Claude 의 사용 분석. 제안은 '계획에 넣기' · '제작 맡기기'로.",
-  "<b>리포트 › 알림 기록</b> — 관리자 기기로 보낸 알림(새 활동 · 점검 · 분석 · 제작)과 받은 기기 수.",
-  "<b>개발 › 제작</b> — Claude 에게 맡긴 작업의 초안 · 승인 · 미리보기 · 수정 요청 · 최종 승인.",
-  "<b>개발 › 계획</b> — 반민지 · 진주빈 할 일 목록. 🛠 를 누르면 그 계획이 제작 초안이 돼요.",
-  "<b>수행평가 공지 올리기</b> — 관리자 공지는 승인 없이 바로 올라가요.",
-  "<b>학교 일정 탭</b> — 학교 일정 추가 · 수정 · 숨기기, NEIS 학사일정 고치기.",
-  "<b>설정</b> — 이 기기 알림 켜기, 이 기기 등록 해제.",
-])}</details>`;
 function devHtml(tasks) {
   if (!tasks) return '<div class="adm-none">제작 목록을 불러오지 못했어요. agenttasks.sql 을 실행했는지 확인해 주세요.</div>';
   const chip = (t) => `<span class="${DEV_HOT.has(t.status) ? "fb-new" : "adm-chip"}">${DEV_LABEL[t.status]}</span>`;
@@ -877,7 +862,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
   const nOps = ops?.[0]?.issues ?? 0, nPlan = plans?.filter((p) => !p.done).length ?? 0;
   const badge = (n, hot) => n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : "";
   const group = OV_GROUP[pane];
-  const groups = [["asg", "승인", badge(nAsg, true)], ["fb", "피드백", badge(fresh.length, true)], ["stu", "학생", badge(overview?.students.length ?? 0, false)],
+  const groups = [["asg", "승인 · 피드백", badge(nAsg + fresh.length, true)], ["stu", "학생", badge(overview?.students.length ?? 0, false)],
     ["rep", "리포트", badge(nOps, true)], ["lab", "개발", badge(nDev, true) || badge(nPlan, false)]];
   const subs = { rep: [["ops", "점검", badge(nOps, true)], ["use", "분석", ""], ["push", "알림 기록", ""]],
     lab: [["dev", "제작", badge(nDev, true)], ["plan", "계획", badge(nPlan, false)]] };
@@ -888,29 +873,31 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
   return `<div class="adm-sum">${sum.map(([k, n, label]) =>
       `<button class="${typeof n === "number" && n ? "hot" : ""}" data-ovpane="${k}"><b>${n}</b><span>${esc(label)}</span></button>`).join("")}</div>
-    <div class="adm-seg five">${groups.map(([g, label, b]) =>
+    <div class="adm-seg four">${groups.map(([g, label, b]) =>
       `<button class="${group === g ? "on" : ""}" data-ovgroup="${g}">${label}${b}</button>`).join("")}</div>
     ${Object.entries(subs).map(([g, xs]) => `<div class="adm-sub" data-subof="${g}"${group === g ? "" : " hidden"}>${xs.map(([k, label, b]) =>
       `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${b}</button>`).join("")}</div>`).join("")}
-    ${box("asg", mergeHtml(log) + (pending.length ? `${log?.open.length ? '<div class="adm-label">승인 대기</div>' : ""}${pending.map(card).join("")}`
-      : '<div class="adm-none">승인 대기 중인 수행평가가 없어요.</div>') + reviewLogHtml(log))}
-    ${box("fb", fb.error ? '<div class="adm-none">피드백을 불러오지 못했어요.</div>'
-      : (rows.length ? fbHtml(fresh, true) + (old.length ? `${fresh.length ? '<div class="adm-label">지난 피드백</div>' : ""}${fbHtml(old, false)}` : "")
-        : '<div class="adm-none">아직 받은 피드백이 없어요.</div>'))}
+    ${box("asg", mergeHtml(log)
+      + `<div class="adm-label">승인 대기${pending.length ? ` ${pending.length}` : ""}</div>`
+      + (pending.length ? pending.map(card).join("") : '<div class="adm-empty">승인 대기 중인 수행평가가 없어요.</div>')
+      + `<div class="adm-label" id="fbSec">새 피드백${fresh.length ? ` ${fresh.length}` : ""}</div>`
+      + (fb.error ? '<div class="adm-empty">피드백을 불러오지 못했어요.</div>'
+        : fresh.length ? fbHtml(fresh, true) : '<div class="adm-empty">새 피드백이 없어요.</div>')
+      + reviewLogHtml(log)
+      + (old.length ? `<details class="adm-acc"><summary>지난 피드백<span>${old.length}</span></summary>${fbHtml(old, false)}</details>` : ""))}
     ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
     ${box("plan", plansHtml(plans, tasks))}
     ${box("ops", opsHtml(ops))}
     ${box("use", usageHtml(usage, plans, tasks))}
     ${box("dev", devHtml(tasks))}
-    ${box("push", pushLogHtml(pushes))}
-    ${ADMIN_GUIDE}`;
+    ${box("push", pushLogHtml(pushes))}`;
 }
 
 let ovSeen, fbSeen, ovPane;   // 처음 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
 // 관리 탭은 5칸(승인 · 피드백 · 학생 · 리포트 · 개발)이고, 리포트 · 개발은 안에서 작은 칸으로 나뉩니다.
 // ovPane 은 실제 칸(asg · fb · stu · ops · use · push · dev · plan), OV_GROUP 은 그 칸이 속한 큰 칸입니다. 알림의 ?pane= 도 실제 칸 이름.
-const OV_GROUP = { asg: "asg", fb: "fb", stu: "stu", ops: "rep", use: "rep", push: "rep", dev: "lab", plan: "lab" };
-const ovSubLast = { asg: "asg", fb: "fb", stu: "stu", rep: "ops", lab: "dev" };   // 큰 칸을 누르면 그 안에서 마지막으로 본 칸
+const OV_GROUP = { asg: "asg", fb: "asg", stu: "stu", ops: "rep", use: "rep", push: "rep", dev: "lab", plan: "lab" };
+const ovSubLast = { asg: "asg", stu: "stu", rep: "ops", lab: "dev" };   // 큰 칸을 누르면 그 안에서 마지막으로 본 칸
 let ovLast = null;
 // cached: 탭을 눌러 들어온 경우 앞서 받은 관리 화면을 먼저 그리고 새로 받습니다
 async function renderOverview(cached = false) {
@@ -940,9 +927,10 @@ function paintOverview(res) {
   const pending = cache.pending || [];
   logRows = log?.reviewed || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
-  ovPane ||= !pending.length && !log?.open.length && fb.rows?.some((f) => Date.parse(f.created_at) > fbSeen) ? "fb" : "asg";
+  if (!ovPane || ovPane === "fb") ovPane = "asg";   // 피드백은 승인 칸 안에 있습니다
   body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data, log, usage.error ? null : usage.data, pushes.error ? null : pushes.data, tasks.error ? null : tasks.data);
   const showPane = (k) => {
+    if (k === "fb") { showPane("asg"); return $("fbSec")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
     ovPane = k;
     const g = OV_GROUP[k];
     ovSubLast[g] = k;
