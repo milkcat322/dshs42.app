@@ -396,6 +396,57 @@ function openMyTimetable() {
   paintStatus();
   $("result").classList.add("show");
   renderNav();
+  maybePushCard();
+}
+
+// ---------- 마감 알림 받기 카드 ----------
+// 알림을 아직 안 켠 기기에 한 번 알려 줍니다. 허락 창은 '알림 받기' 버튼을 누른 뒤에만 뜹니다.
+// 기억: localStorage 'dshs-push-card' = {n: 닫은 횟수, at: 마지막으로 닫은 시각} 또는 {done: true}
+const PUSH_CARD = "dshs-push-card";
+const PUSH_CARD_WAIT = 3 * 86400000;   // '나중에' 뒤 다시 보여 주기까지
+function pushCardState() {
+  try { return JSON.parse(localStorage.getItem(PUSH_CARD)) || {}; } catch { return {}; }
+}
+function pushCardSave(s) { try { localStorage.setItem(PUSH_CARD, JSON.stringify(s)); } catch {} }
+
+async function maybePushCard() {
+  if (!me || !pushPossible() || !pushWanted()) return;
+  if (!("Notification" in window) || Notification.permission !== "default") return;
+  const st = pushCardState();
+  if (st.done || st.n >= 2) return;
+  if (st.n === 1 && Date.now() - (st.at || 0) < PUSH_CARD_WAIT) return;
+  await refreshPush().catch(() => {});
+  if (pushOn || Notification.permission !== "default") return;
+  const anchor = $("myStatus");
+  if (!anchor || $("pushCard")) return;   // 그 사이 화면이 바뀐 경우
+  anchor.insertAdjacentHTML("afterend",
+    '<div class="my-status" id="pushCard"><span id="pushCardMsg">🔔 수행평가 마감 1일 · 6시간 전에 알려 드릴까요?</span>' +
+    '<span style="margin-left:auto;display:flex;gap:6px"><button class="study-btn" id="pushCardYes">알림 받기</button>' +
+    '<button class="study-btn" id="pushCardLater">나중에</button></span></div>');
+  $("pushCardLater").onclick = () => {
+    pushCardSave({ n: (st.n || 0) + 1, at: Date.now() });
+    $("pushCard")?.remove();
+  };
+  $("pushCardYes").onclick = async () => {
+    const card = $("pushCard");
+    const finish = (msg, ms) => {
+      if (!card.isConnected) return;
+      card.textContent = msg;
+      setTimeout(() => card.remove(), ms);
+    };
+    $("pushCardYes").disabled = true;
+    try { await enablePush(); } catch {}
+    if (pushOn) {
+      try { localStorage.setItem(PUSH_PREF, "on"); } catch {}
+      pushCardSave({ done: true });
+      finish("🔔 알림이 켜졌어요", 2500);
+    } else if (Notification.permission === "denied") {
+      pushCardSave({ done: true });
+      finish("브라우저 설정에서 알림을 허용해야 해요", 6000);
+    } else {
+      $("pushCardYes").disabled = false;   // 허락 창을 그냥 닫은 경우 등: 카드는 그대로
+    }
+  };
 }
 
 // ---------- 내 위치 ----------
