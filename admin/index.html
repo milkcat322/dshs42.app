@@ -51,7 +51,9 @@
   .adm-sum button.hot { border-color: rgba(255,77,79,0.55); background: rgba(255,77,79,0.08); }
   .adm-sum button.hot b { color: #ff6b6d; }
   .adm-sum span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .adm-seg.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .adm-seg.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .adm-empty { padding: 14px; margin-bottom: 6px; text-align: center; font-size: 13px; color: var(--text-dim); background: var(--card); border: 1px dashed var(--border); border-radius: 12px; }
+  #fbSec { scroll-margin-top: 16px; }
   .adm-sub { display: flex; gap: 6px; margin: -6px 0 14px; padding: 0 2px; }
   .adm-sub[hidden] { display: none; }
   .adm-sub button { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; background: none; border: 1px solid var(--border); border-radius: 999px; color: var(--text-dim); font: 600 13px 'Noto Sans KR', sans-serif; cursor: pointer; }
@@ -61,9 +63,9 @@
   .adm-field { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font: inherit; font-size: 14px; }
   .adm-field:focus { outline: none; border-color: var(--accent1); }
   @media (max-width: 480px) {
-    .adm-seg.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .adm-seg.five button { font-size: 12.5px; gap: 3px; padding: 0 2px; }
-    .adm-seg.five span { min-width: 16px; padding: 0 3px; font-size: 10.5px; line-height: 17px; }
+    .adm-seg.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .adm-seg.four button { font-size: 12.5px; gap: 3px; padding: 0 2px; }
+    .adm-seg.four span { min-width: 16px; padding: 0 3px; font-size: 10.5px; line-height: 17px; }
     .adm-sum { gap: 6px; }
     .adm-sum button { padding: 10px 2px; font-size: 11px; }
     .adm-sum b { font-size: 18px; }
