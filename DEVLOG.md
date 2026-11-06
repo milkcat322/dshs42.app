@@ -2355,29 +2355,28 @@ sw.js
 
 <!-- flow: - **2026-11-06** 관리자 사이트 'Claude 제작 맡기기' 1단계: 작업 표(agent_tasks)·build-agent 서버 함수·'제작' 칸·노트북 확인 스크립트를 만들어 beta에 올림(관리자 사이트 배포는 저장소 권한 문제로 대기) -->
 
-## 2026-11-06 · Netlify beta 프로젝트 Branch deploys 켜는 방법 안내
+## 2026-11-06 · Netlify beta Branch deploys 켜기 안내
 
-`session d7cd29b5` · 개발 sxcrxta · 요청 1회
+`session d7cd29b5` · 개발 sxcrxta · 요청 4회
 
 ### 목표
-- Claude 제작 맡기기에서 만드는 브랜치를 미리 볼 수 있도록 Netlify beta 프로젝트의 Branch deploys 켜는 방법 확인
+- 제작 에이전트가 만드는 `agent-<번호>` 브랜치를 미리보기로 볼 수 있게 Netlify beta 프로젝트의 Branch deploys를 켠다.
 
 ### 한 일
-- Netlify 화면에서 Branch deploys를 켜는 순서 안내 (Build & deploy → Continuous deployment → Branches and deploy contexts)
-- 켠 뒤 브랜치별 미리보기 주소 형식과 확인 방법 안내
-- 저장소 안에 관련 설명이 있는지 검색
+- Netlify 화면에서 Branch deploys를 켜는 순서를 안내했다.
+- 스크린샷을 보고 막힌 단계(Branches and deploy contexts → Configure)를 다시 짚어 줬다.
+- 설정 후 화면에서 "Deploy all branches pushed to the repository"로 켜진 것을 확인했다.
 
 ### 결정과 이유
-- Branch deploys는 All로 두는 방식을 추천: 제작 에이전트가 `agent-<번호>` 브랜치를 매번 새로 만들어서, 브랜치를 하나씩 등록하는 방식은 맞지 않음
-- 이번 세션의 변경은 올리지 않음: Build agent 기능이 아직 1단계라 개발 중이기 때문
+- Branch deploys를 **All**로 선택: 에이전트가 `agent-<번호>` 브랜치를 매번 새로 만들어서, 번호마다 따로 등록하는 방식은 맞지 않는다.
 
 ### 남은 일
-- [ ] Netlify 화면에서 Branch deploys를 All로 설정 (직접 해야 함)
-- [ ] 제작 에이전트가 관리자에게 보내는 알림에 브랜치 미리보기 주소 넣기
+- [ ] 제작 에이전트 2단계에서 관리자 알림에 브랜치 미리보기 주소(`<브랜치이름>--dshs42-beta.netlify.app`)를 넣는다.
 
 ### 배운 점
-- 브랜치 미리보기도 beta와 같은 `config.js`를 쓰므로 실제 서비스 DB에 연결됨 (테스트 데이터는 지워야 함)
-- `/`가 들어간 브랜치 이름은 미리보기 주소에서 `-`로 바뀜
+- 브랜치 미리보기도 beta와 같은 실제 서비스 DB에 연결되므로, 테스트 데이터를 만들면 지워야 한다.
+- `/`가 들어간 브랜치 이름은 미리보기 주소에서 `-`로 바뀐다.
+- All로 두면 팀원의 `feature/…` 브랜치도 모두 배포된다.
 
 ### 바뀐 파일
 - `CLAUDE.md`
