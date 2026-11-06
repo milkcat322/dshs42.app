@@ -654,6 +654,31 @@ const DEV_LABEL = {
 };
 const DEV_HOT = new Set(["review", "failed", "needs_human"]);
 const DEV_MAX = 3;
+const ol = (xs) => `<ol class="adm-ops-list info">${xs.map((x) => `<li>${x}</li>`).join("")}</ol>`;
+const DEV_GUIDE = `<details class="adm-acc"><summary>제안을 승인하면 생기는 일</summary>${ol([
+  "<b>제안</b> — 분석 칸의 '🛠 제작 맡기기' 또는 아래에 직접 적으면 초안이 생겨요.",
+  "<b>초안 고치기 → 제작 승인</b> — 제목과 Claude 에게 줄 지시를 고친 뒤 승인해요.",
+  "<b>노트북이 받아 감</b> — 10분 안에 관리자 노트북이 가져가요 ('제작 중'). 노트북이 꺼져 있으면 켜질 때 해요.",
+  "<b>Claude 가 제작</b> — 따로 둔 폴더의 <code>agent-번호</code> 브랜치에서 고치고 문법을 확인해 올려요. main 은 건드리지 않아요.",
+  "<b>미리보기</b> — 그 브랜치만 <code>agent-번호--dshs42-beta.netlify.app</code> 에 배포돼요. 학생이 쓰는 beta 는 그대로예요.",
+  "<b>알림</b> — '🛠 미리보기 준비됨' 알림이 오고, 여기에 요약과 미리보기 링크가 떠요.",
+  "<b>확인</b> — 수정 요청(메모, 최대 3번) → 같은 브랜치에서 다시 제작 · 최종 승인 → main 에 합쳐 beta 배포 + '반영됨' 알림 · 버리기 → 브랜치 삭제.",
+  "<b>사람 손 필요</b> — DB 를 바꿔야 하거나 합치다 충돌하면 멈추고 알려요.",
+])}</details>`;
+// 관리 탭 맨 아래 기능 안내 (기능을 더하면 여기에도 한 줄)
+const ADMIN_GUIDE = `<details class="adm-acc"><summary>관리자 사이트 기능 안내</summary>${ol([
+  "<b>승인</b> — 학생이 올린 수행평가 공지 승인 · 반려 · 수정, 같은 수행평가 합치기, 처리 기록.",
+  "<b>피드백</b> — 학생이 보낸 피드백(스크린샷 포함)을 보고 지워요.",
+  "<b>학생</b> — 오늘 로그인한 학생 · 방문 기기 수 · 학생별 사용 현황과 제안.",
+  "<b>계획</b> — 반민지 · 진주빈 할 일 목록 추가 · 체크 · 수정 · 삭제.",
+  "<b>점검</b> — 하루 5번 서버가 사이트 · 알림 · 승인 대기를 점검한 보고서와 AI 피드백 요약.",
+  "<b>분석</b> — 매일 밤 10시 노트북 Claude 의 사용 분석. 제안은 '계획에 넣기' · '제작 맡기기'로.",
+  "<b>제작</b> — Claude 에게 맡긴 작업의 초안 · 승인 · 미리보기 · 수정 요청 · 최종 승인.",
+  "<b>알림</b> — 관리자 기기로 보낸 알림(새 활동 · 점검 · 분석 · 제작) 기록과 받은 기기 수.",
+  "<b>수행평가 공지 올리기</b> — 관리자 공지는 승인 없이 바로 올라가요.",
+  "<b>학교 일정 탭</b> — 학교 일정 추가 · 수정 · 숨기기, NEIS 학사일정 고치기.",
+  "<b>설정</b> — 이 기기 알림 켜기, 이 기기 등록 해제.",
+])}</details>`;
 function devHtml(tasks) {
   if (!tasks) return '<div class="adm-none">제작 목록을 불러오지 못했어요. agenttasks.sql 을 실행했는지 확인해 주세요.</div>';
   const chip = (t) => `<span class="${DEV_HOT.has(t.status) ? "fb-new" : "adm-chip"}">${DEV_LABEL[t.status]}</span>`;
@@ -682,7 +707,7 @@ function devHtml(tasks) {
   };
   const over = (t) => ["merged", "rejected"].includes(t.status);
   const live = tasks.filter((t) => !over(t)), done = tasks.filter(over);
-  return `<form class="adm-plan-add" data-devadd><input type="text" maxlength="200" placeholder="Claude 에게 맡길 일 (초안으로 만들어요)" aria-label="제작 맡기기"><button class="study-btn small" type="submit">추가</button></form>
+  return `${DEV_GUIDE}<form class="adm-plan-add" data-devadd><input type="text" maxlength="200" placeholder="Claude 에게 맡길 일 (초안으로 만들어요)" aria-label="제작 맡기기"><button class="study-btn small" type="submit">추가</button></form>
     ${live.map(card).join("") || '<div class="adm-none">진행 중인 제작이 없어요. 분석 칸의 제안에서 \'🛠 제작 맡기기\'를 누르거나 위에 적어요.</div>'}
     ${done.length ? `<details class="adm-fb"><summary><b>끝난 제작 ${done.length}</b></summary>${done.map(card).join("")}</details>` : ""}
     <div class="adm-foot">'제작 승인'하면 관리자 노트북의 Claude 가 10분 안에 받아 따로 브랜치에서 만들어요 (노트북이 켜져 있어야 해요). 다 되면 미리보기 주소와 함께 알림이 와요. '최종 승인'한 것만 beta 에 올라가요. DB 를 바꾸는 일은 Claude 가 하지 않고 '사람 손 필요'로 멈춰요.</div>`;
@@ -855,7 +880,8 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
     ${box("ops", opsHtml(ops))}
     ${box("use", usageHtml(usage, plans, tasks))}
     ${box("dev", devHtml(tasks))}
-    ${box("push", pushLogHtml(pushes))}`;
+    ${box("push", pushLogHtml(pushes))}
+    ${ADMIN_GUIDE}`;
 }
 
 let ovSeen, fbSeen, ovPane;   // 처음 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
