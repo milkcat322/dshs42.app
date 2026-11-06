@@ -2354,34 +2354,34 @@ sw.js
 
 <!-- flow: - **2026-11-06** 관리자 사이트에 'Claude 제작 맡기기'(제안 승인→노트북 Claude 브랜치 제작→미리보기 알림→수정 요청·최종 승인 시 beta 합치기)가 완성되고, 기능·제작 흐름 안내가 추가됨 -->
 
-## 2026-11-06 · Netlify beta Branch deploys 켜기 안내
+## 2026-11-06 09:30–09:40 · Netlify beta 프로젝트 Branch deploys 켜는 방법 안내
 
 `session d7cd29b5` · 개발 sxcrxta · 요청 4회
 
 ### 목표
-- 제작 에이전트가 만드는 `agent-<번호>` 브랜치를 미리보기로 볼 수 있게 Netlify beta 프로젝트의 Branch deploys를 켠다.
+- Claude 제작 맡기기에서 만드는 브랜치를 미리 볼 수 있도록 Netlify beta 프로젝트의 Branch deploys를 켠다.
 
 ### 한 일
-- Netlify 화면에서 Branch deploys를 켜는 순서를 안내했다.
-- 스크린샷을 보고 막힌 단계(Branches and deploy contexts → Configure)를 다시 짚어 줬다.
-- 설정 후 화면에서 "Deploy all branches pushed to the repository"로 켜진 것을 확인했다.
+- Netlify 설정 경로(Branches and deploy contexts → Configure → Branch deploys)를 안내했다.
+- 스크린샷으로 `Deploy all branches pushed to the repository`로 설정된 것을 확인했다.
 
 ### 결정과 이유
-- Branch deploys를 **All**로 선택: 에이전트가 `agent-<번호>` 브랜치를 매번 새로 만들어서, 번호마다 따로 등록하는 방식은 맞지 않는다.
+- Branch deploys는 All로 정했다. 제작 에이전트가 `agent-<번호>` 브랜치를 매번 새로 만들어서, 번호마다 따로 적는 방식은 맞지 않는다.
 
 ### 남은 일
-- [ ] 제작 에이전트 2단계에서 관리자 알림에 브랜치 미리보기 주소(`<브랜치이름>--dshs42-beta.netlify.app`)를 넣는다.
+- [ ] 제작 에이전트 알림에 브랜치 미리보기 주소(`<브랜치이름>--dshs42-beta.netlify.app`)를 넣는다.
 
 ### 배운 점
-- 브랜치 미리보기도 beta와 같은 실제 서비스 DB에 연결되므로, 테스트 데이터를 만들면 지워야 한다.
-- `/`가 들어간 브랜치 이름은 미리보기 주소에서 `-`로 바뀐다.
-- All로 두면 팀원의 `feature/…` 브랜치도 모두 배포된다.
+- 브랜치 미리보기도 beta와 같은 서비스 DB에 연결된다. 미리보기에서 만든 테스트 데이터는 직접 지워야 한다.
+- 브랜치 이름의 `/`는 미리보기 주소에서 `-`로 바뀐다.
 
 ### 바뀐 파일
 - `CLAUDE.md`
 - `README.md`
 - `admin/admin.js`
 - `agenttasks.sql`
+- `scripts/build-agent/install.sh`
+- `scripts/build-agent/prompt.md`
 - `scripts/build-agent/run.mjs`
 - `supabase/functions/build-agent/index.ts`
 
