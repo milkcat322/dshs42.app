@@ -43,6 +43,31 @@
   .adm-useplan > span { font-size: 12px; font-weight: 600; color: var(--text-dim); margin-right: 2px; }
   .adm-useplan .study-btn { margin-top: 0; }   /* 학생 CSS 의 .adm-use-row .study-btn 여백 때문에 버튼만 내려가던 것 */
   .adm-useplan .study-btn.ok:disabled { opacity: 1; cursor: default; }
+  /* 관리 탭: 맨 위 요약 4칸 → 큰 칸 5개 → (리포트 · 개발만) 작은 칸 */
+  .adm-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .adm-sum button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 4px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; color: var(--text-dim); font: 500 12px 'Noto Sans KR', sans-serif; cursor: pointer; transition: border-color .15s, transform .15s; }
+  .adm-sum button:hover { border-color: var(--accent1); transform: translateY(-1px); }
+  .adm-sum b { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.2; }
+  .adm-sum button.hot { border-color: rgba(255,77,79,0.55); background: rgba(255,77,79,0.08); }
+  .adm-sum button.hot b { color: #ff6b6d; }
+  .adm-sum span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .adm-seg.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .adm-sub { display: flex; gap: 6px; margin: -6px 0 14px; padding: 0 2px; }
+  .adm-sub[hidden] { display: none; }
+  .adm-sub button { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; background: none; border: 1px solid var(--border); border-radius: 999px; color: var(--text-dim); font: 600 13px 'Noto Sans KR', sans-serif; cursor: pointer; }
+  .adm-sub button.on { border-color: var(--accent1); color: var(--accent1); background: rgba(124,108,240,0.10); }
+  .adm-sub span { min-width: 18px; padding: 0 5px; border-radius: 9px; background: rgba(136,136,170,0.22); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+  .adm-sub span.hot { background: #ff4d4f; color: #fff; }
+  .adm-field { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font: inherit; font-size: 14px; }
+  .adm-field:focus { outline: none; border-color: var(--accent1); }
+  @media (max-width: 480px) {
+    .adm-seg.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .adm-seg.five button { font-size: 12.5px; gap: 3px; padding: 0 2px; }
+    .adm-seg.five span { min-width: 16px; padding: 0 3px; font-size: 10.5px; line-height: 17px; }
+    .adm-sum { gap: 6px; }
+    .adm-sum button { padding: 10px 2px; font-size: 11px; }
+    .adm-sum b { font-size: 18px; }
+  }
   .adm-log-row.click { cursor: pointer; }
   .adm-log-row.click:hover b { color: var(--accent1); }
   @media (max-width: 640px) {

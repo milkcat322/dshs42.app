@@ -542,7 +542,8 @@ async function loadFeedback() {
 
 // 향후 계획: 사람마다 칸이 있고, 끝낸 항목은 아래로 내립니다 (plans.sql)
 const PLAN_OWNERS = ["반민지", "진주빈"];
-function plansHtml(plans) {
+function plansHtml(plans, tasks) {
+  const asked = new Set((tasks || []).map((t) => t.title));
   if (!plans) return '<div class="adm-none">계획을 불러오지 못했어요.</div>';
   return `<div class="adm-plans">${PLAN_OWNERS.map((owner) => {
     const list = plans.filter((p) => p.owner === owner).sort((a, b) => a.done - b.done);
@@ -551,6 +552,7 @@ function plansHtml(plans) {
       ${list.map((p) => `<div class="adm-plan-item${p.done ? " done" : ""}">
         <input type="checkbox" data-plandone="${p.id}"${p.done ? " checked" : ""} aria-label="끝냄 표시">
         <span data-plantext="${p.id}" title="눌러서 고치기">${esc(p.title)}</span>
+        ${p.done ? "" : asked.has(p.title) ? '<button disabled title="제작 맡김">🛠✓</button>' : `<button data-plandev="${p.id}" title="Claude 에게 제작 맡기기 (초안)" aria-label="제작 맡기기">🛠</button>`}
         <button data-planedit="${p.id}" aria-label="고치기">✎</button>
         <button data-plandel="${p.id}" aria-label="삭제">✕</button>
       </div>`).join("") || '<div class="adm-plan-none">아직 적은 계획이 없어요.</div>'}
@@ -667,14 +669,15 @@ const DEV_GUIDE = `<details class="adm-acc"><summary>제안을 승인하면 생�
 ])}</details>`;
 // 관리 탭 맨 아래 기능 안내 (기능을 더하면 여기에도 한 줄)
 const ADMIN_GUIDE = `<details class="adm-acc"><summary>관리자 사이트 기능 안내</summary>${ol([
+  "<b>맨 위 요약</b> — 승인 대기 · 새 피드백 · 확인할 제작 · 마지막 점검. 누르면 그 칸으로 가요.",
   "<b>승인</b> — 학생이 올린 수행평가 공지 승인 · 반려 · 수정, 같은 수행평가 합치기, 처리 기록.",
   "<b>피드백</b> — 학생이 보낸 피드백(스크린샷 포함)을 보고 지워요.",
   "<b>학생</b> — 오늘 로그인한 학생 · 방문 기기 수 · 학생별 사용 현황과 제안.",
-  "<b>계획</b> — 반민지 · 진주빈 할 일 목록 추가 · 체크 · 수정 · 삭제.",
-  "<b>점검</b> — 하루 5번 서버가 사이트 · 알림 · 승인 대기를 점검한 보고서와 AI 피드백 요약.",
-  "<b>분석</b> — 매일 밤 10시 노트북 Claude 의 사용 분석. 제안은 '계획에 넣기' · '제작 맡기기'로.",
-  "<b>제작</b> — Claude 에게 맡긴 작업의 초안 · 승인 · 미리보기 · 수정 요청 · 최종 승인.",
-  "<b>알림</b> — 관리자 기기로 보낸 알림(새 활동 · 점검 · 분석 · 제작) 기록과 받은 기기 수.",
+  "<b>리포트 › 점검</b> — 하루 5번 서버가 사이트 · 알림 · 승인 대기를 점검한 보고서와 AI 피드백 요약.",
+  "<b>리포트 › 분석</b> — 매일 밤 10시 노트북 Claude 의 사용 분석. 제안은 '계획에 넣기' · '제작 맡기기'로.",
+  "<b>리포트 › 알림 기록</b> — 관리자 기기로 보낸 알림(새 활동 · 점검 · 분석 · 제작)과 받은 기기 수.",
+  "<b>개발 › 제작</b> — Claude 에게 맡긴 작업의 초안 · 승인 · 미리보기 · 수정 요청 · 최종 승인.",
+  "<b>개발 › 계획</b> — 반민지 · 진주빈 할 일 목록. 🛠 를 누르면 그 계획이 제작 초안이 돼요.",
   "<b>수행평가 공지 올리기</b> — 관리자 공지는 승인 없이 바로 올라가요.",
   "<b>학교 일정 탭</b> — 학교 일정 추가 · 수정 · 숨기기, NEIS 학사일정 고치기.",
   "<b>설정</b> — 이 기기 알림 켜기, 이 기기 등록 해제.",
@@ -684,12 +687,11 @@ function devHtml(tasks) {
   const chip = (t) => `<span class="${DEV_HOT.has(t.status) ? "fb-new" : "adm-chip"}">${DEV_LABEL[t.status]}</span>`;
   const head = (t) => `<div class="adm-fb-top">${chip(t)}<b>${esc(t.title)}</b>${t.rounds ? `<span class="adm-chip">${t.rounds}/${DEV_MAX}번째</span>` : ""}</div>`;
   const foot = (t, btns) => `<div class="adm-fb-foot"><span>${esc(ovTime(t.updated_at))}</span><span>${btns}</span></div>`;
-  const field = "width:100%;box-sizing:border-box;margin-top:8px;font:inherit";
-  const ta = (attr, val, ph) => `<textarea ${attr} rows="4" maxlength="4000" placeholder="${ph}" style="${field}">${esc(val)}</textarea>`;
+  const ta = (attr, val, ph) => `<textarea ${attr} rows="4" maxlength="4000" placeholder="${ph}" class="adm-field">${esc(val)}</textarea>`;
   const btn = (attr, id, label) => `<button class="study-btn small" ${attr}="${id}">${label}</button>`;
   const card = (t) => {
     if (t.status === "draft") return `<div class="adm-fb new">${head(t)}
-      <input type="text" data-devtitle="${t.id}" maxlength="200" value="${esc(t.title)}" aria-label="제목" style="${field}">
+      <input type="text" data-devtitle="${t.id}" maxlength="200" value="${esc(t.title)}" aria-label="제목" class="adm-field">
       ${ta(`data-devspec="${t.id}"`, t.spec, "Claude 에게 맡길 내용 (무엇을 · 어디를 · 어떻게)")}
       ${foot(t, `${btn("data-devsave", t.id, "저장")} ${btn("data-devgo", t.id, "제작 승인")} ${btn("data-devdrop", t.id, "버리기")}`)}</div>`;
     const info = `${t.preview_url ? `<div class="adm-fb-text"><a href="${esc(t.preview_url)}" target="_blank" rel="noopener">미리보기 열기 ↗</a>${t.branch ? ` · <code>${esc(t.branch)}</code>` : ""}</div>` : ""}
@@ -713,7 +715,7 @@ function devHtml(tasks) {
     <div class="adm-foot">'제작 승인'하면 관리자 노트북의 Claude 가 10분 안에 받아 따로 브랜치에서 만들어요 (노트북이 켜져 있어야 해요). 다 되면 미리보기 주소와 함께 알림이 와요. '최종 승인'한 것만 beta 에 올라가요. DB 를 바꾸는 일은 Claude 가 하지 않고 '사람 손 필요'로 멈춰요.</div>`;
 }
 
-function bindDev(body, tasks, showPane) {
+function bindDev(body, tasks, showPane, plans) {
   const set = async (id, patch, msg) => {
     const { error } = await sb.from("agent_tasks").update(patch).eq("id", id);
     if (error) return toast("저장하지 못했어요", true);
@@ -747,6 +749,13 @@ function bindDev(body, tasks, showPane) {
     e.preventDefault();
     const title = f.querySelector("input").value.trim();
     if (title) add({ title, spec: "" });
+  });
+  // 계획 → 초안
+  on("plandev", (id, b) => {
+    const p = (plans || []).find((x) => x.id === id);
+    if (!p) return;
+    b.disabled = true;
+    add({ title: p.title, spec: p.title, source: { plan: id } });
   });
   // 분석 칸의 제안 → 초안 (고친 뒤 '제작 승인')
   on("usedev", (title, b) => {
@@ -864,19 +873,32 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
   const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
-  const seg = [["asg", "승인", pending.length + (log?.open.length || 0), true], ["fb", "피드백", fresh.length, true], ["stu", "학생", overview?.students.length ?? 0, false],
-    ["plan", "계획", plans?.filter((p) => !p.done).length ?? 0, false], ["ops", "점검", ops?.[0]?.issues ?? 0, true], ["use", "분석", 0, false],
-    ["dev", "제작", tasks?.filter((t) => DEV_HOT.has(t.status)).length ?? 0, true], ["push", "알림", 0, false]];
+  const nAsg = pending.length + (log?.open.length || 0), nDev = tasks?.filter((t) => DEV_HOT.has(t.status)).length ?? 0;
+  const nOps = ops?.[0]?.issues ?? 0, nPlan = plans?.filter((p) => !p.done).length ?? 0;
+  const badge = (n, hot) => n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : "";
+  const group = OV_GROUP[pane];
+  const groups = [["asg", "승인", badge(nAsg, true)], ["fb", "피드백", badge(fresh.length, true)], ["stu", "학생", badge(overview?.students.length ?? 0, false)],
+    ["rep", "리포트", badge(nOps, true)], ["lab", "개발", badge(nDev, true) || badge(nPlan, false)]];
+  const subs = { rep: [["ops", "점검", badge(nOps, true)], ["use", "분석", ""], ["push", "알림 기록", ""]],
+    lab: [["dev", "제작", badge(nDev, true)], ["plan", "계획", badge(nPlan, false)]] };
+  // 맨 위 요약: 처리할 것이 있는 칸으로 바로 갑니다
+  const lastOps = ops?.[0];
+  const sum = [["asg", nAsg, "승인 대기"], ["fb", fresh.length, "새 피드백"], ["dev", nDev, "확인할 제작"],
+    ["ops", lastOps ? (nOps || "정상") : "-", lastOps ? `점검 · ${ovTime(lastOps.created_at)}` : "점검"]];
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
-  return `<div class="adm-seg">${seg.map(([k, label, n, hot]) =>
-      `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${n ? `<span class="${hot ? "hot" : ""}">${n}</span>` : ""}</button>`).join("")}</div>
+  return `<div class="adm-sum">${sum.map(([k, n, label]) =>
+      `<button class="${typeof n === "number" && n ? "hot" : ""}" data-ovpane="${k}"><b>${n}</b><span>${esc(label)}</span></button>`).join("")}</div>
+    <div class="adm-seg five">${groups.map(([g, label, b]) =>
+      `<button class="${group === g ? "on" : ""}" data-ovgroup="${g}">${label}${b}</button>`).join("")}</div>
+    ${Object.entries(subs).map(([g, xs]) => `<div class="adm-sub" data-subof="${g}"${group === g ? "" : " hidden"}>${xs.map(([k, label, b]) =>
+      `<button class="${pane === k ? "on" : ""}" data-ovpane="${k}">${label}${b}</button>`).join("")}</div>`).join("")}
     ${box("asg", mergeHtml(log) + (pending.length ? `${log?.open.length ? '<div class="adm-label">승인 대기</div>' : ""}${pending.map(card).join("")}`
       : '<div class="adm-none">승인 대기 중인 수행평가가 없어요.</div>') + reviewLogHtml(log))}
     ${box("fb", fb.error ? '<div class="adm-none">피드백을 불러오지 못했어요.</div>'
       : (rows.length ? fbHtml(fresh, true) + (old.length ? `${fresh.length ? '<div class="adm-label">지난 피드백</div>' : ""}${fbHtml(old, false)}` : "")
         : '<div class="adm-none">아직 받은 피드백이 없어요.</div>'))}
     ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
-    ${box("plan", plansHtml(plans))}
+    ${box("plan", plansHtml(plans, tasks))}
     ${box("ops", opsHtml(ops))}
     ${box("use", usageHtml(usage, plans, tasks))}
     ${box("dev", devHtml(tasks))}
@@ -885,6 +907,10 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, plans, visits
 }
 
 let ovSeen, fbSeen, ovPane;   // 처음 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
+// 관리 탭은 5칸(승인 · 피드백 · 학생 · 리포트 · 개발)이고, 리포트 · 개발은 안에서 작은 칸으로 나뉩니다.
+// ovPane 은 실제 칸(asg · fb · stu · ops · use · push · dev · plan), OV_GROUP 은 그 칸이 속한 큰 칸입니다. 알림의 ?pane= 도 실제 칸 이름.
+const OV_GROUP = { asg: "asg", fb: "fb", stu: "stu", ops: "rep", use: "rep", push: "rep", dev: "lab", plan: "lab" };
+const ovSubLast = { asg: "asg", fb: "fb", stu: "stu", rep: "ops", lab: "dev" };   // 큰 칸을 누르면 그 안에서 마지막으로 본 칸
 let ovLast = null;
 // cached: 탭을 눌러 들어온 경우 앞서 받은 관리 화면을 먼저 그리고 새로 받습니다
 async function renderOverview(cached = false) {
@@ -893,7 +919,7 @@ async function renderOverview(cached = false) {
     try { ovSeen = Date.parse(localStorage.getItem(OV_SEEN_KEY)) || Infinity; } catch {}
     fbSeen = Date.parse(fbSeenAt());
     // 점검 알림을 누르고 들어오면 '점검' 칸부터 (?view=admin&pane=ops), 사용 분석 알림이면 '분석' 칸부터 (pane=use)
-    ovPane = ["asg", "fb", "stu", "plan", "ops", "use", "dev", "push"].find((k) => k === new URLSearchParams(location.search).get("pane")) || null;
+    ovPane = Object.keys(OV_GROUP).find((k) => k === new URLSearchParams(location.search).get("pane")) || null;
   }
   if (cached && ovLast) paintOverview(ovLast);
   const [res] = await Promise.all([Promise.all([sb.rpc("admin_overview"), loadFeedback(),
@@ -918,10 +944,15 @@ function paintOverview(res) {
   body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, plans.error ? null : plans.data, visits.error ? null : visits.data, ops.error ? null : ops.data, log, usage.error ? null : usage.data, pushes.error ? null : pushes.data, tasks.error ? null : tasks.data);
   const showPane = (k) => {
     ovPane = k;
-    body.querySelectorAll("[data-ovpane]").forEach((x) => x.classList.toggle("on", x.dataset.ovpane === k));
+    const g = OV_GROUP[k];
+    ovSubLast[g] = k;
+    body.querySelectorAll("[data-ovgroup]").forEach((x) => x.classList.toggle("on", x.dataset.ovgroup === g));
+    body.querySelectorAll("[data-subof]").forEach((x) => { x.hidden = x.dataset.subof !== g; });
+    body.querySelectorAll(".adm-sub [data-ovpane]").forEach((x) => x.classList.toggle("on", x.dataset.ovpane === k));
     body.querySelectorAll("[data-pane]").forEach((x) => { x.hidden = x.dataset.pane !== k; });
   };
   body.querySelectorAll("[data-ovpane]").forEach((b) => b.onclick = () => showPane(b.dataset.ovpane));
+  body.querySelectorAll("[data-ovgroup]").forEach((b) => b.onclick = () => showPane(ovSubLast[b.dataset.ovgroup]));
   body.querySelectorAll("[data-gopane]").forEach((b) => b.onclick = () => { showPane(b.dataset.gopane); scrollTo({ top: 0, behavior: "smooth" }); });
   const pend = (id) => pending.find((a) => a.id === id);
   body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
@@ -934,7 +965,7 @@ function paintOverview(res) {
   bindMerge(body);
   body.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = () => deleteFeedback(fb.rows.find((r) => r.id === x.dataset.fbdel)));
   bindPlans(body);
-  bindDev(body, tasks.data || [], showPane);
+  bindDev(body, tasks.data || [], showPane, plans.data || []);
   if (fb.rows?.[0]) { try { localStorage.setItem(FB_SEEN_KEY, fb.rows[0].created_at); } catch {} }
   if (data?.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
   refreshAdminCount();
