@@ -4,6 +4,7 @@
 //   { action: "peek" }                       할 일 수 (approved · revise · accepted)
 //   { action: "claim" }                      가장 오래된 할 일 하나를 집어 building(제작) 또는 그대로(accepted) 돌려줌
 //   { action: "report", id, status, ... }    결과 저장. review · merged · failed · needs_human 이면 관리자에게 푸시
+//   버린(rejected) 작업에 브랜치가 남아 있으면 claim 이 job: "cleanup" 으로 돌려주고, 노트북이 브랜치를 지운 뒤 branch: "" 로 report 합니다.
 //
 // 배포:   supabase functions deploy build-agent --no-verify-jwt   (열쇠로 직접 확인)
 // 비밀값: VAPID_* 는 send-reminders 와 같은 값
@@ -47,16 +48,26 @@ Deno.serve(async (req) => {
         .eq("id", t.id).eq("status", status).select("*").maybeSingle();
       if (got) return json({ task: got, job: status === "revise" ? "revise" : "build" });
     }
+    const { data: old } = await db.from("agent_tasks").select("*").eq("status", "rejected").not("branch", "is", null).neq("branch", "")
+      .limit(1).maybeSingle();
+    if (old) return json({ task: old, job: "cleanup" });
     return json({ task: null });
   }
 
   if (b.action === "report") {
-    const ok = ["building", "review", "merged", "failed", "needs_human", "approved", "revise", "accepted"];
+    const ok = ["building", "review", "merged", "failed", "needs_human", "approved", "revise", "accepted", "rejected"];
     if (typeof b.id !== "string" || !ok.includes(b.status)) return json({ error: "bad report" }, 400);
     const patch: Record<string, unknown> = { status: b.status };
     for (const k of ["branch", "preview_url", "summary", "error"]) if (typeof b[k] === "string") patch[k] = b[k].slice(0, 4000);
-    const { data: t, error } = await db.from("agent_tasks").update(patch).eq("id", b.id).select("title, summary, error").maybeSingle();
-    if (error || !t) return json({ error: error?.message ?? "no task" }, 404);
+    // 제작 중에 관리자가 버렸으면(rejected) 결과로 덮어쓰지 않고, 브랜치만 남겨 다음 claim 에서 지우게 합니다
+    let q = db.from("agent_tasks").update(patch).eq("id", b.id);
+    if (b.status !== "rejected") q = q.neq("status", "rejected");
+    const { data: t, error } = await q.select("title, summary, error").maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    if (!t) {
+      if (typeof b.branch === "string" && b.branch) await db.from("agent_tasks").update({ branch: b.branch }).eq("id", b.id);
+      return json({ ok: true, skipped: "rejected" });
+    }
     if (NOTIFY[b.status]) await notify(`🛠 ${NOTIFY[b.status]}: ${t.title}`, (b.status === "review" ? t.summary : t.error) ?? "");
     return json({ ok: true });
   }
