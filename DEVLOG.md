@@ -2451,3 +2451,76 @@ sw.js
 ### 배운 점
 - `/`가 들어간 브랜치명(`feature/이름`)은 배포 주소에서 `-`로 바뀜 (`feature-이름--dshs42-beta...`)
 - Deploy Previews(PR별 미리보기)는 Branch deploys와 별도 설정
+
+## 2026-11-06 01:48 · 관리자 사이트 정리와 Claude 자동 제작 구축
+
+### 목표
+- 계획 1번(관리자가 Claude 제안을 고치거나 승인하면 노트북 Claude가 제작하는 구조)과 2번(관리자 탭 정리)을 진행
+- 목표를 "로그인 사용자 수 늘리기, 수행평가/일정 기능 쓰는 학생 늘리기"로 두고, Claude가 개발 제안을 올리는 흐름 만들기
+
+### 한 일
+- **제작 흐름 1단계**
+  - `agenttasks.sql`로 `agent_tasks`, `agent_keys` 표 추가
+  - `supabase/functions/build-agent` 서버 함수 추가 (`peek` / `claim` / `report`)
+  - 노트북 확인 스크립트 `scripts/build-agent/run.mjs` 추가
+  - 관리자 사이트 '제작' 칸 추가
+- **제작 흐름 2단계**
+  - 노트북 Claude가 `agent-<번호>` 브랜치에서 제작 후 push, Netlify 미리보기와 푸시 알림 전송
+  - 최종 승인 시 스크립트가 main에 합침
+  - 10분마다 도는 launchd 작업은 `scripts/build-agent/install.sh`로 설치 (민지가 직접 실행)
+  - 시험 작업으로 제작 → 미리보기 → 합치기까지 한 번 돌려 확인 후 시험 데이터 삭제
+- **관리자 사이트 UI 개편** (8칸 → 5칸 → 4칸 → 카드 한 줄)
+  - 최종 구성: `[📥 처리] [👥 학생] [💡 제안] [📅 학교 일정]`
+  - 승인과 피드백을 한 칸으로 합침
+  - 기능 안내 페이지 제거
+  - 점검, 분석, 알림 기록, 계획 화면 제거 (DB 표는 유지)
+- **학교 일정 확장**
+  - 목록/달력 보기 전환
+  - 학생별 일정 보기 (DB 함수 `admin_student_done` 추가, `overview.sql`)
+  - 관리자가 일정과 수행평가의 모든 항목(과목, 분반 포함) 수정
+  - 날짜를 눌러 학교 일정/수행평가 추가
+- **운영 점검과 분석 개편**
+  - 운영 점검은 문제가 있을 때만 알림
+  - 밤 10시 분석(`scripts/usage-agent/prompt.md`, `usage.sql`)이 개발 제안 1~3개를 '제안' 칸에 초안으로 올리고 알림 전송
+  - 버린 제안과 수정 메모는 다음 분석에서 반영
+  - `--force`로 분석을 즉시 실행해 제안 3개 생성: PC 막힘 화면 QR, 알림 켜기 카드, 시간표 상단 수행평가 줄
+- 매 단계 Check Push로 beta에 올리고 관리자 사이트도 배포
+
+### 결정과 이유
+- Claude 제작 결과는 main이 아니라 `agent-<번호>` 브랜치에 올리고, 최종 승인분만 main에 합침: main에 바로 올리면 확인 전에 학생에게 배포되기 때문
+- 10분마다 확인은 Claude 없이 `node`가 DB만 보게 함: 토큰 절약
+- 제작 시 DB 변경(SQL)은 못 하게 하고 필요하면 '사람 손 필요'로 멈춤: 혼자 도는 작업의 안전장치
+- 학생 개인 일정과 할 일은 관리자에게 보이지 않게 함 (완료 표시만 관리자 전용 함수로 조회)
+- 자습실 자리 기능: dshs.app 쪽에서 기존 앱과 차별화되지 않는다는 이유로 권한 승인이 안 됨. 민지가 제가 낸 대안들을 "억지"라며 거절하고 방향 전환을 요청
+
+### 해결한 문제
+- 관리자 저장소 `milkcat322/dshs42-admin` push 403 → `sxcrxta`에 추가한 GitHub 초대를 아직 수락하지 않음 → `gh`로 초대 수락 후 배포 성공
+- 브랜치 미리보기 주소 404 → 배포가 끝나기 전에 열었음 → 20초 뒤 정상 (Branch deploys는 켜져 있었음)
+- 카드가 세로로 쌓임 → class name을 덮어써서 원래 class가 사라짐 → 수정해 재배포
+- 이전 정리 때 넣은 스타일이 학생 칸 글자 모양을 망가뜨림 → 같이 바로잡음
+- CSS 교체가 실패했는데 이전 버전이 먼저 배포됨 → 바로 고쳐서 재배포
+- DB 변경 확인 창이 응답 없이 만료됨 → 화면 작업을 먼저 하고 나중에 다시 요청해 적용
+- 세션 시작 시 훅의 자동 `git pull`이 "여러 브랜치로 리베이스할 수 없습니다"로 실패 → 작업 폴더가 깨끗하고 원격과 맞는 것으로 보여 `git fetch`로 확인하기로 함 (원인 확정은 대화에 없음)
+
+### 남은 일
+- [ ] 방금 제안한 방향("지금 어디 있어?" 자동 위치) 진행 여부 결정. 시간표 수업/공강 기반 자동 위치는 권한 없이 가능, 자습 자리 부분은 `reservation.read` 권한이 필요
+- [ ] 급식 시간표 통합(`/v2/meals`, 권한 불필요)과 dshs.app 과제 연동(`board.assignment.read`, 권한 요청 필요)은 제안만 해 둔 상태
+- [ ] 관리자 '제안' 칸에서 오늘 올라온 제안 3개 중 승인할 것 선택 (Claude가 3번 '시간표 맨 위 수행평가 줄'을 추천)
+- [ ] 첫 실제 작업에서 '수정 요청' 후 다시 만들기, '버리기' 후 브랜치 삭제 동작 확인 (실행해 본 적 없음). 이상하면 `~/Library/Logs/dshs42-build-agent.log` 확인
+- [ ] 오늘 밤 10시 자동 분석이 제안을 올리는지 확인. 없으면 `~/Library/Logs/dshs42-usage-agent.log` 확인
+- [ ] 폰 화면에서 관리자 사이트 확인 (좁은 화면, 달력 일정 이름 잘림). 직접 보지 못함
+- [ ] 계획 칸의 1번, 2번 항목 끝냄 체크 (민지에게 물어본 상태, 답 없음. 이후 계획 화면은 제거됨)
+
+### 배운 점
+- Netlify Branch deploys 미리보기는 배포 완료까지 시간이 걸려서, 바로 열면 404가 날 수 있음
+- GitHub collaborator 초대는 수락해야 쓰기 권한이 생김
+- dshs.app API 권한은 최소로 요청해야 하고, 기존 앱과 겹치는 기능은 승인되지 않을 수 있음
+
+### 바뀐 파일
+- `agenttasks.sql`
+- `supabase/functions/build-agent/index.ts`
+- `/private/tmp/claude-501/-Users-banminji-Desktop-dshs-study/1e61d599-fbec-4963-b565-9b4452ced308/scratchpad/dev.js`
+- `scripts/build-agent/run.mjs`
+- `scripts/build-agent/prompt.md`
+- `admin/index.html`
+- `/private/tmp/claude-501/-Users-banminji-Desktop-dshs-study/1e61d599-fbec-4963-b565-9b4452ced308/scratchpad/cal.js`
