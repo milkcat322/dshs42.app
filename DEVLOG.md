@@ -2529,32 +2529,37 @@ sw.js
 - `admin/index.html`
 - `/private/tmp/claude-501/-Users-banminji-Desktop-dshs-study/1e61d599-fbec-4963-b565-9b4452ced308/scratchpad/cal.js`
 
-## 2026-11-08 14:01–14:10 · 할 일 그룹 기능 추가 · beta 로그인 돌아갈 주소 수정
+## 2026-11-08 10:00–10:45 · 할 일 그룹 기능 추가와 beta 로그인 리다이렉트 버그 수정
 
 `session 51507570` · 개발 milkcat322 · 요청 4회
 
 ### 목표
-- 할 일 탭에 그룹 기능(만들기·드래그 이동·접기/펼치기) 추가
-- beta에서 dshs.app 로그인 후 dshs42.app으로 넘어가는 문제 해결
+- 할 일 탭에 그룹 기능(그룹 만들기, 드래그로 넣기, 접기/펼치기) 추가
+- beta에서 dshs.app 로그인 후 dshs42.app으로 넘어가는 버그 원인 파악과 수정
 
 ### 한 일
-- 할 일 그룹 DB 스키마(todogroups.sql) 작성
-- 그룹 생성(남은 할 일 중 선택), 드래그로 할 일을 그룹에 넣기, 그룹 접기/펼치기(기본 펼침) UI·로직 구현
-- 할 일 수정 창에 그룹 선택 추가, 그룹 삭제 시 할 일은 그룹 밖으로 유지
-- dshs-oauth 함수의 로그인 후 돌아갈 주소 허용 목록에 beta 주소 추가
-- sw.js 캐시 버전을 v116으로 올리고 updates.js에 공지 추가
-- Supabase SQL 실행 확인, dshs-oauth 함수 재배포 확인
+- dshs-study.js·index.html에 할 일 그룹 UI(＋ 그룹, ⠿ 드래그 핸들, 접기/펼치기, 그룹 수정·삭제) 구현, 수정 시트에 그룹 선택 추가
+- todogroups.sql 작성(그룹 표, 할 일 그룹 칸, 남의 그룹에 못 넣게 막는 정책) — 사용자가 Supabase에서 직접 실행
+- updates.js에 업데이트 안내 추가, sw.js 캐시 버전 v116으로 올림, README·CLAUDE.md에 관련 안내 추가
+- supabase/functions/dshs-oauth/index.ts의 RETURN_OK 허용 목록에 beta netlify 주소·브랜치 미리보기 주소 추가
+- 함수 재배포는 권한상 막혀 사용자가 직접 실행, 배포 후 API 호출로 동작 확인
 
 ### 결정과 이유
-- 그룹을 삭제해도 안의 할 일은 삭제하지 않고 그룹 밖으로 꺼냄 — 할 일 데이터 손실 방지
-- 접은 상태는 기기별로 따로 기억 — 기기마다 보는 방식이 다를 수 있음
+- 그룹 접기 상태는 기기마다 따로 기억, 처음엔 모두 펼침으로 시작
+- 그룹을 지워도 안에 있던 할 일은 그룹 밖으로 나와 남도록 해서 데이터가 사라지지 않게 함
 
 ### 해결한 문제
-- beta에서 dshs.app 로그인 후 dshs42.app으로 넘어감 → dshs-oauth 함수의 돌아갈 주소 허용 목록에 beta 주소가 없어 기본값으로 보냄 → 허용 목록에 `dshs42-beta.netlify.app`과 브랜치 미리보기 주소 추가 후 재배포
+- 증상: beta(dshs42-beta.netlify.app)에서 dshs.app으로 로그인하면 dshs42.app으로 넘어감
+- 원인: dshs-oauth 함수의 로그인 뒤 돌아갈 주소 허용 목록(RETURN_OK)에 beta 주소가 없어 기본 주소로 보냄
+- 해결: RETURN_OK 정규식에 beta 주소를 추가하고 함수를 재배포
 
 ### 남은 일
-- [ ] beta에서 실제로 dshs.app 로그인을 끝까지 수행해 beta로 정상 복귀하는지 확인
-- [ ] 폰에서 할 일 그룹 드래그 이동이 정상 동작하는지 확인
+- [ ] beta에서 실제로 dshs.app 로그인을 끝까지 해 보고 beta로 돌아오는지 최종 확인
+- [ ] 폰에서 할 일 그룹 드래그 이동이 잘 되는지 확인
+
+### 배운 점
+- Claude Code의 실제 배포 같은 위험 명령은 대화 중 "허용"으로 풀리지 않고, 사용자가 직접 실행해야 함
+- PowerShell로 파일을 다시 쓸 때 인코딩에 주의해야 함(BOM이 섞이면 git diff가 깨짐)
 
 ### 바뀐 파일
 - `CLAUDE.md`
