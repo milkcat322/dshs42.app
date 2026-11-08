@@ -39,7 +39,8 @@ const CLIENT_SECRET = Deno.env.get("DSHS_CLIENT_SECRET")!;
 const REDIRECT_URI = Deno.env.get("DSHS_REDIRECT_URI") ?? `${Deno.env.get("SUPABASE_URL")}/functions/v1/dshs-oauth`;
 
 // 로그인 뒤 돌아갈 수 있는 사이트 (다른 곳으로 보내는 데 쓰이지 않게)
-const RETURN_OK = /^(https:\/\/(www\.)?(dshs42\.app|dshs\.study)|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
+// beta(dshs42-beta.netlify.app)와 그 브랜치 미리보기(<브랜치>--dshs42-beta.netlify.app)도 그 주소로 돌아갑니다
+const RETURN_OK = /^(https:\/\/(www\.)?(dshs42\.app|dshs\.study)|https:\/\/([a-z0-9-]+--)?dshs42-beta\.netlify\.app|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
 const DEFAULT_RETURN = "https://dshs42.app/";
 // 계정 이메일 도메인 (signup 과 같음). 서비스 이름이 바뀌어도 바꾸지 않습니다.
 const EMAIL_DOMAIN = "dshs.study";

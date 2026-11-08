@@ -81,6 +81,8 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - 외부 서비스(dshs.app 등) 호출은 브라우저가 아니라 Edge Function 을 거친다 (CORS). 크롤링·대리 로그인은 하지 않고 공식 OAuth/API 만 쓴다.
 - dshs.app 연동(`dshs-oauth`): client_secret 은 Supabase secrets(`DSHS_CLIENT_SECRET`)에만 둔다. 대화·DEVLOG·커밋에 적지 않는다 (DEVLOG 자동 요약이 그대로 올릴 수 있음). 허용 scope 는 `openid profile me.read request.read offline_access` 뿐이고, 늘리려면 dshs.app 관리자에게 메일로 요청한다. 요청 제한(60초 120회)이 사이트 전체 합산이라 브라우저는 연결한 학생이 내 일정을 보는 동안에만 1분에 한 번 받고, 한도 초과(busy) 응답이 오면 5분 쉰다. dshs.app 에 이미 있는 기능을 똑같이 만들지 않는다 (이용 규칙).
 - 회원가입 화면은 없다. 새 학생은 'dshs.app으로 로그인'으로 계정이 생긴다. 처음 온 학생은 계정이 없으므로 '로그인' 대신 'dshs.app 계정으로 시작하기' 버튼 하나만 쓴다: 로그인 전에는 위쪽 메뉴를 숨기고 시간표 막힘 화면의 버튼(`gateLogin`, 바로 dshs.app 로그인)만 둔다. 아이디·비밀번호 로그인은 관리자·예전 아이디 가입 학생용으로, 그 버튼 아래 작은 '관리자 · 아이디로 로그인'(`gateAdmin`) · 시작하기 창 · 설정 창 아래 같은 링크, 또는 설정 창 제목 "설정" 7번으로 연다 (`openAdminLogin`). 이 화면 변경은 업데이트 소식에 올리지 않았다.
+- 로그인 · 연결 뒤 돌아갈 주소는 `dshs-oauth` 의 `RETURN_OK` 에 있는 사이트만 된다 (없으면 dshs42.app 으로 감). 새 주소(도메인)에서 서비스하면 여기에 추가하고 함수를 다시 배포한다. beta 와 그 브랜치 미리보기(`<브랜치>--dshs42-beta.netlify.app`)는 들어 있다.
+- 할 일 그룹(`todogroups.sql`, `todo_groups` · `todos.group_id`): 그룹은 DB, 접기 · 펼치기는 기기마다 `dshs-todo-fold`(localStorage, 기본 모두 펼침). 표를 못 읽으면(`cache.todoGroups === null`) 그룹 UI 를 숨긴다. 끌어서 옮기기는 손잡이(⠿) 포인터 이벤트(`startTodoDrag`)라 터치에서도 된다.
 - 'dshs.app으로 로그인'은 dshs.app 의 학번으로 계정을 찾는다 (연결된 계정 → 같은 학번 계정 → 명단에 있으면 새 계정 `d<학번>@dshs.study`, 임의 비밀번호). 세션은 Edge Function 이 만든 일회용 magiclink 토큰을 `#dshs_login=` 으로 넘겨 브라우저가 `verifyOtp` 로 만든다.
 - 사이트 하단과 로그인 창의 "학생 비공식 사이트" 문구는 dshs.app 측 요청이라 지우지 않는다.
 - 알림 구독 저장은 `save_push()`(`schema.sql`)로만 한다. 같은 기기(endpoint)가 다른 계정으로 남아 있으면 RLS 때문에 upsert 가 막혀 "알림이 안 켜짐"이 되므로, 이 함수가 기기를 지금 로그인한 계정으로 넘긴다. 같은 코드인데 사이트(주소)마다 알림이 다르게 동작하면 기기 · 주소별로 남은 구독 행부터 의심한다.

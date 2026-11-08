@@ -82,6 +82,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    마지막으로 `events.sql` 을 **Run** (개인 일정 + 수행평가 완료 체크)
    이어서 `share.sql` 을 **Run** (친구와 일정 공유)
    이어서 `todos.sql` 을 **Run** (할 일)
+   이어서 `todogroups.sql` 을 **Run** (할 일 그룹)
    이어서 `school.sql` 을 **Run** (학교 일정 · 관리자 전용)
    이어서 `notify.sql` 을 **Run** (알림)
    이어서 `submit.sql` 을 **Run** (수행평가 제출처)

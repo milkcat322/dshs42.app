@@ -9,7 +9,7 @@ const EMAIL_DOMAIN = "dshs.study";
 let sb = null;
 let me = null;          // { id, username, student_id, name, is_admin }
 let myClasses = [];     // 로컬 시간표 데이터에서 가져온 내 수강 분반 [{ subject, ban }]
-let cache = { items: [], pending: [], mine: [], events: [], done: new Set(), people: new Map(), todos: null, school: [] };
+let cache = { items: [], pending: [], mine: [], events: [], done: new Set(), people: new Map(), todos: null, todoGroups: null, school: [] };
 let page = "cal";       // 열린 탭: cal(내 일정) | notice(수행평가) | todo(할 일)
 let view = "feed";      // studyBody 에 떠 있는 화면: feed | notice | form | todo
 let fc = null;          // FullCalendar 인스턴스 (달력 탭일 때만)
@@ -705,7 +705,7 @@ async function loadAssignments({ quiet = false } = {}) {
   if (!me || me.is_admin) return;   // 관리자 계정은 관리자 사이트에서 씁니다
   if (quiet && haveData && Date.now() - dataAt < 30000) return;
   loadDshs();   // dshs.app 신청 내역은 따로 받아서, 오면 달력에 더합니다
-  const [asg, personal, evs, done, people, todos, school, invites] = await Promise.all([
+  const [asg, personal, evs, done, people, todos, school, invites, tgroups] = await Promise.all([
     sb.from("assignments").select("*").order("due_at", { ascending: true }),
     sb.from("assignment_personal").select("*"),
     sb.from("events").select("*").order("starts_at", { ascending: true }),   // 내 일정 + 친구가 공유한 일정
@@ -714,6 +714,7 @@ async function loadAssignments({ quiet = false } = {}) {
     sb.from("todos").select("*").order("created_at", { ascending: true }),
     sb.from("school_events").select("*, school_event_targets(student_id)").order("starts_at", { ascending: true }),
     sb.from("event_invites").select("event_id, student_id"),   // 내 일정에 학번으로 넣은 가입 전 친구 (invites.sql)
+    sb.from("todo_groups").select("*").order("position").order("created_at"),   // 할 일 그룹 (todogroups.sql)
   ]);
   cache.school = school.data || [];
   cache.invites = new Map();   // 일정 id → [학번]
@@ -722,6 +723,7 @@ async function loadAssignments({ quiet = false } = {}) {
     cache.invites.get(r.event_id).push(r.student_id);
   }
   cache.todos = todos.error ? null : todos.data;
+  cache.todoGroups = tgroups.error ? null : tgroups.data;   // null 이면 그룹 기능을 숨깁니다 (표가 아직 없을 때)
   const { data, error } = asg;
   // 개인 일정·완료 체크를 못 불러와도 수행평가는 그대로 보여줍니다
   cache.events = evs.data || [];
@@ -736,7 +738,7 @@ async function loadAssignments({ quiet = false } = {}) {
     if (body) body.innerHTML = `<div class="study-empty">불러오지 못했어요.</div>`;
     return;
   }
-  const sig = JSON.stringify([data, personal.data, evs.data, done.data, people.data, todos.data, school.data, invites.data]);
+  const sig = JSON.stringify([data, personal.data, evs.data, done.data, people.data, todos.data, school.data, invites.data, tgroups.data]);
   const same = haveData && sig === dataSig;
   haveData = true; dataAt = Date.now(); dataSig = sig;
   const mineOnly = new Map((personal.data || []).map((p) => [p.assignment_id, p]));
@@ -2496,9 +2498,10 @@ function todoDue(key) {
   return { label, tone: days < 0 ? "over" : days < 3 ? "soon" : "ok", text: dayTitle(key), short };
 }
 
-function todoRow(t) {
+function todoRow(t, grip = false) {
   const due = t.due_on ? todoDue(t.due_on) : null;
-  return `<div class="ev-row c-mint todo-row${t.done ? " done" : ""}">
+  return `<div class="ev-row c-mint todo-row${t.done ? " done" : ""}" data-tid="${t.id}">
+    ${grip ? `<span class="td-grip" data-tgrip="${t.id}" title="끌어서 그룹에 넣기" aria-hidden="true">⠿</span>` : ""}
     <button class="ev-check" data-tchk="${t.id}" aria-label="완료 표시">${t.done ? "✓" : ""}</button>
     <button class="ev-main" data-tedit="${t.id}">
       <span class="ev-title">${esc(t.title)}</span>
@@ -2524,14 +2527,52 @@ function renderTodo() {
     .sort((a, b) => (!a.due_on - !b.due_on) || (a.due_on || "").localeCompare(b.due_on || "") || a.created_at.localeCompare(b.created_at));
   const done = cache.todos.filter((t) => t.done)
     .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || "")).slice(0, 30);
+  // 그룹: 그룹 없는 할 일이 먼저, 그 아래 그룹마다 접고 펼치는 칸. 끝낸 할 일은 맨 아래 '완료'에 모읍니다.
+  const groups = cache.todoGroups;
+  const gids = new Set((groups || []).map((g) => g.id));
+  const gidOf = (t) => (t.group_id && gids.has(t.group_id) ? t.group_id : "");
+  const grip = !!groups?.length;
+  const folded = todoFolds();
+  const loose = open.filter((t) => !gidOf(t));
+  const groupHtml = (groups || []).map((g) => {
+    const list = open.filter((t) => gidOf(t) === g.id);
+    const shut = folded.has(g.id);
+    return `<div class="td-group td-zone${shut ? " shut" : ""}" data-tzone="${g.id}">
+      <div class="td-ghead">
+        <button class="td-gfold" data-tfold="${g.id}" aria-expanded="${!shut}">
+          <span class="td-gchev" aria-hidden="true">▾</span><span class="td-gname">${esc(g.name)}</span><span class="td-gcount">${list.length}</span>
+        </button>
+        <button class="td-gedit" data-tgedit="${g.id}" aria-label="그룹 수정">⋯</button>
+      </div>
+      <div class="td-gbody">
+        ${list.length ? list.map((t) => todoRow(t, true)).join("") : `<div class="td-gempty">할 일을 끌어다 놓으면 이 그룹에 들어가요</div>`}
+      </div>
+    </div>`;
+  }).join("");
   body.innerHTML = `
     <div class="todo-add">
       <input class="study-input" id="tdTitle" maxlength="200" placeholder="할 일을 적고 Enter">
       <button class="study-btn primary" id="tdAdd">추가</button>
     </div>
-    <div class="study-section">남은 할 일 ${open.length}개</div>
-    ${open.length ? open.map(todoRow).join("") : `<div class="study-empty">남은 할 일이 없어요</div>`}
-    ${done.length ? `<div class="study-section">완료 ${done.length}개</div>` + done.map(todoRow).join("") : ""}`;
+    <div class="study-section td-head">남은 할 일 ${open.length}개
+      ${groups ? `<button class="study-btn small" id="tdGroupAdd">＋ 그룹</button>` : ""}</div>
+    <div class="td-zone td-loose" data-tzone="">
+      ${loose.length ? loose.map((t) => todoRow(t, grip)).join("")
+        : `<div class="study-empty td-loose-empty">${open.length ? "그룹 밖으로 꺼내려면 여기에 놓으세요" : "남은 할 일이 없어요"}</div>`}
+    </div>
+    ${groupHtml}
+    ${done.length ? `<div class="study-section">완료 ${done.length}개</div>` + done.map((t) => todoRow(t)).join("") : ""}`;
+  if (groups) $("tdGroupAdd").onclick = () => openGroupForm();
+  body.querySelectorAll("[data-tfold]").forEach((b) => b.onclick = () => {
+    const f = todoFolds();
+    f.has(b.dataset.tfold) ? f.delete(b.dataset.tfold) : f.add(b.dataset.tfold);
+    saveTodoFolds(f);
+    const box = b.closest(".td-group");
+    box.classList.toggle("shut");
+    b.setAttribute("aria-expanded", !box.classList.contains("shut"));
+  });
+  body.querySelectorAll("[data-tgedit]").forEach((b) => b.onclick = () => openGroupForm(groups.find((g) => g.id === b.dataset.tgedit)));
+  body.querySelectorAll("[data-tgrip]").forEach((h) => h.onpointerdown = (e) => startTodoDrag(e, h));
   const add = async () => {
     const title = $("tdTitle").value.trim();
     if (!title) return $("tdTitle").focus();
@@ -2552,6 +2593,145 @@ function renderTodo() {
     e.stopPropagation();
     openDuePop(b, cache.todos.find((t) => t.id === b.dataset.tdue));
   });
+}
+
+// ---------- 할 일 그룹 ----------
+// 접은 그룹은 기기마다 따로 기억합니다 (기본은 모두 펼침)
+const TODO_FOLD_KEY = "dshs-todo-fold";
+function todoFolds() {
+  try { return new Set(JSON.parse(localStorage.getItem(TODO_FOLD_KEY) || "[]")); } catch { return new Set(); }
+}
+function saveTodoFolds(s) { try { localStorage.setItem(TODO_FOLD_KEY, JSON.stringify([...s])); } catch {} }
+
+// 손잡이(⠿)를 끌어 그룹 칸(또는 그룹 밖 칸)에 놓으면 그 그룹으로 옮깁니다. 마우스 · 터치 모두 포인터 이벤트로.
+function startTodoDrag(e, handle) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  closeDuePop();
+  const body = $("studyBody");
+  const row = handle.closest(".todo-row");
+  const id = handle.dataset.tgrip;
+  const from = row.closest("[data-tzone]")?.dataset.tzone ?? "";
+  const r = row.getBoundingClientRect();
+  const ghost = row.cloneNode(true);
+  ghost.classList.add("td-ghost");
+  Object.assign(ghost.style, { width: `${r.width}px`, left: `${r.left}px`, top: `${r.top}px` });
+  document.body.appendChild(ghost);
+  row.classList.add("td-dragging");
+  body.classList.add("td-drag-on");
+  const dy = e.clientY - r.top;
+  let x = e.clientX, y = e.clientY, zone = null, raf = 0;
+  const pick = () => {
+    const z = document.elementFromPoint(x, y)?.closest("#studyBody [data-tzone]") || null;
+    if (z !== zone) { zone?.classList.remove("over"); zone = z; zone?.classList.add("over"); }
+  };
+  const tick = () => {   // 화면 위 · 아래 끝에 가까우면 그쪽으로 스크롤
+    const edge = 70;
+    const v = y < edge ? -(edge - y) / 4 : y > innerHeight - edge ? (y - innerHeight + edge) / 4 : 0;
+    if (v) { scrollBy(0, v); pick(); }
+    raf = requestAnimationFrame(tick);
+  };
+  const move = (ev) => { x = ev.clientX; y = ev.clientY; ghost.style.top = `${y - dy}px`; pick(); };
+  const end = (ev) => {
+    cancelAnimationFrame(raf);
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", end);
+    handle.removeEventListener("pointercancel", end);
+    ghost.remove();
+    row.classList.remove("td-dragging");
+    body.classList.remove("td-drag-on");
+    zone?.classList.remove("over");
+    if (ev.type === "pointerup" && zone && zone.dataset.tzone !== from) moveTodoToGroup(id, zone.dataset.tzone || null);
+  };
+  try { handle.setPointerCapture(e.pointerId); } catch {}
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+  raf = requestAnimationFrame(tick);
+  pick();
+}
+
+async function moveTodoToGroup(id, gid) {
+  const t = cache.todos.find((x) => x.id === id);
+  if (!t) return;
+  const prev = t.group_id || null;
+  t.group_id = gid;
+  rerender();
+  const { error } = await sb.from("todos").update({ group_id: gid }).eq("id", id);
+  if (error) {
+    t.group_id = prev;
+    rerender();
+    return toast("옮기지 못했어요", true);
+  }
+  saveSnap();
+  const name = gid ? cache.todoGroups.find((g) => g.id === gid)?.name : "";
+  undoToast(gid ? `'${name}' 그룹에 넣었어요` : "그룹에서 뺐어요", async () => {
+    const { error } = await sb.from("todos").update({ group_id: prev }).eq("id", id);
+    if (error) return toast("되돌리지 못했어요", true);
+    t.group_id = prev;
+    rerender();
+  });
+}
+
+// 그룹 만들기 · 수정: 이름과, 지금 남은 할 일 중 넣을 것을 고릅니다
+function openGroupForm(g) {
+  const open = cache.todos.filter((t) => !t.done);
+  const gname = new Map(cache.todoGroups.map((x) => [x.id, x.name]));
+  openSheet(g ? "그룹 수정" : "그룹 만들기", `
+    <label class="study-label">그룹 이름</label>
+    <input class="study-input" id="tgName" maxlength="40" value="${g ? esc(g.name) : ""}" placeholder="예: 물리 실험, 동아리">
+    ${open.length ? `<label class="study-label">넣을 할 일 (남은 할 일에서 골라요)</label>
+    <div class="tg-picks">${open.map((t) => {
+      const other = t.group_id && t.group_id !== g?.id ? gname.get(t.group_id) : "";
+      return `<label class="tg-pick"><input type="checkbox" value="${t.id}"${g && t.group_id === g.id ? " checked" : ""}>
+        <span class="tg-pick-title">${esc(t.title)}</span>${other ? `<span class="tg-pick-from">${esc(other)}</span>` : ""}</label>`;
+    }).join("")}</div>` : ""}
+    <div class="study-err" id="authErr"></div>
+    <button class="study-submit" id="tgSave">${g ? "저장" : "만들기"}</button>
+    ${g ? `<button class="study-submit ghost danger" id="tgDel">그룹 삭제 (할 일은 남아요)</button>` : ""}`);
+  if (!g) $("tgName").focus();
+  $("tgSave").onclick = async () => {
+    const name = $("tgName").value.trim();
+    if (!name) return showErr("그룹 이름을 적어 주세요.");
+    const picked = [...document.querySelectorAll(".tg-pick input:checked")].map((c) => c.value);
+    $("tgSave").disabled = true;
+    let gid = g?.id;
+    if (!g) {
+      const position = Math.max(-1, ...cache.todoGroups.map((x) => x.position || 0)) + 1;
+      const { data, error } = await sb.from("todo_groups").insert({ name, position }).select().single();
+      if (error) { $("tgSave").disabled = false; return showErr("그룹을 만들지 못했어요."); }
+      cache.todoGroups.push(data);
+      gid = data.id;
+    } else if (name !== g.name) {
+      const { error } = await sb.from("todo_groups").update({ name }).eq("id", gid);
+      if (error) { $("tgSave").disabled = false; return showErr("저장하지 못했어요."); }
+      g.name = name;
+    }
+    const add = open.filter((t) => picked.includes(t.id) && t.group_id !== gid).map((t) => t.id);
+    const out = g ? open.filter((t) => t.group_id === gid && !picked.includes(t.id)).map((t) => t.id) : [];
+    const res = await Promise.all([
+      add.length ? sb.from("todos").update({ group_id: gid }).in("id", add) : {},
+      out.length ? sb.from("todos").update({ group_id: null }).in("id", out) : {},
+    ]);
+    if (!res[0].error) for (const t of open) if (add.includes(t.id)) t.group_id = gid;
+    if (!res[1].error) for (const t of open) if (out.includes(t.id)) t.group_id = null;
+    closeModal();
+    rerender();
+    saveSnap();
+    if (res[0].error || res[1].error) toast("할 일 일부를 옮기지 못했어요", true);
+    else toast(g ? "그룹을 저장했어요" : `'${name}' 그룹을 만들었어요`);
+  };
+  if (g) $("tgDel").onclick = async () => {
+    if (!confirm(`'${g.name}' 그룹을 삭제할까요? 안에 있던 할 일은 그룹 밖으로 나와요.`)) return;
+    const { error } = await sb.from("todo_groups").delete().eq("id", g.id);
+    if (error) return showErr("삭제하지 못했어요.");
+    cache.todoGroups = cache.todoGroups.filter((x) => x.id !== g.id);
+    for (const t of cache.todos) if (t.group_id === g.id) t.group_id = null;
+    const f = todoFolds(); if (f.delete(g.id)) saveTodoFolds(f);
+    closeModal();
+    rerender();
+    saveSnap();
+  };
 }
 
 // 기한 고르기: 버튼 아래에 뜨는 작은 메뉴 (오늘 · 내일 · 이번 주말 · 다음 주 · 날짜 고르기)
@@ -2637,11 +2817,17 @@ function openTodoForm(t) {
     <input class="study-input" id="tfTitle" maxlength="200" value="${esc(t.title)}">
     <label class="study-label">기한 (없어도 돼요 · 정하면 달력에도 떠요)</label>
     <input class="study-input" type="date" id="tfDue" value="${t.due_on || ""}">
+    ${cache.todoGroups?.length ? `<label class="study-label">그룹</label>
+    <select class="study-input" id="tfGroup">
+      <option value="">그룹 없음</option>
+      ${cache.todoGroups.map((g) => `<option value="${g.id}"${t.group_id === g.id ? " selected" : ""}>${esc(g.name)}</option>`).join("")}
+    </select>` : ""}
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="tfSave">저장</button>
     <button class="study-submit ghost danger" id="tfDel">삭제</button>`);
   $("tfSave").onclick = async () => {
     const patch = { title: $("tfTitle").value.trim(), due_on: $("tfDue").value || null };
+    if ($("tfGroup")) patch.group_id = $("tfGroup").value || null;
     if (!patch.title) return showErr("할 일을 입력해 주세요.");
     const { error } = await sb.from("todos").update(patch).eq("id", t.id);
     if (error) return showErr("저장하지 못했어요.");
