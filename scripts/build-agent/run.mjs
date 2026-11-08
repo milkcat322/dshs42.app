@@ -69,7 +69,7 @@ writeFileSync(LOCK, String(Date.now()));
 let task;
 try {
   const got = await call({ action: "claim" });
-  if (!got.task) process.exit(0);
+  if (!got.task) { rmSync(LOCK, { force: true }); process.exit(0); } // exit 은 finally 를 건너뛰므로 직접 지움
   task = got.task;
   log(`${got.job} 시작: ${task.title} (${task.id})`);
   prepareWorktree();
