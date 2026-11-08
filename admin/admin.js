@@ -434,10 +434,8 @@ const ovTime = (s) => {
 const ovWho = (r) => `${r.student_id ? `${r.student_id} ` : ""}${esc(r.name)}`;
 const OV_COUNTS = [["assignments", "수행평가"], ["personal", "개인 수정"], ["done", "완료 표시"], ["events", "일정"],
   ["todos", "할 일"], ["groups", "그룹"], ["feedback", "피드백"], ["push", "알림 기기"]];
-const OV_KINDS = [["signup", "가입", "명"], ["assignment", "수행평가", "건"], ["event", "일정", "개"], ["todo", "할 일", "개"],
-  ["done", "완료 표시", "건"], ["personal", "개인 수정", "건"], ["group", "그룹", "개"], ["status", "위치 표시", "건"], ["feedback", "피드백", "건"]];
 
-// 학생 현황에서 숫자를 보고 하면 좋을 일을 고릅니다. 새 규칙은 여기에 한 줄씩 더합니다.
+// 학생 현황에서 숫자를 보고 하면 좋을 일을 고릅니다 ('제안' 칸 맨 위). 새 규칙은 여기에 한 줄씩 더합니다.
 function overviewTips(data) {
   const joined = data.students;
   const weekAgo = Date.now() - 7 * 86400000;
@@ -454,14 +452,10 @@ function overviewTips(data) {
   return tips;
 }
 
+// 학생 칸은 있는 그대로만 보여 줍니다. 숫자를 보고 할 일(overviewTips)은 '제안' 칸에 있어요.
 function studentsHtml(data, seen) {
-  const first = seen === Infinity;   // 처음 열면 최근 24시간을 요약하고 강조는 하지 않습니다
-  const since = first ? Date.now() - 86400000 : seen;
-  const fresh = data.activity.filter((a) => Date.parse(a.at) > since);
-  const kindCount = (k) => fresh.filter((a) => a.kind === k).length;
-  const freshBits = OV_KINDS.filter(([k]) => kindCount(k)).map(([k, label, unit]) => `${label} ${kindCount(k)}${unit}`);
-  const today = dayKey(new Date());
-  const activeToday = data.students.filter((s) => s.last_login && dayKey(new Date(s.last_login)) === today).length;
+  const first = seen === Infinity;   // 처음 열면 강조하지 않습니다
+  const nNew = first ? 0 : data.activity.filter((a) => Date.parse(a.at) > seen).length;
   const activity = data.activity.map((a) => {
     const isNew = !first && Date.parse(a.at) > seen;
     return `<div class="adm-row${isNew ? " new" : ""}">
@@ -479,12 +473,9 @@ function studentsHtml(data, seen) {
   }).join("");
   return `<div class="adm-tiles">
       <div class="adm-tile"><b>${data.students.length}<small>/${data.roster}</small></b>가입</div>
-      <div class="adm-tile"><b>${activeToday}</b>오늘 로그인</div>
-      <div class="adm-tile"><b>${fresh.length}${fresh.length >= 100 ? "+" : ""}</b>${first ? "24시간 활동" : "새 활동"}</div>
+      <div class="adm-tile"><b>${data.not_joined.length}</b>아직 가입 안 함</div>
     </div>
-    <div class="adm-sum">${first ? "최근 24시간" : "지난번 본 뒤"} · ${freshBits.length ? esc(freshBits.join(", ")) : "새 활동 없음"}</div>
-    ${overviewTips(data).map((t) => `<div class="adm-tip">${esc(t)}</div>`).join("")}
-    <details class="adm-acc"><summary>최근 활동<span>${data.activity.length}</span></summary>${activity || '<div class="adm-none">아직 활동이 없어요.</div>'}</details>
+    <details class="adm-acc"><summary>최근 활동<span>${nNew ? `새 ${nNew} · ` : ""}${data.activity.length}</span></summary>${activity || '<div class="adm-none">아직 활동이 없어요.</div>'}</details>
     <details class="adm-acc"><summary>가입한 학생<span>${data.students.length}</span></summary>${students || '<div class="adm-none">아직 가입한 학생이 없어요.</div>'}</details>
     <details class="adm-acc"><summary>아직 가입 안 한 학생<span>${data.not_joined.length}</span></summary><p>${data.not_joined.map(ovWho).join(" · ")}</p></details>
     <div class="adm-foot">지금 남아 있는 내용만 보여요. 지운 항목과 고치기 전 내용은 나오지 않아요. 할 일 · 개인 일정 · 개인 수정 · 학생 그룹의 내용은 본인만 볼 수 있어 수와 시각만 보여요.</div>`;
@@ -635,7 +626,7 @@ function bindPlans(body, plans, addTask) {
   });
 }
 
-function devHtml(tasks, usage, plans) {
+function devHtml(tasks, usage, plans, overview) {
   if (!tasks) return '<div class="adm-none">제작 목록을 불러오지 못했어요. agenttasks.sql 을 실행했는지 확인해 주세요.</div>';
   const chip = (t) => `<span class="${DEV_HOT.has(t.status) ? "fb-new" : "adm-chip"}">${DEV_LABEL[t.status]}</span>`;
   const head = (t) => `<div class="adm-fb-top">${chip(t)}<b>${esc(t.title)}</b>${t.rounds ? `<span class="adm-chip">${t.rounds}/${DEV_MAX}번째</span>` : ""}</div>`;
@@ -678,6 +669,7 @@ function devHtml(tasks, usage, plans) {
   const last = usage?.[0];
   return `<div class="adm-goal"><b>목표</b> 로그인해서 쓰는 학생 늘리기 · 수행평가 · 일정 기능을 쓰는 학생 늘리기
       <span>매일 밤 10시 Claude 가 사용 기록을 보고 이 목표에 맞는 개발을 제안해요. 고치거나 그대로 '승인하고 만들기'를 누르면 Claude 가 만들고 미리보기를 보내요.</span></div>
+    ${overview ? overviewTips(overview).map((t) => `<div class="adm-tip">${esc(t)}</div>`).join("") : ""}
     ${last ? `<details class="adm-acc"><summary>최근 분석 · ${esc(ovTime(last.created_at))}</summary><div class="adm-use-text" style="padding:4px 14px 14px">${esc(last.report?.summary || "")}</div></details>` : ""}
     <div class="adm-label">새 제안${drafts.length ? ` ${drafts.length}` : ""}</div>
     ${drafts.map(card).join("") || '<div class="adm-empty">새 제안이 없어요. 밤 10시 분석 뒤에 올라와요.</div>'}
@@ -855,7 +847,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, 
       + reviewLogHtml(log)
       + (old.length ? `<details class="adm-acc"><summary>지난 피드백<span>${old.length}</span></summary>${fbHtml(old, false)}</details>` : ""))}
     ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
-    ${box("dev", devHtml(tasks, usage, plans))}`;
+    ${box("dev", devHtml(tasks, usage, plans, overview))}`;
 }
 
 let ovSeen, fbSeen, ovPane, ovShow;   // 처음 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
