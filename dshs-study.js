@@ -117,6 +117,7 @@ async function init() {
 async function startApp() {
   if (!ENABLED) { $("studyNav").style.display = "none"; return; }
   if (dshsPopupLanding()) closeDshsPopup();   // 앱이 연 로그인 창이면 화면을 그리기 전에 바로 닫습니다
+  silentReturned();   // 조용한 로그인에서 돌아왔으면 원래 주소로 (토큰은 # 뒤에 남겨 아래 dshsSession 이 씀)
   // 로그인 기록이 없으면 검색창이 잠깐 보였다 사라지지 않도록 처음부터 로그인 안내를 띄웁니다
   let saved = false;
   try { saved = !!localStorage.getItem("dshs-study-auth"); } catch {}
@@ -149,6 +150,7 @@ async function startApp() {
   if (session) await loadProfile();
   else if (me && !(sessErr && isNetErr(sessErr))) { me = null; myClasses = []; clearSnap(); }   // 로그인이 끝남
   else if (me) netDown = true;   // 서버에 닿지 못함 → 지난 화면 유지
+  if (!session && !sessErr && await silentLogin()) return;   // dshs.app 에 로그인돼 있는지 보러 갑니다 (페이지를 떠남)
   // 로그인 기록은 남아 있는데 서버가 잠깐 답하지 못했으면 조금 뒤 다시 확인합니다
   if ((session ? loadProfile.failed : sessErr && isNetErr(sessErr)) && authUserId()) retryAuth();
   renderNav();
@@ -387,6 +389,7 @@ async function loadProfile() {
   setMe(data);
   saveSnap();
   keepStorage();
+  if (silentState()?.off) silentState({ off: false });   // 다시 로그인했으니 다음에 로그인 기록이 없어지면 조용한 로그인을 다시 씁니다
 }
 function setMe(data) {
   me = data;
@@ -644,6 +647,7 @@ const openHome = () => (me.is_admin ? openAdminMoved() : me.student_id ? openMyT
 async function logout() {
   await forgetPush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 서버 등록만 지웁니다
   await sb.auth.signOut();
+  silentState({ off: true });   // 직접 로그아웃했으면 조용한 로그인으로 다시 들어가지 않게
   autoPush.done = false;   // 다음에 로그인하는 사람의 알림을 다시 맞춥니다
   paintPush.known = false;
   statusMap = new Map(); statusAt = 0;
@@ -2114,6 +2118,45 @@ const DSHS_RETURNED = {
 };
 const dshsEmpty = () => ({ linked: null, name: null, items: [], at: 0 });   // linked: null = 아직 모름
 let dshs = dshsEmpty();
+
+// ---------- 조용한 로그인 ----------
+// 아이폰 · 아이패드는 홈 화면 앱과 Safari(또는 다른 브라우저)의 저장소가 따로라, 앱에서 로그인해 두어도 Safari 로 열면
+// 로그아웃된 것처럼 보입니다. 로그인 기록이 없는 브라우저에서 열면 dshs.app 에 prompt=none 으로 한 번 다녀와서,
+// 그 브라우저에 dshs.app 로그인이 살아 있으면 화면 없이 바로 로그인합니다 (이미 계정이 있는 학생만. dshs-oauth 의 silent).
+// - 홈 화면 앱에서는 하지 않습니다 (다른 사이트로 가면 앱 안에 브라우저 창이 떠서 '조용히'가 안 됨)
+// - 그 브라우저에서 하루 한 번만 (로그인 안 하는 방문자가 매번 다녀오지 않게 · dshs.app 요청 한도)
+// - 이 브라우저에서 로그아웃했으면 다시 로그인할 때까지 하지 않습니다
+const SILENT_KEY = "dshs-silent";       // localStorage { day, off }
+const SILENT_BACK = "dshs-silent-back"; // sessionStorage: 다녀오기 전 주소의 ?… (알림 링크 등)
+function silentState(patch) {
+  try {
+    const st = JSON.parse(localStorage.getItem(SILENT_KEY) || "{}");
+    if (!patch) return st;
+    localStorage.setItem(SILENT_KEY, JSON.stringify({ ...st, ...patch }));
+    return JSON.parse(localStorage.getItem(SILENT_KEY));
+  } catch { return null; }
+}
+async function silentLogin() {
+  if (isInstalledApp() || !navigator.onLine || silentReturned.back) return false;
+  if (new URLSearchParams(location.search).get("dshs") || /dshs_login=/.test(location.hash)) return false;
+  const today = dayKey(new Date()), st = silentState();
+  if (!st || st.off || st.day === today) return false;
+  if (silentState({ day: today })?.day !== today) return false;   // 저장이 안 되는 브라우저(사생활 보호 등)는 열 때마다 다녀오게 되므로 하지 않음
+  try {
+    sessionStorage.setItem(SILENT_BACK, location.search);
+    const { body } = await dshsCall("login", { return_to: location.origin + location.pathname, silent: true });
+    if (body.silent === true && body.url) { location.replace(body.url); return true; }
+  } catch {}
+  return false;
+}
+// 돌아오면(?dshs=silent) 다녀오기 전 주소로 바꿉니다. 성공했으면 # 뒤의 일회용 토큰은 그대로 둡니다.
+function silentReturned() {
+  if (new URLSearchParams(location.search).get("dshs") !== "silent") return;
+  silentReturned.back = true;
+  let q = "";
+  try { q = sessionStorage.getItem(SILENT_BACK) || ""; sessionStorage.removeItem(SILENT_BACK); } catch {}
+  history.replaceState(null, "", location.pathname + q + location.hash);
+}
 
 async function dshsCall(action, extra) {
   const { data: { session } } = await sb.auth.getSession();

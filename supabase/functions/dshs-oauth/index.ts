@@ -4,6 +4,9 @@
 //
 //   POST { action: "start", return_to }  → dshs.app 로그인 주소 (로그인한 학생의 계정 연결)
 //   POST { action: "login", return_to }  → dshs.app 로그인 주소 ('dshs.app으로 로그인', 로그인 전)
+//        { …, silent: true }            → 조용한 로그인: prompt=none 이라 dshs.app 에 이미 로그인돼 있으면 화면 없이 돌아옵니다.
+//                                          이미 계정이 있는 학생만 로그인시키고, 안 되면 ?dshs=silent 로 조용히 돌아갑니다.
+//                                          (아이폰은 홈 화면 앱과 Safari 의 저장소가 따로라, Safari 에서 다시 로그인하지 않게)
 //   GET  ?code=…&state=…                 → dshs.app 이 돌려보내는 곳 (redirect URI). 토큰을 저장하고 사이트로 돌아갑니다.
 //                                          'dshs.app으로 로그인' 이면 학번으로 계정을 찾거나 만들고,
 //                                          일회용 로그인 토큰을 주소의 # 뒤에 붙여 돌려보냅니다 (브라우저가 세션으로 바꿈).
@@ -33,6 +36,9 @@ const json = (body: unknown, status = 200) =>
 const ISSUER = "https://id.dshs.app";
 const API = "https://api.dshs.app";
 const SCOPE = "openid profile offline_access me.read request.read";
+// 조용한 로그인: 학번만 알면 되고, offline_access 는 동의 화면이 필요해 뺍니다 (저장해 둔 연결 토큰은 건드리지 않음)
+const SILENT_SCOPE = "openid profile me.read";
+const SILENT = "s_";   // 조용한 로그인의 state 앞에 붙입니다
 const CLIENT_ID = Deno.env.get("DSHS_CLIENT_ID")!;
 const CLIENT_SECRET = Deno.env.get("DSHS_CLIENT_SECRET")!;
 // dshs.app 에 등록한 redirect URI 와 정확히 같아야 합니다. 로컬(supabase functions serve)에서는 env 로 바꿉니다.
@@ -144,7 +150,7 @@ async function api(link: Link, path: string) {
 // ---------- 동작 ----------
 // userId 가 null 이면 'dshs.app으로 로그인'
 // handoff: 설치한 앱에서 시작했을 때 앱만 아는 임의 값. 결과는 로그인 창이 아니라 앱이 poll 로 받아 갑니다.
-async function start(userId: string | null, returnTo: unknown, handoff: unknown) {
+async function start(userId: string | null, returnTo: unknown, handoff: unknown, silent = false) {
   let back = DEFAULT_RETURN;
   try {
     const u = new URL(String(returnTo));
@@ -154,8 +160,8 @@ async function start(userId: string | null, returnTo: unknown, handoff: unknown)
   const old = new Date(Date.now() - 10 * 60000).toISOString();
   await admin.from("dshs_oauth_states").delete().lt("created_at", old);
   await admin.from("dshs_handoffs").delete().lt("created_at", old);
-  const state = randomToken(), verifier = randomToken();
-  const hand = typeof handoff === "string" && handoff.length >= 32 ? await sha256(handoff) : null;
+  const state = (silent ? SILENT : "") + randomToken(), verifier = randomToken();
+  const hand = !silent && typeof handoff === "string" && handoff.length >= 32 ? await sha256(handoff) : null;
   const { error } = await admin.from("dshs_oauth_states").insert({ state, user_id: userId, verifier, return_to: back, handoff: hand });
   if (error) return json({ error: "서버 오류가 났어요. 잠시 뒤 다시 시도해 주세요." }, 500);
 
@@ -164,18 +170,21 @@ async function start(userId: string | null, returnTo: unknown, handoff: unknown)
     response_type: "code",
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
-    scope: SCOPE,
+    scope: silent ? SILENT_SCOPE : SCOPE,
     state,
     code_challenge: await pkceChallenge(verifier),
     code_challenge_method: "S256",
-    prompt: "consent",   // refresh token(offline_access)은 동의 화면을 거쳐야 발급됩니다
+    // refresh token(offline_access)은 동의 화면을 거쳐야 발급됩니다. 조용한 로그인은 화면을 띄우지 않습니다(none).
+    prompt: silent ? "none" : "consent",
   }).toString();
-  return json({ url: url.toString() });
+  // silent 를 돌려줘야 브라우저가 넘어갑니다 (예전 함수가 동의 화면 주소를 주면 넘어가지 않게)
+  return json({ url: url.toString(), silent });
 }
 
 // 'dshs.app으로 로그인': 연결된 계정 → 같은 학번으로 가입한 계정 → (명단에 있으면) 새 계정 순으로 찾습니다.
 // 새 계정은 아이디 d<학번>, 비밀번호는 아무도 모르는 임의 값이라 dshs.app 으로만 로그인합니다.
-async function loginUser(sub: string, dme: { studentId?: string } | null):
+// allowCreate 가 false 면(조용한 로그인) 계정을 새로 만들지 않습니다.
+async function loginUser(sub: string, dme: { studentId?: string } | null, allowCreate = true):
   Promise<{ userId: string; created?: boolean } | { error: string }> {
   const { data: link } = await admin.from("dshs_links").select("user_id").eq("dshs_sub", sub).maybeSingle();
   if (link) return { userId: link.user_id };
@@ -184,6 +193,7 @@ async function loginUser(sub: string, dme: { studentId?: string } | null):
   if (!Number.isInteger(sid) || sid < 1000 || sid > 9999) return { error: "notstudent" };
   const { data: prof } = await admin.from("profiles").select("id").eq("student_id", sid).maybeSingle();
   if (prof) return { userId: prof.id };
+  if (!allowCreate) return { error: "noaccount" };
 
   const { data: roster } = await admin.from("roster").select("name").eq("student_id", sid).maybeSingle();
   if (!roster) return { error: "notstudent" };
@@ -221,8 +231,11 @@ async function callback(params: URLSearchParams) {
   if (!st) return backTo(DEFAULT_RETURN, { dshs: "error", reason: "expired" }, true);
   await admin.from("dshs_oauth_states").delete().eq("state", state);   // 한 번만 씁니다
   const login = !st.user_id;
+  const silent = login && state.startsWith(SILENT);
   // 앱에서 시작했으면 결과를 앱이 받아 가도록 맡겨 두고, 로그인 창에는 "앱으로 돌아가세요"만 보여 줍니다
+  // 조용한 로그인은 결과와 상관없이 ?dshs=silent 로 돌아갑니다 (실패해도 안내하지 않음. 성공이면 # 뒤에 토큰)
   const done = async (result: string, reason?: string, token?: string) => {
+    if (silent) return backTo(st.return_to, { dshs: "silent" }, true, token ? `dshs_login=${token}` : "");
     if (!st.handoff) {
       const params: Record<string, string> = { dshs: result };
       if (reason) params.reason = reason;
@@ -250,6 +263,13 @@ async function callback(params: URLSearchParams) {
   const dme = meRes.ok ? await meRes.json() : null;
 
   let userId: string = st.user_id, created = false;
+  if (silent) {
+    // 이미 있는 계정만. 연결 정보(dshs_links)는 바꾸지 않습니다 (refresh token 이 없어 덮어쓰면 연결이 끊김)
+    const found = await loginUser(claims.sub, dme, false);
+    if ("error" in found) return fail(found.error);
+    const token = await loginToken(found.userId);
+    return token ? done("login", undefined, token) : fail("failed");
+  }
   if (login) {
     const found = await loginUser(claims.sub, dme);
     if ("error" in found) {
@@ -343,13 +363,13 @@ Deno.serve(async (req) => {
   if (req.method === "GET") return callback(new URL(req.url).searchParams);
   if (req.method !== "POST") return json({ error: "GET/POST only" }, 405);
 
-  let body: { action?: string; return_to?: string; handoff?: string };
+  let body: { action?: string; return_to?: string; handoff?: string; silent?: boolean };
   try {
     body = await req.json();
   } catch {
     return json({ error: "잘못된 요청이에요." }, 400);
   }
-  if (body.action === "login") return start(null, body.return_to, body.handoff);
+  if (body.action === "login") return start(null, body.return_to, body.handoff, body.silent === true);
   if (body.action === "poll") return poll(body.handoff);
 
   const user = await currentUser(req);

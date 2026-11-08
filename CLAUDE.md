@@ -84,6 +84,7 @@ DEVLOG 맨 앞의 `개발 흐름` 은 주요 개발만 한 줄씩 모은 요약�
 - 로그인 · 연결 뒤 돌아갈 주소는 `dshs-oauth` 의 `RETURN_OK` 에 있는 사이트만 된다 (없으면 dshs42.app 으로 감). 새 주소(도메인)에서 서비스하면 여기에 추가하고 함수를 다시 배포한다. beta 와 그 브랜치 미리보기(`<브랜치>--dshs42-beta.netlify.app`)는 들어 있다.
 - 할 일 그룹(`todogroups.sql`, `todo_groups` · `todos.group_id`): 그룹은 DB, 접기 · 펼치기는 기기마다 `dshs-todo-fold`(localStorage, 기본 모두 펼침). 표를 못 읽으면(`cache.todoGroups === null`) 그룹 UI 를 숨긴다. 끌어서 옮기기는 손잡이(⠿) 포인터 이벤트(`startTodoDrag`)라 터치에서도 된다.
 - 'dshs.app으로 로그인'은 dshs.app 의 학번으로 계정을 찾는다 (연결된 계정 → 같은 학번 계정 → 명단에 있으면 새 계정 `d<학번>@dshs.study`, 임의 비밀번호). 세션은 Edge Function 이 만든 일회용 magiclink 토큰을 `#dshs_login=` 으로 넘겨 브라우저가 `verifyOtp` 로 만든다.
+- 조용한 로그인(`silentLogin`, `dshs-oauth` 의 `silent`): 아이폰은 홈 화면 앱과 Safari 의 저장소(쿠키 포함)가 따로라, 로그인 기록이 없는 **브라우저**(앱 아님)에서 열면 하루 한 번 id.dshs.app 에 `prompt=none` 으로 다녀와 dshs.app 로그인이 살아 있으면 바로 로그인한다. 이미 계정이 있는 학생만 · 연결 토큰(`dshs_links`)은 안 바꿈 · 직접 로그아웃한 브라우저는 다시 로그인할 때까지 안 함(`dshs-silent`). 서버가 `silent: true` 를 돌려줄 때만 넘어가므로 함수 배포 전 프론트가 먼저 나가도 안전하다. 토큰 갱신이 429 · 5xx 로 실패해도 로그인 기록을 지우지 않게 `authFetch` 가 '연결 안 됨'으로 바꾼다 (supabase-js 는 그때 기록을 지움).
 - 사이트 하단과 로그인 창의 "학생 비공식 사이트" 문구는 dshs.app 측 요청이라 지우지 않는다.
 - 알림 구독 저장은 `save_push()`(`schema.sql`)로만 한다. 같은 기기(endpoint)가 다른 계정으로 남아 있으면 RLS 때문에 upsert 가 막혀 "알림이 안 켜짐"이 되므로, 이 함수가 기기를 지금 로그인한 계정으로 넘긴다. 같은 코드인데 사이트(주소)마다 알림이 다르게 동작하면 기기 · 주소별로 남은 구독 행부터 의심한다.
 - 알림 계산은 `supabase/functions/send-reminders/plan.ts` 순수 함수에 둔다 (DB·푸시 없이 테스트 가능하게). 관리자 새 활동 알림(`planAdminNote`)은 학생 가입 · 수행평가 승인 요청 · 피드백만 묶어 보낸다. 할 일 · 일정 · 위치처럼 본인 활동은 넣지 않는다.
