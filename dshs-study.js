@@ -335,6 +335,14 @@ const NO_ASG_SUBJECTS = new Set(["미술", "체육"]);
 const asgClasses = () => myClasses.filter((c) => !NO_ASG_SUBJECTS.has(c.subject));
 const asgSubjects = () => mySubjects().filter((s) => !NO_ASG_SUBJECTS.has(s));
 
+// 수행평가 탭 옆 숫자: 완료 표시를 안 했고 마감이 지금부터 3일(72시간) 안인, 승인된 수행평가 수. 데이터가 없으면 0
+function asgSoonCount() {
+  if (!haveData || !cache.items) return 0;
+  const now = Date.now();
+  return noticeItems().filter((a) => a.status === "approved" && !cache.done.has(a.id)
+    && dueMs(a) >= now && dueMs(a) <= now + 72 * 3600 * 1000).length;
+}
+
 // ---------- 헤더 ----------
 function renderNav() {
   const nav = $("studyNav");
@@ -345,7 +353,10 @@ function renderNav() {
   const tabs = me?.is_admin ? [["moved", "관리자 사이트로"]] : me?.student_id ? [["mytt", "시간표"], ...PAGES] : PAGES;
   const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && page === k);
   nav.innerHTML = me
-    ? tabs.map(([k, label]) => `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}</button>`).join("")
+    ? tabs.map(([k, label]) => {
+      const n = k === "notice" && !me.is_admin ? asgSoonCount() : 0;
+      return `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}${n ? `<span class="tab-count">${n}</span>` : ""}</button>`;
+    }).join("")
     : "";
   // 설정(알림 · 학교 일정 · 계정)은 업데이트 옆에 늘 보입니다 (로그인 전에는 관리자 로그인을 여는 곳)
   const set = $("btnSettings");
@@ -747,6 +758,7 @@ async function loadAssignments({ quiet = false } = {}) {
   cache.mine = rows.filter((a) => a.created_by === me.id);
   cache.pending = rows.filter((a) => a.status === "pending");
   saveSnap();
+  renderNav();   // 수행평가 탭 옆 숫자 갱신
   if (quiet && same) return;
   // 작성 중인 공지 추가 폼은 덮어쓰지 않습니다
   if ($("studyView").style.display === "block" && view !== "form") rerender();
@@ -1168,6 +1180,7 @@ async function toggleDone(kind, id) {
     }
   }
   if (error) return toast("저장하지 못했어요", true);
+  renderNav();   // 수행평가 탭 옆 숫자 갱신
   rerender();
 }
 
