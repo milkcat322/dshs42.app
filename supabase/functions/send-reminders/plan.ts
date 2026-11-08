@@ -106,7 +106,7 @@ export function planNotes(now: number, d: Input): Note[] {
         key: `asg:${a.id}:${stage}:${due}`,
         title: `${a.subject}${a.ban ? ` ${a.ban}` : ""} 수행평가 ${leftLabel(left)}`,
         body: `${p?.title ?? a.title}\n마감 ${when}`,
-        url: "/?view=assignments",
+        url: `/?view=assignments&asg=${a.id}`,
         ttl: Math.ceil(left * 60),
       });
     }

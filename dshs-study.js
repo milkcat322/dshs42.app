@@ -171,11 +171,46 @@ async function startApp() {
 
 // 알림을 누르고 들어오면 그 탭으로, 아니면 내 시간표로 시작합니다
 function openStart() {
-  const opened = new URLSearchParams(location.search).get("view");
+  const q = new URLSearchParams(location.search);
+  const opened = q.get("view");
   if (me?.is_admin) openAdminMoved();
-  else if (me && opened === "assignments") openStudy("notice");
+  else if (me && opened === "assignments") openAsgLink(q.get("asg"));
   else if (me && opened === "cal") openStudy("cal");
   else if (me?.student_id) openMyTimetable();
+}
+
+// 수행평가 알림으로 들어오면 수행평가 탭을 열고, asg 가 있으면 그 수행평가 자세히 보기까지 엽니다
+// (목록이 아직 안 왔으면 받아진 뒤 한 번만. 못 찾으면 탭만 보여 줍니다)
+async function openAsgLink(id) {
+  openStudy("notice");
+  if (!id) return;
+  const clean = () => {
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete("view"); u.searchParams.delete("asg");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    } catch {}
+  };
+  try {
+    let a = findAsg(id);
+    if (!a) { await loadAssignments({ quiet: true }); a = findAsg(id); }
+    if (a && me) openAsgDetail(a);
+  } finally { clean(); }
+}
+
+// 이미 열려 있는 창에 서비스 워커가 알림 주소를 보내면 새로고침 없이 그 화면으로 갑니다
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data?.type !== "open-url" || !me) return;
+    try {
+      const u = new URL(e.data.url, location.origin);
+      if (u.origin !== location.origin) return;
+      const v = u.searchParams.get("view");
+      if (me.is_admin) return;
+      if (v === "assignments") openAsgLink(u.searchParams.get("asg"));
+      else if (v === "cal") openStudy("cal");
+    } catch {}
+  });
 }
 
 // 관리 기능(관리 탭 · 학교 일정 관리)은 관리자 사이트(admin/ · CFG.ADMIN_URL)로 옮겼습니다.

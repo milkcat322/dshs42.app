@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v117';
+const CACHE = 'dshs-study-v118';
 
 const SHELL = [
   './',
@@ -138,7 +138,10 @@ self.addEventListener('notificationclick', e => {
   const target = new URL(e.notification.data?.url || './', self.location.origin).href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     for (const c of list) {
-      if (c.url.startsWith(self.location.origin)) return c.focus();
+      if (c.url.startsWith(self.location.origin)) {
+        // 열려 있는 창은 새로고침 없이 알림 주소로 가게 알려 줍니다
+        return c.focus().then(() => { c.postMessage({ type: 'open-url', url: target }); }, () => {});
+      }
     }
     return self.clients.openWindow(target);
   }));
