@@ -15,6 +15,10 @@ create table if not exists public.assignment_personal (
   updated_at    timestamptz not null default now(),
   primary key (user_id, assignment_id)
 );
+-- 설명(공지의 body)도 나만 고칠 수 있습니다
+alter table public.assignment_personal add column if not exists body text
+  check (body is null or char_length(body) between 1 and 2000);
+alter table public.assignment_personal add column if not exists no_body boolean not null default false;   -- 나만 설명 비움
 create index if not exists assignment_personal_asg_idx on public.assignment_personal (assignment_id);
 
 alter table public.assignment_personal enable row level security;

@@ -854,6 +854,7 @@ function withPersonal(a, p) {
   return {
     ...a, personal: true, shared: a,
     title: p.title ?? a.title,
+    body: p.no_body ? "" : p.body ?? a.body,
     due_at: p.no_due ? null : p.due_at ?? a.due_at,
     submit_to: p.no_submit ? null : p.submit_to ?? a.submit_to,
   };
@@ -881,7 +882,7 @@ function card(a, opts = {}) {
   return `<div class="asg-card${done ? " done" : ""}">
     <div class="asg-top"><span class="asg-subject">${esc(a.subject)} · ${esc(banLabel(a.ban))}</span>${badge}</div>
     <div class="asg-title">${esc(a.title)}</div>
-    ${a.body ? `<div class="asg-body">${esc(a.body)}</div>` : ""}
+    ${a.body ? `<div class="asg-body${opts.check ? " clamp" : ""}">${esc(a.body)}</div>` : ""}
     <div class="asg-due"><span>${d.when ? `${d.when} 마감` : "마감 일시 미정"}</span>${a.author_name ? `<span class="asg-by">${esc(a.author_name)} 작성</span>` : ""}</div>
     ${a.submit_to ? `<div class="asg-due">제출: ${esc(a.submit_to)}</div>` : ""}
     ${opts.check ? `<div class="asg-actions">
@@ -1681,7 +1682,7 @@ function openSharedEvent(ev) {
 // 수행평가 제출처 (고르지 않아도 됩니다. 그 밖의 곳은 폼의 "그 외" 에 직접 적습니다)
 const SUBMIT_PLACES = ["클래스룸", "dshs앱", "패들렛", "메일"];
 
-// a: 고칠 수행평가 (없으면 새로 추가). 고칠 때는 과목·분반은 바꿀 수 없고 제목·마감·제출처만 고칩니다.
+// a: 고칠 수행평가 (없으면 새로 추가). 고칠 때는 과목·분반은 바꿀 수 없고 제목·설명·마감·제출처만 고칩니다.
 function openNewForm(a) {
   const body = $("studyBody");
   // 기본 마감: 일주일 뒤 그날 자정 (23:59 — 00:00 으로 두면 달력에서 다음 날로 넘어가 보입니다)
@@ -1709,6 +1710,8 @@ function openNewForm(a) {
       </select>
       <label class="study-label">제목</label>
       <input class="study-input" id="nTitle" maxlength="120" placeholder="예: 3단원 실험 보고서 제출" value="${esc(a?.title ?? "")}">
+      <label class="study-label">설명 (선택)</label>
+      <textarea class="study-input" id="nBody" rows="3" maxlength="2000" placeholder="범위, 분량, 준비물 등">${esc(a?.body ?? "")}</textarea>
       <label class="study-label">마감 일시</label>
       <input class="study-input" id="nDue" type="datetime-local" value="${dueVal}"${noDue ? " disabled" : ""}>
       <label class="ev-allday"><input type="checkbox" id="nNoDue"${noDue ? " checked" : ""}> 마감 일시 없음 <span class="ev-hint">(아직 안 정해졌으면 · D-? 로 보여요)</span></label>
@@ -1755,8 +1758,7 @@ function openNewForm(a) {
     if (!noDueNow && !due) { err.textContent = "마감 일시를 정하거나 \"마감 일시 없음\" 을 골라 주세요."; err.classList.add("show"); return; }
     if (placeNow === "etc" && !submitTo) { err.textContent = "제출처를 적어 주세요."; err.classList.add("show"); return; }
     $("nSave").disabled = true;
-    // 내용(body) 칸은 폼에서 뺐지만, 예전에 적힌 내용은 고쳐도 그대로 둡니다
-    const fields = { title, submit_to: submitTo || null, due_at: noDueNow ? null : new Date(due).toISOString() };
+    const fields = { title, body: $("nBody").value.trim(), submit_to: submitTo || null, due_at: noDueNow ? null : new Date(due).toISOString() };
     let error;
     if (a && editsOnlyForMe(a)) {
       ({ error } = await savePersonal(a, fields));
@@ -1794,6 +1796,9 @@ function savePersonal(a, f) {
     submit_to: f.submit_to && f.submit_to !== b.submit_to ? f.submit_to : null,
     no_submit: !f.submit_to && !!b.submit_to,
   };
+  // 설명은 바꿨을 때만 보냅니다 (안 바꾼 칸이 공지 설명을 따라가도록 · 설명 칸 없는 예전 DB 에서도 다른 칸은 저장되게)
+  const changed = (f.body || "") !== (b.body || ""), hadMine = (a.body || "") !== (b.body || "");
+  if (changed || hadMine) Object.assign(p, { body: changed ? f.body || null : null, no_body: changed && !f.body });
   if (!Object.values(p).some(Boolean)) return clearPersonal(a.id);
   return sb.from("assignment_personal").upsert({
     ...p, user_id: me.id, assignment_id: a.id, updated_at: new Date().toISOString(),
