@@ -138,6 +138,7 @@ async function startApp() {
   $("gateAdmin").onclick = openAdminLogin;
   sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs-study-auth" },
+    global: { fetch: authFetch },
   });
 
   sbReady();
@@ -148,11 +149,17 @@ async function startApp() {
   if (session) await loadProfile();
   else if (me && !(sessErr && isNetErr(sessErr))) { me = null; myClasses = []; clearSnap(); }   // 로그인이 끝남
   else if (me) netDown = true;   // 서버에 닿지 못함 → 지난 화면 유지
+  // 로그인 기록은 남아 있는데 서버가 잠깐 답하지 못했으면 조금 뒤 다시 확인합니다
+  if ((session ? loadProfile.failed : sessErr && isNetErr(sessErr)) && authUserId()) retryAuth();
   renderNav();
   if (me) loadAssignments();
 
   logVisit();
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) logVisit(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    logVisit();
+    if (retryAuth.t) retryAuth(300);   // 앱으로 돌아오면 기다리지 않고 바로 다시 확인
+  });
   sb.auth.onAuthStateChange(async (evt) => {
     if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); clearSnap(); renderNav(); }
     if (evt === "SIGNED_IN") setTimeout(logVisit, 1000);   // 프로필을 읽은 뒤 (관리자면 세지 않도록)
@@ -235,6 +242,44 @@ const sbWait = new Promise((r) => { sbReady = r; });   // 지난 화면을 띄�
 const isNetErr = (e) => /fetch|network|load failed|timeout/i.test(e?.message || "") || e?.status === 0;
 function authUserId() {
   try { return JSON.parse(localStorage.getItem("dshs-study-auth"))?.user?.id || null; } catch { return null; }
+}
+
+// ---------- 로그인 유지 ----------
+// supabase-js 는 로그인 토큰 새로 받기(refresh)가 502 · 503 · 504 말고 다른 서버 오류(요청 한도 429, 500 등)로
+// 실패해도 토큰이 무효라고 보고 이 기기의 로그인 기록을 지웁니다. 학교 와이파이처럼 여러 학생이 같은 IP 로
+// 한꺼번에 열면 요청 한도에 걸리기 쉬워 "자동 로그인이 풀렸다"가 됩니다.
+// 그래서 이런 실패는 '서버에 닿지 못함'으로 바꿔 로그인 기록을 남기고 나중에 다시 받습니다.
+// 토큰이 정말 무효일 때(400 등)만 로그아웃됩니다. 한도에 걸리면 잠시 요청을 보내지 않아 한도를 더 쓰지 않습니다.
+let refreshPauseUntil = 0;
+async function authFetch(input, init) {
+  const url = typeof input === "string" ? input : input?.url || String(input);
+  if (!/\/auth\/v1\/token\?grant_type=refresh_token/.test(url)) return fetch(input, init);
+  if (Date.now() < refreshPauseUntil) throw new TypeError("Failed to fetch (auth busy)");
+  const res = await fetch(input, init);
+  if (res.status === 429 || res.status >= 500) {
+    refreshPauseUntil = Date.now() + (res.status === 429 ? 60000 : 10000);
+    throw new TypeError(`Failed to fetch (auth ${res.status})`);
+  }
+  return res;
+}
+// 로그인 기록은 있는데 서버가 잠깐 답하지 못한 경우: 점점 간격을 늘려(최대 2분) 다시 확인하고, 되면 내 화면으로 돌아갑니다
+function retryAuth(delay = 15000) {
+  clearTimeout(retryAuth.t);
+  retryAuth.t = setTimeout(async () => {
+    retryAuth.t = null;
+    if (!authUserId()) return;   // 그사이 로그아웃했거나 토큰이 정말 무효였음
+    const { data: { session }, error } = await sb.auth.getSession();
+    if (session) {
+      await backOnline();
+      if (loadProfile.failed) retryAuth(Math.min(delay * 2, 120000));
+    } else if (error && isNetErr(error)) retryAuth(Math.min(delay * 2, 120000));
+  }, delay);
+}
+// 브라우저가 저장 공간이 모자랄 때 로그인 기록을 지우지 않도록 요청합니다 (Firefox 는 허락 창이 떠서 빼고, 거절돼도 그대로 씀)
+function keepStorage() {
+  if (keepStorage.done || /Firefox/.test(navigator.userAgent)) return;
+  keepStorage.done = true;
+  try { navigator.storage?.persist?.().catch(() => {}); } catch {}
 }
 function saveSnap() {
   clearTimeout(saveSnap.t);
@@ -322,6 +367,7 @@ async function logGate(ev) {
 
 async function loadProfile() {
   // 관리자는 RLS 상 모든 프로필을 볼 수 있으므로 반드시 내 id 로 좁힙니다.
+  loadProfile.failed = false;
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { me = null; return; }
   const read = () => sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
@@ -331,6 +377,7 @@ async function loadProfile() {
     ({ data, error } = await read());
   }
   if (error) {   // 서버에 닿지 못했거나 잠깐 실패 → 로그아웃으로 보지 않고, 지난 화면의 내 정보가 이 계정 것이면 그대로 씁니다
+    loadProfile.failed = true;
     if (isNetErr(error)) netDown = true;
     if (me?.id !== session.user.id) me = null;
     return;
@@ -339,6 +386,7 @@ async function loadProfile() {
   netDown = false;
   setMe(data);
   saveSnap();
+  keepStorage();
 }
 function setMe(data) {
   me = data;
