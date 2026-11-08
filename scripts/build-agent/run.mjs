@@ -165,9 +165,11 @@ async function merge(t) {
   }
   tryGit(["push", "-q", "origin", "--delete", branch]);
   let note = "";
+  const human = files.filter((f) => f.endsWith(".sql") || f.startsWith("supabase/"));
+  if (human.length) note += ` · 사람이 적용할 것: ${human.join(", ")} (SQL 실행 · 함수 배포)`;
   if (TARGET === "main" && files.some((f) => f.startsWith("admin/"))) {
-    try { execFileSync("node", [join(WT, "scripts", "deploy-admin.mjs")], { cwd: WT, stdio: "pipe" }); note = " · 관리자 사이트도 배포함"; }
-    catch (e) { note = ` · 관리자 사이트 배포 실패: ${String(e.message).slice(0, 200)}`; }
+    try { execFileSync("node", [join(WT, "scripts", "deploy-admin.mjs")], { cwd: WT, stdio: "pipe" }); note += " · 관리자 사이트도 배포함"; }
+    catch (e) { note += ` · 관리자 사이트 배포 실패: ${String(e.message).slice(0, 200)}`; }
   }
   await call({ action: "report", id: t.id, status: "merged", branch: "", error: note ? note.slice(3) : "" });
   log(`합침: ${branch} → ${TARGET}${note}`);

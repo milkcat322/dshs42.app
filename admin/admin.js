@@ -590,7 +590,10 @@ function devHtml(tasks, usage) {
       ${more ? ta(`data-devnote="${t.id}"`, "", "고칠 점이 있으면 적고 '수정 요청'") : ""}
       ${foot(t, `${more ? `${btn("data-devfix", t.id, "수정 요청")} ` : ""}${btn("data-devok", t.id, "최종 승인")} ${btn("data-devdrop", t.id, "버리기")}`)}</div>`;
     }
-    const retry = ["failed", "needs_human"].includes(t.status) ? `${btn("data-devdraft", t.id, "초안으로")} ${btn("data-devdrop", t.id, "버리기")}` : "";
+    // DB · 서버 함수 파일이 바뀌어 멈춘 것도 미리보기가 있으면 최종 승인할 수 있어요 (합친 뒤 그 변경은 사람이 적용)
+    const okHuman = t.status === "needs_human" && t.preview_url && t.branch && /^DB · 서버 함수 변경/.test(t.error || "");
+    const retry = ["failed", "needs_human"].includes(t.status)
+      ? `${okHuman ? `${btn("data-devok", t.id, "최종 승인")} ` : ""}${btn("data-devdraft", t.id, "초안으로")} ${btn("data-devdrop", t.id, "버리기")}` : "";
     return `<div class="adm-fb${DEV_HOT.has(t.status) ? " new" : ""}">${head(t)}${info}${foot(t, retry)}</div>`;
   };
   const over = (t) => ["merged", "rejected"].includes(t.status);
@@ -605,7 +608,7 @@ function devHtml(tasks, usage) {
     ${going.length ? `<div class="adm-label">진행 중 ${going.length}</div>${going.map(card).join("")}` : ""}
     <details class="adm-acc"><summary>직접 맡기기</summary><form class="adm-plan-add" data-devadd style="padding:0 14px 14px"><input type="text" maxlength="200" placeholder="Claude 에게 맡길 일 (초안으로 만들어요)" aria-label="제작 맡기기"><button class="study-btn small" type="submit">추가</button></form></details>
     ${done.length ? `<details class="adm-acc"><summary>끝난 것 (반영 · 버림)<span>${done.length}</span></summary>${done.map(card).join("")}</details>` : ""}
-    <div class="adm-foot">승인하면 관리자 노트북의 Claude 가 10분 안에 따로 브랜치에서 만들고(노트북이 켜져 있어야 해요) 미리보기 알림을 보내요. 미리보기를 보고 '수정 요청'하거나 '최종 승인'하면 beta 에 올라가요. DB 를 바꿔야 하는 일은 '사람 손 필요'로 멈춰요.</div>`;
+    <div class="adm-foot">승인하면 관리자 노트북의 Claude 가 10분 안에 따로 브랜치에서 만들고(노트북이 켜져 있어야 해요) 미리보기 알림을 보내요. 미리보기를 보고 '수정 요청'하거나 '최종 승인'하면 beta 에 올라가요. DB · 서버 함수를 바꾸는 일은 '사람 손 필요'로 멈춰요. 미리보기가 괜찮으면 최종 승인하고, 합친 뒤 그 변경(SQL 실행 · 함수 배포)은 사람이 적용해요.</div>`;
 }
 
 function bindDev(body, tasks, showPane) {
@@ -629,7 +632,11 @@ function bindDev(body, tasks, showPane) {
     if (!note) return toast("고칠 점을 적어 주세요", true);
     set(id, { status: "revise", note }, "수정을 요청했어요");
   });
-  on("devok", (id) => { if (confirm("최종 승인할까요? main 에 합쳐 beta 사이트에 올라가요.")) set(id, { status: "accepted" }, "최종 승인했어요"); });
+  on("devok", (id) => {
+    const t = tasks.find((x) => x.id === id);
+    const human = t?.status === "needs_human" ? "\n\n합친 뒤 DB · 서버 함수 변경은 사람이 직접 적용(SQL 실행 · 함수 배포)해야 실제로 반영돼요." : "";
+    if (confirm(`최종 승인할까요? main 에 합쳐 beta 사이트에 올라가요.${human}`)) set(id, { status: "accepted" }, "최종 승인했어요");
+  });
   on("devdraft", (id) => set(id, { status: "draft", error: null }));
   on("devdrop", (id) => { if (confirm("이 제작을 버릴까요?")) set(id, { status: "rejected" }, "버렸어요"); });
   const add = async (row) => {
