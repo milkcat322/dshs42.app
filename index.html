@@ -276,10 +276,13 @@
   .st-chip { white-space: nowrap; }
   .my-status .st-chip { font-size: 12.5px; color: var(--accent3); }
   /* 내 시간표의 '자리 공개' 켜기 · 끄기 (주간 수업 교시 옆) */
-  .seat-pub { font: inherit; font-size: 13px; color: inherit; cursor: pointer; }
+  .stat-chip.seat-pub { gap: 6px; background: none; border: none; font: inherit; font-size: 13px; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .seat-pub[hidden] { display: none; }
-  .seat-pub .stat-num { color: var(--text-muted); }
-  .seat-pub.on .stat-num { color: var(--accent3); }
+  .seat-pub .stat-label { color: var(--text); font-weight: 600; }
+  .sp-switch { position: relative; display: inline-block; flex: none; width: 40px; height: 23px; border-radius: 999px; background: var(--border); transition: background 0.2s; }
+  .sp-knob { position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.35); transition: transform 0.2s; }
+  .seat-pub.on .sp-switch { background: var(--accent3); }
+  .seat-pub.on .sp-knob { transform: translateX(17px); }
   .seat-pub:disabled { opacity: 0.6; cursor: default; }
   .seat-modal { z-index: 1100; }   /* 수업 팝업(1000) 위 */
   .seat-sheet { max-width: 640px; }

@@ -744,7 +744,9 @@ function paintSeatPub(el) {
   const on = !!seatShares.get(sid)?.public;
   el.classList.toggle("on", on);
   el.title = on ? "친구들이 내 이름 옆 · 시간표 검색에서 내 자습실 자리를 볼 수 있어요" : "켜면 친구들이 내 자습실 자리를 볼 수 있어요";
-  el.innerHTML = `<span class="stat-num">${on ? "ON" : "OFF"}</span><span class="stat-label">자리 공개</span>`;
+  el.setAttribute("role", "switch");
+  el.setAttribute("aria-checked", on);
+  el.innerHTML = `<span class="sp-switch"><span class="sp-knob"></span></span><span class="stat-label">자리 공개</span>`;
   el.onclick = () => saveSeatPublic(!on, el);
 }
 window.paintStatus = paintStatus;   // index.html 의 수업 팝업이 씁니다
