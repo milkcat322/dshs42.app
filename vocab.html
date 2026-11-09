@@ -8,19 +8,19 @@
 // dshs42.app '공부' 탭 안에 띄울 때(vocab.html?embed=1#과목): 로고 · 과목 선택은 숨기고 사이트 테마 색을 따릅니다.
 // 사이트(부모 창)와 같은 주소라 부모의 테마 값을 바로 읽습니다. 따로 열면 예전처럼 동작합니다.
 window.VOCAB_EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+// 테마: 사이트의 테마 이름(data-theme: dark · light · ocean · forest · sakura)과 밝기(data-tone)를 그대로 받아
+// 이 파일의 <style> 에 있는 같은 이름의 색 묶음(:root[data-site=…])을 씁니다. 따로 열면 기기 설정(다크 · 라이트)을 따릅니다.
+const VOCAB_SITES = ['dark', 'light', 'ocean', 'forest', 'sakura'];
 window.vocabTheme = function () {
   if (!window.VOCAB_EMBED) return;
   try {
-    const p = window.parent.document.documentElement, cs = window.parent.getComputedStyle(p), root = document.documentElement;
-    root.dataset.theme = p.dataset.tone === 'light' ? 'light' : 'dark';
-    root.style.colorScheme = root.dataset.theme;   // 사이트 밝기와 같은 색 모드로 (입력칸 · 스크롤바 색도 맞춤)
-    // 사이트 색 → 단어장 색 (사이트의 --text-dim 이 더 밝은 보조 글자, --text-muted 가 더 흐린 글자)
-    // 강조색도 사이트 테마를 따릅니다. 정답(초록 --accent2) · 오답(빨강 --accent3)은 뜻이 있는 색이라 단어장 색 그대로 둡니다.
-    [['--bg', '--bg'], ['--surface', '--surface'], ['--surface2', '--card'], ['--border', '--border'], ['--text', '--text'],
-     ['--text-muted', '--text-dim'], ['--text-dim', '--text-muted'], ['--accent', '--accent1'], ['--accent4', '--accent2']].forEach(([mine, site]) => {
-      const v = cs.getPropertyValue(site).trim();
-      if (v) root.style.setProperty(mine, v); else root.style.removeProperty(mine);
-    });
+    const p = window.parent.document.documentElement, root = document.documentElement;
+    const tone = p.dataset.tone === 'light' ? 'light' : 'dark';
+    root.dataset.tone = tone;
+    root.dataset.site = VOCAB_SITES.includes(p.dataset.theme) ? p.dataset.theme : tone;
+    // 단어장 문서와 iframe 의 색 모드를 같게: 다르면 브라우저가 iframe 뒤에 흰(검은) 바탕을 깔아 사이트 배경이 가려집니다
+    root.style.colorScheme = tone;
+    if (window.frameElement) window.frameElement.style.colorScheme = tone;
   } catch (e) {}
 };
 if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); window.vocabTheme(); }
@@ -51,17 +51,40 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  /* 밝기: data-tone 이 있으면(사이트 안) 그것을, 없으면(따로 열면) 기기 설정을 따릅니다 */
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
+    :root:not([data-tone="light"]) {
       --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
       --accent: #58a6ff; --accent2: #3fb950; --accent3: #f78166; --accent4: #d2a8ff;
       --text: #e6edf3; --text-muted: #7d8590; --text-dim: #6e7681;
     }
   }
-  :root[data-theme="dark"] {
+  :root[data-tone="dark"] {
     --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
     --accent: #58a6ff; --accent2: #3fb950; --accent3: #f78166; --accent4: #d2a8ff;
     --text: #e6edf3; --text-muted: #7d8590; --text-dim: #6e7681;
+  }
+  /* dshs42.app 의 화면 테마 (index.html 의 테마 색과 같은 값). --text-muted 는 보조 글자, --text-dim 은 더 흐린 글자.
+     정답 초록(--accent2) · 오답 빨강(--accent3)은 뜻이 있는 색이라 밝기 기본값을 그대로 씁니다. 사이트 테마 색을 바꾸면 여기도 함께 바꿉니다. */
+  :root[data-site="dark"] {
+    --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26; --border: #2a2a3d;
+    --accent: #7c6fe0; --accent4: #e06f9e; --text: #e8e8f0; --text-muted: #8888aa; --text-dim: #55556a;
+  }
+  :root[data-site="light"] {
+    --bg: #f5f5fa; --surface: #ffffff; --surface2: #eeeef5; --border: #d9d9e6;
+    --accent: #6a5cd6; --accent4: #d0558a; --text: #1b1b28; --text-muted: #5a5a76; --text-dim: #8c8ca4;
+  }
+  :root[data-site="ocean"] {
+    --bg: #07111b; --surface: #0c1824; --surface2: #122232; --border: #1f3448;
+    --accent: #3fa7e0; --accent4: #5ad1d6; --text: #e3eef7; --text-muted: #8aa6bd; --text-dim: #557089;
+  }
+  :root[data-site="forest"] {
+    --bg: #0a120d; --surface: #101a13; --surface2: #16241b; --border: #24382a;
+    --accent: #5fbf7a; --accent4: #d6c25a; --text: #e6f0e8; --text-muted: #8fa996; --text-dim: #5b7262;
+  }
+  :root[data-site="sakura"] {
+    --bg: #fbf3f6; --surface: #ffffff; --surface2: #f7e8ee; --border: #ecd3dd;
+    --accent: #d0577f; --accent4: #9a6ad6; --text: #2a1a21; --text-muted: #7a5864; --text-dim: #ae8d99;
   }
 
   .cat-badge { white-space: nowrap; }
@@ -788,9 +811,9 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
   --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#b4232a; --bad-bg:#fbe9ea; --hint:#b4232a; --hint-bg:#fdf0ee;
   --serif:'Noto Sans KR',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif; --sans:inherit;
   max-width: 780px; margin: 0 auto; line-height: 1.6; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #tab-grammar {
+@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) #tab-grammar {
   --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --hint:#ff9d8f; --hint-bg:#3a2320; } }
-:root[data-theme="dark"] #tab-grammar { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --hint:#ff9d8f; --hint-bg:#3a2320; }
+:root[data-tone="dark"] #tab-grammar { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --hint:#ff9d8f; --hint-bg:#3a2320; }
 #tab-grammar button, #tab-grammar input { font: inherit; color: inherit; }
 #tab-grammar button,#tab-grammar input,#tab-grammar select{font:inherit;color:inherit}
 #tab-grammar .g-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
@@ -886,8 +909,8 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 
 /* ===== 테스트 탭 (학술영어 세미나) ===== */
 #tab-test { max-width: 780px; margin: 0 auto; --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#b4232a; --bad-bg:#fbe9ea; --warn:#9a6700; --warn-bg:#fff4d6; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #tab-test { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --warn:#e3b341; --warn-bg:#3a2e12; } }
-:root[data-theme="dark"] #tab-test { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --warn:#e3b341; --warn-bg:#3a2e12; }
+@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) #tab-test { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --warn:#e3b341; --warn-bg:#3a2e12; } }
+:root[data-tone="dark"] #tab-test { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --warn:#e3b341; --warn-bg:#3a2e12; }
 #tab-test .t-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 #tab-test .t-head h1 { font-family: 'Bricolage Grotesque', 'Noto Sans KR', sans-serif; font-size: 26px; letter-spacing: -0.02em; }
 #tab-test .t-credit { font-size: 13px; color: var(--text-muted); }
@@ -1021,8 +1044,8 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 
 /* ===== 문장 배열 탭 (학술영어 세미나) ===== */
 #tab-scramble { max-width: 780px; margin: 0 auto; --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#b4232a; --bad-bg:#fbe9ea; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #tab-scramble { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; } }
-:root[data-theme="dark"] #tab-scramble { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; }
+@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) #tab-scramble { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; } }
+:root[data-tone="dark"] #tab-scramble { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; }
 #tab-scramble button { -webkit-tap-highlight-color: transparent; }
 #tab-scramble .s-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 #tab-scramble .s-head h1 { font-family: 'Bricolage Grotesque', 'Noto Sans KR', sans-serif; font-size: 26px; letter-spacing: -0.02em; }
@@ -1096,9 +1119,9 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
   --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#b4232a; --bad-bg:#fbe9ea; --hint:#b4232a; --hint-bg:#fdf0ee;
   --serif:'Noto Sans KR',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif; --sans:inherit;
   max-width: 780px; margin: 0 auto; line-height: 1.6; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #tab-blank {
+@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) #tab-blank {
   --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --hint:#ff9d8f; --hint-bg:#3a2320; } }
-:root[data-theme="dark"] #tab-blank { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --hint:#ff9d8f; --hint-bg:#3a2320; }
+:root[data-tone="dark"] #tab-blank { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff7b80; --bad-bg:#3a1d20; --hint:#ff9d8f; --hint-bg:#3a2320; }
 #tab-blank button, #tab-blank input { font: inherit; color: inherit; }
 #tab-blank button,#tab-blank input,#tab-blank select{font:inherit;color:inherit}
 #tab-blank .g-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
@@ -1196,8 +1219,8 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 
 /* ===== 문장 암기 탭 ===== */
 #tab-memo { max-width: 780px; margin: 0 auto; --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#c62828; --bad-bg:#fbe9ea; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #tab-memo { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; } }
-:root[data-theme="dark"] #tab-memo { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; }
+@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) #tab-memo { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; } }
+:root[data-tone="dark"] #tab-memo { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; }
 #tab-memo button { -webkit-tap-highlight-color: transparent; }
 #tab-memo .m-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 #tab-memo .m-head h1 { font-family: 'Bricolage Grotesque', 'Noto Sans KR', sans-serif; font-size: 26px; letter-spacing: -0.02em; }
@@ -1264,9 +1287,8 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 }
 
 /* ===== dshs42.app 공부 탭 안 (html.embed) ===== */
-/* 배경을 투명하게 두면 사이트와 단어장의 색 모드(color-scheme)가 다를 때 브라우저가 iframe 뒤에 흰 바탕을 깔아서, 사이트 배경색으로 칠합니다 */
-html.embed { background: var(--bg); }
-html.embed body { background: transparent; }
+/* 배경은 투명하게 두어 사이트 배경(빛 번짐 포함)이 그대로 비치게 합니다. 색 모드는 vocabTheme 이 iframe 과 같게 맞춥니다 */
+html.embed, html.embed body { background: transparent; }
 html.embed body { min-height: 0; }
 html.embed .logo, html.embed #subject-switch, html.embed #home-view { display: none !important; }
 html.embed .header { padding: 0; gap: 0; }
