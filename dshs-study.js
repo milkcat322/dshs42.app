@@ -732,7 +732,20 @@ function paintStatus(root = document) {
     el.innerHTML = (r ? `📍 ${locHtml(r)} <small>${whenLabel(r.updated_at)}</small>` : "") + (r && chip ? " " : "") + chip;
     el.classList.toggle("old", !!r && !chip && Date.now() - new Date(r.updated_at) > STATUS_OLD);
   });
+  root.querySelectorAll("[data-seatpub]").forEach(paintSeatPub);
   paintMyStatus();
+}
+
+// 내 시간표 '주간 수업 교시' 옆의 '자리 공개' 켜기 · 끄기 (index.html 은 자리만 두고 여기서 채움. 내 시간표에서만 보임)
+function paintSeatPub(el) {
+  const sid = me?.student_id;
+  el.hidden = !seatShares || !sid || +el.dataset.seatpub !== sid;
+  if (el.hidden) return;
+  const on = !!seatShares.get(sid)?.public;
+  el.classList.toggle("on", on);
+  el.title = on ? "친구들이 내 이름 옆 · 시간표 검색에서 내 자습실 자리를 볼 수 있어요" : "켜면 친구들이 내 자습실 자리를 볼 수 있어요";
+  el.innerHTML = `<span class="stat-num">${on ? "ON" : "OFF"}</span><span class="stat-label">자리 공개</span>`;
+  el.onclick = () => saveSeatPublic(!on, el);
 }
 window.paintStatus = paintStatus;   // index.html 의 수업 팝업이 씁니다
 
@@ -763,7 +776,6 @@ function seatNote() {
 function openStatusPicker() {
   const cur = statusMap.get(me.student_id)?.location || "";
   const custom = cur && !PLACES.includes(cur) ? cur : "";
-  const pub = !!seatShares?.get(me.student_id)?.public;
   openSheet("내 위치", `
     <div class="place-opts">${PLACES.map((p) =>
       `<button type="button" class="study-btn${p === cur ? " primary" : ""}" data-place="${esc(p)}">${p}</button>`).join("")}</div>
@@ -775,9 +787,8 @@ function openStatusPicker() {
     <div class="study-err" id="authErr"></div>
     ${cur ? '<button class="study-submit ghost" id="plClear">위치 지우기</button>' : ""}
     <div class="study-foot">로그인한 42기 학생 모두에게 학번 옆에 보여요. 고친 시각도 함께 보여요.
-      '자습실 자리'로 정하면 dshs.app 에서 신청한 이번 주 자리(예: a101)도 함께 보여요.</div>
-    ${seatShares ? `<label class="seat-share"><input type="checkbox" id="plPub"${pub ? " checked" : ""}>
-      <span><b>내 자습실 자리 공개</b><small>위치와 상관없이 친구들이 내 이름 옆 · 시간표 검색에서 내 자리를 볼 수 있어요 (dshs.app 연결 필요)</small></span></label>` : ""}`);
+      '자습실 자리'로 정하면 dshs.app 에서 신청한 이번 주 자리(예: a101)도 함께 보여요.
+      위치와 상관없이 자리를 보여 주려면 내 시간표의 '자리 공개'를 켜세요.</div>`);
   $("studyModal").querySelectorAll("[data-place]").forEach((b) => b.onclick = () => saveStatus(b.dataset.place));
   $("plSave").onclick = () => {
     const v = $("plIn").value.trim();
@@ -786,16 +797,15 @@ function openStatusPicker() {
   };
   $("plIn").onkeydown = (e) => { if (e.key === "Enter") $("plSave").click(); };
   if ($("plClear")) $("plClear").onclick = () => saveStatus(null);
-  if ($("plPub")) $("plPub").onchange = (e) => saveSeatPublic(e.target.checked, e.target);
 }
 
-// '내 자습실 자리 공개' 켜고 끄기 (seat_shares.public. 자리 자체는 서버가 채움)
-async function saveSeatPublic(on, box) {
+// '자리 공개' 켜고 끄기 (seat_shares.public. 자리 자체는 서버가 채움)
+async function saveSeatPublic(on, btn) {
   const sid = me.student_id;
-  box.disabled = true;
+  btn.disabled = true;
   const { error } = await sb.from("seat_shares").upsert({ student_id: sid, public: on });
-  box.disabled = false;
-  if (error) { box.checked = !on; return showErr("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+  btn.disabled = false;
+  if (error) return toast("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요", true);
   seatShares.set(sid, { seat: null, seat_day: null, ...seatShares.get(sid), student_id: sid, public: on });
   toast(on ? "내 자습실 자리를 공개했어요" : "내 자습실 자리 공개를 껐어요");
   paintStatus();

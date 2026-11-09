@@ -275,9 +275,12 @@
   .st-seat { color: inherit; font-weight: 700; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
   .st-chip { white-space: nowrap; }
   .my-status .st-chip { font-size: 12.5px; color: var(--accent3); }
-  .seat-share { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 13.5px; }
-  .seat-share input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--accent1); flex: none; }
-  .seat-share small { display: block; margin-top: 3px; font-size: 11.5px; color: var(--text-muted); line-height: 1.45; }
+  /* 내 시간표의 '자리 공개' 켜기 · 끄기 (주간 수업 교시 옆) */
+  .seat-pub { font: inherit; font-size: 13px; color: inherit; cursor: pointer; }
+  .seat-pub[hidden] { display: none; }
+  .seat-pub .stat-num { color: var(--text-muted); }
+  .seat-pub.on .stat-num { color: var(--accent3); }
+  .seat-pub:disabled { opacity: 0.6; cursor: default; }
   .seat-modal { z-index: 1100; }   /* 수업 팝업(1000) 위 */
   .seat-sheet { max-width: 640px; }
   .seat-scroll { overflow-x: auto; margin: 4px -4px 14px; border-radius: 12px; -webkit-overflow-scrolling: touch; }
@@ -1567,6 +1570,7 @@ function renderResult(name, student) {
       <div class="stat-chip"><span class="stat-num">${subjects.length}</span><span class="stat-label">수강 과목</span></div>
       <div class="stat-chip"><span class="stat-num" style="color:var(--accent3)">${totalCredits(student)}</span><span class="stat-label">이수 학점</span></div>
       <div class="stat-chip"><span class="stat-num">${sorted.filter(s => !COMMON_SUBJECTS.includes(s.subject)).length}</span><span class="stat-label">주간 수업 교시</span></div>
+      <button type="button" class="stat-chip seat-pub" data-seatpub="${student.id}" hidden></button>
     </div>
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('timetable',this)">📅 시간표</button>
