@@ -569,15 +569,24 @@ async function loadStatus(force = false) {
 // 자습실 자리: 위치를 '자습실 자리'로 정한 학생은 dshs.app 에서 신청한 오늘 자리를 함께 보여 줍니다 (seats.sql).
 // dshs.app 은 다른 학생의 자리를 주지 않으므로(개인 정보), 각자 자기 기기에서 내 자리(reservation.read.me)를 받아
 // student_status 의 seat · seat_day 에 남깁니다 (dshs-oauth 의 myseat. 학생이 직접 쓸 수는 없음).
-// 자리 신청은 전날 끝나므로 하루 한 번만 받습니다 (seat_day 가 오늘이면 다시 받지 않음).
+// 자리는 목요일 밤에 신청해 금요일 15시(한국 시간)부터 한 주 동안 이어지므로, 주에 한 번만 받습니다
+// (seat_day = 가장 최근 '금요일 15시'의 금요일 날짜. dshs-oauth 의 seatWeek 와 같은 계산).
 let seatNeed = null;              // "relink": 예전에 연결해 자습 좌석 권한이 없음
 let seatAt = 0;
-const kstDay = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10).replace(/-/g, "");
+const kstDay = (back = 0) => new Date(Date.now() + 9 * 3600000 - back * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
+function seatWeek() {
+  const k = new Date(Date.now() + 9 * 3600000);
+  let back = (k.getUTCDay() - 5 + 7) % 7;          // 5 = 금요일
+  if (back === 0 && k.getUTCHours() < 15) back = 7; // 금요일 15시 전이면 지난주 금요일
+  return kstDay(back);
+}
 const SEAT_PLACE = PLACES[0];     // "자습실 자리"
 async function loadMySeat(force = false) {
   const r = me?.student_id && statusMap.get(me.student_id);
   if (!r || r.location !== SEAT_PLACE || !("seat_day" in r) || dshs.linked === false) return;
-  if (r.seat_day === kstDay() || (!force && Date.now() - seatAt < DSHS_GAP)) return;
+  // 이번 주 자리를 받았으면 다시 받지 않고, 못 찾았으면(신청 없음) 열 때 한 번 · 그 뒤 10분마다 다시 찾습니다
+  if (!force && r.seat_day === seatWeek() && (r.seat || Date.now() - seatAt < 600000)) return;
+  if (!force && Date.now() - seatAt < DSHS_GAP) return;
   seatAt = Date.now();
   try {
     const { body } = await dshsCall("myseat");
@@ -592,9 +601,10 @@ async function loadMySeat(force = false) {
   paintStatus();
   saveSnap();
 }
-// 오늘 자리 (위치가 '자습실 자리'이고 오늘 받은 자리일 때만). 누르면 자습실 배치도에 그 자리를 표시한 창을 띄웁니다.
+// 자습실 자리 (위치가 '자습실 자리'일 때만). 누르면 자습실 배치도에 그 자리를 표시한 창을 띄웁니다.
 // 배치도에 없는 자리(세미나실 s… 등)는 창 없이 dshs.app 좌석 배치도로 갑니다.
-const seatOf = (r) => (r?.location === SEAT_PLACE && r.seat && r.seat_day === kstDay() ? r.seat : null);
+// 자리는 바꿀 때까지 이어지므로, 오늘 아직 다시 받지 않았어도 마지막으로 받은 자리를 보여 줍니다 (본인이 열면 하루 한 번 새로 받음)
+const seatOf = (r) => (r?.location === SEAT_PLACE && r.seat ? r.seat : null);
 const seatUrl = (seat, day) => `https://dshs.app/reserve/${encodeURIComponent(day)}?goto=${encodeURIComponent(seat)}`;
 const seatLink = (r) => `<a class="st-seat" href="${seatUrl(r.seat, r.seat_day)}" target="_blank" rel="noopener"
   data-seat="${esc(r.seat)}" data-day="${esc(r.seat_day)}" onclick="return seatClick(event, this)">${esc(r.seat)}</a>`;
@@ -723,8 +733,8 @@ function seatNote(r) {
   if (seatNeed === "relink") return `<button class="ms-relink" id="msRelink">dshs.app 을 다시 연결하면 오늘 자습실 자리가 함께 보여요</button>`;
   if (seatNeed === "link" || dshs.linked === false) return `<button class="ms-relink" id="msRelink">dshs.app 을 연결하면 오늘 자습실 자리가 함께 보여요</button>`;
   if (seatNeed === "error") return `<span class="ms-note">자리를 아직 못 받았어요. 잠시 뒤 다시 받아요</span>`;
-  if (r.seat_day === kstDay()) return `<a class="ms-note" href="https://dshs.app/reserve/${kstDay()}" target="_blank" rel="noopener">dshs.app 에 오늘 신청한 자습실 자리가 없어요</a>`;
-  return `<span class="ms-note">오늘 자습실 자리를 받는 중이에요</span>`;
+  if (r.seat_day === seatWeek()) return `<a class="ms-note" href="https://dshs.app/reserve/${seatWeek()}" target="_blank" rel="noopener">dshs.app 에 이번 주 신청한 자습실 자리를 찾지 못했어요</a>`;
+  return `<span class="ms-note">자습실 자리를 받는 중이에요</span>`;
 }
 
 function openStatusPicker() {

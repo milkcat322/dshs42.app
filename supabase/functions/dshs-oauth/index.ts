@@ -359,11 +359,20 @@ async function requests(userId: string) {
 }
 
 // ---------- 자습실 자리 (seats.sql) ----------
-// 위치를 '자습실 자리'로 정한 학생의 오늘 자리를 그 학생 자신의 토큰(reservation.read.me)으로 받아
+// 위치를 '자습실 자리'로 정한 학생의 지금 자리를 그 학생 자신의 토큰(reservation.read.me)으로 받아
 // student_status 의 seat · seat_day 에 남깁니다. 로그인한 42기 학생이 위치와 함께 봅니다.
-// 다른 학생의 자리는 받지 않습니다 (dshs.app 이 개인 정보라 허락하지 않음). 자리 신청은 전날 끝나므로 하루 한 번만 받습니다.
+// 다른 학생의 자리는 받지 않습니다 (dshs.app 이 개인 정보라 허락하지 않음).
+// 자리는 목요일 밤에 신청해(신청일 = 금요일) 금요일 15시(한국 시간)부터 한 주 동안 이어집니다.
+// 그래서 가장 최근 '금요일 15시'의 금요일 날짜로 받고(seat_day), 다음 금요일 15시까지는 다시 받지 않습니다.
+// 그 금요일에 없으면 오늘 날짜로도 한 번 찾아보고, 그래도 없으면 다음에 부를 때 다시 찾습니다.
 const SEAT_PLACE = "자습실 자리";
-const kstDay = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10).replace(/-/g, "");
+const kstDay = (back = 0) => new Date(Date.now() + 9 * 3600000 - back * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
+function seatWeek() {
+  const k = new Date(Date.now() + 9 * 3600000);   // 한국 시간을 UTC 칸으로 읽습니다
+  let back = (k.getUTCDay() - 5 + 7) % 7;          // 5 = 금요일
+  if (back === 0 && k.getUTCHours() < 15) back = 7; // 금요일 15시 전이면 지난주 금요일
+  return kstDay(back);
+}
 
 async function mySeat(userId: string) {
   if (!SEAT_SCOPE) return json({ off: true });
@@ -375,25 +384,28 @@ async function mySeat(userId: string) {
   if (!prof?.student_id) return json({ linked: true });
   const { data: st } = await admin.from("student_status").select("location, seat, seat_day").eq("student_id", prof.student_id).maybeSingle();
   if (st?.location !== SEAT_PLACE) return json({ linked: true });   // 본인이 '자습실 자리'로 정했을 때만
-  const day = kstDay();
-  if (st.seat_day === day) return json({ linked: true, day, seat: st.seat });
+  const day = seatWeek();
+  if (st.seat_day === day && st.seat) return json({ linked: true, day, seat: st.seat });
 
-  const res = await api(link, `/v2/reservations/${day}/me`);
-  if (!res) return json({ linked: false, expired: true });
-  if (res.status === 403) {
-    await admin.from("dshs_links").update({ seat_ok: false }).eq("user_id", userId);
-    return json({ linked: true, need: "relink" });
+  let seat: string | null = null;
+  for (const d of [...new Set([day, kstDay()])]) {
+    const res = await api(link, `/v2/reservations/${d}/me`);
+    if (!res) return json({ linked: false, expired: true });
+    if (res.status === 403) {
+      await admin.from("dshs_links").update({ seat_ok: false }).eq("user_id", userId);
+      return json({ linked: true, need: "relink" });
+    }
+    if (!res.ok) return json({ linked: true, error: res.status === 429 ? "busy" : "failed" }, res.status === 429 ? 503 : 502);
+    if (link.seat_ok !== true) { await admin.from("dshs_links").update({ seat_ok: true }).eq("user_id", userId); link.seat_ok = true; }
+    const body = await res.json();
+    seat = body.userInfo?.seat ?? null;
+    if (seat) break;
   }
-  if (!res.ok) return json({ linked: true, error: res.status === 429 ? "busy" : "failed" }, res.status === 429 ? 503 : 502);
-  if (link.seat_ok !== true) await admin.from("dshs_links").update({ seat_ok: true }).eq("user_id", userId);
-  const body = await res.json();
-  const seat = body.available === false ? null : (body.userInfo?.seat ?? null);   // 자습 없는 날 · 신청 안 함 → 없음
   const { error } = await admin.from("student_status").update({ seat, seat_day: day })
     .eq("student_id", prof.student_id).eq("location", SEAT_PLACE);
   if (error) return json({ linked: true, error: "failed" }, 500);
   return json({ linked: true, day, seat });
 }
-
 async function unlink(userId: string) {
   const { data: link } = await admin.from("dshs_links").select("refresh_token").eq("user_id", userId).maybeSingle();
   if (link) await revoke(link.refresh_token);
