@@ -581,12 +581,14 @@ async function loadMySeat(force = false) {
   seatAt = Date.now();
   try {
     const { body } = await dshsCall("myseat");
-    if (body.off) { seatAt = Date.now() + 3600000; return; }   // 서버가 아직 자리를 받지 않음
-    if (body.linked === false) { dshs.linked = false; return; }
-    seatNeed = body.need || null;
-    if (body.error === "busy") seatAt = Date.now() + DSHS_REST - DSHS_GAP;
-    if (body.day) Object.assign(r, { seat: body.seat || null, seat_day: body.day });
-  } catch { seatAt = 0; return; }
+    if (body.off) { seatAt = Date.now() + 3600000; seatNeed = "off"; }   // 서버가 아직 자리를 받지 않음
+    else if (body.linked === false) { dshs.linked = false; seatNeed = "link"; }
+    else {
+      seatNeed = body.need || (body.error ? "error" : null);
+      if (body.error === "busy") seatAt = Date.now() + DSHS_REST - DSHS_GAP;
+      if (body.day) Object.assign(r, { seat: body.seat || null, seat_day: body.day });
+    }
+  } catch { seatAt = 0; seatNeed = "error"; }
   paintStatus();
   saveSnap();
 }
@@ -710,10 +712,19 @@ function paintMyStatus() {
   box.innerHTML = `<span class="ms-label">📍 내 위치</span>
     <b>${r ? locHtml(r) : "아직 안 정했어요"}</b>${r ? `<small>${whenLabel(r.updated_at)} 수정</small>` : ""}
     <button class="study-btn small" id="msEdit">${r ? "바꾸기" : "정하기"}</button>
-    ${atSeat && seatNeed === "relink" ? `<button class="ms-relink" id="msRelink">dshs.app 을 다시 연결하면 오늘 자습실 자리가 함께 보여요</button>`
-      : atSeat && dshs.linked === false ? `<button class="ms-relink" id="msRelink">dshs.app 을 연결하면 오늘 자습실 자리가 함께 보여요</button>` : ""}`;
+    ${atSeat && !seatOf(r) ? seatNote(r) : ""}`;
   $("msEdit").onclick = openStatusPicker;
   if ($("msRelink")) $("msRelink").onclick = startDshs;
+}
+
+// '자습실 자리'인데 자리 번호가 없을 때, 왜 없는지 내 위치 줄에 알려 줍니다
+function seatNote(r) {
+  if (!("seat_day" in r) || seatNeed === "off") return "";   // seats.sql 전이거나 서버가 자리를 받지 않음
+  if (seatNeed === "relink") return `<button class="ms-relink" id="msRelink">dshs.app 을 다시 연결하면 오늘 자습실 자리가 함께 보여요</button>`;
+  if (seatNeed === "link" || dshs.linked === false) return `<button class="ms-relink" id="msRelink">dshs.app 을 연결하면 오늘 자습실 자리가 함께 보여요</button>`;
+  if (seatNeed === "error") return `<span class="ms-note">자리를 아직 못 받았어요. 잠시 뒤 다시 받아요</span>`;
+  if (r.seat_day === kstDay()) return `<a class="ms-note" href="https://dshs.app/reserve/${kstDay()}" target="_blank" rel="noopener">dshs.app 에 오늘 신청한 자습실 자리가 없어요</a>`;
+  return `<span class="ms-note">오늘 자습실 자리를 받는 중이에요</span>`;
 }
 
 function openStatusPicker() {

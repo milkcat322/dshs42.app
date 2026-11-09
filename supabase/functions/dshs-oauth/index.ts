@@ -40,7 +40,8 @@ const API = "https://api.dshs.app";
 // dshs.app 이 개인 정보라 허락하지 않았습니다 (2026-11). 허락받지 않은 scope 를 요청하면 로그인 전체가 invalid_scope 로 실패합니다.
 const SEAT_SCOPE = " reservation.read.me";
 const SCOPE = "openid profile offline_access me.read request.read" + SEAT_SCOPE;
-const hasSeatScope = (scope?: string) => scope ? scope.split(" ").includes("reservation.read.me") : null;
+// 토큰 응답의 scope 에 있으면 true, 아니면 모름(null): 처음 자리를 받을 때 확인합니다 (scope 를 빠뜨리고 주는 서버도 있어서 false 로 막지 않음)
+const hasSeatScope = (scope?: string) => scope?.split(" ").includes("reservation.read.me") ? true : null;
 // 조용한 로그인: 학번만 알면 되고, offline_access 는 동의 화면이 필요해 뺍니다 (저장해 둔 연결 토큰은 건드리지 않음)
 const SILENT_SCOPE = "openid profile me.read";
 const SILENT = "s_";   // 조용한 로그인의 state 앞에 붙입니다
