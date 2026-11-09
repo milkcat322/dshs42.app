@@ -163,7 +163,7 @@ async function startApp() {
     if (retryAuth.t) retryAuth(300);   // 앱으로 돌아오면 기다리지 않고 바로 다시 확인
   });
   sb.auth.onAuthStateChange(async (evt) => {
-    if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); clearSnap(); learnBm.known = {}; renderNav(); }
+    if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); seatMap = new Map(); seatDay = ""; seatAt = 0; seatNeed = null; clearSnap(); learnBm.known = {}; renderNav(); }
     if (evt === "SIGNED_IN") { learnBm.known = {}; setTimeout(logVisit, 1000); }   // 프로필을 읽은 뒤 (관리자면 세지 않도록) · 다른 계정일 수 있어 북마크는 새로 받음
   });
   // 검색으로 다른 시간표를 띄우거나 숨기면 "내 시간표" 탭 강조를 다시 맞춥니다
@@ -292,6 +292,7 @@ function saveSnap() {
         v: 1, at: Date.now(), me,
         cache: { ...cache, done: [...cache.done], people: [...cache.people], invites: [...(cache.invites || new Map())] },
         status: [...statusMap],
+        seats: { day: seatDay, list: [...seatMap] },
       }));
     } catch {}   // 저장 공간이 모자라면 다음에도 서버를 기다립니다
   }, 400);
@@ -304,6 +305,7 @@ function loadSnap() {
     const c = s.cache || {};
     cache = { ...cache, ...c, done: new Set(c.done || []), people: new Map(c.people || []), invites: new Map(c.invites || []) };
     statusMap = new Map(s.status || []);
+    if (s.seats?.day === kstDay()) { seatMap = new Map(s.seats.list || []); seatDay = s.seats.day; }   // 오늘 자리만
     haveData = !!s.cache;
     return true;
   } catch { return false; }
@@ -562,7 +564,36 @@ async function loadStatus(force = false) {
   statusMap = new Map(data.map((r) => [r.student_id, r]));
   paintStatus();
   saveSnap();
+  loadSeats();
 }
+
+// 자습실 자리: dshs.app 자습 좌석의 오늘 배치도 (dshs-oauth 의 seats, seats.sql).
+// dshs.app 을 연결한 학생만 받습니다. 자리 신청은 전날 끝나서, 서버가 0시(한국 시간) 뒤 하루 한 번 받은 배치도를
+// 그날 하루 씁니다. 이 기기도 오늘 것을 받았으면(seatDay) 날짜가 바뀔 때까지 다시 받지 않습니다 (못 받았으면 1분 뒤 다시).
+let seatMap = new Map();          // 학번 → 좌석 (예: a101)
+let seatDay = "";                 // seatMap 이 몇 일 자리인지 (YYYYMMDD, 한국 시간)
+let seatNeed = null;              // "relink": 예전에 연결해 자습 좌석 권한이 없음
+let seatAt = 0;
+const kstDay = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10).replace(/-/g, "");
+async function loadSeats() {
+  const today = kstDay();
+  if (seatDay && seatDay !== today) { seatMap = new Map(); seatDay = ""; paintStatus(); }   // 어제 자리는 지웁니다
+  if (!me?.student_id || dshs.linked === false || seatDay === today || Date.now() - seatAt < DSHS_GAP) return;
+  seatAt = Date.now();
+  try {
+    const { body } = await dshsCall("seats");
+    if (typeof body.linked !== "boolean") throw new Error();
+    if (body.off) { seatDay = today; return; }   // 서버가 아직 자습실 자리를 받지 않음: 오늘은 다시 묻지 않음
+    if (!body.linked) { dshs.linked = false; seatMap = new Map(); }
+    seatNeed = body.need || null;
+    if (body.seats) { seatMap = new Map(Object.entries(body.seats).map(([sid, seat]) => [+sid, seat])); seatDay = body.day || ""; }
+    else if (seatNeed) seatMap = new Map();
+    if (body.error === "busy") seatAt = Date.now() + DSHS_REST - DSHS_GAP;
+  } catch { seatAt = 0; return; }
+  paintStatus();
+  saveSnap();
+}
+const seatTag = (seat) => `<span class="st-seat">💺 ${esc(seat)}</span>`;
 // 내 일정·시간표를 보는 동안 1분마다 새로 받습니다
 function watchStatus() {
   const tick = () => { if (me && !document.hidden) loadStatus(); };
@@ -581,8 +612,14 @@ function whenLabel(iso) {
 function paintStatus(root = document) {
   root.querySelectorAll("[data-st]").forEach((el) => {
     const sid = +el.dataset.st;
-    const r = me && !(sid === me.student_id && $("myStatus")) ? statusMap.get(sid) : null;   // 내 위치는 위의 내 위치 줄에
-    el.innerHTML = r ? `📍 ${esc(r.location)} <small>${whenLabel(r.updated_at)}</small>` : "";
+    const mine = sid === me?.student_id && $("myStatus");   // 내 위치 · 자리는 위의 내 위치 줄에
+    const r = me && !mine ? statusMap.get(sid) : null;
+    const seat = me && !mine ? seatMap.get(sid) : null;
+    // 위치를 '자습실 자리'로 정했으면 그 자리로 바꿔 보여 주고, 아니면 위치 뒤에 오늘 신청한 자리를 붙입니다
+    el.innerHTML = r
+      ? (seat && r.location === PLACES[0] ? `📍 자습실 ${esc(seat)}` : `📍 ${esc(r.location)}`) + ` <small>${whenLabel(r.updated_at)}</small>`
+        + (seat && r.location !== PLACES[0] ? ` ${seatTag(seat)}` : "")
+      : seat ? seatTag(seat) : "";
     el.classList.toggle("old", !!r && Date.now() - new Date(r.updated_at) > STATUS_OLD);
   });
   paintMyStatus();
@@ -594,10 +631,15 @@ function paintMyStatus() {
   if (!box) return;
   if (!me?.student_id) { box.remove(); return; }
   const r = statusMap.get(me.student_id);
+  const seat = seatMap.get(me.student_id);
+  const loc = r ? (seat && r.location === PLACES[0] ? `자습실 ${seat}` : r.location) : "";
   box.innerHTML = `<span class="ms-label">📍 내 위치</span>
-    <b>${r ? esc(r.location) : "아직 안 정했어요"}</b>${r ? `<small>${whenLabel(r.updated_at)} 수정</small>` : ""}
-    <button class="study-btn small" id="msEdit">${r ? "바꾸기" : "정하기"}</button>`;
+    <b>${r ? esc(loc) : "아직 안 정했어요"}</b>${r ? `<small>${whenLabel(r.updated_at)} 수정</small>` : ""}
+    ${seat && loc !== `자습실 ${seat}` ? seatTag(seat) : ""}
+    <button class="study-btn small" id="msEdit">${r ? "바꾸기" : "정하기"}</button>
+    ${seatNeed === "relink" ? `<button class="ms-relink" id="msRelink">dshs.app 다시 연결하면 자습실 자리가 보여요</button>` : ""}`;
   $("msEdit").onclick = openStatusPicker;
+  if ($("msRelink")) $("msRelink").onclick = startDshs;
 }
 
 function openStatusPicker() {
@@ -651,6 +693,7 @@ async function logout() {
   autoPush.done = false;   // 다음에 로그인하는 사람의 알림을 다시 맞춥니다
   paintPush.known = false;
   statusMap = new Map(); statusAt = 0;
+  seatMap = new Map(); seatDay = ""; seatAt = 0; seatNeed = null;
   me = null; myClasses = []; dshs = dshsEmpty(); closeStudy(); renderNav();
   $("myStatus")?.remove(); paintStatus();
   toast("로그아웃했어요");
@@ -2404,15 +2447,17 @@ function openSettings() {
   bindAdminTap();
 }
 
-async function startDshs() {
-  $("doDshs").disabled = true;
+// 설정 창의 연결 버튼, 또는 내 위치 줄의 '다시 연결' 버튼
+async function startDshs(e) {
+  const btn = e?.currentTarget || $("doDshs");
+  btn.disabled = true;
   try {
     const handoff = newHandoff();
     const { body } = await dshsCall("start", { return_to: location.origin + location.pathname, handoff });
     if (body.url) { openDshsLogin(body.url, handoff); return; }
     toast(body.error || "dshs.app 연결을 시작하지 못했어요", true);
   } catch { toast("dshs.app 연결을 시작하지 못했어요", true); }
-  if ($("doDshs")) $("doDshs").disabled = false;
+  btn.disabled = false;
 }
 
 async function unlinkDshs() {
@@ -2422,7 +2467,8 @@ async function unlinkDshs() {
     if (!ok) throw new Error();
   } catch { return toast("연결을 해제하지 못했어요", true); }
   dshs = { ...dshsEmpty(), linked: false, at: Date.now() };
-  closeModal(); paintDshs();
+  seatMap = new Map(); seatDay = ""; seatNeed = null;
+  closeModal(); paintDshs(); paintStatus();
   if (calOpen()) rerender();
   toast("dshs.app 연결을 해제했어요");
 }

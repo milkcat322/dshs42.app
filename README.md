@@ -21,6 +21,7 @@ submit.sql                ★ 수행평가 제출처
 personal.sql              ★ 수행평가 개인 수정
 comments.sql              ★ 수행평가 공지 댓글 (공지를 볼 수 있는 사람만 읽고 씀)
 learn.sql                 ★ 공부 탭 단어장 북마크 (계정별, 본인만)
+seats.sql                 ★ 자습실 자리 (dshs.app 자습 좌석 배치도 하루 한 번 저장 · 연결 토큰의 좌석 권한)
 supabase/functions/send-reminders/index.ts  알림 발송
 supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼지 계산
 dshsapp.sql               ★ dshs.app 계정 연결 (토큰은 서버 전용)
@@ -85,6 +86,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `todos.sql` 을 **Run** (할 일)
    이어서 `todogroups.sql` 을 **Run** (할 일 그룹)
    이어서 `learn.sql` 을 **Run** (공부 탭 단어장 북마크)
+   이어서 `seats.sql` 을 **Run** (자습실 자리. `dshs-oauth` 를 배포하기 **전에** 실행 — 함수가 `dshs_links.seat_ok` 칸을 씀)
    이어서 `school.sql` 을 **Run** (학교 일정 · 관리자 전용)
    이어서 `notify.sql` 을 **Run** (알림)
    이어서 `submit.sql` 을 **Run** (수행평가 제출처)
