@@ -14,8 +14,9 @@ window.vocabTheme = function () {
     const p = window.parent.document.documentElement, cs = window.parent.getComputedStyle(p), root = document.documentElement;
     root.dataset.theme = p.dataset.tone === 'light' ? 'light' : 'dark';
     // 사이트 색 → 단어장 색 (사이트의 --text-dim 이 더 밝은 보조 글자, --text-muted 가 더 흐린 글자)
+    // 강조색도 사이트 테마를 따릅니다. 정답(초록 --accent2) · 오답(빨강 --accent3)은 뜻이 있는 색이라 단어장 색 그대로 둡니다.
     [['--bg', '--bg'], ['--surface', '--surface'], ['--surface2', '--card'], ['--border', '--border'], ['--text', '--text'],
-     ['--text-muted', '--text-dim'], ['--text-dim', '--text-muted']].forEach(([mine, site]) => {
+     ['--text-muted', '--text-dim'], ['--text-dim', '--text-muted'], ['--accent', '--accent1'], ['--accent4', '--accent2']].forEach(([mine, site]) => {
       const v = cs.getPropertyValue(site).trim();
       if (v) root.style.setProperty(mine, v); else root.style.removeProperty(mine);
     });
@@ -1268,6 +1269,9 @@ html.embed .logo, html.embed #subject-switch, html.embed #home-view { display: n
 html.embed .header { padding: 0; gap: 0; }
 html.embed .nav-tabs { margin-left: 0; width: 100%; }
 html.embed .main { padding: 18px 0 8px; max-width: none; }
+/* 강조색 바탕 위 글자: 원래는 검정 고정이라 밝은 테마의 진한 강조색에서 안 보여서, 테마 배경색으로 */
+html.embed .btn.primary, html.embed .btn.primary:hover, html.embed .btn.danger, html.embed .btn.success-btn,
+html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.selected { color: var(--bg); }
 
 </style>
 </head>
@@ -4514,7 +4518,11 @@ if (window.VOCAB_EMBED) {
   window.scrollTo = () => {
     try { if (frame && frame.getBoundingClientRect().top < 0) frame.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {}
   };
-  window.vocabSubject = id => { if (SUBJECTS[id] && location.hash !== '#' + id) location.replace('#' + id); };
+  // 사이트(부모 창)가 부르므로 '#id' 같은 상대 주소는 부모 주소 기준으로 풀려 사이트 전체가 iframe 에 뜹니다 → 전체 주소로
+  window.vocabSubject = id => {
+    if (!SUBJECTS[id] || location.hash === '#' + id) return;
+    const u = new URL(location.href); u.hash = id; location.replace(u.href);
+  };
   goHome = () => {};
 }
 
