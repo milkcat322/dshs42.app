@@ -13,7 +13,7 @@
 //   POST { action: "poll", handoff }     → 설치한 앱에서 시작한 로그인의 결과. start/login 에 handoff 를 같이 보냈으면
 //                                          로그인 창에는 "앱으로 돌아가세요"만 보여 주고, 결과(일회용 토큰)는 앱이 여기서 받아 갑니다.
 //   POST { action: "requests" }          → 내 신청 내역 { linked, items }
-//   POST { action: "myseat" }            → 위치가 '자습실 자리'면 내 오늘 자리를 받아 student_status 에 남김 { linked, day, seat } (need: "relink" 면 다시 연결)
+//   POST { action: "myseat" }            → 자리를 보여 주기로 했으면 이번 주 내 자리를 받아 seat_shares 에 남김 { linked, day, seat } (need: "relink" 면 다시 연결)
 //   POST { action: "unlink" }            → 연결 해제 (refresh token 무효화 + 저장한 토큰 삭제)
 //
 // 배포:  supabase functions deploy dshs-oauth --no-verify-jwt   (콜백은 로그인 토큰 없이 들어오므로)
@@ -359,9 +359,9 @@ async function requests(userId: string) {
 }
 
 // ---------- 자습실 자리 (seats.sql) ----------
-// 위치를 '자습실 자리'로 정한 학생의 지금 자리를 그 학생 자신의 토큰(reservation.read.me)으로 받아
-// student_status 의 seat · seat_day 에 남깁니다. 로그인한 42기 학생이 위치와 함께 봅니다.
-// 다른 학생의 자리는 받지 않습니다 (dshs.app 이 개인 정보라 허락하지 않음).
+// 자리를 보여 주기로 한 학생(위치가 '자습실 자리'이거나 '내 자습실 자리 공개'를 켬)의 지금 자리를
+// 그 학생 자신의 토큰(reservation.read.me)으로 받아 seat_shares 에 남깁니다. 누가 볼 수 있는지는 seats.sql 의 RLS.
+// 다른 학생의 자리는 받지 않습니다 (dshs.app 이 개인정보처리방침 때문에 허락하지 않음).
 // 자리는 목요일 밤에 신청해(신청일 = 금요일) 금요일 15시(한국 시간)부터 한 주 동안 이어집니다.
 // 그래서 가장 최근 '금요일 15시'의 금요일 날짜로 받고(seat_day), 다음 금요일 15시까지는 다시 받지 않습니다.
 // 그 금요일에 없으면 오늘 날짜로도 한 번 찾아보고, 그래도 없으면 다음에 부를 때 다시 찾습니다.
@@ -381,11 +381,15 @@ async function mySeat(userId: string) {
   if (link.seat_ok === false) return json({ linked: true, need: "relink" });   // 예전 연결: 권한을 받으려면 다시 연결
 
   const { data: prof } = await admin.from("profiles").select("student_id").eq("id", userId).maybeSingle();
-  if (!prof?.student_id) return json({ linked: true });
-  const { data: st } = await admin.from("student_status").select("location, seat, seat_day").eq("student_id", prof.student_id).maybeSingle();
-  if (st?.location !== SEAT_PLACE) return json({ linked: true });   // 본인이 '자습실 자리'로 정했을 때만
+  const sid = prof?.student_id;
+  if (!sid) return json({ linked: true });
+  const [{ data: st }, { data: sh }] = await Promise.all([
+    admin.from("student_status").select("location").eq("student_id", sid).maybeSingle(),
+    admin.from("seat_shares").select("public, seat, seat_day").eq("student_id", sid).maybeSingle(),
+  ]);
+  if (st?.location !== SEAT_PLACE && !sh?.public) return json({ linked: true });   // 보여 주기로 하지 않았으면 받지 않음
   const day = seatWeek();
-  if (st.seat_day === day && st.seat) return json({ linked: true, day, seat: st.seat });
+  if (sh?.seat_day === day && sh.seat) return json({ linked: true, day, seat: sh.seat });
 
   let seat: string | null = null;
   for (const d of [...new Set([day, kstDay()])]) {
@@ -401,8 +405,8 @@ async function mySeat(userId: string) {
     seat = body.userInfo?.seat ?? null;
     if (seat) break;
   }
-  const { error } = await admin.from("student_status").update({ seat, seat_day: day })
-    .eq("student_id", prof.student_id).eq("location", SEAT_PLACE);
+  // public 은 건드리지 않습니다 (없던 행이면 기본값 false)
+  const { error } = await admin.from("seat_shares").upsert({ student_id: sid, seat, seat_day: day });
   if (error) return json({ linked: true, error: "failed" }, 500);
   return json({ linked: true, day, seat });
 }
