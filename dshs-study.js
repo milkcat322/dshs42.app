@@ -732,8 +732,8 @@ function openAdminLogin() {
 function showErr(msg) { const e = $("authErr"); e.textContent = msg; e.classList.add("show"); }
 
 // ---------- 탭: 내 일정 · 수행평가 공지 · 할 일 ----------
-const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"]];
-const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo" };
+const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"], ["learn", "공부"]];
+const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", learn: "learn" };
 
 // 내 일정: 수행평가(내 분반 공지 + 내가 올린 것)와 개인 일정을 한 달력에 모두 보여줍니다
 function openStudy(p) {
@@ -746,6 +746,7 @@ function openStudy(p) {
   $("studyView").style.display = "block";
   // 시간표 검색창은 내 시간표 탭에서만 보입니다 (내 시간표 탭이 없는 관리자 계정은 그대로 둠)
   document.body.classList.toggle("study-open", !!me?.student_id);
+  if (page === "learn") { renderLearn(); renderNav(); return; }   // 공부 탭은 서버 자료를 쓰지 않습니다
   renderStudy();
   renderNav();
   // 받아 둔 내용(지난 화면 · 앞서 받은 것)이 있으면 '불러오는 중' 없이 바로 그리고, 서버에서 새로 받아 바뀐 것만 다시 그립니다
@@ -761,11 +762,57 @@ function closeStudy() {
 }
 // 지금 view 에 맞춰 studyBody 를 다시 그립니다
 function rerender() {
+  if (view === "learn") return;   // 공부 탭은 받아 온 자료로 다시 그리지 않습니다 (단어장 진행이 날아가지 않게)
   if (view === "notice") renderNotice();
   else if (view === "todo") renderTodo();
   else renderList(view);
 }
 window.closeStudyView = closeStudy;
+
+// ---------- 공부 ----------
+// 과목을 고르면 그 과목 단어장(vocab.html)을 아래에 띄웁니다. 단어장 안의 탭(학습 · 퀴즈 · 빈칸 · 배열 · 셀프 · 북마크)은
+// vocab.html 이 그리고, 기록 · 북마크는 이 기기에만 남습니다(localStorage). 과목을 늘리려면 vocab.html 의 SUBJECTS 와 여기에 함께 넣습니다.
+const LEARN_SUBJECTS = [
+  { id: "atc", name: "학술영어 세미나", sub: "The Art of Thinking Clearly 어휘 · 문장 배열 · 문장 암기", emoji: "🧠" },
+  { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 · 필수형용사 · 지문 빈칸 · 문장 배열", emoji: "⚖️" },
+];
+const LEARN_KEY = "dshs-learn-subject";
+function learnSubject() {
+  let id = null;
+  try { id = localStorage.getItem(LEARN_KEY); } catch {}
+  return LEARN_SUBJECTS.some((s) => s.id === id) ? id : null;
+}
+function renderLearn(pick) {
+  if (pick) { try { localStorage.setItem(LEARN_KEY, pick); } catch {} }
+  const cur = learnSubject();
+  const frame = $("learnFrame");
+  // 이미 단어장이 떠 있으면 다시 만들지 않고 과목만 바꿉니다 (푸는 중이던 화면 유지)
+  if (cur && frame) {
+    $("studyView").querySelectorAll("[data-learn]").forEach((b) => b.classList.toggle("primary", b.dataset.learn === cur));
+    try { frame.contentWindow.vocabSubject(cur); } catch { frame.src = `vocab.html?embed=1#${cur}`; }
+    return;
+  }
+  $("studyView").innerHTML = `
+    <div class="study-head">
+      <div>
+        <h2>공부</h2>
+        <div class="study-sub">${cur ? "과목을 바꾸려면 위에서 골라요" : "공부할 과목을 골라요"}</div>
+      </div>
+      <button class="study-btn" onclick="closeStudyView()">✕ 닫기</button>
+    </div>
+    <div class="study-row learn-subjects">
+      ${LEARN_SUBJECTS.map((s) => `<button class="study-btn${s.id === cur ? " primary" : ""}" data-learn="${s.id}">${s.emoji} ${esc(s.name)}</button>`).join("")}
+    </div>
+    ${cur
+      ? `<iframe id="learnFrame" class="learn-frame" src="vocab.html?embed=1#${cur}" title="단어장"></iframe>`
+      : `<div class="learn-pick">${LEARN_SUBJECTS.map((s) => `
+          <button class="asg-card learn-card" data-learn="${s.id}">
+            <span class="learn-emoji">${s.emoji}</span>
+            <span><span class="asg-title">${esc(s.name)}</span><span class="study-sub">${esc(s.sub)}</span></span>
+          </button>`).join("")}</div>`}
+    <div class="study-foot">기록과 북마크는 이 기기에만 저장돼요</div>`;
+  $("studyView").querySelectorAll("[data-learn]").forEach((b) => b.onclick = () => renderLearn(b.dataset.learn));
+}
 
 function renderStudy() {
   const subjects = me.student_id ? `${asgClasses().length}과목` : `전체 ${asgSubjects().length}과목`;
@@ -2272,6 +2319,7 @@ function bindTheme() {
   $("studyModal").querySelectorAll("[data-theme-pick]").forEach((b) => b.onclick = () => {
     try { localStorage.setItem(THEME_KEY, b.dataset.themePick); } catch {}
     window.applyTheme?.();
+    try { $("learnFrame")?.contentWindow.vocabTheme?.(); } catch {}   // 공부 탭 단어장도 같은 테마로
     $("studyModal").querySelectorAll("[data-theme-pick]").forEach((x) => x.classList.toggle("on", x === b));
   });
 }
