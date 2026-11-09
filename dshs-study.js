@@ -569,6 +569,7 @@ async function loadStatus(force = false) {
   paintStatus();
   saveSnap();
   loadMySeat();
+  if (!askSeatConsent.t) askSeatConsent.t = setTimeout(askSeatConsent, 2500);   // 첫 화면이 뜬 뒤 한 번
 }
 
 // ---------- 자습실 자리 (seats.sql) ----------
@@ -732,22 +733,7 @@ function paintStatus(root = document) {
     el.innerHTML = (r ? `📍 ${locHtml(r)} <small>${whenLabel(r.updated_at)}</small>` : "") + (r && chip ? " " : "") + chip;
     el.classList.toggle("old", !!r && !chip && Date.now() - new Date(r.updated_at) > STATUS_OLD);
   });
-  root.querySelectorAll("[data-seatpub]").forEach(paintSeatPub);
   paintMyStatus();
-}
-
-// 내 시간표 '주간 수업 교시' 옆의 '자리 공개' 켜기 · 끄기 (index.html 은 자리만 두고 여기서 채움. 내 시간표에서만 보임)
-function paintSeatPub(el) {
-  const sid = me?.student_id;
-  el.hidden = !seatShares || !sid || +el.dataset.seatpub !== sid;
-  if (el.hidden) return;
-  const on = !!seatShares.get(sid)?.public;
-  el.classList.toggle("on", on);
-  el.title = on ? "친구들이 내 이름 옆 · 시간표 검색에서 내 자습실 자리를 볼 수 있어요" : "켜면 친구들이 내 자습실 자리를 볼 수 있어요";
-  el.setAttribute("role", "switch");
-  el.setAttribute("aria-checked", on);
-  el.innerHTML = `<span class="sp-switch"><span class="sp-knob"></span></span><span class="stat-label">자리 공개</span>`;
-  el.onclick = () => saveSeatPublic(!on, el);
 }
 window.paintStatus = paintStatus;   // index.html 의 수업 팝업이 씁니다
 
@@ -790,7 +776,7 @@ function openStatusPicker() {
     ${cur ? '<button class="study-submit ghost" id="plClear">위치 지우기</button>' : ""}
     <div class="study-foot">로그인한 42기 학생 모두에게 학번 옆에 보여요. 고친 시각도 함께 보여요.
       '자습실 자리'로 정하면 dshs.app 에서 신청한 이번 주 자리(예: a101)도 함께 보여요.
-      위치와 상관없이 자리를 보여 주려면 내 시간표의 '자리 공개'를 켜세요.</div>`);
+      위치와 상관없이 자리를 보여 주려면 설정에서 '자습실 자리 공개'를 켜세요.</div>`);
   $("studyModal").querySelectorAll("[data-place]").forEach((b) => b.onclick = () => saveStatus(b.dataset.place));
   $("plSave").onclick = () => {
     const v = $("plIn").value.trim();
@@ -801,17 +787,66 @@ function openStatusPicker() {
   if ($("plClear")) $("plClear").onclick = () => saveStatus(null);
 }
 
-// '자리 공개' 켜고 끄기 (seat_shares.public. 자리 자체는 서버가 채움)
-async function saveSeatPublic(on, btn) {
+// '자습실 자리 공개' 켜고 끄기 (seat_shares.public. 자리 자체는 서버가 채움). 저장했으면 true.
+async function saveSeatPublic(on) {
   const sid = me.student_id;
-  btn.disabled = true;
   const { error } = await sb.from("seat_shares").upsert({ student_id: sid, public: on });
-  btn.disabled = false;
-  if (error) return toast("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요", true);
+  if (error) { toast("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요", true); return false; }
   seatShares.set(sid, { seat: null, seat_day: null, ...seatShares.get(sid), student_id: sid, public: on });
+  seatAsked(true);
   toast(on ? "내 자습실 자리를 공개했어요" : "내 자습실 자리 공개를 껐어요");
   paintStatus();
   if (on) loadMySeat(true);
+  return true;
+}
+
+// 처음 한 번 동의 창으로 묻습니다. 동의하면 공개(DB 에 남아 어느 기기에서도 다시 묻지 않음),
+// 공개하지 않기를 고르면 이 기기에서는 다시 묻지 않습니다. 그 뒤로는 설정의 '자습실 자리 공개'에서 켜고 끕니다.
+// ✕ 로 닫으면 다음에 열 때 다시 묻습니다.
+const SEAT_ASK_KEY = "dshs-seat-asked";
+function seatAsked(set) {
+  try {
+    const k = `${SEAT_ASK_KEY}-${me?.student_id}`;
+    if (set) localStorage.setItem(k, "1");
+    return localStorage.getItem(k) === "1";
+  } catch { return true; }   // 저장이 안 되는 브라우저는 매번 묻지 않게
+}
+function askSeatConsent() {
+  const sid = me?.student_id;
+  if (!sid || me.is_admin || !seatShares || seatShares.get(sid)?.public || seatAsked() || askSeatConsent.shown) return;
+  // 업데이트 소식 · 다른 창이 떠 있으면 닫힐 때까지 기다립니다
+  const busy = () => ["studyModal", "updModal"].some((id) => $(id)?.classList.contains("show"));
+  if (busy() || document.hidden) { clearTimeout(askSeatConsent.t); askSeatConsent.t = setTimeout(askSeatConsent, 3000); return; }
+  askSeatConsent.shown = true;
+  openSheet("자습실 자리 공개", `<div class="seat-ask">
+    <div class="asg-body">dshs.app 에서 신청한 내 자습실 자리(예: a101)를 친구들에게 보여 줄까요?</div>
+    <ul>
+      <li>로그인한 42기 학생이 내 이름 옆과 시간표 검색에서 내 자리를 볼 수 있어요</li>
+      <li>자리는 매주 금요일 15시에 새로 신청한 자리로 바뀌어요</li>
+      <li>dshs.app 계정이 연결돼 있어야 자리를 받아 올 수 있어요</li>
+      <li>나중에 설정에서 언제든 끌 수 있어요</li>
+    </ul>
+    <button class="study-submit" id="saYes">동의하고 공개하기</button>
+    <button class="study-submit ghost" id="saNo">공개하지 않기</button>
+  </div>`);
+  $("saYes").onclick = async (e) => { e.target.disabled = true; if (await saveSeatPublic(true)) closeModal(); else e.target.disabled = false; };
+  $("saNo").onclick = () => { seatAsked(true); closeModal(); toast("공개하지 않아요. 설정에서 언제든 켤 수 있어요"); };
+}
+
+// 설정 창의 '자습실 자리 공개' 줄
+function seatSettingHtml() {
+  if (!seatShares || !me?.student_id) return "";
+  return `<label class="set-row"><span><b>자습실 자리 공개</b><span class="ev-hint">켜면 친구들이 내 이름 옆 · 시간표 검색에서 dshs.app 에 신청한 내 자습실 자리를 볼 수 있어요</span></span>
+    <input type="checkbox" id="setSeat"${seatShares.get(me.student_id)?.public ? " checked" : ""}></label>`;
+}
+function bindSeatSetting() {
+  const box = $("setSeat");
+  if (!box) return;
+  box.onchange = async () => {
+    box.disabled = true;
+    if (!(await saveSeatPublic(box.checked))) box.checked = !box.checked;
+    box.disabled = false;
+  };
 }
 
 async function saveStatus(loc) {
@@ -2578,6 +2613,7 @@ function openSettings() {
   openSheet("설정", `
     <label class="set-row"><span><b>알림</b><span class="ev-hint" id="pushHint">${PUSH_HINT}</span></span>
       <input type="checkbox" id="setPush"></label>
+    ${seatSettingHtml()}
     ${themeHtml()}
     <div class="set-sec">내 일정 달력</div>
     ${calSettingsHtml()}
@@ -2588,6 +2624,7 @@ function openSettings() {
     <button class="study-btn wide" id="doLogout">로그아웃</button>`);
   $("setPush").onchange = togglePush;
   paintPush(); refreshPush();
+  bindSeatSetting();
   bindCalSettings();
   if ($("doDshs")) $("doDshs").onclick = startDshs;
   if ($("dshsUnlink")) $("dshsUnlink").onclick = unlinkDshs;

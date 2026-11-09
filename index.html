@@ -275,15 +275,8 @@
   .st-seat { color: inherit; font-weight: 700; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
   .st-chip { white-space: nowrap; }
   .my-status .st-chip { font-size: 12.5px; color: var(--accent3); }
-  /* 내 시간표의 '자리 공개' 켜기 · 끄기 (주간 수업 교시 옆) */
-  .stat-chip.seat-pub { gap: 6px; background: none; border: none; font: inherit; font-size: 13px; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .seat-pub[hidden] { display: none; }
-  .seat-pub .stat-label { color: var(--text); font-weight: 600; }
-  .sp-switch { position: relative; display: inline-block; flex: none; width: 40px; height: 23px; border-radius: 999px; background: var(--border); transition: background 0.2s; }
-  .sp-knob { position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.35); transition: transform 0.2s; }
-  .seat-pub.on .sp-switch { background: var(--accent3); }
-  .seat-pub.on .sp-knob { transform: translateX(17px); }
-  .seat-pub:disabled { opacity: 0.6; cursor: default; }
+  /* 자습실 자리 공개 동의 창 */
+  .seat-ask ul { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--text-dim); line-height: 1.65; }
   .seat-modal { z-index: 1100; }   /* 수업 팝업(1000) 위 */
   .seat-sheet { max-width: 640px; }
   .seat-scroll { overflow-x: auto; margin: 4px -4px 14px; border-radius: 12px; -webkit-overflow-scrolling: touch; }
@@ -1572,9 +1565,7 @@ function renderResult(name, student) {
     <div class="stats-row">
       <div class="stat-chip"><span class="stat-num">${subjects.length}</span><span class="stat-label">수강 과목</span></div>
       <div class="stat-chip"><span class="stat-num" style="color:var(--accent3)">${totalCredits(student)}</span><span class="stat-label">이수 학점</span></div>
-      <div class="stat-chip"><span class="stat-num">${sorted.filter(s => !COMMON_SUBJECTS.includes(s.subject)).length}</span><span class="stat-label">주간 수업 교시</span></div>
-      <button type="button" class="stat-chip seat-pub" data-seatpub="${student.id}" hidden></button>
-    </div>
+      <div class="stat-chip"><span class="stat-num">${sorted.filter(s => !COMMON_SUBJECTS.includes(s.subject)).length}</span><span class="stat-label">주간 수업 교시</span></div>    </div>
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('timetable',this)">📅 시간표</button>
       <button class="tab-btn" onclick="switchTab('gpa',this)">🎓 학점 계산</button>
