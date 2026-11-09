@@ -13,6 +13,7 @@ window.vocabTheme = function () {
   try {
     const p = window.parent.document.documentElement, cs = window.parent.getComputedStyle(p), root = document.documentElement;
     root.dataset.theme = p.dataset.tone === 'light' ? 'light' : 'dark';
+    root.style.colorScheme = root.dataset.theme;   // 사이트 밝기와 같은 색 모드로 (입력칸 · 스크롤바 색도 맞춤)
     // 사이트 색 → 단어장 색 (사이트의 --text-dim 이 더 밝은 보조 글자, --text-muted 가 더 흐린 글자)
     // 강조색도 사이트 테마를 따릅니다. 정답(초록 --accent2) · 오답(빨강 --accent3)은 뜻이 있는 색이라 단어장 색 그대로 둡니다.
     [['--bg', '--bg'], ['--surface', '--surface'], ['--surface2', '--card'], ['--border', '--border'], ['--text', '--text'],
@@ -1263,7 +1264,9 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 }
 
 /* ===== dshs42.app 공부 탭 안 (html.embed) ===== */
-html.embed, html.embed body { background: transparent; }
+/* 배경을 투명하게 두면 사이트와 단어장의 색 모드(color-scheme)가 다를 때 브라우저가 iframe 뒤에 흰 바탕을 깔아서, 사이트 배경색으로 칠합니다 */
+html.embed { background: var(--bg); }
+html.embed body { background: transparent; }
 html.embed body { min-height: 0; }
 html.embed .logo, html.embed #subject-switch, html.embed #home-view { display: none !important; }
 html.embed .header { padding: 0; gap: 0; }
