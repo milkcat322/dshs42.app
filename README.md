@@ -21,7 +21,7 @@ submit.sql                ★ 수행평가 제출처
 personal.sql              ★ 수행평가 개인 수정
 comments.sql              ★ 수행평가 공지 댓글 (공지를 볼 수 있는 사람만 읽고 씀)
 learn.sql                 ★ 공부 탭 단어장 북마크 (계정별, 본인만)
-seats.sql                 ★ 자습실 자리 (dshs.app 자습 좌석 배치도 하루 한 번 저장 · 연결 토큰의 좌석 권한)
+seats.sql                 ★ 자습실 자리 (위치를 '자습실 자리'로 정한 학생의 오늘 자리, student_status.seat)
 supabase/functions/send-reminders/index.ts  알림 발송
 supabase/functions/send-reminders/plan.ts   누구에게 어떤 알림을 보낼지 계산
 dshsapp.sql               ★ dshs.app 계정 연결 (토큰은 서버 전용)

@@ -13,7 +13,7 @@
 //   POST { action: "poll", handoff }     → 설치한 앱에서 시작한 로그인의 결과. start/login 에 handoff 를 같이 보냈으면
 //                                          로그인 창에는 "앱으로 돌아가세요"만 보여 주고, 결과(일회용 토큰)는 앱이 여기서 받아 갑니다.
 //   POST { action: "requests" }          → 내 신청 내역 { linked, items }
-//   POST { action: "seats" }             → 오늘 자습실 자리 { linked, seats: { 학번: 좌석 } } (need: "relink" 면 권한 받으려 다시 연결)
+//   POST { action: "myseat" }            → 위치가 '자습실 자리'면 내 오늘 자리를 받아 student_status 에 남김 { linked, day, seat } (need: "relink" 면 다시 연결)
 //   POST { action: "unlink" }            → 연결 해제 (refresh token 무효화 + 저장한 토큰 삭제)
 //
 // 배포:  supabase functions deploy dshs-oauth --no-verify-jwt   (콜백은 로그인 토큰 없이 들어오므로)
@@ -36,11 +36,11 @@ const json = (body: unknown, status = 200) =>
 
 const ISSUER = "https://id.dshs.app";
 const API = "https://api.dshs.app";
-// 자습실 자리에는 reservation.read + user.read 가 필요합니다 (좌석 배치도에 학번이 들어오려면 user.read).
-// dshs.app 이 이 client 에 허락하기 전에 요청하면 로그인 전체가 invalid_scope 로 실패하므로, 허락받은 뒤 SEAT_SCOPE 를 켭니다.
-const SEAT_SCOPE = "";   // 허락받으면: " reservation.read user.read"
+// 자습실 자리: 내 자리 읽기(reservation.read.me)만 받습니다. 다른 학생의 자리 · 학번(reservation.read · user.read)은
+// dshs.app 이 개인 정보라 허락하지 않았습니다 (2026-11). 허락받지 않은 scope 를 요청하면 로그인 전체가 invalid_scope 로 실패합니다.
+const SEAT_SCOPE = " reservation.read.me";
 const SCOPE = "openid profile offline_access me.read request.read" + SEAT_SCOPE;
-const hasSeatScope = (scope?: string) => scope ? scope.split(" ").includes("reservation.read") : null;
+const hasSeatScope = (scope?: string) => scope ? scope.split(" ").includes("reservation.read.me") : null;
 // 조용한 로그인: 학번만 알면 되고, offline_access 는 동의 화면이 필요해 뺍니다 (저장해 둔 연결 토큰은 건드리지 않음)
 const SILENT_SCOPE = "openid profile me.read";
 const SILENT = "s_";   // 조용한 로그인의 state 앞에 붙입니다
@@ -358,49 +358,39 @@ async function requests(userId: string) {
 }
 
 // ---------- 자습실 자리 (seats.sql) ----------
-// 오늘 좌석 배치도에서 42기 학생의 자리만 { 학번: 좌석 } 으로 돌려줍니다.
-// 자리 신청은 전날 끝나므로 배치도는 하루에 한 번만 받습니다: 0시(한국 시간)가 지나 처음 부른 학생의 토큰으로 받아
-// dshs_seat_cache 에 그날 하루 두고 모두가 같이 씁니다 (요청 한도가 사이트 전체 합산).
-// 저장해 둔 배치도도 자습 좌석 권한을 받은 학생(seat_ok)에게만 줍니다.
+// 위치를 '자습실 자리'로 정한 학생의 오늘 자리를 그 학생 자신의 토큰(reservation.read.me)으로 받아
+// student_status 의 seat · seat_day 에 남깁니다. 로그인한 42기 학생이 위치와 함께 봅니다.
+// 다른 학생의 자리는 받지 않습니다 (dshs.app 이 개인 정보라 허락하지 않음). 자리 신청은 전날 끝나므로 하루 한 번만 받습니다.
+const SEAT_PLACE = "자습실 자리";
 const kstDay = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10).replace(/-/g, "");
 
-async function seats(userId: string) {
-  if (!SEAT_SCOPE) return json({ linked: true, off: true });   // 아직 좌석 권한을 요청하지 않음 (다시 연결해도 소용없으니 안내하지 않음)
+async function mySeat(userId: string) {
+  if (!SEAT_SCOPE) return json({ off: true });
   const { data: link } = await admin.from("dshs_links").select("*").eq("user_id", userId).maybeSingle();
   if (!link) return json({ linked: false });
   if (link.seat_ok === false) return json({ linked: true, need: "relink" });   // 예전 연결: 권한을 받으려면 다시 연결
 
+  const { data: prof } = await admin.from("profiles").select("student_id").eq("id", userId).maybeSingle();
+  if (!prof?.student_id) return json({ linked: true });
+  const { data: st } = await admin.from("student_status").select("location, seat, seat_day").eq("student_id", prof.student_id).maybeSingle();
+  if (st?.location !== SEAT_PLACE) return json({ linked: true });   // 본인이 '자습실 자리'로 정했을 때만
   const day = kstDay();
-  const { data: cached } = await admin.from("dshs_seat_cache").select("*").eq("day", day).maybeSingle();
-  const out = (c: { available: boolean; seats: Record<string, string>; fetched_at: string }, extra = {}) =>
-    json({ linked: true, day, seats: c.available ? c.seats : {}, at: c.fetched_at, ...extra });
-  // 권한을 아직 확인하지 않은 연결(null)은 저장해 둔 것을 주지 않고 직접 받아 봅니다
-  if (cached && link.seat_ok) return out(cached);
+  if (st.seat_day === day) return json({ linked: true, day, seat: st.seat });
 
-  const res = await api(link, `/v2/reservations/${day}`);
+  const res = await api(link, `/v2/reservations/${day}/me`);
   if (!res) return json({ linked: false, expired: true });
   if (res.status === 403) {
     await admin.from("dshs_links").update({ seat_ok: false }).eq("user_id", userId);
     return json({ linked: true, need: "relink" });
   }
-  if (!res.ok) {   // 한도 초과 · 잠깐 오류: 지난번 배치도가 있으면 그것을 줍니다
-    const error = res.status === 429 ? "busy" : "failed";
-    return cached && link.seat_ok ? out(cached, { error }) : json({ linked: true, error }, res.status === 429 ? 503 : 502);
-  }
+  if (!res.ok) return json({ linked: true, error: res.status === 429 ? "busy" : "failed" }, res.status === 429 ? 503 : 502);
   if (link.seat_ok !== true) await admin.from("dshs_links").update({ seat_ok: true }).eq("user_id", userId);
-  // 권한 확인 때문에 직접 받았어도, 오늘 배치도가 이미 있으면 그것을 씁니다 (하루 한 번 받은 것과 같게)
-  if (cached) return out(cached);
   const body = await res.json();
-  const { data: roster } = await admin.from("roster").select("student_id");
-  const ours = new Set((roster ?? []).map((r) => String(r.student_id)));
-  const map: Record<string, string> = {};
-  for (const [seat, who] of Object.entries((body.data ?? {}) as Record<string, { studentId?: string }>)) {
-    if (who?.studentId && ours.has(String(who.studentId))) map[String(who.studentId)] = seat;
-  }
-  const row = { day, available: body.available !== false, seats: map, fetched_at: new Date().toISOString() };
-  await admin.from("dshs_seat_cache").upsert(row);
-  await admin.from("dshs_seat_cache").delete().lt("day", day);   // 지난 날짜는 지웁니다
-  return out(row);
+  const seat = body.available === false ? null : (body.userInfo?.seat ?? null);   // 자습 없는 날 · 신청 안 함 → 없음
+  const { error } = await admin.from("student_status").update({ seat, seat_day: day })
+    .eq("student_id", prof.student_id).eq("location", SEAT_PLACE);
+  if (error) return json({ linked: true, error: "failed" }, 500);
+  return json({ linked: true, day, seat });
 }
 
 async function unlink(userId: string) {
@@ -428,7 +418,7 @@ Deno.serve(async (req) => {
   if (!user) return json({ error: "로그인이 필요해요." }, 401);
   if (body.action === "start") return start(user.id, body.return_to, body.handoff);
   if (body.action === "requests") return requests(user.id);
-  if (body.action === "seats") return seats(user.id);
+  if (body.action === "myseat") return mySeat(user.id);
   if (body.action === "unlink") return unlink(user.id);
   return json({ error: "잘못된 요청이에요." }, 400);
 });
