@@ -18,6 +18,8 @@ create table if not exists public.seat_shares (
   seat_day   text,                              -- 어느 주 자리인지: 그 주 금요일 YYYYMMDD (금요일 15시에 바뀜)
   updated_at timestamptz not null default now()
 );
+-- 공개 동의 창에 답했는지 (동의 · 공개하지 않기 모두 true). 계정마다 한 번만 묻습니다.
+alter table public.seat_shares add column if not exists asked boolean not null default false;
 
 -- 학생은 public 만 바꿉니다 (seat · seat_day 는 서버(service_role)만)
 create or replace function public.guard_seat_shares()

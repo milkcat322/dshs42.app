@@ -561,7 +561,7 @@ async function loadStatus(force = false) {
   statusAt = Date.now();
   const [st, sh] = await Promise.all([
     sb.from("student_status").select("student_id, location, updated_at"),
-    sb.from("seat_shares").select("student_id, public, seat, seat_day"),
+    sb.from("seat_shares").select("student_id, public, asked, seat, seat_day"),
   ]);
   if (st.error) return;   // status.sql 을 아직 실행하지 않았으면 위치 없이 보여 줍니다
   statusMap = new Map(st.data.map((r) => [r.student_id, r]));
@@ -788,32 +788,24 @@ function openStatusPicker() {
 }
 
 // '자습실 자리 공개' 켜고 끄기 (seat_shares.public. 자리 자체는 서버가 채움). 저장했으면 true.
-async function saveSeatPublic(on) {
+// 동의 창에 답한 것도 함께 남깁니다(asked) → 계정마다 한 번만 묻습니다.
+async function saveSeatPublic(on, quiet = false) {
   const sid = me.student_id;
-  const { error } = await sb.from("seat_shares").upsert({ student_id: sid, public: on });
+  const { error } = await sb.from("seat_shares").upsert({ student_id: sid, public: on, asked: true });
   if (error) { toast("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요", true); return false; }
-  seatShares.set(sid, { seat: null, seat_day: null, ...seatShares.get(sid), student_id: sid, public: on });
-  seatAsked(true);
-  toast(on ? "내 자습실 자리를 공개했어요" : "내 자습실 자리 공개를 껐어요");
+  seatShares.set(sid, { seat: null, seat_day: null, ...seatShares.get(sid), student_id: sid, public: on, asked: true });
+  if (!quiet) toast(on ? "내 자습실 자리를 공개했어요" : "내 자습실 자리 공개를 껐어요");
   paintStatus();
+  saveSnap();
   if (on) loadMySeat(true);
   return true;
 }
 
-// 처음 한 번 동의 창으로 묻습니다. 동의하면 공개(DB 에 남아 어느 기기에서도 다시 묻지 않음),
-// 공개하지 않기를 고르면 이 기기에서는 다시 묻지 않습니다. 그 뒤로는 설정의 '자습실 자리 공개'에서 켜고 끕니다.
-// ✕ 로 닫으면 다음에 열 때 다시 묻습니다.
-const SEAT_ASK_KEY = "dshs-seat-asked";
-function seatAsked(set) {
-  try {
-    const k = `${SEAT_ASK_KEY}-${me?.student_id}`;
-    if (set) localStorage.setItem(k, "1");
-    return localStorage.getItem(k) === "1";
-  } catch { return true; }   // 저장이 안 되는 브라우저는 매번 묻지 않게
-}
+// 처음 한 번 동의 창으로 묻습니다. 동의 · 공개하지 않기 모두 계정에 남아(seat_shares.asked) 어느 기기에서도 다시 묻지 않고,
+// 그 뒤로는 설정의 '자습실 자리 공개'에서 켜고 끕니다. ✕ 로 닫으면 다음에 열 때 다시 묻습니다.
 function askSeatConsent() {
-  const sid = me?.student_id;
-  if (!sid || me.is_admin || !seatShares || seatShares.get(sid)?.public || seatAsked() || askSeatConsent.shown) return;
+  const sid = me?.student_id, sh = seatShares?.get(sid);
+  if (!sid || me.is_admin || !seatShares || sh?.public || sh?.asked || askSeatConsent.shown) return;
   // 업데이트 소식 · 다른 창이 떠 있으면 닫힐 때까지 기다립니다
   const busy = () => ["studyModal", "updModal"].some((id) => $(id)?.classList.contains("show"));
   if (busy() || document.hidden) { clearTimeout(askSeatConsent.t); askSeatConsent.t = setTimeout(askSeatConsent, 3000); return; }
@@ -829,8 +821,14 @@ function askSeatConsent() {
     <button class="study-submit" id="saYes">동의하고 공개하기</button>
     <button class="study-submit ghost" id="saNo">공개하지 않기</button>
   </div>`);
-  $("saYes").onclick = async (e) => { e.target.disabled = true; if (await saveSeatPublic(true)) closeModal(); else e.target.disabled = false; };
-  $("saNo").onclick = () => { seatAsked(true); closeModal(); toast("공개하지 않아요. 설정에서 언제든 켤 수 있어요"); };
+  const answer = async (on, btn) => {
+    btn.disabled = true;
+    if (!(await saveSeatPublic(on, !on))) { btn.disabled = false; return; }
+    closeModal();
+    if (!on) toast("공개하지 않아요. 설정에서 언제든 켤 수 있어요");
+  };
+  $("saYes").onclick = (e) => answer(true, e.target);
+  $("saNo").onclick = (e) => answer(false, e.target);
 }
 
 // 설정 창의 '자습실 자리 공개' 줄
