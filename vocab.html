@@ -1861,8 +1861,9 @@ const DATA_CRIT = [
 const SUBJECTS = {
   atc:  { name: '학술영어 세미나', sub: 'The Art of Thinking Clearly Ch.4 Social Proof 어휘', emoji: '🧠', data: DATA_ATC,
           cats: ['Ch4 Social Proof'], typoMin: 4, store: 'atcvocab_' },
-  crit: { name: '비판적 영어 읽기와 토론', sub: '필수동사 150개, 필수형용사 100개, 지문 빈칸', emoji: '⚖️', data: DATA_CRIT,
-          cats: ['필수동사', '필수형용사'], typoMin: 4, store: 'critvocab_', blank: true },
+  // 지문 빈칸 탭(blank: true)은 껐습니다. 코드(BLNK)는 남아 있어 다시 켤 수 있습니다.
+  crit: { name: '비판적 영어 읽기와 토론', sub: '필수동사 150개, 필수형용사 100개', emoji: '⚖️', data: DATA_CRIT,
+          cats: ['필수동사', '필수형용사'], typoMin: 4, store: 'critvocab_' },
 };
 const SUBJECT_ORDER = ['atc', 'crit'];
 const BADGE_CLASSES = ['cat-1', 'cat-2', 'cat-3', 'cat-4', 'cat-5'];
@@ -1919,6 +1920,44 @@ function clearWordBookmarks(btn) {
 function saveBookmarks() {
   store.set('bookmarks', JSON.stringify([...bookmarks]));
   updateBookmarkTab();
+  pushBookmarks();
+}
+
+// ===== 북마크를 계정에 저장 (dshs42.app 공부 탭 안에서만) =====
+// 사이트(부모 창)의 window.learnBookmarks 가 로그인한 계정의 learn_bookmarks 표(learn.sql)에 읽고 씁니다.
+// 이 기기 저장(localStorage)은 바로 보여 주기 위한 임시 저장이고, 계정에 있는 것이 기준입니다.
+// - bm-synced: 이 기기의 예전 북마크를 계정에 한 번 합쳤음 · bm-pending: 바꾼 것을 아직 계정에 못 올림 (다음에 열 때 올림)
+const bmApi = () => { try { return window.VOCAB_EMBED && window.parent.learnBookmarks || null; } catch (e) { return null; } };
+const bmFlag = (subj, k, v) => {
+  const key = SUBJECTS[subj].store + k;
+  try { if (v === undefined) return localStorage.getItem(key); if (v) localStorage.setItem(key, '1'); else localStorage.removeItem(key); } catch (e) { return null; }
+};
+function pushBookmarks() {
+  const api = bmApi(), subj = currentSubject; if (!api || !subj) return;
+  bmFlag(subj, 'bm-pending', true);
+  api.sync(subj, [...bookmarks]).then(ok => { if (ok) bmFlag(subj, 'bm-pending', false); });
+}
+async function pullBookmarks(subj) {
+  const api = bmApi(); if (!api) return;
+  const remote = await api.load(subj);
+  if (remote === null) return;                       // 로그인 전 · 표가 아직 없음 · 연결 안 됨 → 이 기기 것 그대로
+  let list = remote;
+  const firstTime = !bmFlag(subj, 'bm-synced'), pending = bmFlag(subj, 'bm-pending');
+  if (firstTime || pending) {                        // 처음엔 이 기기 북마크를 합치고, 못 올린 변경이 있으면 이 기기 것을 올립니다
+    const local = subj === currentSubject ? [...bookmarks] : [];
+    list = firstTime ? [...new Set([...remote, ...local])] : local;
+    if (!(await api.sync(subj, list))) return;
+    bmFlag(subj, 'bm-synced', true); bmFlag(subj, 'bm-pending', false);
+  }
+  if (subj !== currentSubject) return;
+  if (!firstTime && !pending && bmFlag(subj, 'bm-pending')) return;   // 받는 사이 북마크를 눌렀으면 그쪽이 최신 (이미 올리는 중)
+  const valid = new Set(DATA.map(w => w.en));
+  bookmarks = new Set(list.filter(en => valid.has(en)));
+  store.set('bookmarks', JSON.stringify([...bookmarks]));
+  updateBookmarkTab(); renderTable(); updateTotalInfo();
+  if (!document.getElementById('tab-bookmark').classList.contains('hidden')) renderBookmarkTable();
+  const qb = document.getElementById('quiz-bookmark-btn');
+  if (qb && quizQueue[quizIdx]) qb.textContent = bookmarks.has(quizQueue[quizIdx].en) ? '⭐' : '☆';
 }
 
 function updateBookmarkTab() {
@@ -4496,6 +4535,7 @@ function selectSubject(id) {
   renderTable();
   updateTotalInfo();
   updateBookmarkTab();
+  pullBookmarks(id);   // 계정에 저장된 북마크로 바꿉니다 (공부 탭 안에서만)
   goToStart();
   switchTab('study');
 }

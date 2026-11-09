@@ -163,8 +163,8 @@ async function startApp() {
     if (retryAuth.t) retryAuth(300);   // 앱으로 돌아오면 기다리지 않고 바로 다시 확인
   });
   sb.auth.onAuthStateChange(async (evt) => {
-    if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); clearSnap(); renderNav(); }
-    if (evt === "SIGNED_IN") setTimeout(logVisit, 1000);   // 프로필을 읽은 뒤 (관리자면 세지 않도록)
+    if (evt === "SIGNED_OUT") { me = null; myClasses = []; dshs = dshsEmpty(); clearSnap(); learnBm.known = {}; renderNav(); }
+    if (evt === "SIGNED_IN") { learnBm.known = {}; setTimeout(logVisit, 1000); }   // 프로필을 읽은 뒤 (관리자면 세지 않도록) · 다른 계정일 수 있어 북마크는 새로 받음
   });
   // 검색으로 다른 시간표를 띄우거나 숨기면 "내 시간표" 탭 강조를 다시 맞춥니다
   // 학생 이름 옆 위치(data-st)도 새로 그려진 화면에 채웁니다
@@ -769,12 +769,49 @@ function rerender() {
 }
 window.closeStudyView = closeStudy;
 
+// ---------- 공부: 단어장 북마크를 계정에 (learn.sql) ----------
+// 단어장(vocab.html, iframe)이 window.learnBookmarks 를 불러 이 사이트의 로그인 연결로 읽고 씁니다.
+// sync 는 지금 북마크 전체를 받아, 마지막으로 안 계정 쪽 목록과 비교해 더하고 지운 것만 보냅니다 (순서대로 하나씩).
+// 실패하면 false → 단어장이 '못 올림'으로 표시해 두었다가 다음에 열 때 올립니다.
+const learnBm = { known: {}, chain: Promise.resolve() };
+window.learnBookmarks = {
+  async load(subject) {
+    if (!sb) await sbWait;
+    if (!me || me.is_admin) return null;
+    const { data, error } = await sb.from("learn_bookmarks").select("word").eq("subject", subject);
+    if (error) return null;
+    learnBm.known[subject] = new Set(data.map((r) => r.word));
+    return [...learnBm.known[subject]];
+  },
+  sync(subject, words) {
+    learnBm.chain = learnBm.chain.then(async () => {
+      if (!sb || !me) return false;
+      if (!learnBm.known[subject] && (await window.learnBookmarks.load(subject)) === null) return false;
+      const known = learnBm.known[subject], want = new Set(words);
+      const add = [...want].filter((w) => !known.has(w)), del = [...known].filter((w) => !want.has(w));
+      if (add.length) {
+        const { error } = await sb.from("learn_bookmarks")
+          .upsert(add.map((word) => ({ subject, word })), { onConflict: "user_id,subject,word", ignoreDuplicates: true });
+        if (error) return false;
+        add.forEach((w) => known.add(w));
+      }
+      if (del.length) {
+        const { error } = await sb.from("learn_bookmarks").delete().eq("subject", subject).in("word", del);
+        if (error) return false;
+        del.forEach((w) => known.delete(w));
+      }
+      return true;
+    }).catch(() => false);
+    return learnBm.chain;
+  },
+};
+
 // ---------- 공부 ----------
 // 과목을 고르면 그 과목 단어장(vocab.html)을 아래에 띄웁니다. 단어장 안의 탭(학습 · 퀴즈 · 빈칸 · 배열 · 셀프 · 북마크)은
 // vocab.html 이 그리고, 기록 · 북마크는 이 기기에만 남습니다(localStorage). 과목을 늘리려면 vocab.html 의 SUBJECTS 와 여기에 함께 넣습니다.
 const LEARN_SUBJECTS = [
   { id: "atc", name: "학술영어 세미나", sub: "The Art of Thinking Clearly 어휘 · 문장 배열 · 문장 암기", emoji: "🧠" },
-  { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 · 필수형용사 · 지문 빈칸 · 문장 배열", emoji: "⚖️" },
+  { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 150개 · 필수형용사 100개", emoji: "⚖️" },
 ];
 const LEARN_KEY = "dshs-learn-subject";
 function learnSubject() {
@@ -810,7 +847,7 @@ function renderLearn(pick) {
             <span class="learn-emoji">${s.emoji}</span>
             <span><span class="asg-title">${esc(s.name)}</span><span class="study-sub">${esc(s.sub)}</span></span>
           </button>`).join("")}</div>`}
-    <div class="study-foot">기록과 북마크는 이 기기에만 저장돼요</div>`;
+    <div class="study-foot">북마크는 계정에 저장돼 다른 기기에서도 보여요. 퀴즈 기록은 이 기기에만 남아요</div>`;
   $("studyView").querySelectorAll("[data-learn]").forEach((b) => b.onclick = () => renderLearn(b.dataset.learn));
 }
 
