@@ -2446,7 +2446,7 @@ function silentState(patch) {
   } catch { return null; }
 }
 async function silentLogin() {
-  if (isInstalledApp() || !navigator.onLine || silentReturned.back) return false;
+  if (isInstalledApp() || inKakao() || !navigator.onLine || silentReturned.back) return false;
   if (new URLSearchParams(location.search).get("dshs") || /dshs_login=/.test(location.hash)) return false;
   const today = dayKey(new Date()), st = silentState();
   if (!st || st.off || st.day === today) return false;
@@ -2712,8 +2712,18 @@ function newHandoff() {
   return key;
 }
 
+// 카카오톡 안 브라우저: dshs.app 로그인(Google 로그인)을 Google 이 앱 안 브라우저에서 막으므로 기본 브라우저로 엽니다.
+// (index.html 이 열 때도 한 번 기본 브라우저로 보냄. 그게 안 됐을 때 로그인 버튼에서 다시)
+const inKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
+const kakaoOutside = (url) => `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`;
+
 // 앱: 로그인 화면을 새 창으로 열어 두었다가, 로그인이 끝나면 앱이 그 창을 닫습니다.
 function openDshsLogin(url, handoff) {
+  if (inKakao()) {   // 로그인 주소를 기본 브라우저에서 열면, 로그인한 뒤 그 브라우저에서 이 사이트로 돌아옵니다
+    toast("카카오톡에서는 로그인이 안 돼서 기본 브라우저로 열어요");
+    location.href = kakaoOutside(url);
+    return;
+  }
   if (!handoff) { location.href = url; return; }
   const w = window.open(url, "_blank");
   if (w) waitHandoff.win = w;

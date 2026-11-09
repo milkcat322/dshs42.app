@@ -9,6 +9,15 @@
 <meta name="theme-color" content="#0a0a0f">
 <meta name="color-scheme" content="dark light">
 <script>
+// 카카오톡 안 브라우저로 열면 기본 브라우저(Safari · Chrome)로 다시 엽니다.
+// dshs.app 로그인은 Google 로그인인데, Google 은 앱 안 브라우저(웹뷰)에서 로그인을 막아서(disallowed_useragent) 로그인이 안 됩니다.
+// 카카오톡이 열지 못하면(오래된 버전 등) 그대로 이 화면을 씁니다. 로그인 버튼도 다시 한 번 기본 브라우저로 보냅니다 (dshs-study.js 의 inKakao).
+(function () {
+  if (!/KAKAOTALK/i.test(navigator.userAgent)) return;
+  try { location.replace('kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href)); } catch (e) {}
+})();
+</script>
+<script>
 // 화면 테마: localStorage dshs-theme = dark | light | ocean | forest | sakura.
 // 고른 적이 없으면 기기 설정(다크 · 라이트)을 따릅니다. 화면을 그리기 전에 정해 깜빡이지 않게 합니다.
 (() => {
