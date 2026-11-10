@@ -877,7 +877,18 @@ function bindMerge(body) {
   });
 }
 
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, usage, tasks, plans) {
+// 개발 소식 (devnews.sql · supabase/functions/dev-news): push 할 때 DEVLOG 요약기가 남긴 소식. 표가 없으면 칸을 숨김
+function devNewsHtml(news) {
+  if (!news) return "";
+  const day = (n) => n.day ? dayTitle(n.day) : ovTime(n.updated_at);
+  return `<div class="adm-label">개발 소식</div>
+    <div class="adm-uses">${news.length ? news.map((n, i) => `<details class="adm-use"${i < 3 ? " open" : ""}>
+      <summary style="grid-template-columns:minmax(0,1fr) auto"><span class="adm-use-l"><b>${esc(n.dev || "?")}</b> · ${esc(n.title || "개발")}</span><span class="adm-use-n"><small>${esc(day(n))}</small></span></summary>
+      <p>${n.news.split(" | ").map((l) => `• ${esc(l)}`).join("<br>")}</p>
+    </details>`).join("") : '<div class="adm-none">아직 소식이 없어요. push 하면 10분 안에 생겨요.</div>'}</div>`;
+}
+
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, usage, tasks, plans, news) {
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
@@ -897,7 +908,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, 
       + reviewLogHtml(log)
       + (old.length ? `<details class="adm-acc"><summary>지난 피드백<span>${old.length}</span></summary>${fbHtml(old, false)}</details>` : ""))}
     ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
-    ${box("dev", devHtml(tasks, usage, plans, overview))}`;
+    ${box("dev", devNewsHtml(news) + devHtml(tasks, usage, plans, overview))}`;
 }
 
 let ovSeen, fbSeen, ovPane, ovShow;   // 처음 열 때 읽은 "지난번 본 시각"과 고른 칸 (승인 뒤 다시 그려도 유지)
@@ -922,21 +933,22 @@ async function renderOverview(cached = false) {
     sb.rpc("admin_visits", { p_days: 7 }), loadReviewLog(),
     sb.from("usage_reports").select("id, created_at, report").order("created_at", { ascending: false }).limit(1),
     sb.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(60),
-    sb.from("admin_plans").select("*").order("created_at", { ascending: true })]), loadPending()]);
+    sb.from("admin_plans").select("*").order("created_at", { ascending: true }),
+    sb.from("dev_news").select("*").order("updated_at", { ascending: false }).limit(15)]), loadPending()]);
   const sig = JSON.stringify([res, cache.pending]);
   if (cached && ovLast && sig === ovLast.sig) return;   // 먼저 그린 것과 같으면 그대로
   ovLast = Object.assign(res, { sig });
   paintOverview(res);
 }
 function paintOverview(res) {
-  const [{ data, error }, fb, visits, log, usage, tasks, plans] = res;
+  const [{ data, error }, fb, visits, log, usage, tasks, plans, news] = res;
   const body = $("studyBody");
   if (page !== "admin" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   logRows = log?.reviewed || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
   if (!OV_GROUP[ovPane]) ovPane = "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, visits.error ? null : visits.data, log, usage.error ? null : usage.data, tasks.error ? null : tasks.data, plans.error ? null : plans.data);
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, visits.error ? null : visits.data, log, usage.error ? null : usage.data, tasks.error ? null : tasks.data, plans.error ? null : plans.data, !news || news.error ? null : news.data);
   const showPane = (k) => {
     if (k === "fb") { showPane("asg"); return $("fbSec")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
     k = OV_GROUP[k] ? k : PANE_ALIAS[k] || "asg";

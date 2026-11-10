@@ -39,6 +39,8 @@ supabase/functions/ops-agent/report.ts      점검 결과로 보고서 문장 �
 usage.sql                 ★ 사용 분석 보고서 · 통계 함수 · 저장 함수 (관리자만 봄)
 adminpush.sql             ★ 관리자에게 보낸 알림 기록 (관리자 사이트 관리 탭 '알림' 칸 · 관리자만 봄)
 agenttasks.sql            ★ Claude 제작 맡기기 (관리자 사이트 관리 탭 '제작' 칸 · scripts/build-agent)
+devnews.sql               ★ 개발 소식 (push 때 DEVLOG 요약기가 남긴 소식을 관리자 사이트 '제안' 칸 · 관리자 푸시로, 10분마다)
+supabase/functions/dev-news/                beta 의 DEVLOG.md 를 읽어 새 소식을 dev_news 에 남기고 관리자에게 푸시 (parse.ts 순수 함수)
 scripts/usage-agent/                        사용 분석 에이전트 — 관리자 노트북의 Claude Code 가 매일 밤 10시 분석 (prompt.md · run.mjs · install.sh)
 supabase/functions/usage-agent/index.ts     분석이 저장되면 관리자에게 푸시
 merge.sql                 ★ 분반별 같은 수행평가 합치기 제안 · 합치기 함수 (merge-suggest 가 0 · 8 · 12 · 16 · 20시에 찾음 · 관리자만)
@@ -103,6 +105,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `usage.sql` 을 **Run** (사용 분석 보고서). 분석은 관리자 노트북에서 `bash scripts/usage-agent/install.sh` 로 켭니다 (Claude Code 로그인 + Supabase MCP 연결 필요)
    이어서 `adminpush.sql` 을 **Run** (관리자에게 보낸 알림 기록 · 관리자 사이트 '알림' 칸)
    이어서 `agenttasks.sql` 을 **Run** (Claude 제작 맡기기 · 관리자 사이트 '제작' 칸). 서버 함수는 `supabase functions deploy build-agent --no-verify-jwt`, 노트북은 `bash scripts/build-agent/install.sh`
+   이어서 `devnews.sql` 을 **Run** (개발 소식 · 10분마다 dev-news 실행 cron 포함). 서버 함수는 `supabase functions deploy dev-news`
 4. **Authentication → Providers → Email** 에서 *Confirm email* 을 **끕니다**
    (학번 기반 가상 이메일이라 실제 메일이 가지 않습니다)
 

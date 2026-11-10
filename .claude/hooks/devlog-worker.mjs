@@ -109,6 +109,9 @@ ${meta}
 ===흐름===
 (개발 흐름 한 줄 또는 없음)
 
+===소식===
+(같이 개발하는 친구에게 보낼 개발 소식 1~3줄 또는 없음)
+
 규칙:
 - 둘째 줄(session · 개발 · 요청)은 위 형식 그대로 옮겨 쓴다.
 - 내용이 없는 소제목은 통째로 뺀다. 바뀐 파일은 아래 git 정보를 기준으로 쓴다.
@@ -121,6 +124,9 @@ ${meta}
   \`- **${ymd(digest.first)}** 무엇이 생겼거나 바뀌었는지 한 줄\` 형식으로 한 줄을 쓰고, 작은 수정·조사·잡일뿐이면 \`없음\` 이라고만 쓴다.
   한 세션에 주요 개발이 여러 개면 마지막 것만 쓰지 말고 세션 전체를 쉼표로 이어 한 줄에 담는다.
   아래 "지금까지의 개발 흐름" 에서 다른 세션의 내용은 되풀이하지 않는다.
+- 마지막 \`===소식===\` 아래에는, 이 세션에서 실제로 만들거나 고친 것을 같이 개발하는 친구가 알림 한 번으로 알아보게
+  \`- \` 로 시작하는 1~3줄로 쓴다. 한 줄은 40자 안팎, 개발 용어 대신 "학생 사이트 · 관리자 사이트에서 무엇이 달라졌는지" 로 쓴다.
+  코드 · DB 를 바꾸지 않은 세션(조사, 질문, 문서 · 공지문 작성)이면 \`없음\` 이라고만 쓴다.
 
 ===== 지금까지의 개발 흐름 =====
 ${flow}
@@ -143,9 +149,13 @@ ${digest.text}
   const out = r.stdout ?? '';
   const start = out.indexOf('## ');
   if (r.status === 0 && start >= 0) {
-    const [section, flowPart = ''] = out.slice(start).split('===흐름===');
+    const [body, newsPart = ''] = out.slice(start).split('===소식===');
+    const [section, flowPart = ''] = body.split('===흐름===');
     const flowLine = flowPart.split('\n').map((l) => l.trim()).find((l) => l.startsWith('- '));
-    return { section: section.trim(), flowLine };
+    // 소식은 한 줄 주석으로 넣으므로 줄마다 ' | ' 로 잇는다 (dev-news 서버 함수가 읽어 관리자에게 알림)
+    const news = newsPart.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('- '))
+      .map((l) => l.slice(2).replace(/-->|\|/g, ' ').trim()).filter(Boolean).slice(0, 3).join(' | ') || null;
+    return { section: section.trim(), flowLine, news };
   }
 
   log(`worker: 요약 실패 (exit ${r.status}): ${limit(`${out}${r.stderr ?? ''}${r.error ?? ''}`, 500)}`);
@@ -156,8 +166,9 @@ ${digest.text}
 // 위의 "개발 흐름" 목록은 여기서 매번 다시 만든다 (writeFlow). 공용 목록을 직접 고치면 두 사람이 동시에 고칠 때
 // union 병합이 옛 줄과 새 줄을 모두 남겨 겹치지만, 세션 기록은 그 세션만 고치므로 겹치지 않는다.
 const FLOW_RE = /<!-- flow: (.*?) -->/;
+const NEWS_RE = /<!-- news: (.*?) -->/;
 
-function writeSection(section, sid, flowLine) {
+function writeSection(section, sid, flowLine, news) {
   let text = readDevlog() || `# dshs42.app 개발 로그\n\n${MARKER}\n`;
   if (!text.includes(MARKER)) text = `${text.trimEnd()}\n\n${MARKER}\n`;
 
@@ -166,7 +177,10 @@ function writeSection(section, sid, flowLine) {
   const i = entries.findIndex((e) => e.includes(`\`session ${sid}\``));
   // 이번에 "없음" 이어도 이 세션의 이전 흐름 줄은 그대로 둔다
   const flow = flowLine ?? (i >= 0 ? entries[i].match(FLOW_RE)?.[1] : undefined);
-  const entry = section.trim() + (flow ? `\n\n<!-- flow: ${flow} -->` : '');
+  // 소식도 이번에 "없음" 이면 이전 소식을 그대로 둔다 (바뀐 것이 없으니 다시 알리지 않음)
+  const prevNews = i >= 0 ? entries[i].match(NEWS_RE)?.[1] : undefined;
+  const newsText = news ?? prevNews;
+  const entry = section.trim() + (flow ? `\n\n<!-- flow: ${flow} -->` : '') + (newsText ? `\n<!-- news: ${newsText} -->` : '');
   if (i >= 0) entries[i] = entry;
   else entries.push(entry);
   writeFileSync(DEVLOG, `${text.slice(0, at)}\n\n${entries.join('\n\n')}\n`);
@@ -264,8 +278,8 @@ function main() {
   const digest = readDigest(transcriptPath);
   if (digest.requests === 0) { log('worker: 요청 없는 세션이라 건너뜀'); return; }
 
-  const { section, flowLine, failed } = summarize(digest, sid, gitSummary(digest.first));
-  if (dryRun) { process.stdout.write(`${section}\n\n===흐름===\n${flowLine ?? '없음'}\n`); return; }
+  const { section, flowLine, news, failed } = summarize(digest, sid, gitSummary(digest.first));
+  if (dryRun) { process.stdout.write(`${section}\n\n===흐름===\n${flowLine ?? '없음'}\n\n===소식===\n${news ?? '없음'}\n`); return; }
   // 요약에 실패했는데 이 세션 기록이 이미 있으면 잘 쓴 기록을 git 정보로 덮어쓰지 않고 다음에 다시 시도한다
   if (failed && readDevlog().includes(`\`session ${sid}\``)) {
     log('worker: 요약 실패 — 기존 기록을 그대로 둠');
@@ -274,7 +288,7 @@ function main() {
     return;
   }
   withLock(() => {
-    writeSection(section, sid, flowLine);
+    writeSection(section, sid, flowLine, news);
     writeFlow();
     const title = section.split('\n')[0].replace(/^##\s*[^·]*·\s*/, '').trim();
     // requests: pre-push.mjs 가 "마지막 기록 뒤에 새 요청이 있었는지" 비교하는 데 쓴다
