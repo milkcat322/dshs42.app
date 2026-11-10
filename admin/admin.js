@@ -1068,6 +1068,7 @@ let calAsg = [];
 let calStudent = null;      // 고른 학생 학번 (없으면 전체)
 let calDone = new Set();    // 고른 학생이 완료 표시한 수행평가 id (admin_student_done)
 let calMonth = null;        // "YYYY-MM"
+let calBusy = [];           // 고른 학생의 개인 일정 시각만 (admin_student_busy, 제목 · 메모는 받지 않음)
 let calStats = null;        // 고른 학생이 직접 추가한 일정 · 할 일 수 (admin_overview 의 students 한 줄, 내용은 받지 않음)
 async function loadCalAsg() {
   const { data, error } = await sb.from("assignments")
@@ -1076,12 +1077,15 @@ async function loadCalAsg() {
   if (!error) calAsg = data;
   calDone = new Set();
   calStats = null;
+  calBusy = [];
   if (calStudent) {
-    const [{ data: done }, ov] = await Promise.all([
+    const [{ data: done }, ov, busy] = await Promise.all([
       sb.rpc("admin_student_done", { p_student_id: calStudent }),
       sb.rpc("admin_overview"),
+      sb.rpc("admin_student_busy", { p_student_id: calStudent }),
     ]);
     calDone = new Set(done || []);
+    calBusy = busy.data || [];
     calStats = ov.error ? null : ov.data?.students?.find((s) => s.student_id === calStudent) || false;   // false = 가입 전
   }
 }
@@ -1111,6 +1115,13 @@ function calItems() {
     ...(acadList || []).filter((a) => a.name !== "토요휴업일" && !replaced.has(a.key)).map((a) => ({
       kind: "acad", a, id: a.id, start: a.start, end: a.end, title: a.name, cat: a.cat, grades: a.grades.join(""),
     })),
+    ...(calStudent ? calBusy.map((b, i) => {
+      const s = new Date(b.starts_at), en = b.ends_at ? new Date(b.ends_at) : s;
+      // 하루 종일 일정의 끝은 다음 날 0시로 저장돼 있어 하루 앞으로
+      const last = b.all_day && b.ends_at && en > s ? new Date(en - 1) : en;
+      return { kind: "busy", id: i, start: dayKey(s), end: dayKey(last), title: "개인 일정",
+        time: b.all_day ? "하루 종일" : s.toTimeString().slice(0, 5) };
+    }) : []),
     ...(schPref.asg === false ? [] : calAsg.map((a) => {
       const k = dayKey(new Date(a.due_at));
       return { kind: "asg", a, id: a.id, start: k, end: k, title: `${a.subject} ${a.title}` };
@@ -1132,8 +1143,9 @@ function renderSchoolCal(body) {
   const items = calItems().filter((it) => calVisible(it, stu))
     .filter((it) => stu || schPref.grades || !it.grades || it.grades.includes(g));
   const on = (key) => items.filter((it) => it.start <= key && key <= it.end)
-    .sort((a, b) => (a.kind === "asg") - (b.kind === "asg") || a.title.localeCompare(b.title, "ko"));
+    .sort((a, b) => (a.kind === "busy") - (b.kind === "busy") || (a.kind === "asg") - (b.kind === "asg") || a.title.localeCompare(b.title, "ko"));
   const chip = (it) => {
+    if (it.kind === "busy") return `<span class="acal-chip busy" style="--c:#8888aa" title="개인 일정 (내용은 보이지 않아요)"><span class="busy-blur">개인 일정 내용</span></span>`;
     const done = it.kind === "asg" && calDone.has(it.id);
     const color = it.kind === "asg" ? "var(--accent1)" : CAT_COLOR[it.cat] || CAT_COLOR.event;
     const dim = (it.kind === "sch" && it.e.hidden) || it.a?.status === "pending" || done;
@@ -1170,7 +1182,7 @@ function renderSchoolCal(body) {
     </div>
     <div class="acal-legend">${ACAD_CATS.map(([k, label]) => `<span style="--c:${CAT_COLOR[k]}">${label}</span>`).join("")}<span style="--c:var(--accent1)">수행평가</span></div>
     <div class="adm-foot">날짜를 누르면 그날 일정을 보고 학교 일정 · 수행평가를 추가할 수 있어요. 흐린 것은 숨긴 일정 · 승인 전 수행평가${stu ? " · 완료한 수행평가" : ""}예요.
-      ${stu ? "학생을 고르면 그 학생 달력에 보이는 공용 일정만 보여요 (개인 일정 · 할 일은 개수만 보이고 내용은 보이지 않아요. 일정 수는 지금까지 직접 추가한 전체 수예요)." : ""}</div>`;
+      ${stu ? "학생을 고르면 그 학생 달력에 보이는 공용 일정과, 흐린 칸으로 개인 일정이 있는 날만 보여요 (개인 일정 · 할 일의 내용은 보이지 않아요. 일정 수는 지금까지 직접 추가한 전체 수예요)." : ""}</div>`;
   bindSchView(body);
   body.querySelectorAll("[data-cmove]").forEach((b) => b.onclick = () => {
     const n = +b.dataset.cmove;
@@ -1195,7 +1207,11 @@ function renderSchoolCal(body) {
   body.querySelectorAll("[data-cday]").forEach((c) => c.onclick = () => {
     const key = c.dataset.cday, list = on(key);
     openSheet(dayTitle(key), `
-      ${list.map((it) => `<button class="sch-row" data-copen="${it.kind}:${it.id}">
+      ${list.map((it) => it.kind === "busy" ? `<div class="sch-row busy-row">
+        <span class="acal-dot" style="--c:#8888aa"></span>
+        <span class="sch-main"><span class="sch-title"><span class="busy-blur">개인 일정 내용</span></span>
+        <span class="sch-chips"><span class="adm-chip">개인 일정 · ${it.time} · 내용 비공개</span></span></span>
+      </div>` : `<button class="sch-row" data-copen="${it.kind}:${it.id}">
         <span class="acal-dot" style="--c:${it.kind === "asg" ? "var(--accent1)" : CAT_COLOR[it.cat] || CAT_COLOR.event}"></span>
         <span class="sch-main"><span class="sch-title">${it.kind === "asg" && calDone.has(it.id) ? "✓ " : ""}${esc(it.title)}</span>
         <span class="sch-chips"><span class="adm-chip">${it.kind === "asg" ? `수행평가 · ${esc(banLabel(it.a.ban))}${it.a.status === "pending" ? " · 승인 전" : ""}` : `${catLabel(it.cat)}${it.kind === "acad" ? " · NEIS" : ""}`}</span></span></span>

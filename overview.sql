@@ -98,3 +98,25 @@ begin
 end $$;
 revoke execute on function public.admin_student_done(integer) from public, anon;
 grant  execute on function public.admin_student_done(integer) to authenticated;
+
+-- ------------------------------------------------------------
+-- 학교 일정 달력 '학생별 보기'의 흐린 개인 일정 칸 (관리자만)
+-- 그 학생이 만든 일정과 함께하는 일정의 시각만 돌려줍니다. 제목 · 메모 · 함께하는 사람은 돌려주지 않습니다.
+-- ------------------------------------------------------------
+create or replace function public.admin_student_busy(p_student_id integer)
+returns table (starts_at timestamptz, ends_at timestamptz, all_day boolean)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin_user(auth.uid()) then
+    raise exception 'admin only';
+  end if;
+  return query
+    select e.starts_at, e.ends_at, e.all_day
+      from public.events e
+      join public.profiles p on p.student_id = p_student_id
+     where e.source_key is null
+       and (e.user_id = p.id
+            or exists (select 1 from public.event_members m where m.event_id = e.id and m.user_id = p.id));
+end $$;
+revoke execute on function public.admin_student_busy(integer) from public, anon;
+grant  execute on function public.admin_student_busy(integer) to authenticated;
