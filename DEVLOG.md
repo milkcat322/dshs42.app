@@ -2940,3 +2940,5 @@ sw.js
 - `.gitignore`
 - `admin/admin.js`
 - `overview.sql`
+
+## 2026-11-10 14:37 · 야야 vercel 배포취소해저
