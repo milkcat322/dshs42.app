@@ -66,7 +66,9 @@ begin
         'events', (select count(*) from public.events x where x.user_id = p.id and x.source_key is null),
         'todos', (select count(*) from public.todos x where x.user_id = p.id),
         'groups', (select count(*) from public.audience_groups x where x.created_by = p.id),
-        'feedback', (select count(*) from public.feedback x where x.user_id = p.id)
+        'feedback', (select count(*) from public.feedback x where x.user_id = p.id),
+        'comments', (select count(*) from public.assignment_comments x where x.user_id = p.id),
+        'bookmarks', (select count(*) from public.learn_bookmarks x where x.user_id = p.id)
       ) order by p.created_at desc)
         from students p
         left join auth.users u on u.id = p.id

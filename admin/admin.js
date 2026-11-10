@@ -457,6 +457,7 @@ function overviewTips(data) {
 const USE_FEATURES = [
   ["events", "개인 일정 추가"], ["todos", "할 일 추가"], ["done", "수행평가 완료 표시"], ["assignments", "수행평가 올림"],
   ["personal", "수행평가 개인 수정"], ["location", "내 위치 남김"], ["push", "알림 켠 기기 있음"], ["groups", "그룹 만듦"], ["feedback", "피드백 보냄"],
+  ["comments", "수행평가 댓글 씀"], ["bookmarks", "공부 탭 단어 북마크"],
 ];
 const usedFeature = (s, k) => k === "location" ? !!s.location : s[k] > 0;
 function usageStatsHtml(data) {
@@ -476,7 +477,7 @@ function usageStatsHtml(data) {
   const login = [["오늘", (a) => a < 1], ["1~3일 전", (a) => a >= 1 && a < 3], ["3~7일 전", (a) => a >= 3 && a < 7], ["7일보다 전", (a) => a >= 7]]
     .map(([label, f]) => bar(label, all.filter((s) => f(age(s))), null, "해당 학생")).join("");
   // 쓴 기능 수 (알림 · 피드백은 빼고 일정 · 할 일 · 수행평가 · 위치 · 그룹)
-  const core = ["events", "todos", "done", "assignments", "personal", "location", "groups"];
+  const core = ["events", "todos", "done", "assignments", "personal", "location", "groups", "comments", "bookmarks"];
   const depth = (s) => core.filter((k) => usedFeature(s, k)).length;
   const depthRows = [["가입만 함 (0개)", (d) => d === 0], ["1~2개", (d) => d >= 1 && d <= 2], ["3~4개", (d) => d >= 3 && d <= 4], ["5개 이상", (d) => d >= 5]]
     .map(([label, f]) => bar(label, all.filter((s) => f(depth(s))), null, "해당 학생")).join("");
@@ -490,7 +491,7 @@ function usageStatsHtml(data) {
   const fresh = all.filter((s) => Date.parse(s.joined_at) > weekAgo).length;
   return `<div class="adm-label">이용 통계 <small>가입한 ${n}명 기준 · 누르면 이름</small></div>
     <div class="adm-uses">${features}</div>
-    <div class="adm-label">쓴 기능 수 <small>일정 · 할 일 · 완료 표시 · 수행평가 올림 · 개인 수정 · 위치 · 그룹 중</small></div>
+    <div class="adm-label">쓴 기능 수 <small>일정 · 할 일 · 완료 표시 · 수행평가 올림 · 개인 수정 · 위치 · 그룹 · 댓글 · 북마크 중</small></div>
     <div class="adm-uses">${depthRows}</div>
     <div class="adm-label">마지막 로그인</div>
     <div class="adm-uses">${login}</div>
