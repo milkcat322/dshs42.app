@@ -1297,7 +1297,7 @@ html.embed body { overflow-x: clip; overflow-y: visible; max-width: none; displa
 html.embed .logo, html.embed #subject-switch, html.embed #home-view { display: none !important; }
 html.embed .header { padding: 0; gap: 0; }
 html.embed .nav-tabs { margin-left: 0; width: 100%; }
-html.embed .main { padding: 18px 0 8px; max-width: none; }
+html.embed .main { padding: 18px 0 24px; max-width: none; }
 /* 강조색 바탕 위 글자: 원래는 검정 고정이라 밝은 테마의 진한 강조색에서 안 보여서, 테마 배경색으로 */
 html.embed .btn.primary, html.embed .btn.primary:hover, html.embed .btn.danger, html.embed .btn.success-btn,
 html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.selected { color: var(--bg); }
@@ -4582,13 +4582,19 @@ window.addEventListener('popstate', route);
 if (window.VOCAB_EMBED) {
   const frame = window.frameElement;
   const root = document.scrollingElement || document.documentElement;
+  // 단어장 문서는 스스로 스크롤되지 않으므로(html.embed) 높이가 내용보다 작으면 아래가 잘립니다 →
+  // ResizeObserver 만으로는 늦게 오는 경우가 있어(탭 전환 · 목록 그리기 직후) 화면이 바뀔 때마다 바로 재고, 1초마다 한 번 더 확인합니다
   const fit = () => {
     if (!frame) return;
-    frame.style.height = Math.ceil(document.body.getBoundingClientRect().height) + 'px';
+    const h = Math.ceil(document.body.getBoundingClientRect().height) + 'px';
+    if (frame.style.height !== h) frame.style.height = h;
     if (root.scrollTop) root.scrollTop = 0;
   };
   new ResizeObserver(fit).observe(document.body);
+  new MutationObserver(fit).observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
   window.addEventListener('load', fit);
+  document.fonts?.ready.then(fit);
+  setInterval(fit, 1000);
   // 입력칸 포커스 · scrollIntoView 로 단어장 문서가 안에서 밀려 올라가면 되돌립니다 (그만큼 위가 잘려 보이므로)
   window.addEventListener('scroll', () => { if (root.scrollTop) root.scrollTop = 0; }, { passive: true });
   window.scrollTo = () => {
