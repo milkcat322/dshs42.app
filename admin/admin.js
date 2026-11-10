@@ -1069,7 +1069,8 @@ let calStudent = null;      // 고른 학생 학번 (없으면 전체)
 let calDone = new Set();    // 고른 학생이 완료 표시한 수행평가 id (admin_student_done)
 let calMonth = null;        // "YYYY-MM"
 let calBusy = [];           // 고른 학생의 개인 일정 시각만 (admin_student_busy, 제목 · 메모는 받지 않음)
-let calStats = null;        // 고른 학생이 직접 추가한 일정 · 할 일 수 (admin_overview 의 students 한 줄, 내용은 받지 않음)
+let calStats = null;
+let calOvStudents = null;   // admin_overview 의 학생 목록 (학생을 바꿀 때마다 다시 받지 않게 한 번만)        // 고른 학생이 직접 추가한 일정 · 할 일 수 (admin_overview 의 students 한 줄, 내용은 받지 않음)
 async function loadCalAsg() {
   const { data, error } = await sb.from("assignments")
     .select("id, subject, ban, title, body, due_at, submit_to, status, created_at, created_by, author_name")
@@ -1079,21 +1080,23 @@ async function loadCalAsg() {
   calStats = null;
   calBusy = [];
   if (calStudent) {
-    const [{ data: done }, ov, busy] = await Promise.all([
+    calOvStudents ||= ovLast?.[0]?.data?.students || null;
+    const [{ data: done }, busy, ov] = await Promise.all([
       sb.rpc("admin_student_done", { p_student_id: calStudent }),
-      sb.rpc("admin_overview"),
       sb.rpc("admin_student_busy", { p_student_id: calStudent }),
+      calOvStudents ? null : sb.rpc("admin_overview"),
     ]);
+    if (ov && !ov.error) calOvStudents = ov.data?.students || [];
     calDone = new Set(done || []);
     calBusy = busy.data || [];
-    calStats = ov.error ? null : ov.data?.students?.find((s) => s.student_id === calStudent) || false;   // false = 가입 전
+    calStats = !calOvStudents ? null : calOvStudents.find((s) => s.student_id === calStudent) || false;   // false = 가입 전
   }
 }
 const CAT_COLOR = { home: "#4caf7d", exam: "#ff6b6d", break: "#5aa9ff", holiday: "#f0a43a", club: "#b58cff", event: "#8888aa" };
 
 // 그 학생에게 보이는 일정인지
 function calVisible(it, stu) {
-  if (!stu) return true;
+  if (!stu || it.kind === "busy") return true;   // 흐린 개인 일정 칸은 이미 그 학생 것만 받음
   if (it.kind === "asg") {
     const ban = stu.classes[it.a.subject];
     return ban !== undefined && (!it.a.ban || it.a.ban === ban);
