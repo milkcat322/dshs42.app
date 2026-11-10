@@ -2715,63 +2715,58 @@ sw.js
 `session 1e3cec68` · 개발 milkcat322 · 요청 37회
 
 ### 목표
-- 이전에 로그인했던 기기·브라우저에서 자동 로그인이 자주 풀리는 문제를 안내 문구가 아니라 구조적으로 해결
-- 수행평가 공지에 제목과 별개로 설명 칸 추가
-- 과목별 단어장을 보는 새 '공부' 탭 신설
-- dshs.app 좌석 API로 자습실 자리를 위치 표시·검색에 노출
-- 카카오톡 인앱 브라우저에서도 로그인 가능하게 처리
+- 기기·브라우저에서 자동 로그인이 자주 풀리는 문제를 안내가 아니라 구조적으로 해결
+- 수행평가 공지에 설명 칸 복원
+- 과목별 단어장을 보는 '공부' 탭 신설(학술영어 세미나, 비판적 영어 읽기와 토론)
+- dshs.app 좌석 API로 자습실 자리 표시 기능 추가, 카카오톡 인앱 브라우저 대응
 
 ### 한 일
-- auth-js가 토큰 갱신 429·5xx 실패 시 로그인 기록을 지우는 동작을 막는 `authFetch`·`retryAuth` 추가, `navigator.storage.persist` 호출
-- Supabase 인증 로그 분석 결과 실제 원인은 서버 오류가 아니라 아이폰 홈 화면 앱과 Safari의 저장소 분리로 판명, `visits` 기록으로 검증
-- OIDC `prompt=none` 기반 조용한 로그인(SSO)을 `dshs-oauth` 함수(`silent` 모드)와 `dshs-study.js`(`silentLogin`)에 구현, 브라우저·하루 1회·기존 계정 전용으로 제한
-- 수행평가 공지에 설명(선택, 2000자) 칸 복원, 목록 3줄·자세히 보기 전체, 승인된 공지는 계정별 수정
-- 공부 탭 신설: `vocab.html`을 iframe으로 embed, 학술영어 세미나·비판적 영어 읽기와 토론 과목 선택, 사이트 테마(색+다크/라이트)를 완전히 따르게 재작업, 북마크를 `learn_bookmarks` 표로 계정에 저장
-- 자습실 자리: dshs.app 좌석 API 연동 시도 중 `reservation.read`/`user.read` 권한 거부로 '본인 자리만 공개' 방식으로 전환, 계정 단위 1회 동의 창, 주 단위(금요일 15시 기준) 자리 유지, 좌석 배치도 팝업(seat-a/b.jpg) 추가
-- 카카오톡 인앱 브라우저에서 `kakaotalk://web/openExternal`로 기본 브라우저 전환 처리
-- Edge Function(`dshs-oauth`) 배포를 Claude가 `npx supabase`로 직접 수행하는 체계로 전환
-- beta 작업분을 메인 웹(dshs42.app)에 두 차례 반영
+- 토큰 갱신 429·5xx 실패 시 로그인 기록을 지우지 않게 `authFetch`·`retryAuth` 추가
+- 방문 기록(visits) 분석으로 실제 원인을 아이폰 홈 화면 앱·Safari 저장소 분리로 재규명
+- `prompt=none` 기반 조용한 로그인(silent SSO)을 dshs-oauth 함수와 클라이언트에 구현
+- 수행평가 설명 칸(2000자) 추가, personal.sql에 body·no_body 칼럼
+- 공부 탭 신설(vocab.html을 embed iframe으로), 사이트 테마 다섯 묶음 동기화, 북마크 계정 저장(learn.sql)
+- 자습실 자리: 처음엔 전체 배치도 조회 시도 → dshs.app이 user.read·reservation.read 거부 → 본인 자리만(reservation.read.me) 공개 동의 방식으로 전환
+- 자리 주기를 매주 금요일 15시(목요일 밤 신청) 기준으로 결정, 좌석 배치도 팝업(seat-a/b.jpg) 추가
+- 카카오톡 인앱 브라우저에서 kakaotalk://web/openExternal로 기본 브라우저 강제 이동
+- beta→메인 웹(dshs42.app) 순차 배포
 
 ### 결정과 이유
-- 조용한 로그인은 홈 화면 앱이 아닌 브라우저에서만, 하루 1회만 시도 — 앱은 다른 창으로 리다이렉트되어 "조용히"가 안 되고, 과도한 dshs.app 요청을 피하기 위함
-- 다른 학생 자리 전체 조회(`reservation.read`+`user.read`) 대신 본인 동의 기반 공개로 전환 — dshs.app이 개인정보처리방침 미개정으로 권한을 거부함
-- 자리 공개 동의를 기기 단위 대신 계정 단위로 저장(`seat_shares.asked`) — 여러 기기에서 반복 질문되는 것을 막기 위함
-- 함수 배포를 Claude가 직접 수행 — 이 PC에 이미 Supabase CLI 로그인이 되어 있어 팀원 개입 없이 즉시 배포·확인 가능
+- 자습실 자리는 '누구나 조회' 대신 '본인 동의 공개'로 방향 전환. dshs.app이 개인정보처리방침상 user.read·reservation.read를 허락하지 않았기 때문
+- 자리 공개 동의는 기기 단위가 아니라 계정 단위로 한 번만 묻기로 변경(여러 기기 쓰는 학생이 반복해서 묻히는 걸 방지)
+- Edge Function 배포를 Claude가 npx supabase로 직접 수행하기로 결정(PC에 CLI 로그인 되어 있음 확인 후)
 
 ### 해결한 문제
-- 증상: 로그인했던 기기에서 자주 로그인이 풀림 → 처음엔 토큰 갱신 429/5xx로 세션이 지워지는 것으로 추정했으나 실제 인증 로그는 전부 200 → 진짜 원인은 아이폰 홈 화면 앱과 Safari의 저장소가 분리되어 있어 앱 로그인이 브라우저로 이어지지 않는 구조적 문제 → dshs.app 로그인 상태를 빌리는 조용한 SSO(`prompt=none`)로 해결
-- 증상: 자습실 자리 연동 중 dshs.app 로그인 전체가 실패("dshs.app 로그인에 실패했어요") → 원인: 배포한 함수가 허락되지 않은 권한(`reservation.read`, `user.read`)을 요청해 OAuth 권한 요청 전체가 거부됨 → 예전 권한으로 되돌려 재배포해 해결
-- 증상: 자습실 자리에 "오늘 신청한 자리가 없어요"만 뜨고 번호 미표시 → 원인: 자리 신청이 매일이 아닌 주 단위(목요일 밤 신청, 금요일 반영)인데 서버가 당일 날짜만 조회 → 금요일 15시 기준 주 단위 조회로 수정
-- 증상: 다크 테마에서 단어장이 흰 배경으로 보임 → 원인: 사이트와 iframe의 color-scheme이 달라 브라우저가 기본 흰 배경을 깖 → iframe과 문서의 color-scheme을 사이트 밝기에 맞춰 통일
-- 증상: 비판적 영어로 과목 전환 시 사이트 전체가 단어장 칸에 뜸 → 원인: 상대 주소(`#crit`)를 부모 기준으로 해석 → 단어장 전체 절대 주소로 수정
+- 로그인 자주 풀림 → 처음엔 429/5xx로 토큰 갱신 실패해 세션 삭제로 추정했으나 Auth 로그 전부 200 확인 → 실제 원인은 아이폰 홈 화면 앱과 Safari의 저장소(쿠키 포함)가 완전히 분리되어 있어 앱 로그인이 브라우저에 반영 안 됨 → dshs.app 로그인 상태를 prompt=none으로 빌려오는 조용한 로그인 도입
+- 좌석 함수 배포 직후 dshs.app이 reservation.read·user.read를 invalid_scope로 거부해 전체 로그인 자체가 막힘 → 권한 하나 거부되면 OAuth 전체가 실패한다는 점을 파악 → 즉시 이전 권한으로 롤백 배포
+- 단어장이 다크 테마에서 하얗게 보임 → iframe과 문서의 color-scheme 불일치로 브라우저가 흰 배경을 깖 → 색 모드를 사이트 밝기에 맞춰 통일
+- 과목 전환 시 사이트 전체가 단어장 칸에 뜸 → 상대 URL(`#crit`)이 부모 문서 기준으로 풀린 코드 실수 → 절대 URL로 수정
 
 ### 남은 일
-- [ ] dshs.app 관리자에게 보낸 `reservation.read`/`user.read` scope 추가 요청 메일 회신 대기(이미 "개인정보처리방침 미개정으로 어렵다"는 답변 수신, 대안으로 `dshs.app/reserve/{date}?goto={좌석}` 링크 안내받음 — 반영 완료)
-- [ ] 자습실 자리 공개·동의 창·배치도 팝업의 실제 계정 기준 동작 확인(여러 차례 코드 수정 후 재확인 필요)
-- [ ] 카카오톡 인앱 브라우저 전환 처리를 메인 웹에서도 실사용 확인
+- [ ] dshs.app 관리자에게 보낸 scope 추가 요청(reservation.read, user.read) 회신 대기
+- [ ] 실제 계정으로 자습실 자리 수신·배치도 팝업 동작 최종 확인
 
 ### 배운 점
-- Supabase 인증 로그가 전부 200이어도 "자동 로그인이 풀린다"는 증상이 있을 수 있다 — 기기에 로그인 기록 자체가 없는(저장소 분리) 경우 토큰 갱신 요청 자체가 발생하지 않아 로그에 남지 않음
-- `visits` 기기 ID 로그로 "로그인 기록이 지워짐"과 "저장소가 분리된 곳에서 재로그인"을 구분할 수 있음
-- OAuth 권한 요청은 하나라도 거부되면 전체 로그인이 실패하므로, 새 scope 추가 전 반드시 사전에 거부 여부를 확인해야 함
-- `prompt=none`(조용한 로그인/silent SSO)은 OIDC 표준 기능이며, 서드파티 쿠키 차단 때문에 iframe 대신 top-level redirect 방식이 아이폰에서 유효함
+- OAuth에서 허락받지 않은 scope 하나만 섞여도 로그인 전체가 실패한다
+- iOS는 홈 화면 PWA와 Safari의 저장소(localStorage·쿠키·IndexedDB)가 완전히 분리되어 있어 쿠키 기반 해법으로는 해결 불가능하고, OIDC 표준의 silent SSO(prompt=none) 같은 서버 간 위임 방식이 필요하다
 
 ### 바뀐 파일
-- `CLAUDE.md`
-- `README.md`
 - `dshs-study.js`
 - `index.html`
-- `learn.sql`
-- `personal.sql`
+- `vocab.html`
+- `supabase/functions/dshs-oauth/index.ts`
+- `seats.sql`
 - `seat-a.jpg`
 - `seat-b.jpg`
-- `seats.sql`
-- `supabase/functions/dshs-oauth/index.ts`
+- `learn.sql`
+- `personal.sql`
 - `sw.js`
 - `updates.js`
-- `vocab.html`
+- `CLAUDE.md`
+- `README.md`
 
 <!-- flow: - **2026-11-09** 자동 로그인 끊김의 구조적 원인(iOS 앱·Safari 저장소 분리)을 규명해 조용한 로그인(SSO) 도입, 과목별 단어장을 보는 공부 탭 신설(계정 북마크 저장 포함), dshs.app 좌석 API로 본인 자습실 자리 공개(계정 단위 1회 동의)·배치도 팝업 기능 추가(주 단위 자리 유지, 카카오톡 인앱 브라우저 로그인 대응, Edge Function 배포를 Claude가 직접 수행하는 체계로 전환) -->
+<!-- news: 학생 사이트: 로그인이 훨씬 덜 풀려요, 새 '공부' 탭에서 단어장 학습 | 학생 사이트: 자습실 자리를 동의하면 이름 옆·검색에서 볼 수 있어요 | 카카오톡으로 링크를 열어도 로그인이 돼요 -->
 
 ## 2026-11-09 08:32 · 수행평가 DB 적용·메인 업로드, 영어 수행평가 8개 추가
 
