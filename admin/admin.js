@@ -452,6 +452,53 @@ function overviewTips(data) {
   return tips;
 }
 
+// 이용 통계: 가입한 학생 가운데 기능마다 한 번이라도 쓴 학생 수 · 로그인 최근성 · 쓴 기능 수 · 반별 가입.
+// admin_overview 의 수만 씁니다 (내용은 받지 않음). 줄을 누르면 쓴 학생 / 안 쓴 학생 이름이 나와요.
+const USE_FEATURES = [
+  ["events", "개인 일정 추가"], ["todos", "할 일 추가"], ["done", "수행평가 완료 표시"], ["assignments", "수행평가 올림"],
+  ["personal", "수행평가 개인 수정"], ["location", "내 위치 남김"], ["push", "알림 켠 기기 있음"], ["groups", "그룹 만듦"], ["feedback", "피드백 보냄"],
+];
+const usedFeature = (s, k) => k === "location" ? !!s.location : s[k] > 0;
+function usageStatsHtml(data) {
+  const all = data.students.filter((s) => s.student_id);
+  const n = all.length;
+  if (!n) return "";
+  const pct = (x) => Math.round(x / n * 100);
+  const names = (list) => list.length ? list.map(ovWho).join(" · ") : "없음";
+  const bar = (label, yes, no, extra = "") => `<details class="adm-use">
+      <summary><span class="adm-use-l">${label}</span><span class="adm-use-bar"><i style="width:${pct(yes.length)}%"></i></span><span class="adm-use-n">${yes.length}명 <small>${pct(yes.length)}%</small></span></summary>
+      <p><b>${extra || "쓴 학생"} ${yes.length}</b> ${names(yes)}</p>
+      ${no ? `<p class="dim"><b>안 쓴 학생 ${no.length}</b> ${names(no)}</p>` : ""}
+    </details>`;
+  const features = USE_FEATURES.map(([k, label]) => bar(label, all.filter((s) => usedFeature(s, k)), all.filter((s) => !usedFeature(s, k)))).join("");
+  // 마지막 로그인 (토큰이 살아 있으면 다시 로그인하지 않으므로 '오래됨'이 꼭 안 쓴다는 뜻은 아님)
+  const age = (s) => s.last_login ? (Date.now() - Date.parse(s.last_login)) / 86400000 : Infinity;
+  const login = [["오늘", (a) => a < 1], ["1~3일 전", (a) => a >= 1 && a < 3], ["3~7일 전", (a) => a >= 3 && a < 7], ["7일보다 전", (a) => a >= 7]]
+    .map(([label, f]) => bar(label, all.filter((s) => f(age(s))), null, "해당 학생")).join("");
+  // 쓴 기능 수 (알림 · 피드백은 빼고 일정 · 할 일 · 수행평가 · 위치 · 그룹)
+  const core = ["events", "todos", "done", "assignments", "personal", "location", "groups"];
+  const depth = (s) => core.filter((k) => usedFeature(s, k)).length;
+  const depthRows = [["가입만 함 (0개)", (d) => d === 0], ["1~2개", (d) => d >= 1 && d <= 2], ["3~4개", (d) => d >= 3 && d <= 4], ["5개 이상", (d) => d >= 5]]
+    .map(([label, f]) => bar(label, all.filter((s) => f(depth(s))), null, "해당 학생")).join("");
+  // 반별 가입 (학번 둘째 자리 = 반)
+  const cls = new Map();
+  const add = (sid, joined) => { const c = Math.floor(sid / 100) % 10; const x = cls.get(c) || { j: 0, t: 0 }; x.t++; if (joined) x.j++; cls.set(c, x); };
+  all.forEach((s) => add(s.student_id, true));
+  data.not_joined.forEach((s) => add(s.student_id, false));
+  const classes = [...cls].sort((a, b) => a[0] - b[0]).map(([c, x]) => `<div class="adm-tile"><b>${x.j}<small>/${x.t}</small></b>${c}반</div>`).join("");
+  const weekAgo = Date.now() - 7 * 86400000;
+  const fresh = all.filter((s) => Date.parse(s.joined_at) > weekAgo).length;
+  return `<div class="adm-label">이용 통계 <small>가입한 ${n}명 기준 · 누르면 이름</small></div>
+    <div class="adm-uses">${features}</div>
+    <div class="adm-label">쓴 기능 수 <small>일정 · 할 일 · 완료 표시 · 수행평가 올림 · 개인 수정 · 위치 · 그룹 중</small></div>
+    <div class="adm-uses">${depthRows}</div>
+    <div class="adm-label">마지막 로그인</div>
+    <div class="adm-uses">${login}</div>
+    <div class="adm-foot">로그인을 유지한 채 쓰면 다시 로그인하지 않아서, 오래전으로 보여도 쓰고 있을 수 있어요.</div>
+    <div class="adm-label">반별 가입 <small>최근 7일 새로 가입 ${fresh}명</small></div>
+    <div class="adm-tiles">${classes}</div>`;
+}
+
 // 학생 칸은 있는 그대로만 보여 줍니다. 숫자를 보고 할 일(overviewTips)은 '제안' 칸에 있어요.
 function studentsHtml(data, seen) {
   const first = seen === Infinity;   // 처음 열면 강조하지 않습니다
@@ -475,6 +522,8 @@ function studentsHtml(data, seen) {
       <div class="adm-tile"><b>${data.students.length}<small>/${data.roster}</small></b>가입</div>
       <div class="adm-tile"><b>${data.not_joined.length}</b>아직 가입 안 함</div>
     </div>
+    ${usageStatsHtml(data)}
+    <div class="adm-label">명단</div>
     <details class="adm-acc"><summary>최근 활동<span>${nNew ? `새 ${nNew} · ` : ""}${data.activity.length}</span></summary>${activity || '<div class="adm-none">아직 활동이 없어요.</div>'}</details>
     <details class="adm-acc"><summary>가입한 학생<span>${data.students.length}</span></summary>${students || '<div class="adm-none">아직 가입한 학생이 없어요.</div>'}</details>
     <details class="adm-acc"><summary>아직 가입 안 한 학생<span>${data.not_joined.length}</span></summary><p>${data.not_joined.map(ovWho).join(" · ")}</p></details>

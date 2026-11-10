@@ -105,6 +105,19 @@
   .acal-chip.busy:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
   .busy-blur { filter: blur(3.5px); user-select: none; pointer-events: none; }
   .busy-row { cursor: default; opacity: 0.8; }
+  .adm-label small { margin-left: 6px; font-weight: 500; font-size: 11px; }
+  .adm-uses { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 4px 12px; }
+  .adm-use + .adm-use { border-top: 1px solid var(--border); }
+  .adm-use summary { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) 5.5em; align-items: center; gap: 10px; padding: 9px 0; font-size: 13px; cursor: pointer; list-style: none; }
+  .adm-use summary::-webkit-details-marker { display: none; }
+  .adm-use-l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .adm-use-bar { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--text-dim) 18%, transparent); overflow: hidden; }
+  .adm-use-bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent1); }
+  .adm-use-n { text-align: right; font-weight: 700; white-space: nowrap; }
+  .adm-use-n small { font-weight: 500; color: var(--text-dim); }
+  .adm-use p { margin: 0 0 10px; font-size: 12px; line-height: 1.6; }
+  .adm-use p.dim { color: var(--text-dim); }
+  @media (max-width: 480px) { .adm-use summary { grid-template-columns: 8em minmax(0, 1fr) 4.8em; gap: 8px; font-size: 12px; } }
   .acal-more { font-size: 10.5px; color: var(--text-dim); padding-left: 4px; }
   .acal-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 2px 0; font-size: 12px; color: var(--text-dim); }
   .acal-legend span::before, .acal-dot { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: var(--c); vertical-align: middle; }
