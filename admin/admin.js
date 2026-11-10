@@ -1068,15 +1068,21 @@ let calAsg = [];
 let calStudent = null;      // 고른 학생 학번 (없으면 전체)
 let calDone = new Set();    // 고른 학생이 완료 표시한 수행평가 id (admin_student_done)
 let calMonth = null;        // "YYYY-MM"
+let calStats = null;        // 고른 학생이 직접 추가한 일정 · 할 일 수 (admin_overview 의 students 한 줄, 내용은 받지 않음)
 async function loadCalAsg() {
   const { data, error } = await sb.from("assignments")
     .select("id, subject, ban, title, body, due_at, submit_to, status, created_at, created_by, author_name")
     .neq("status", "rejected").not("due_at", "is", null).order("due_at");
   if (!error) calAsg = data;
   calDone = new Set();
+  calStats = null;
   if (calStudent) {
-    const { data: done } = await sb.rpc("admin_student_done", { p_student_id: calStudent });
+    const [{ data: done }, ov] = await Promise.all([
+      sb.rpc("admin_student_done", { p_student_id: calStudent }),
+      sb.rpc("admin_overview"),
+    ]);
     calDone = new Set(done || []);
+    calStats = ov.error ? null : ov.data?.students?.find((s) => s.student_id === calStudent) || false;   // false = 가입 전
   }
 }
 const CAT_COLOR = { home: "#4caf7d", exam: "#ff6b6d", break: "#5aa9ff", holiday: "#f0a43a", club: "#b58cff", event: "#8888aa" };
@@ -1156,7 +1162,7 @@ function renderSchoolCal(body) {
     <div class="sch-tools">
       <label><input type="checkbox" id="calAsgOn"${schPref.asg === false ? "" : " checked"}> 수행평가도 보기</label>
       ${stu ? "" : `<label><input type="checkbox" id="schGrades"${schPref.grades ? " checked" : ""}> 다른 학년 일정도 보기</label>`}
-      ${stu ? `<span>${esc(stu.name)} 달력 · 이달 수행평가 ${asgCount}개 중 완료 ${doneCount}개</span>` : ""}
+      ${stu ? `<span>${esc(stu.name)} 달력 · 이달 수행평가 ${asgCount}개 중 완료 ${doneCount}개 · ${calStats ? `직접 추가한 일정 ${calStats.events}개 · 할 일 ${calStats.todos}개` : calStats === false ? "가입 전" : "일정 수를 못 받았어요"}</span>` : ""}
     </div>
     <div class="acal">
       ${["일", "월", "화", "수", "목", "금", "토"].map((w, i) => `<div class="acal-w${i === 0 ? " sun" : i === 6 ? " sat" : ""}">${w}</div>`).join("")}
@@ -1164,7 +1170,7 @@ function renderSchoolCal(body) {
     </div>
     <div class="acal-legend">${ACAD_CATS.map(([k, label]) => `<span style="--c:${CAT_COLOR[k]}">${label}</span>`).join("")}<span style="--c:var(--accent1)">수행평가</span></div>
     <div class="adm-foot">날짜를 누르면 그날 일정을 보고 학교 일정 · 수행평가를 추가할 수 있어요. 흐린 것은 숨긴 일정 · 승인 전 수행평가${stu ? " · 완료한 수행평가" : ""}예요.
-      ${stu ? "학생을 고르면 그 학생 달력에 보이는 공용 일정만 보여요 (개인 일정 · 할 일은 보이지 않아요)." : ""}</div>`;
+      ${stu ? "학생을 고르면 그 학생 달력에 보이는 공용 일정만 보여요 (개인 일정 · 할 일은 개수만 보이고 내용은 보이지 않아요. 일정 수는 지금까지 직접 추가한 전체 수예요)." : ""}</div>`;
   bindSchView(body);
   body.querySelectorAll("[data-cmove]").forEach((b) => b.onclick = () => {
     const n = +b.dataset.cmove;
