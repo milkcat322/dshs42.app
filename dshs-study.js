@@ -1066,7 +1066,7 @@ function renderLearn(pick) {
       ${LEARN_SUBJECTS.map((s) => `<button class="study-btn${s.id === cur ? " primary" : ""}" data-learn="${s.id}">${s.emoji} ${esc(s.name)}</button>`).join("")}
     </div>
     ${cur
-      ? `<iframe id="learnFrame" class="learn-frame" src="vocab.html?embed=1#${cur}" title="단어장"></iframe>`
+      ? `<iframe id="learnFrame" class="learn-frame" src="vocab.html?embed=1#${cur}" title="단어장" scrolling="no"></iframe>`
       : `<div class="learn-pick">${LEARN_SUBJECTS.map((s) => `
           <button class="asg-card learn-card" data-learn="${s.id}">
             <span class="learn-emoji">${s.emoji}</span>

@@ -1290,6 +1290,10 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 /* 배경은 투명하게 두어 사이트 배경(빛 번짐 포함)이 그대로 비치게 합니다. 색 모드는 vocabTheme 이 iframe 과 같게 맞춥니다 */
 html.embed, html.embed body { background: transparent; }
 html.embed body { min-height: 0; }
+/* 스크롤은 사이트 하나로: 단어장 문서는 스스로 스크롤되지 않게 (조금이라도 스크롤되면 손가락 · 휠이 단어장 안에 붙잡혀 사이트가 안 내려감).
+   body 의 overflow-x: hidden 은 body 를 스크롤 상자로 만들어서 clip 으로, flow-root 는 마지막 칸 여백까지 높이에 넣으려고 */
+html.embed { overflow: hidden; }
+html.embed body { overflow-x: clip; overflow-y: visible; max-width: none; display: flow-root; }
 html.embed .logo, html.embed #subject-switch, html.embed #home-view { display: none !important; }
 html.embed .header { padding: 0; gap: 0; }
 html.embed .nav-tabs { margin-left: 0; width: 100%; }
@@ -4577,9 +4581,16 @@ window.addEventListener('popstate', route);
 // - 과목을 바꿀 때 뒤로 가기 기록이 쌓이지 않게 주소를 바꿉니다 (vocabSubject)
 if (window.VOCAB_EMBED) {
   const frame = window.frameElement;
-  const fit = () => { if (frame) frame.style.height = Math.ceil(document.body.getBoundingClientRect().height) + 'px'; };
+  const root = document.scrollingElement || document.documentElement;
+  const fit = () => {
+    if (!frame) return;
+    frame.style.height = Math.ceil(document.body.getBoundingClientRect().height) + 'px';
+    if (root.scrollTop) root.scrollTop = 0;
+  };
   new ResizeObserver(fit).observe(document.body);
   window.addEventListener('load', fit);
+  // 입력칸 포커스 · scrollIntoView 로 단어장 문서가 안에서 밀려 올라가면 되돌립니다 (그만큼 위가 잘려 보이므로)
+  window.addEventListener('scroll', () => { if (root.scrollTop) root.scrollTop = 0; }, { passive: true });
   window.scrollTo = () => {
     try { if (frame && frame.getBoundingClientRect().top < 0) frame.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {}
   };
