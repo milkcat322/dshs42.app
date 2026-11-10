@@ -81,6 +81,8 @@ function summarize(digest, sid, gitInfo) {
   const range = `${ymd(digest.first)} ${hm(digest.first)}–${hm(digest.last)}`;
   const flow = (flowLines(readDevlog()) ?? []).map((l) => l.replace(/\s*<!--.*?-->/g, '')).join('\n');
   // 누가 개발했는지: 이 PC 의 git 사용자 이름 (요약 모델이 추측하지 않게 직접 넣는다)
+  // 이 세션에서 이미 알린 소식 (같은 세션을 다시 요약할 때 문장을 바꿔 다시 알리지 않게)
+  const prevNews = readDevlog().split(/^(?=## )/m).find((e) => e.includes(`\`session ${sid}\``))?.match(NEWS_RE)?.[1];
   const meta = `\`session ${sid}\` · 개발 ${git('config', 'user.name').out || '알 수 없음'} · 요청 ${digest.requests}회`;
   const prompt = `아래는 dshs-study 저장소에서 진행한 Claude Code 개발 세션 기록과 git 정보다.
 이 세션의 개발 로그 한 항목을 한국어 마크다운으로 써라. 읽는 사람은 이 프로젝트를 같이 개발하는 팀원이다.
@@ -127,7 +129,9 @@ ${meta}
 - 마지막 \`===소식===\` 아래에는, 이 세션에서 실제로 만들거나 고친 것을 같이 개발하는 친구가 알림 한 번으로 알아보게
   \`- \` 로 시작하는 1~3줄로 쓴다. 한 줄은 40자 안팎, 개발 용어 대신 "학생 사이트 · 관리자 사이트에서 무엇이 달라졌는지" 로 쓴다.
   코드 · DB 를 바꾸지 않은 세션(조사, 질문, 문서 · 공지문 작성)이면 \`없음\` 이라고만 쓴다.
-
+${prevNews ? `- 이 세션은 이미 아래 소식을 알렸다. 이 줄들은 한 글자도 바꾸지 말고 그대로 먼저 쓰고, 그 뒤에 이후 새로 한 일만 줄을 더한다 (최대 6줄, 새로 한 일이 없으면 이 줄들만):
+${prevNews.split(' | ').map((l) => `  - ${l}`).join('\n')}
+` : ''}
 ===== 지금까지의 개발 흐름 =====
 ${flow}
 
@@ -154,7 +158,7 @@ ${digest.text}
     const flowLine = flowPart.split('\n').map((l) => l.trim()).find((l) => l.startsWith('- '));
     // 소식은 한 줄 주석으로 넣으므로 줄마다 ' | ' 로 잇는다 (dev-news 서버 함수가 읽어 관리자에게 알림)
     const news = newsPart.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('- '))
-      .map((l) => l.slice(2).replace(/-->|\|/g, ' ').trim()).filter(Boolean).slice(0, 3).join(' | ') || null;
+      .map((l) => l.slice(2).replace(/-->|\|/g, ' ').trim()).filter(Boolean).slice(0, 6).join(' | ') || null;
     return { section: section.trim(), flowLine, news };
   }
 

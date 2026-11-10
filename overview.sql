@@ -68,7 +68,8 @@ begin
         'groups', (select count(*) from public.audience_groups x where x.created_by = p.id),
         'feedback', (select count(*) from public.feedback x where x.user_id = p.id),
         'comments', (select count(*) from public.assignment_comments x where x.user_id = p.id),
-        'bookmarks', (select count(*) from public.learn_bookmarks x where x.user_id = p.id)
+        'bookmarks', (select count(*) from public.learn_bookmarks x where x.user_id = p.id),
+        'invited', (select count(*) from public.event_members x where x.user_id = p.id)
       ) order by p.created_at desc)
         from students p
         left join auth.users u on u.id = p.id
@@ -104,16 +105,18 @@ grant  execute on function public.admin_student_done(integer) to authenticated;
 -- ------------------------------------------------------------
 -- 학교 일정 달력 '학생별 보기'의 흐린 개인 일정 칸 (관리자만)
 -- 그 학생이 만든 일정과 함께하는 일정의 시각만 돌려줍니다. 제목 · 메모 · 함께하는 사람은 돌려주지 않습니다.
+-- shared = 친구가 '함께하는 친구'로 넣어 준 일정 (false 면 그 학생이 직접 만든 일정)
 -- ------------------------------------------------------------
-create or replace function public.admin_student_busy(p_student_id integer)
-returns table (starts_at timestamptz, ends_at timestamptz, all_day boolean)
+drop function if exists public.admin_student_busy(integer);
+create function public.admin_student_busy(p_student_id integer)
+returns table (starts_at timestamptz, ends_at timestamptz, all_day boolean, shared boolean)
 language plpgsql stable security definer set search_path = public as $$
 begin
   if not public.is_admin_user(auth.uid()) then
     raise exception 'admin only';
   end if;
   return query
-    select e.starts_at, e.ends_at, e.all_day
+    select e.starts_at, e.ends_at, e.all_day, e.user_id <> p.id
       from public.events e
       join public.profiles p on p.student_id = p_student_id
      where e.source_key is null
