@@ -2927,3 +2927,33 @@ sw.js
 - `overview.sql`
 
 ## 2026-11-10 14:37 · 야야 vercel 배포취소해저
+
+## 2026-11-10 22:47–22:49 · 공부 탭 단어장 iframe 스크롤 충돌 수정
+
+`session f51e5428` · 개발 milkcat322 · 요청 1회
+
+### 목표
+- 공부 탭에서 단어장(iframe)과 바깥 화면이 서로 다른 스크롤 상자로 작동해 손가락·휠 스크롤이 단어장 안쪽에 걸리는 문제 해결
+
+### 한 일
+- vocab.html, dshs-study.js의 iframe·스크롤 관련 코드 확인 및 과거 커밋 이력 조사
+- embed에서 html overflow hidden · body overflow-x clip · flow-root 적용, iframe scrolling=no 설정
+- 안쪽 내용이 밀려 올라갈 때 되돌리는 처리 추가
+- Edge 브라우저로 실제 스크롤 동작 확인
+- sw.js 캐시 버전과 updates.js를 v138로 올림
+
+### 결정과 이유
+- iframe을 별도 스크롤 영역으로 두지 않고 바깥 문서 스크롤에 맞춰 흐르도록 구조 변경
+  - **왜:** 문서·body가 각자 스크롤 상자가 되면서 입력이 단어장 안에서 끊기던 근본 원인이었음
+
+### 해결한 문제
+- 증상: 공부 탭에서 단어장을 스크롤하면 화면 전체 스크롤과 따로 움직이며 끊김
+  → 원인: 단어장 iframe 문서와 body가 각각 독립된 스크롤 상자로 동작
+  → 해결: overflow·flow-root 설정 조정과 iframe scrolling=no로 바깥 스크롤에 통합, CACHE v138 배포
+
+### 바뀐 파일
+- `dshs-study.js`
+- `sw.js`
+- `updates.js`
+- `vocab.html`
+<!-- news: 공부 탭 단어장 스크롤 끊김 수정 (v138) -->
