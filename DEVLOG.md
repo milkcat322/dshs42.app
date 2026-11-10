@@ -2928,32 +2928,36 @@ sw.js
 
 ## 2026-11-10 14:37 · 야야 vercel 배포취소해저
 
-## 2026-11-10 22:47–22:49 · 공부 탭 단어장 iframe 스크롤 충돌 수정
+## 2026-11-10 22:47–22:51 · 공부 탭 단어장 스크롤 끊김 수정
 
-`session f51e5428` · 개발 milkcat322 · 요청 1회
+`session f51e5428` · 개발 milkcat322 · 요청 2회
 
 ### 목표
-- 공부 탭에서 단어장(iframe)과 바깥 화면이 서로 다른 스크롤 상자로 작동해 손가락·휠 스크롤이 단어장 안쪽에 걸리는 문제 해결
+- 공부 탭에서 단어장(iframe)과 페이지 스크롤이 따로 작동해 손가락·휠 스크롤이 단어장 안에 걸리는 문제 해결
 
 ### 한 일
-- vocab.html, dshs-study.js의 iframe·스크롤 관련 코드 확인 및 과거 커밋 이력 조사
-- embed에서 html overflow hidden · body overflow-x clip · flow-root 적용, iframe scrolling=no 설정
-- 안쪽 내용이 밀려 올라갈 때 되돌리는 처리 추가
-- Edge 브라우저로 실제 스크롤 동작 확인
-- sw.js 캐시 버전과 updates.js를 v138로 올림
+- `vocab.html`, `dshs-study.js`, `sw.js`, `updates.js` 관련 코드와 과거 커밋·DEVLOG 기록 확인
+- `vocab.html`에서 단어장 문서 자체가 스크롤 상자가 되지 않도록 수정(html overflow hidden, body overflow-x clip, flow-root), 안쪽이 밀려 올라가면 맨 위로 되돌리는 처리 추가
+- `dshs-study.js`의 iframe에 `scrolling="no"` 추가
+- Edge 헤드리스 브라우저로 수정 전/후 실제 스크롤 동작 비교 확인
+- `sw.js` 캐시 버전 v137 → v138로 올리고 `updates.js`에 업데이트 소식 추가
+- beta(main)에 커밋·push, 이어서 메인 웹(prod) 저장소에도 반영
 
 ### 결정과 이유
-- iframe을 별도 스크롤 영역으로 두지 않고 바깥 문서 스크롤에 맞춰 흐르도록 구조 변경
-  - **왜:** 문서·body가 각자 스크롤 상자가 되면서 입력이 단어장 안에서 끊기던 근본 원인이었음
+- iframe 자체를 수정하는 대신 단어장 문서 쪽 overflow 속성을 바꾼 이유: 단어장과 body가 각각 독립적으로 스크롤 영역이 되던 것이 근본 원인이었기 때문
 
 ### 해결한 문제
-- 증상: 공부 탭에서 단어장을 스크롤하면 화면 전체 스크롤과 따로 움직이며 끊김
-  → 원인: 단어장 iframe 문서와 body가 각각 독립된 스크롤 상자로 동작
-  → 해결: overflow·flow-root 설정 조정과 iframe scrolling=no로 바깥 스크롤에 통합, CACHE v138 배포
+- 증상: 공부 탭에서 단어장을 넘길 때 사이트 전체가 안 내려가고 단어장 안에서만 스크롤이 걸림
+- 원인: `vocab.html`의 `html`/`body` 양쪽에 `overflow-x: hidden`이 겹쳐 단어장 문서와 body가 각각 스스로 스크롤되는 영역이 됨, 높이가 몇 px 어긋나거나 입력칸 포커스로 안쪽이 밀리면 스크롤이 단어장에 걸림
+- 해결: embed 모드에서 단어장이 스스로 스크롤되지 않게 바꾸고 iframe `scrolling="no"` 적용, 안쪽이 밀리면 자동으로 되돌림
+
+### 남은 일
+- [ ] 단어장 안에서 단어 블록을 끌어 옮길 때 화면 끝에서 페이지가 자동 스크롤되지 않는 점(필요 시 추가 작업)
+- [ ] 실제 휴대폰에서 손가락 스크롤 직접 확인
 
 ### 바뀐 파일
 - `dshs-study.js`
 - `sw.js`
 - `updates.js`
 - `vocab.html`
-<!-- news: 공부 탭 단어장 스크롤 끊김 수정 (v138) -->
+<!-- news: 공부 탭 단어장 스크롤 끊김 수정 (v138) | 메인 웹(dshs42.app)에도 동일하게 반영 -->
