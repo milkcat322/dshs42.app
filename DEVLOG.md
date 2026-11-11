@@ -2905,39 +2905,45 @@ sw.js
 ### 배운 점
 - 업데이트 정리는 로컬이 아니라 원격의 최신 내용 기준으로 읽었음. 로컬이 뒤처져 있을 수 있어 배포 상태와 별도로 확인이 필요함
 
-## 2026-11-10 14:37–14:37 · Vercel 배포 삭제 요청 확인 (권한 검사로 삭제는 못 함)
+## 2026-11-12 14:37–14:37 · Vercel 배포 삭제 요청 확인 (권한 검사로 삭제는 못 함)
 
 `session 44148249` · 개발 sxcrxta · 요청 1회
 
 ### 목표
-- 실수로 생긴 Vercel 배포를 취소하거나 지우기
+- 실수로 생긴 Vercel Production 배포를 취소·삭제하기
 
 ### 한 일
-- Vercel CLI로 `dshs-study` 프로젝트를 조회해 Production 배포 1개가 이미 Ready 상태임을 확인
-- 배포 삭제(`vercel rm`)를 시도했으나 자동 권한 검사가 막아 지우지 못함
-- 직접 지우는 명령과 프로젝트 자체를 없애는 방법을 안내
+- 저장소 안 `.vercel/` 폴더와 `.gitignore` 변경, Vercel 프로젝트 상태를 확인
+- 배포가 이미 끝난 상태(Ready)라 '취소'는 불가능하다는 점을 확인
+- 배포 삭제 명령을 실행했으나 자동 권한 검사가 막아 삭제는 못 함
+- 직접 삭제하는 방법(명령어·대시보드)과 프로젝트 삭제 옵션을 안내
 
 ### 결정과 이유
-- 이미 끝난 배포라 '취소'는 불가능하다고 보고 삭제로 접근
-- 실제 서비스는 Netlify(beta · dshs42.app)라서 Vercel 배포를 지워도 사이트에는 영향이 없음
-- `.gitignore` 변경은 답을 받기 전까지 커밋하지 않기로 함
+- 진행 중 배포가 아니라 완료된 배포라 '취소' 대신 '삭제'로 접근
+- `.gitignore` 의 `.vercel` 한 줄은 원래대로 돌릴지 답을 받기 전까지 커밋하지 않음
 
 ### 해결한 문제
-- 배포 취소 요청 → 배포가 이미 완료 상태라 취소 불가 → 삭제 방식으로 전환 (권한 검사에 막혀 사용자 직접 실행 안내)
+- 배포 취소 요청 → 이미 Ready 상태라 취소 불가 → 삭제로 방향을 바꿨으나 권한 검사에 막혀 사용자가 직접 실행하도록 안내
 
 ### 남은 일
-- [ ] Vercel 배포 삭제 직접 실행 (`! npx vercel rm <배포 URL> --yes` 또는 대시보드)
-- [ ] GitHub 연결 시 push마다 재배포되므로 Vercel 프로젝트 삭제 여부 결정
-- [ ] 저장소의 `.vercel/` 폴더와 `.gitignore`의 `.vercel` 추가 줄을 되돌릴지 결정
+- [ ] Vercel 배포(또는 프로젝트) 직접 삭제
+- [ ] `.gitignore` 의 `.vercel` 줄을 유지할지 되돌릴지 결정
+- [ ] 로컬 `.vercel/` 폴더 정리 여부 결정
 
 ### 배운 점
-- 완료된 Vercel 배포는 취소가 아니라 삭제해야 하고, GitHub에 연결된 프로젝트는 push할 때마다 다시 배포된다.
+- 실제 서비스는 Netlify(beta·dshs42.app)라 Vercel 배포를 지워도 사이트에는 영향이 없음
+- Vercel 프로젝트가 GitHub 와 연결돼 있으면 push 때마다 다시 배포될 수 있음
 
 ### 바뀐 파일
-- `.claude/hooks/devlog-worker.mjs`
 - `.gitignore`
+- `.claude/hooks/devlog-worker.mjs`
 - `admin/admin.js`
+- `dshs-study.js`
+- `index.html`
 - `overview.sql`
+- `sw.js`
+- `updates.js`
+- `vocab.html`
 
 ## 2026-11-10 14:37 · 야야 vercel 배포취소해저
 
