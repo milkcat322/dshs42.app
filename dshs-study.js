@@ -127,13 +127,18 @@ async function startApp() {
   if (fromSnap) { renderNav(); openStart(); }
   window.addEventListener("offline", () => applyAccess());
   window.addEventListener("online", backOnline);
+  // 오프라인 화면인 채로 앱으로 돌아오면 기다리지 않고 바로 다시 확인합니다 (로그인 기능을 못 불러온 경우 포함)
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && netDown) watchNet(300); });
   // ?bundle: 여러 파일을 차례로 받지 않고 한 파일로 받습니다 (index.html 의 modulepreload 와 같은 주소)
+  // esm.sh 가 잠깐 안 되면 같은 버전을 jsdelivr 에서 받습니다 (한 번 실패한 주소는 브라우저가 다시 받지 않으므로 다른 주소로)
   let createClient;
-  try {
-    ({ createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.4?bundle"));
-  } catch {
+  for (const url of ["https://esm.sh/@supabase/supabase-js@2.45.4?bundle", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm"]) {
+    try { ({ createClient } = await import(url)); break; } catch {}
+  }
+  if (!createClient) {
     netDown = true;   // 인터넷 없이 처음 열어 로그인 기능을 못 불러왔으면 검색만 씁니다 (지난 화면의 내 시간표는 그대로)
-    return applyAccess();
+    applyAccess();
+    return watchNet();   // 와이파이가 붙어 있어 'online' 이벤트가 오지 않아도 다시 확인해 돌아옵니다
   }
   $("gateLogin").onclick = gateLogin;
   $("gateAdmin").onclick = openAdminLogin;
@@ -149,7 +154,7 @@ async function startApp() {
   const shownId = me?.id, shownSid = me?.student_id;
   if (session) await loadProfile();
   else if (me && !(sessErr && isNetErr(sessErr))) { me = null; myClasses = []; clearSnap(); }   // 로그인이 끝남
-  else if (me) netDown = true;   // 서버에 닿지 못함 → 지난 화면 유지
+  else if (me) netTrouble();   // 서버에 닿지 못함 → 지난 화면 유지 (정말 끊겼을 때만 오프라인 화면)
   if (!session && !sessErr && await silentLogin()) return;   // dshs.app 에 로그인돼 있는지 보러 갑니다 (페이지를 떠남)
   // 로그인 기록은 남아 있는데 서버가 잠깐 답하지 못했으면 조금 뒤 다시 확인합니다
   if ((session ? loadProfile.failed : sessErr && isNetErr(sessErr)) && authUserId()) retryAuth();
@@ -420,7 +425,7 @@ async function loadProfile() {
   }
   if (error) {   // 서버에 닿지 못했거나 잠깐 실패 → 로그아웃으로 보지 않고, 지난 화면의 내 정보가 이 계정 것이면 그대로 씁니다
     loadProfile.failed = true;
-    if (isNetErr(error)) netDown = true;
+    if (isNetErr(error)) netTrouble();
     if (me?.id !== session.user.id) me = null;
     return;
   }
@@ -506,10 +511,61 @@ function applyAccess(guest = !me) {
   document.body.classList.toggle("need-login", !off && guest);
   if (!off && guest && !me) logGate("seen");
 }
+// ---------- 서버에 정말 닿지 않는지 확인 ----------
+// 요청 하나가 실패했다고 바로 오프라인 화면으로 바꾸지 않습니다. 와이파이가 멀쩡해도
+//  - 아이폰은 앱을 내렸다 올리면 하던 요청이 'Load failed' 로 끝나고,
+//  - 학교 와이파이에서 여럿이 한꺼번에 열면 요청 한도(429)에 걸려 '연결 실패'(authFetch)처럼 보이기 때문입니다.
+// 서버에 직접 한 번 물어 응답이 오면(오류 응답이어도) 연결된 것으로 보고, 아무 응답이 없을 때만 오프라인으로 바꿉니다.
+// 오프라인이 된 뒤에는 15초부터 최대 1분 간격으로, 그리고 화면으로 돌아올 때마다 다시 확인해 닿으면 바로 돌아옵니다.
+// (브라우저의 'online' 이벤트는 와이파이가 붙은 채로 서버만 잠깐 안 닿았던 경우에는 오지 않습니다)
+async function serverReachable() {
+  if (!navigator.onLine) return false;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 7000);
+  try {
+    await fetch(`${CFG.SUPABASE_URL}/auth/v1/health`, { headers: { apikey: CFG.SUPABASE_ANON_KEY }, cache: "no-store", signal: ctl.signal });
+    return true;
+  } catch { return false; } finally { clearTimeout(t); }
+}
+async function netTrouble() {
+  if (netTrouble.busy) return;
+  netTrouble.busy = true;
+  try {
+    if (await serverReachable()) {
+      if (netDown) netBack();
+      return;
+    }
+    netDown = true;
+    applyAccess();
+    watchNet();
+  } finally { netTrouble.busy = false; }
+}
+function watchNet(delay = 15000) {
+  clearTimeout(watchNet.t);
+  watchNet.t = setTimeout(async () => {
+    watchNet.t = null;
+    if (!netDown) return;
+    if (await serverReachable()) netBack();
+    else watchNet(Math.min(Math.max(delay, 15000) * 2, 60000));
+  }, delay);
+}
+function netBack() {
+  clearTimeout(watchNet.t);
+  watchNet.t = null;
+  backOnline();
+}
+// 로그인 기능을 못 불러온 채 다시 연결되면 새로 엽니다. 라이브러리 서버만 안 되는 경우 계속 새로 열지 않게 한 세션에 3번까지
+function reloadForNet() {
+  let n = 0;
+  try { n = +sessionStorage.getItem("dshs-net-reload") || 0; sessionStorage.setItem("dshs-net-reload", String(n + 1)); } catch {}
+  if (n < 3) location.reload();
+  else { netDown = true; applyAccess(); }
+}
+
 // 다시 연결되면: 로그인 기능을 못 불러왔으면 새로 열고, 로그인 기록이 있으면 다시 읽어 내 화면으로 돌아갑니다
 async function backOnline() {
   netDown = false;
-  if (!sb) return location.reload();
+  if (!sb) return reloadForNet();
   const had = me;
   await loadProfile();   // 지난 화면으로 버티던 중이면 새 내용으로 바꿉니다
   if (me && !had) { renderNav(); loadAssignments(); return openHome(); }
