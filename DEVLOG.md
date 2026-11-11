@@ -2928,36 +2928,29 @@ sw.js
 
 ## 2026-11-10 14:37 · 야야 vercel 배포취소해저
 
-## 2026-11-10 19:40–20:35 · 공부 탭 단어장 스크롤·높이 버그 수정, 메인 웹 반영
+## 2026-11-10 22:47–22:57 · 공부 탭 단어장 스크롤·높이 버그 수정, 메인 웹 반영
 
 `session f51e5428` · 개발 milkcat322 · 요청 2회
 
 ### 목표
-- 공부 탭 단어장(iframe)이 사이트 스크롤과 따로 작동하는 문제 해결
-- 수정분을 메인 웹(dshs42.app)에도 반영
+- 공부 탭에서 단어장(iframe)과 페이지 스크롤이 따로 작동해 불편한 문제 해결
+- 수정 내용을 메인 웹(dshs42.app)에도 반영
 
 ### 한 일
-- vocab.html의 iframe 스크롤 충돌 원인 분석
-- embed 모드에서 html overflow hidden · body overflow-x clip · flow-root 적용, iframe scrolling=no 설정
-- CACHE v138로 올리고 beta·메인 웹(prod) 모두 배포
-- 메인 웹 배포 중 탭 전환 시 단어장 마지막 단어가 잘려 보이는 문제 추가 발견
-- 화면 전환 즉시 높이 재측정 + MutationObserver·fonts.ready·1초 확인 추가, 하단 여백 8px→24px
-- CACHE v139로 올리고 beta·메인 웹 재배포
+- Edge 헤드리스 브라우저로 실제 스크롤 동작과 탭별 iframe 높이를 측정해 원인 확인
+- vocab.html 스크롤 수정 후 beta 배포, 이어서 prod(메인 웹) 저장소에도 반영
+- 탭 전환 시 단어장 마지막 단어가 잘려 보이는 문제를 추가로 발견해 수정
 
 ### 결정과 이유
-- iframe이 스스로 스크롤되지 않도록 막아 사이트 전체 스크롤만 쓰도록 함: 손가락·휠 스크롤이 단어장 안에서 걸리는 것을 막기 위해
-- 높이 측정을 ResizeObserver 단독이 아니라 MutationObserver·fonts.ready·주기적 재확인으로 보강: 탭 전환 등으로 내용 반영이 늦는 경우를 잡기 위해
+- 단어장 문서 자체가 스크롤 영역이 되지 않게 해 사이트 전체만 스크롤되게 함 (embed 모드 overflow 처리 + iframe scrolling="no")
 
 ### 해결한 문제
-- 증상: 단어장 안에서 스크롤하면 사이트 전체가 아니라 단어장만 스크롤됨 → 원인: vocab.html에서 html·body에 각각 overflow-x hidden이 걸려 단어장 문서와 body가 모두 독립된 스크롤 상자가 됨 → 해결: embed 모드 CSS 변경 + iframe scrolling=no (v138)
-- 증상: 탭을 바꾼 뒤 단어장 마지막 단어가 잘려 보임 → 원인: 높이를 맞추는 ResizeObserver 반응이 탭 전환·목록 다시 그리기 뒤 늦어져 칸 높이(507px)가 실제 내용(1899px)보다 작게 남는 시간이 생김 → 해결: 전환 즉시 재측정 + MutationObserver·fonts.ready·1초 확인, 아래 여백 24px (v139)
+- 증상: 공부 탭에서 손가락/휠 스크롤이 단어장 안에 걸려 사이트 전체가 내려가지 않음 → 원인: vocab.html의 html/body에 겹친 overflow-x:hidden으로 단어장 문서와 body가 각각 스스로 스크롤되는 영역이 됨 → 해결: embed 모드에서 html overflow hidden·body overflow-x clip·flow-root 적용, iframe scrolling="no", 안쪽이 밀리면 맨 위로 되돌림 (CACHE v138)
+- 증상: 탭을 바꾸면 단어장 마지막 단어가 잘려 보임 → 원인: iframe 높이를 맞추는 감지(ResizeObserver)가 탭 전환·목록 다시 그리기 뒤 늦게 반영됨(퀴즈 탭 이후 몇 초간 칸 높이 507px, 내용 1899px로 확인) → 해결: 화면 전환 즉시 재측정 + MutationObserver·fonts.ready·1초 확인으로 즉시 맞춤, 아래 여백 8px→24px (CACHE v139)
 
 ### 남은 일
-- [ ] 단어 블록을 끌어 옮길 때 화면 끝에서 자동 스크롤되지 않는 점
-- [ ] 실제 휴대폰에서 스크롤·잘림 수정 확인
-
-### 배운 점
-- 높이 수치 비교 같은 정적 측정만으로는 렌더링 타이밍 문제를 못 잡음, 브라우저로 탭을 순서대로 띄워 재보는 방법이 유효했음(스크린샷 캡처는 화면이 비어 쓸모없었음)
+- [ ] 실제 휴대폰에서 스크롤·단어장 잘림 수정이 잘 되는지 확인
+- [ ] 단어 블록을 화면 끝으로 드래그할 때 자동 스크롤은 아직 미지원
 
 ### 바뀐 파일
 - `dshs-study.js`
