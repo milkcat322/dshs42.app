@@ -3005,3 +3005,29 @@ sw.js
 - `devnews.sql`
 - `supabase/functions/dev-news/index.ts`
 - `supabase/functions/dev-news/parse.ts`
+
+## 2026-11-11 14:08–14:09 · 화면 테마 '코코' 추가 (숲 테마의 밝은 버전)
+
+`session 18d898e6` · 개발 milkcat322 · 요청 1회
+
+### 목표
+- 숲 테마와 같은 색 체계를 쓰는 밝은(라이트) 버전 테마 '코코' 추가
+
+### 한 일
+- index.html·vocab.html·dshs-study.js·admin/admin.js에 코코 테마 색상 정의 추가
+- 테마 고르기 화면을 3칸 2줄 배치로 변경
+- 단어장(vocab.html) 색 묶음에도 코코 테마 반영
+- sw.js·updates.js의 CACHE 버전을 v140으로 올림
+- 공부 탭 단어장 스크롤·높이 버그 수정, 메인 웹에도 반영
+
+### 결정과 이유
+- 코코 테마를 숲 테마의 밝은 버전으로 설계해 기존 숲 테마 색 체계를 그대로 재사용
+
+### 바뀐 파일
+- `admin/admin.js`
+- `dshs-study.js`
+- `index.html`
+- `sw.js`
+- `updates.js`
+- `vocab.html`
+<!-- news: 테마 고르기에 '코코'(숲 테마의 밝은 버전) 추가 | 공부 탭 단어장 스크롤·높이 버그 수정 -->
