@@ -8,9 +8,9 @@
 // dshs42.app '공부' 탭 안에 띄울 때(vocab.html?embed=1#과목): 로고 · 과목 선택은 숨기고 사이트 테마 색을 따릅니다.
 // 사이트(부모 창)와 같은 주소라 부모의 테마 값을 바로 읽습니다. 따로 열면 예전처럼 동작합니다.
 window.VOCAB_EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
-// 테마: 사이트의 테마 이름(data-theme: dark · light · ocean · forest · sakura)과 밝기(data-tone)를 그대로 받아
+// 테마: 사이트의 테마 이름(data-theme: dark · light · ocean · forest · coco · sakura)과 밝기(data-tone)를 그대로 받아
 // 이 파일의 <style> 에 있는 같은 이름의 색 묶음(:root[data-site=…])을 씁니다. 따로 열면 기기 설정(다크 · 라이트)을 따릅니다.
-const VOCAB_SITES = ['dark', 'light', 'ocean', 'forest', 'sakura'];
+const VOCAB_SITES = ['dark', 'light', 'ocean', 'forest', 'coco', 'sakura'];
 window.vocabTheme = function () {
   if (!window.VOCAB_EMBED) return;
   try {
@@ -81,6 +81,10 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
   :root[data-site="forest"] {
     --bg: #0a120d; --surface: #101a13; --surface2: #16241b; --border: #24382a;
     --accent: #5fbf7a; --accent4: #d6c25a; --text: #e6f0e8; --text-muted: #8fa996; --text-dim: #5b7262;
+  }
+  :root[data-site="coco"] {
+    --bg: #f2f7f3; --surface: #ffffff; --surface2: #e6f0e8; --border: #cfe0d4;
+    --accent: #2f9a52; --accent4: #b08f1c; --text: #142019; --text-muted: #4f6b58; --text-dim: #8aa392;
   }
   :root[data-site="sakura"] {
     --bg: #fbf3f6; --surface: #ffffff; --surface2: #f7e8ee; --border: #ecd3dd;

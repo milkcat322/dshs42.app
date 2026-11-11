@@ -18,12 +18,12 @@
 })();
 </script>
 <script>
-// 화면 테마: localStorage dshs-theme = dark | light | ocean | forest | sakura.
+// 화면 테마: localStorage dshs-theme = dark | light | ocean | forest | coco | sakura.
 // 고른 적이 없으면 기기 설정(다크 · 라이트)을 따릅니다. 화면을 그리기 전에 정해 깜빡이지 않게 합니다.
 (() => {
   const mq = matchMedia('(prefers-color-scheme: light)');
-  const TONE = { dark: 'dark', light: 'light', ocean: 'dark', forest: 'dark', sakura: 'light' };
-  const BG = { dark: '#0a0a0f', light: '#f5f5fa', ocean: '#07111b', forest: '#0a120d', sakura: '#fbf3f6' };
+  const TONE = { dark: 'dark', light: 'light', ocean: 'dark', forest: 'dark', coco: 'light', sakura: 'light' };
+  const BG = { dark: '#0a0a0f', light: '#f5f5fa', ocean: '#07111b', forest: '#0a120d', coco: '#f2f7f3', sakura: '#fbf3f6' };
   window.applyTheme = () => {
     let t = null;
     try { t = localStorage.getItem('dshs-theme'); } catch (e) {}
@@ -978,7 +978,7 @@
   }
 
   /* ---------- 화면 테마 (설정 → 화면 테마) ----------
-     html 의 data-theme 이 테마 이름(dark · light · ocean · forest · sakura), data-tone 이 밝기(dark · light)입니다.
+     html 의 data-theme 이 테마 이름(dark · light · ocean · forest · coco · sakura), data-tone 이 밝기(dark · light)입니다.
      밝은 테마(data-tone="light")는 아래 규칙으로 어두운 배경용 연한 글자색을 진하게 바꾸고,
      테마마다 다른 색은 맨 아래 data-theme 블록에서 변수만 바꿉니다. */
   :root[data-tone="light"] {
@@ -1055,6 +1055,13 @@
     --text: #e6f0e8; --text-dim: #8fa996; --text-muted: #5b7262;
     --glow: rgba(95, 191, 122, 0.3); --bar-rgb: 10,18,13;
   }
+  /* 코코: 숲의 밝은 버전 (연한 초록 + 초록 · 황금) */
+  :root[data-theme="coco"] {
+    --bg: #f2f7f3; --surface: #ffffff; --card: #e6f0e8; --border: #cfe0d4;
+    --accent1: #2f9a52; --accent2: #b08f1c; --accent3: #2b8f6a;
+    --text: #142019; --text-dim: #4f6b58; --text-muted: #8aa392;
+    --glow: rgba(47, 154, 82, 0.22); --bar-rgb: 242,247,243;
+  }
   /* 벚꽃: 밝은 분홍 */
   :root[data-theme="sakura"] {
     --bg: #fbf3f6; --surface: #ffffff; --card: #f7e8ee; --border: #ecd3dd;
@@ -1064,7 +1071,7 @@
   }
 
   /* 설정의 화면 테마 고르기 */
-  .theme-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 8px 0 4px; }
+  .theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0 4px; }
   .theme-grid button { display: flex; flex-direction: column; align-items: center; gap: 5px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 9px 2px 7px; font-size: 12px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif; color: var(--text-dim); cursor: pointer; }
   .theme-grid button.on { border-color: var(--accent1); color: var(--text); box-shadow: 0 0 0 1px var(--accent1) inset; }
   .theme-grid i { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(128,128,128,0.35); }

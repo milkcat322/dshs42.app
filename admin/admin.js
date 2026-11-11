@@ -1554,6 +1554,7 @@ const THEMES = [
   ["light", "라이트", "#f5f5fa", "#6a5cd6"],
   ["ocean", "바다", "#07111b", "#3fa7e0"],
   ["forest", "숲", "#0a120d", "#5fbf7a"],
+  ["coco", "코코", "#f2f7f3", "#2f9a52"],
   ["sakura", "벚꽃", "#fbf3f6", "#d0577f"],
 ];
 const THEME_KEY = "dshs-theme";
