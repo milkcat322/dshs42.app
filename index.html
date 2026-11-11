@@ -84,8 +84,36 @@
   body.offline .study-nav, body.offline .study-view, body.offline #btnSettings { display: none !important; }
   body.offline.study-open .search-section { display: block; }
   body.offline .offline-note { display: block; }
-  .login-gate { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+  /* 비로그인: 흐린 시간표(gateBg, 아래 paintGateBg 가 채움) 위에 시작하기 카드 */
+  .login-gate { position: relative; overflow: hidden; border-radius: 20px; min-height: 460px; text-align: center; color: var(--text-muted); }
+  .gate-bg { position: absolute; inset: 0; padding: 10px; filter: blur(5px); opacity: 0.55; transform: scale(1.05); pointer-events: none; user-select: none; -webkit-user-select: none; }
+  .gate-bg .timetable { width: 100%; }
+  .gate-card { position: relative; max-width: 400px; margin: 72px auto 40px; padding: 26px 20px 18px; border-radius: 18px; border: 1px solid var(--border);
+    background: var(--surface); background: color-mix(in srgb, var(--surface) 86%, transparent); box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+  .gate-card .welcome-icon { margin-bottom: 10px; }
   .login-gate .study-submit { max-width: 260px; }
+  @media (max-width: 480px) { .gate-card { margin: 56px 12px 32px; padding: 22px 16px 14px; } }
+  /* 로그인 직후 안내(dshs-study.js 의 maybeOnboard) · 아이폰 홈 화면 추가 그림 안내(iosGuideHtml) */
+  .onb-step { display: flex; gap: 11px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--border); }
+  .onb-step .ios-num { margin-top: 2px; }
+  .onb-body { flex: 1; min-width: 0; font-size: 14px; }
+  .onb-body .ev-hint { display: block; margin: 2px 0 8px; }
+  .onb-text { font-size: 13px; line-height: 1.6; color: var(--text-dim); }
+  .ig { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 4px; }
+  .ig-fig { margin: 0; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+  .ig-fig svg { display: block; width: 100%; height: auto; max-height: 120px; }
+  .ig-fig figcaption { display: flex; gap: 8px; align-items: flex-start; margin-top: 6px; font-size: 12.5px; line-height: 1.55; color: var(--text-dim); text-align: left; }
+  .ig-fig figcaption b { color: var(--text); }
+  .ig-bg { fill: var(--surface); stroke: var(--border); }
+  .ig-hirow { fill: var(--glow); stroke: var(--accent1); stroke-width: 1.5; }
+  .ig-ic { fill: none; stroke: var(--text-dim); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ig-ic.ig-hi { stroke: var(--accent1); stroke-width: 2.2; }
+  .ig-ring { fill: none; stroke: var(--accent1); stroke-width: 2; stroke-dasharray: 4 3; }
+  .ig-t { fill: var(--text); font-size: 12px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif; }
+  .ig-dim { fill: var(--text-muted); font-size: 11px; font-family: 'Noto Sans KR', sans-serif; }
+  .ig-hit { fill: var(--accent1); font-size: 12px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif; }
+  .ig-icon { fill: var(--accent1); }
+  .ig-icon-t { fill: #fff; font-size: 12px; font-weight: 800; font-family: 'Noto Sans KR', sans-serif; }
   .offline-note { margin-bottom: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text-dim); font-size: 13px; text-align: center; }
   .search-label { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; font-family: 'IBM Plex Mono', monospace; }
   .search-row { display: flex; gap: 12px; align-items: stretch; }
@@ -1104,10 +1132,13 @@
   </div>
   <div class="offline-note">인터넷에 연결되어 있지 않아요 · 시간표 검색만 쓸 수 있어요</div>
   <div class="login-gate" id="loginGate">
-    <div class="welcome-icon">🔒</div>
-    <div class="welcome-text">dshs.app 계정으로 시작하면 학생 · 선생님 · 과목 시간표를 검색할 수 있어요<br>따로 가입할 필요 없어요 · 인터넷이 없을 때는 시작하지 않아도 볼 수 있어요</div>
-    <button class="study-submit" id="gateLogin" type="button">dshs.app 계정으로 시작하기</button>
-    <button class="auth-admin" id="gateAdmin" type="button">관리자 · 아이디로 로그인</button>
+    <div class="gate-bg" id="gateBg" aria-hidden="true"></div>
+    <div class="gate-card">
+      <div class="welcome-icon">🔒</div>
+      <div class="welcome-text">dshs.app 계정으로 시작하면 학생 · 선생님 · 과목 시간표를 검색할 수 있어요<br>따로 가입할 필요 없어요 · 인터넷이 없을 때는 시작하지 않아도 볼 수 있어요</div>
+      <button class="study-submit" id="gateLogin" type="button">dshs.app 계정으로 시작하기</button>
+      <button class="auth-admin" id="gateAdmin" type="button">관리자 · 아이디로 로그인</button>
+    </div>
   </div>
   <div class="search-section">
     <div class="search-label">학생 · 학번 · 선생님 · 과목 검색</div>
@@ -1178,7 +1209,8 @@ const suggestionsEl = document.getElementById('suggestions');
   const isAndroid = /Android/.test(ua);
   const inApp = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
 
-  function show() { if (!standalone && !dismissed) bar.classList.add('show'); }
+  // 설치 막대는 안드로이드에서만 띄웁니다. 아이폰 · 아이패드는 로그인 직후 안내와 설정 창의 그림 안내(dshs-study.js 의 iosGuideHtml)로 알려 줍니다.
+  function show() { if (!standalone && !dismissed && isAndroid) bar.classList.add('show'); }
 
   // 안드로이드 크롬 등: 네이티브 설치 프롬프트
   window.addEventListener('beforeinstallprompt', e => {
@@ -1256,6 +1288,33 @@ const suggestionsEl = document.getElementById('suggestions');
     });
   }
 })();
+
+// ===== 비로그인 화면의 흐린 시간표 배경 =====
+// 로그인 전 '시작하기' 카드 뒤에 깔 시간표 모양 (아무 학생 하나의 과목 배치. 이름 · 학번은 넣지 않고 흐리게만 보임)
+function paintGateBg() {
+  const box = document.getElementById('gateBg');
+  if (!box || box.firstChild) return;
+  try {
+    const names = Object.keys(SCHOOL_DATA).filter(n => (SCHOOL_DATA[n].schedule || []).length > 15);
+    const st = SCHOOL_DATA[names[Math.floor(Math.random() * names.length)]];
+    if (!st) return;
+    const days = ['월','화','수','목','금'], colors = {};
+    let ci = 0;
+    const cell = (d, p) => st.schedule.find(s => s.day === d && s.period === p);
+    let rows = '';
+    for (let p = 1; p <= 7; p++) {
+      rows += `<tr><td class="period-col">${p}</td>` + days.map(d => {
+        const c = cell(d, p);
+        if (!c) return '<td><div class="empty-cell free-cell"><span class="free-label">공강</span></div></td>';
+        if (COMMON_SUBJECTS.includes(c.subject)) return `<td><div class="class-cell common-cell"><div class="subj-name">${shortName(c.subject)}</div><div class="ban-name">전체</div></div></td>`;
+        if (!(c.subject in colors)) colors[c.subject] = ci++ % 13;
+        return `<td><div class="class-cell color-${colors[c.subject]}"><div class="subj-name">${shortName(c.subject)}</div><div class="ban-name">${c.ban}</div></div></td>`;
+      }).join('') + '</tr>';
+    }
+    box.innerHTML = `<table class="timetable"><thead><tr><th></th>${['월요일','화요일','수요일','목요일','금요일'].map((l, i) => `<th class="day-header ${['mon','tue','wed','thu','fri'][i]}">${l}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {}
+}
+setTimeout(paintGateBg, 0);
 
 // ===== 설치 중 경고 안내 =====
 function installNotesHTML() {

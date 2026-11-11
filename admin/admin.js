@@ -558,8 +558,68 @@ function visitsHtml(v) {
       <small>${wd(d)}</small>
     </div>`).join("")}</div>
     <div class="adm-foot">학생 사이트의 방문 기기 수예요. 한 학생이 폰과 노트북을 쓰면 2대로 세요. 진한 부분이 로그인한 기기예요. 관리자 기기는 세지 않아요.</div>
-    ${visitUsersHtml(v)}
-    <div class="adm-label">학생 현황</div>`;
+    ${visitUsersHtml(v)}`;
+}
+
+// ---------- 로그인 이탈 (loginsteps.sql 의 admin_login_funnel) ----------
+// 학생 사이트에서 'dshs.app 계정으로 시작하기'를 누른 시도마다 어디서 멈췄는지 묶어 보고, 숫자로 원인과 고칠 방향을 짚습니다.
+const LOGIN_OUTCOME = {
+  done: ["로그인 성공", ""],
+  abandon: ["dshs.app 로그인 화면에서 돌아오지 않음", "Google 로그인 · 동의 화면에서 그만뒀거나, 로그인 뒤 다른 브라우저 · 앱에서 열렸어요"],
+  "fail:denied": ["dshs.app 동의 화면에서 취소", "동의 화면에서 '취소'를 눌렀어요. 무엇을 읽어 가는지(학번 · 이름) 미리 알려 주면 줄어요"],
+  "fail:notstudent": ["42기 명단에 없는 계정", "다른 기수 · 선생님 계정이거나, 명단(SCHOOL_DATA)에 학번이 없어요"],
+  "fail:expired": ["시간 초과 (10분)", "로그인 화면을 오래 열어 두었거나 같은 링크로 다시 들어왔어요"],
+  "fail:failed": ["dshs.app 쪽 오류", "dshs.app 이 오류를 돌려줬어요. 몰려 있으면 dshs-oauth 함수 기록을 확인해요"],
+  "fail:verify": ["돌아온 뒤 로그인 처리 실패", "일회용 토큰을 쓰지 못했어요 (이미 쓴 토큰 · 다른 브라우저). 몰려 있으면 버그예요"],
+  "fail:profile": ["계정 정보(프로필) 없음", "계정은 만들어졌는데 프로필을 읽지 못했어요. 버그일 가능성이 커요"],
+  "fail:mismatch": ["학번이 다른 계정", ""],
+  start_fail: ["로그인을 시작하지 못함", "로그인 주소를 받지 못했어요 (인터넷 · 서버 문제)"],
+  click_only: ["누르고 바로 멈춤", "로그인 화면으로 넘어가기 전에 멈췄어요 (팝업 차단 · 느린 연결)"],
+  pending: ["진행 중 (15분 안)", ""],
+};
+const LOGIN_ENV = {
+  "ios-safari": "아이폰 Safari", "ios-chrome": "아이폰 크롬", "ios-app": "아이폰 홈 화면 앱", "android-chrome": "안드로이드 크롬",
+  "android-samsung": "삼성 인터넷", "android-app": "안드로이드 앱", kakao: "카카오톡 안 브라우저", inapp: "다른 앱 안 브라우저", pc: "PC 브라우저", "pc-app": "PC 앱",
+};
+function loginFunnelHtml(f) {
+  if (!f) return `<div class="adm-label">로그인 이탈</div><div class="adm-none">기록을 불러오지 못했어요. loginsteps.sql 을 실행했는지 확인해 주세요.</div>`;
+  const pct = (a, b) => (b ? Math.round(a / b * 100) : 0);
+  const outs = Object.entries(f.outcomes || {}).filter(([k]) => k !== "pending");
+  const tried = outs.reduce((s, [, n]) => s + n, 0);   // 끝난 시도 (진행 중 제외)
+  const done = f.done || 0;
+  const label = (k) => (LOGIN_OUTCOME[k] || [k.replace(/^fail:/, "실패: ")])[0];
+  // 분석: 숫자에서 바로 읽히는 것만 짧게
+  const notes = [];
+  if (f.gate_seen) {
+    const r = pct(f.gate_click, f.gate_seen);
+    notes.push(`시작 화면을 본 ${f.gate_seen}대 중 <b>${f.gate_click}대(${r}%)</b>만 시작하기를 눌렀어요.${r < 40 ? " 버튼을 누르기 전 이탈이 가장 커요 — 화면에서 무엇을 쓸 수 있는지 더 보여 주는 게 먼저예요." : ""}`);
+  }
+  if (tried) {
+    notes.push(`끝난 시도 ${tried}번 중 <b>${done}번(${pct(done, tried)}%)</b> 로그인에 성공했어요${f.median_sec ? ` · 성공까지 보통 ${f.median_sec < 90 ? `${f.median_sec}초` : `${Math.round(f.median_sec / 60)}분`}` : ""}.`);
+    const worst = outs.filter(([k]) => k !== "done").sort((a, b) => b[1] - a[1])[0];
+    if (worst && worst[1] >= 2) notes.push(`가장 많이 멈춘 곳: <b>${label(worst[0])}</b> ${worst[1]}번(${pct(worst[1], tried)}%). ${LOGIN_OUTCOME[worst[0]]?.[1] || ""}`);
+    const total = pct(done, tried);
+    const bad = (f.envs || []).filter((e) => e.attempts >= 3).map((e) => ({ ...e, r: pct(e.done, e.attempts) }))
+      .filter((e) => e.r <= total - 20).sort((a, b) => a.r - b.r)[0];
+    if (bad) notes.push(`<b>${LOGIN_ENV[bad.env] || bad.env}</b>에서 성공률이 ${bad.r}%로 낮아요 (전체 ${total}%)${bad.env === "kakao" || bad.env === "inapp" ? ". 앱 안 브라우저는 Google 로그인이 막혀 기본 브라우저로 넘겨요 — 넘어간 뒤 돌아오지 않는 경우예요" : bad.env === "ios-app" ? ". 홈 화면 앱은 로그인 창이 따로 열려, 로그인 뒤 앱으로 돌아오지 않으면 끊겨요" : ""}.`);
+  } else notes.push("아직 끝난 로그인 시도가 없어요.");
+  const bar = (name, n, of, extra = "") => `<details class="adm-use"><summary><span class="adm-use-l">${name}</span><span class="adm-use-bar"><i style="width:${pct(n, of)}%"></i></span><span class="adm-use-n">${n}번 <small>${pct(n, of)}%</small></span></summary>${extra ? `<p>${extra}</p>` : ""}</details>`;
+  const outRows = outs.sort((a, b) => b[1] - a[1]).map(([k, n]) => bar(label(k), n, tried, LOGIN_OUTCOME[k]?.[1] || "")).join("");
+  const envRows = (f.envs || []).map((e) => bar(`${LOGIN_ENV[e.env] || e.env} <small>${e.attempts}번 시도</small>`, e.done, e.attempts,
+    `성공 ${e.done}번${e.abandon ? ` · 돌아오지 않음 ${e.abandon}번` : ""}`)).join("");
+  const KIND = { gate: "막힘 화면", sheet: "시작하기 · 설정 창" };
+  const recent = (f.recent || []).map((r) => `<span class="adm-chip">${esc(ovTime(r.at))} · ${esc(LOGIN_ENV[r.env] || r.env)} · ${esc(label(r.outcome))}${r.src ? ` · ${KIND[r.src] || esc(r.src)}` : ""}</span>`).join(" ");
+  return `<div class="adm-label">로그인 이탈 <small>최근 ${f.days}일</small></div>
+    <div class="adm-tiles">
+      <div class="adm-tile"><b>${f.gate_seen}</b>시작 화면 본 기기</div>
+      <div class="adm-tile"><b>${f.attempts}</b>시작하기 누름</div>
+      <div class="adm-tile"><b>${done}</b>로그인 성공</div>
+    </div>
+    <div class="adm-sum">${notes.join("<br>")}</div>
+    ${outRows ? `<div class="adm-label">시도 결과 <small>누르면 원인</small></div><div class="adm-uses">${outRows}</div>` : ""}
+    ${envRows ? `<div class="adm-label">브라우저별 성공</div><div class="adm-uses">${envRows}</div>` : ""}
+    ${recent ? `<details class="adm-acc"><summary>최근 멈춘 시도<span>${f.recent.length}</span></summary><div class="adm-visit-users">${recent}</div></details>` : ""}
+    <div class="adm-foot">시작 화면 본 기기는 기기 × 날짜로 세요. 시도는 '시작하기'를 누른 횟수예요. 다른 브라우저에서 돌아와 성공한 경우는 새 시도로 세요. 이름 · 학번은 기록하지 않아요.</div>`;
 }
 
 // 오늘 로그인한 상태로 연 학생 (visits.sql 의 today_users). '전환'은 그전엔 이 기기에서 비로그인으로만 썼던 학생
@@ -895,7 +955,7 @@ function devNewsHtml(news) {
     </details>`).join("") : '<div class="adm-none">아직 소식이 없어요. push 하면 10분 안에 생겨요.</div>'}</div>`;
 }
 
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, usage, tasks, plans, news) {
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, usage, tasks, plans, news, funnel) {
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
@@ -914,7 +974,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, 
         : fresh.length ? fbHtml(fresh, true) : '<div class="adm-empty">새 피드백이 없어요.</div>')
       + reviewLogHtml(log)
       + (old.length ? `<details class="adm-acc"><summary>지난 피드백<span>${old.length}</span></summary>${fbHtml(old, false)}</details>` : ""))}
-    ${box("stu", visitsHtml(visits) + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
+    ${box("stu", visitsHtml(visits) + loginFunnelHtml(funnel) + '<div class="adm-label">학생 현황</div>' + (overview ? studentsHtml(overview, ovSeenAt) : '<div class="adm-none">학생 현황을 불러오지 못했어요.</div>'))}
     ${box("dev", devNewsHtml(news) + devHtml(tasks, usage, plans, overview))}`;
 }
 
@@ -941,21 +1001,22 @@ async function renderOverview(cached = false) {
     sb.from("usage_reports").select("id, created_at, report").order("created_at", { ascending: false }).limit(1),
     sb.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(60),
     sb.from("admin_plans").select("*").order("created_at", { ascending: true }),
-    sb.from("dev_news").select("*").order("updated_at", { ascending: false }).limit(15)]), loadPending()]);
+    sb.from("dev_news").select("*").order("updated_at", { ascending: false }).limit(15),
+    sb.rpc("admin_login_funnel", { p_days: 14 })]), loadPending()]);
   const sig = JSON.stringify([res, cache.pending]);
   if (cached && ovLast && sig === ovLast.sig) return;   // 먼저 그린 것과 같으면 그대로
   ovLast = Object.assign(res, { sig });
   paintOverview(res);
 }
 function paintOverview(res) {
-  const [{ data, error }, fb, visits, log, usage, tasks, plans, news] = res;
+  const [{ data, error }, fb, visits, log, usage, tasks, plans, news, funnel] = res;
   const body = $("studyBody");
   if (page !== "admin" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   logRows = log?.reviewed || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
   if (!OV_GROUP[ovPane]) ovPane = "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, visits.error ? null : visits.data, log, usage.error ? null : usage.data, tasks.error ? null : tasks.data, plans.error ? null : plans.data, !news || news.error ? null : news.data);
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, visits.error ? null : visits.data, log, usage.error ? null : usage.data, tasks.error ? null : tasks.data, plans.error ? null : plans.data, !news || news.error ? null : news.data, !funnel || funnel.error ? null : funnel.data);
   const showPane = (k) => {
     if (k === "fb") { showPane("asg"); return $("fbSec")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
     k = OV_GROUP[k] ? k : PANE_ALIAS[k] || "asg";

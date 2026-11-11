@@ -33,6 +33,7 @@ groups.sql                ★ 관리자 즐겨찾기 그룹 (학교 일정 대�
 overview.sql              ★ 관리자 현황판 (가입 학생 · 활동 요약)
 plans.sql                 ★ 관리 탭의 향후 계획
 visits.sql                ★ 관리 탭의 방문 기기 수 (비로그인 포함 · 익명)
+loginsteps.sql            ★ 로그인 이탈 분석 (시작하기를 누른 뒤 어디서 멈췄는지 · 익명 · 관리자만 봄)
 ops.sql                   ★ 운영 점검 보고서 (ops-agent 가 매일 0 · 8 · 12 · 16 · 20시에 남김 · 관리자만 봄)
 supabase/functions/ops-agent/index.ts       운영 점검 에이전트 (사이트 · 서버 · 승인 대기 점검 + 피드백 AI 요약 → 관리자 푸시)
 supabase/functions/ops-agent/report.ts      점검 결과로 보고서 문장 만들기 (순수 함수)
@@ -99,7 +100,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `classes.sql` 을 **Run** (수업 옮기기)
    이어서 `feedback.sql` 을 **Run** (피드백)
    이어서 `status.sql` → `invites.sql` → `groups.sql` 을 차례로 **Run** (내 위치 · 가입 전 친구 초대 · 관리자 그룹)
-   이어서 `overview.sql` → `plans.sql` → `visits.sql` 을 차례로 **Run** (관리자 현황판 · 향후 계획 · 방문 기기 수)
+   이어서 `overview.sql` → `plans.sql` → `visits.sql` → `loginsteps.sql` 을 차례로 **Run** (관리자 현황판 · 향후 계획 · 방문 기기 수 · 로그인 이탈)
    이어서 `ops.sql` 을 **Run** (운영 점검 보고서). 맨 아래 주석의 `cron.schedule` 도 한 번 실행하면 매일 0 · 8 · 12 · 16 · 20시에 점검이 돌아갑니다
    이어서 `merge.sql` 을 **Run** (같은 수행평가 합치기 제안). 맨 아래 주석의 `cron.schedule` 도 한 번 실행하면 매일 0 · 8 · 12 · 16 · 20시에 찾습니다
    이어서 `usage.sql` 을 **Run** (사용 분석 보고서). 분석은 관리자 노트북에서 `bash scripts/usage-agent/install.sh` 로 켭니다 (Claude Code 로그인 + Supabase MCP 연결 필요)

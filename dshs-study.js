@@ -369,6 +369,44 @@ async function logGate(ev) {
   } catch {}
 }
 
+// ---------- 로그인 이탈 기록 (loginsteps.sql) ----------
+// 'dshs.app 계정으로 시작하기'를 누른 뒤 어디서 멈췄는지 단계별로 남겨, 관리자 사이트 '학생' 칸의 '로그인 이탈'에서 분석합니다.
+// 누를 때 만든 시도 ID 를 이 기기(LOGIN_TRY)에 두고, dshs.app 에서 돌아오면 같은 ID 로 결과를 남깁니다.
+// 화면에는 아무것도 보이지 않고, 이름 · 학번은 보내지 않습니다. 실패해도(표가 없는 DB 등) 조용히 넘어갑니다.
+const LOGIN_TRY = "dshs-login-try";
+function loginEnv() {
+  const ua = navigator.userAgent, app = isStandalone();
+  if (/KAKAOTALK/i.test(ua)) return "kakao";
+  if (/NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua)) return "inapp";
+  if (isAppleMobile()) return app ? "ios-app" : /CriOS/.test(ua) ? "ios-chrome" : "ios-safari";
+  if (/Android/i.test(ua)) return app ? "android-app" : /SamsungBrowser/i.test(ua) ? "android-samsung" : "android-chrome";
+  return app ? "pc-app" : "pc";
+}
+function loginTry(start) {
+  try {
+    if (start) {
+      const t = { id: crypto.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`, at: Date.now() };
+      localStorage.setItem(LOGIN_TRY, JSON.stringify(t));
+      return t.id;
+    }
+    const t = JSON.parse(localStorage.getItem(LOGIN_TRY) || "null");
+    return t && Date.now() - t.at < 30 * 60000 ? t.id : null;
+  } catch { return null; }
+}
+// step: click · start_fail · leave · done · fail. 결과(done · fail)를 남기면 시도를 끝냅니다.
+// 누른 기록 없이 돌아온 경우(카카오톡에서 눌러 다른 브라우저로 돌아옴 등)는 새 시도로 남깁니다.
+function logLogin(step, reason) {
+  try {
+    if (!sb) return Promise.resolve();
+    const attempt = step === "click" ? loginTry(true) : loginTry() || loginTry(true);
+    if (step === "done" || step === "fail") localStorage.removeItem(LOGIN_TRY);
+    return sb.rpc("log_login_step", { p_device: visitId(), p_attempt: attempt, p_step: step, p_reason: reason || null, p_env: loginEnv() })
+      .then(() => {}, () => {});
+  } catch { return Promise.resolve(); }
+}
+// 로그인 주소를 받아 떠나기 직전: 기록을 보낼 틈을 잠깐(최대 0.6초) 줍니다
+const logLeave = (how) => Promise.race([logLogin("leave", how), new Promise((ok) => setTimeout(ok, 600))]);
+
 async function loadProfile() {
   // 관리자는 RLS 상 모든 프로필을 볼 수 있으므로 반드시 내 id 로 좁힙니다.
   loadProfile.failed = false;
@@ -547,6 +585,114 @@ async function maybePushCard() {
     }
   };
 }
+
+// ---------- 로그인 직후 안내: 홈 화면에 추가 · 알림 켜기 ----------
+// 로그인하고 돌아온 직후 한 번, 이 기기에서 아직 안 한 것만 보여 줍니다 (기억: localStorage ONBOARD_KEY).
+// 아이폰은 홈 화면 앱과 Safari 의 저장소가 따로라, 홈 화면 앱에서 다시 로그인하면 그 앱에서 한 번 더 뜹니다 (그때는 알림 켜기만).
+// 안드로이드는 브라우저의 설치 창(index.html 의 __deferredInstall)을 띄우고, 아이폰은 그림 안내(iosGuideHtml)를 보여 줍니다.
+const ONBOARD_KEY = "dshs-onboard";
+const isAndroid = () => /Android/i.test(navigator.userAgent);
+async function maybeOnboard() {
+  if (!me || me.is_admin || !me.student_id || !navigator.onLine) return;
+  try { if (localStorage.getItem(ONBOARD_KEY)) return; } catch { return; }
+  // 다른 창(자리 공개 동의 등)이 떠 있으면 닫힐 때까지 기다립니다 (최대 3분)
+  if ($("studyModal").classList.contains("show")) {
+    maybeOnboard.n = (maybeOnboard.n || 0) + 1;
+    if (maybeOnboard.n < 120) setTimeout(maybeOnboard, 1500);
+    return;
+  }
+  await refreshPush().catch(() => {});   // 켜져 있는지 확인 + 아이폰이 누르자마자 구독할 수 있게 등록 정보를 받아 둠
+  const home = !isStandalone() && (isAppleMobile() || isAndroid()) && !/KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(navigator.userAgent);
+  const push = !pushOn && pushPossible() && "Notification" in window && Notification.permission !== "denied";
+  const iosPushLater = isAppleMobile() && !isStandalone();   // 아이폰 · 아이패드는 홈 화면 앱에서만 알림
+  if (!home && !push && !iosPushLater) return;
+  if ($("studyModal").classList.contains("show")) return;
+  try { localStorage.setItem(ONBOARD_KEY, String(Date.now())); } catch {}
+  const steps = [];
+  if (home) {
+    const deferred = window.__deferredInstall;
+    steps.push(`<b>홈 화면에 추가하기</b>
+      <div class="ev-hint">앱처럼 바로 열리고, 인터넷이 없어도 시간표를 볼 수 있어요</div>
+      ${isAppleMobile() ? iosGuideHtml()
+        : deferred ? '<button class="study-btn ok" id="onbInstall">앱 설치</button>'
+        : `<div class="onb-text">브라우저 메뉴(<b>⋮</b> 또는 <b>≡</b>)에서 <b>홈 화면에 추가</b> 또는 <b>앱 설치</b>를 눌러요</div>`}`);
+  }
+  if (push) {
+    steps.push(`<b>알림 켜기</b>
+      <div class="ev-hint">수행평가 마감 1일 · 6시간 전, 일정 30분 전에 알려 줘요</div>
+      <button class="study-btn ok" id="onbPush">🔔 알림 켜기</button>`);
+  } else if (iosPushLater) {
+    steps.push(`<b>알림 켜기</b>
+      <div class="ev-hint">아이폰은 홈 화면에 추가한 앱에서만 알림을 켤 수 있어요</div>
+      <div class="onb-text">홈 화면에 생긴 <b>dshs42</b> 아이콘으로 열고 <b>dshs.app 계정으로 시작하기</b>를 한 번 더 누르면, 여기서 알림을 켤 수 있어요</div>`);
+  }
+  openSheet("앱처럼 쓰기", `
+    <div class="asg-body">로그인했어요! 두 가지만 해 두면 더 편하게 쓸 수 있어요.</div>
+    ${steps.map((s, i) => `<div class="onb-step"><div class="ios-num">${i + 1}</div><div class="onb-body">${s}</div></div>`).join("")}
+    <button class="study-submit ghost" id="onbLater">나중에 할게요</button>
+    <div class="study-foot">설정(⚙️)에서 언제든 알림을 켜고 끌 수 있어요.</div>`);
+  $("onbLater").onclick = closeModal;
+  if ($("onbInstall")) $("onbInstall").onclick = async () => {
+    const d = window.__deferredInstall;
+    if (!d) return toast("브라우저 메뉴에서 '홈 화면에 추가'를 눌러 주세요");
+    try {
+      d.prompt();
+      const res = await d.userChoice;
+      window.__deferredInstall = null;
+      if (res?.outcome === "accepted" && $("onbInstall")) $("onbInstall").outerHTML = '<div class="onb-text">✅ 설치했어요</div>';
+    } catch { window.__deferredInstall = null; }
+  };
+  if ($("onbPush")) $("onbPush").onclick = async () => {
+    const b = $("onbPush");
+    b.disabled = true;
+    try { await enablePush(); } catch {}
+    if (pushOn) {
+      try { localStorage.setItem(PUSH_PREF, "on"); } catch {}
+      pushCardSave({ done: true });
+      $("pushCard")?.remove();
+      if (b.isConnected) b.outerHTML = '<div class="onb-text">🔔 알림이 켜졌어요</div>';
+      paintPush();
+    } else {
+      b.disabled = false;
+      if ("Notification" in window && Notification.permission === "denied") b.outerHTML = '<div class="onb-text">알림이 차단돼 있어요. 브라우저 설정에서 이 사이트 알림을 허용해 주세요</div>';
+    }
+  };
+}
+
+// 아이폰 · 아이패드: 홈 화면에 추가하는 방법을 그림으로 (로그인 직후 안내 · 설정 창)
+function iosGuideHtml() {
+  const fig = (svg, cap, n) => `<figure class="ig-fig"><svg viewBox="0 0 240 92" role="img" aria-label="${esc(cap.replace(/<[^>]+>/g, ""))}">${svg}</svg><figcaption><span class="ios-num">${n}</span><span>${cap}</span></figcaption></figure>`;
+  const share = (x, y, cls = "ig-ic") => `<g class="${cls}" transform="translate(${x} ${y})"><path d="M-6 -2 v10 h12 v-10"/><path d="M0 -10 v12 M-4 -6 l4 -4 l4 4"/></g>`;
+  const plusBox = (x, y) => `<g class="ig-ic" transform="translate(${x} ${y})"><rect x="-7" y="-7" width="14" height="14" rx="3"/><path d="M0 -4 v8 M-4 0 h8"/></g>`;
+  // 1. Safari 아래 막대의 공유 버튼
+  const s1 = `<rect class="ig-bg" x="8" y="10" width="224" height="34" rx="17"/><text class="ig-dim" x="120" y="31" text-anchor="middle">dshs42.app</text>
+    <rect class="ig-bg" x="8" y="52" width="224" height="34" rx="10"/>
+    <g class="ig-ic"><path d="M36 62 l-6 7 l6 7"/><path d="M76 62 l6 7 l-6 7"/></g>
+    ${share(120, 71, "ig-ic ig-hi")}<circle class="ig-ring" cx="120" cy="69" r="15"/>
+    <g class="ig-ic"><path d="M158 63 q6 -2 8 1 q2 -3 8 -1 v12 q-6 -2 -8 1 q-2 -3 -8 -1 z"/><rect x="196" y="62" width="12" height="12" rx="2"/><rect x="200" y="58" width="12" height="12" rx="2"/></g>`;
+  // 2. 공유 목록의 '홈 화면에 추가'
+  const row = (y, t, icon, hi) => `<rect class="${hi ? "ig-hirow" : "ig-bg"}" x="20" y="${y}" width="200" height="24" rx="6"/><text class="${hi ? "ig-t" : "ig-dim"}" x="32" y="${y + 16}">${t}</text>${icon(204, y + 12)}`;
+  const s2 = row(6, "복사", (x, y) => `<g class="ig-ic" transform="translate(${x} ${y})"><rect x="-6" y="-4" width="9" height="10" rx="2"/><rect x="-3" y="-7" width="9" height="10" rx="2"/></g>`)
+    + row(34, "홈 화면에 추가", plusBox, true)
+    + row(62, "즐겨찾기 추가", (x, y) => `<g class="ig-ic" transform="translate(${x} ${y})"><path d="M0 -7 l2 5 h5 l-4 3 l2 6 l-5 -4 l-5 4 l2 -6 l-4 -3 h5 z"/></g>`);
+  // 3. 오른쪽 위 '추가'
+  const s3 = `<rect class="ig-bg" x="8" y="6" width="224" height="80" rx="12"/>
+    <text class="ig-dim" x="22" y="27">취소</text><text class="ig-t" x="120" y="27" text-anchor="middle">홈 화면에 추가</text>
+    <text class="ig-hit" x="216" y="27" text-anchor="end">추가</text><rect class="ig-ring" x="186" y="12" width="38" height="22" rx="11"/>
+    <rect class="ig-icon" x="22" y="44" width="30" height="30" rx="8"/><text class="ig-icon-t" x="37" y="64" text-anchor="middle">42</text>
+    <text class="ig-t" x="62" y="56">dshs42</text><text class="ig-dim" x="62" y="71">https://dshs42.app</text>`;
+  return `<div class="ig">
+    ${fig(s1, "Safari 아래쪽의 <b>공유</b> 버튼을 눌러요. 안 보이면 주소창 옆 <b>⋯</b> 를 먼저 눌러요", 1)}
+    ${fig(s2, "목록을 아래로 내려 <b>홈 화면에 추가</b>를 눌러요", 2)}
+    ${fig(s3, "오른쪽 위 <b>추가</b>를 누르면 끝! 홈 화면의 아이콘으로 열어요", 3)}
+    <div class="study-foot">크롬이면 주소창 오른쪽의 공유 버튼에서 같은 순서로 할 수 있어요.</div>
+  </div>`;
+}
+function openIosGuide() { openSheet("홈 화면에 추가하기", iosGuideHtml()); }
+// 설정 창: 아이폰 · 아이패드 브라우저에서만 '홈 화면에 추가하는 방법' (안드로이드는 위쪽 설치 막대가 있음)
+const homeGuideHtml = () => (isAppleMobile() && !isStandalone()
+  ? '<button class="study-btn wide" id="setHomeGuide" type="button">📲 홈 화면에 추가하는 방법</button>' : "");
+function bindHomeGuide() { if ($("setHomeGuide")) $("setHomeGuide").onclick = openIosGuide; }
 
 // ---------- 내 위치 ----------
 // 수업에 빠진 학생을 세기 쉽도록 각자 지금 있는 곳을 남깁니다 (status.sql). 로그인한 학생 모두가 봐요.
@@ -929,6 +1075,7 @@ function bindIdLogin() {
     }
     closeModal(); renderNav(); openHome();
     toast(`${me.name}님, 반가워요`);
+    setTimeout(maybeOnboard, 800);
   };
   $("doLogin").onclick = go;
   $("loginPw").onkeydown = (e) => { if (e.key === "Enter") go(); };
@@ -2592,6 +2739,7 @@ function openSettings() {
   if (!me) {   // 로그인 전: 화면 테마와 로그인 안내 (제목 7번 → 관리자 로그인)
     openSheet("설정", `
       ${themeHtml()}
+      ${homeGuideHtml()}
       <div class="asg-body" style="margin-top:14px">dshs.app 계정으로 시작하면 알림 · 내 일정 달력 설정과 계정을 여기서 관리할 수 있어요. 따로 가입할 필요 없어요.</div>
       <button class="study-submit dshs-login" id="doDshsLogin">dshs.app 계정으로 시작하기</button>
       <div class="study-err" id="authErr"></div>
@@ -2599,6 +2747,7 @@ function openSettings() {
     $("doDshsLogin").onclick = loginWithDshs;
     bindAdminLink();
     bindTheme();
+    bindHomeGuide();
     return bindAdminTap();
   }
   const link = dshs.linked
@@ -2612,6 +2761,7 @@ function openSettings() {
   openSheet("설정", `
     <label class="set-row"><span><b>알림</b><span class="ev-hint" id="pushHint">${PUSH_HINT}</span></span>
       <input type="checkbox" id="setPush"></label>
+    ${homeGuideHtml()}
     ${seatSettingHtml()}
     ${themeHtml()}
     <div class="set-sec">내 일정 달력</div>
@@ -2629,6 +2779,7 @@ function openSettings() {
   if ($("dshsUnlink")) $("dshsUnlink").onclick = unlinkDshs;
   $("doLogout").onclick = () => { closeModal(); logout(); };
   bindTheme();
+  bindHomeGuide();
   bindAdminTap();
 }
 
@@ -2661,15 +2812,20 @@ async function unlinkDshs() {
 // 'dshs.app으로 로그인' (로그인 전 화면). 돌아오면 init 이 주소의 일회용 토큰으로 세션을 만듭니다.
 async function loginWithDshs() {
   $("doDshsLogin").disabled = true;
+  logLogin("click", "sheet");
+  let why = "net";
   try {
     const handoff = newHandoff();
-    const { body } = await dshsCall("login", { return_to: location.origin + location.pathname, handoff });
+    const { ok, body } = await dshsCall("login", { return_to: location.origin + location.pathname, handoff });
     if (body.url) {
+      await logLeave(leaveHow(handoff));
       openDshsLogin(body.url, handoff);
-      if (handoff) $("doDshsLogin").disabled = false;   // 로그인 창을 그냥 닫았으면 다시 누를 수 있게 둡니다
+      if (handoff && $("doDshsLogin")) $("doDshsLogin").disabled = false;   // 로그인 창을 그냥 닫았으면 다시 누를 수 있게 둡니다
       return;
     }
+    why = ok ? "nourl" : "server";
   } catch {}
+  logLogin("start_fail", why);
   showErr("dshs.app 로그인을 시작하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
   $("doDshsLogin").disabled = false;
 }
@@ -2680,16 +2836,21 @@ async function gateLogin() {
   const b = $("gateLogin");
   b.disabled = true;
   const logged = logGate("click");
+  logLogin("click", "gate");
+  let why = "net";
   try {
     const handoff = newHandoff();
-    const { body } = await dshsCall("login", { return_to: location.origin + location.pathname, handoff });
+    const { ok, body } = await dshsCall("login", { return_to: location.origin + location.pathname, handoff });
     if (body.url) {
       await Promise.race([logged, new Promise((ok) => setTimeout(ok, 600))]);   // 이 창을 떠나기 전에 기록을 보냅니다
+      await logLeave(leaveHow(handoff));
       openDshsLogin(body.url, handoff);
       b.disabled = false;
       return;
     }
+    why = ok ? "nourl" : "server";
   } catch {}
+  logLogin("start_fail", why);
   b.disabled = false;
   openAuth();
   showErr("dshs.app 로그인을 시작하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
@@ -2716,6 +2877,7 @@ function newHandoff() {
 // 카카오톡 안 브라우저: dshs.app 로그인(Google 로그인)을 Google 이 앱 안 브라우저에서 막으므로 기본 브라우저로 엽니다.
 // (index.html 이 열 때도 한 번 기본 브라우저로 보냄. 그게 안 됐을 때 로그인 버튼에서 다시)
 const inKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
+const leaveHow = (handoff) => (inKakao() ? "kakao" : handoff ? "popup" : "page");   // 로그인 이탈 기록용
 const kakaoOutside = (url) => `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`;
 
 // 앱: 로그인 화면을 새 창으로 열어 두었다가, 로그인이 끝나면 앱이 그 창을 닫습니다.
@@ -2785,12 +2947,14 @@ async function handoffArrived(r) {
   clearHandoff();
   try { waitHandoff.win?.close(); } catch {}
   waitHandoff.win = null;
-  let ok = ["linked", "login", "joined"].includes(r.result);
+  let ok = ["linked", "login", "joined"].includes(r.result), why = r.reason || "failed";
   if (ok && r.token) {
     const { error } = await sb.auth.verifyOtp({ token_hash: r.token, type: "magiclink" });
     if (!error) await loadProfile();
     ok = !error && !!me;
+    why = error ? "verify" : "profile";
   }
+  if (r.result !== "linked" && (ok || loginTry())) logLogin(ok ? "done" : "fail", ok ? null : why);   // 연결(설정의 dshs.app 연결)은 세지 않음
   if (!ok) return toast(DSHS_RETURNED[r.reason] || "dshs.app 로그인에 실패했어요", true);
   closeModal();
   if (r.result === "linked") {
@@ -2798,6 +2962,7 @@ async function handoffArrived(r) {
     loadDshs();
   } else {
     renderNav(); openHome();
+    setTimeout(maybeOnboard, 800);
   }
   toast(DSHS_RETURNED[r.result]);
 }
@@ -2826,6 +2991,10 @@ function dshsReturned() {
   } else {
     const ok = ["linked", "login", "joined"].includes(r) && !dshsSession.failed && !!me;
     toast(ok ? DSHS_RETURNED[r] : DSHS_RETURNED[q.get("reason")] || "dshs.app 로그인에 실패했어요", !ok);
+    // 로그인 이탈 기록: 로그인 · 가입 결과만 (설정의 dshs.app 연결은 세지 않음). 실패는 로그인 시도 중일 때만
+    if (r === "login" || r === "joined") logLogin(ok ? "done" : "fail", ok ? null : dshsSession.failed ? "verify" : "profile");
+    else if (r === "error" && loginTry()) logLogin("fail", q.get("reason") || "failed");
+    if (ok && r !== "linked") setTimeout(maybeOnboard, 800);
   }
   q.delete("dshs"); q.delete("reason");
   const rest = q.toString();
