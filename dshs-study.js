@@ -161,6 +161,7 @@ async function startApp() {
   if ((session ? loadProfile.failed : sessErr && isNetErr(sessErr)) && authUserId()) retryAuth();
   renderNav();
   if (me) loadAssignments();
+  if (me) setTimeout(maybeInstallAsk, 4000);   // 브라우저로 열었으면 하루 한 번 앱 설치 안내
   checkFbReplies();
 
   logVisit();
@@ -797,6 +798,47 @@ async function maybeOnboard() {
       b.disabled = false;
       if ("Notification" in window && Notification.permission === "denied") b.outerHTML = '<div class="onb-text">알림이 차단돼 있어요. 브라우저 설정에서 이 사이트 알림을 허용해 주세요</div>';
     }
+  };
+}
+
+// ---------- 앱으로 설치 안내 ----------
+// 휴대폰 · 태블릿 브라우저로 열었으면(홈 화면 앱이 아니면) 하루 한 번 팝업으로 설치(홈 화면에 추가)를 안내합니다.
+// 기억: 기기마다 INSTALL_ASK_KEY(본 날짜). 로그인 직후 안내(maybeOnboard)를 오늘 이미 봤으면 띄우지 않습니다.
+// 카카오톡 등 앱 안 브라우저에서는 설치가 안 되므로 띄우지 않습니다.
+const INSTALL_ASK_KEY = "dshs-install-ask";
+function maybeInstallAsk() {
+  if (!me || me.is_admin || isStandalone() || !(isAppleMobile() || isAndroid())) return;
+  if (/KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(navigator.userAgent)) return;
+  const today = dayKey(new Date());
+  try {
+    if (localStorage.getItem(INSTALL_ASK_KEY) === today) return;
+    const onb = +localStorage.getItem(ONBOARD_KEY);
+    if (onb && dayKey(new Date(onb)) === today) return;
+  } catch { return; }
+  // 다른 창(업데이트 소식 · 자리 공개 동의 등)이 떠 있으면 닫힐 때까지 기다립니다 (최대 3분)
+  if (["studyModal", "updModal"].some((id) => $(id)?.classList.contains("show")) || document.hidden) {
+    maybeInstallAsk.n = (maybeInstallAsk.n || 0) + 1;
+    if (maybeInstallAsk.n < 120) setTimeout(maybeInstallAsk, 1500);
+    return;
+  }
+  try { localStorage.setItem(INSTALL_ASK_KEY, today); } catch {}
+  const deferred = window.__deferredInstall;
+  openSheet("앱으로 설치하기", `
+    <div class="asg-body">아직 브라우저로 열고 있어요. 홈 화면에 추가하면 앱처럼 바로 열리고, 인터넷이 없어도 시간표를 볼 수 있어요.${isAppleMobile() ? " 아이폰은 홈 화면 앱에서만 알림을 받을 수 있어요." : ""}</div>
+    ${isAppleMobile() ? iosGuideHtml()
+      : deferred ? '<button class="study-submit" id="iaInstall">앱 설치</button>'
+      : `<div class="onb-text">브라우저 메뉴(<b>⋮</b> 또는 <b>≡</b>)에서 <b>홈 화면에 추가</b> 또는 <b>앱 설치</b>를 눌러요</div>`}
+    <button class="study-submit ghost" id="iaLater">나중에 할게요</button>`);
+  $("iaLater").onclick = closeModal;
+  if ($("iaInstall")) $("iaInstall").onclick = async () => {
+    const d = window.__deferredInstall;
+    if (!d) return toast("브라우저 메뉴에서 '홈 화면에 추가'를 눌러 주세요");
+    try {
+      d.prompt();
+      const res = await d.userChoice;
+      window.__deferredInstall = null;
+      if (res?.outcome === "accepted") { closeModal(); toast("설치했어요. 홈 화면의 아이콘으로 열어 주세요"); }
+    } catch { window.__deferredInstall = null; }
   };
 }
 
