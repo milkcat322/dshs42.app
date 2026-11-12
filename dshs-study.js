@@ -1088,15 +1088,19 @@ async function saveSeatPublic(on, quiet = false) {
   return true;
 }
 
-// 처음 한 번 동의 창으로 묻습니다. 동의 · 공개하지 않기 모두 계정에 남아(seat_shares.asked) 어느 기기에서도 다시 묻지 않고,
-// 그 뒤로는 설정의 '자습실 자리 공개'에서 켜고 끕니다. ✕ 로 닫으면 다음에 열 때 다시 묻습니다.
+// 자리 공개가 꺼져 있으면 동의 창으로 켜 달라고 묻습니다. '공개하지 않기'를 골라도 꺼져 있는 동안은
+// 이 기기에서 하루 한 번 다시 묻습니다(SEAT_ASK_KEY). 설정의 '자습실 자리 공개'에서도 켜고 끕니다.
+const SEAT_ASK_KEY = "dshs-seat-ask";
 function askSeatConsent() {
   const sid = me?.student_id, sh = seatShares?.get(sid);
-  if (!sid || me.is_admin || !seatShares || sh?.public || sh?.asked || askSeatConsent.shown) return;
+  if (!sid || me.is_admin || !seatShares || sh?.public || askSeatConsent.shown) return;
+  const today = dayKey(new Date());
+  try { if (localStorage.getItem(SEAT_ASK_KEY) === today) return; } catch {}
   // 업데이트 소식 · 다른 창이 떠 있으면 닫힐 때까지 기다립니다
   const busy = () => ["studyModal", "updModal"].some((id) => $(id)?.classList.contains("show"));
   if (busy() || document.hidden) { clearTimeout(askSeatConsent.t); askSeatConsent.t = setTimeout(askSeatConsent, 3000); return; }
   askSeatConsent.shown = true;
+  try { localStorage.setItem(SEAT_ASK_KEY, today); } catch {}
   openSheet("자습실 자리 공개", `<div class="seat-ask">
     <div class="asg-body">dshs.app 에서 신청한 내 자습실 자리(예: a101)를 친구들에게 보여 줄까요?</div>
     <ul>
