@@ -3239,38 +3239,42 @@ sw.js
 ### 배운 점
 - 계정 2는 설정 폴더가 따로라 개인 메모리도 따로 쓰지만, 저장소의 CLAUDE.md 와 `.claude/hooks/` 는 똑같이 적용됨
 
-## 2026-11-12 22:09–22:24 · 관리자 노트북 에이전트를 Windows 에서도 돌리고 맥과 함께 중복 없이 운영
+## 2026-11-12 22:09–22:27 · 관리자 노트북 에이전트를 Windows 에서도, 두 PC 가 겹치지 않게 돌리기
 
-`session bf54db77` · 개발 milkcat322 · 요청 4회
+`session bf54db77` · 개발 milkcat322 · 요청 6회
 
 ### 목표
-- 사용 분석·제작 맡기기 에이전트를 맥뿐 아니라 Windows PC 에서도 돌리기
-- 두 PC 가 함께 켜져 있어도 같은 일을 두 번 하지 않게 하기
+- 사용 분석·제작 맡기기를 Mac 뿐 아니라 Windows PC 에서도 돌린다.
+- 두 PC 가 모두 켜져 있어도 같은 일을 한 번만 하게 한다.
 
 ### 한 일
-- 맥·Windows 공용 처리 `agent-env.mjs` 신설(Windows 는 `claude.exe` 를 찾아 실행, 기록은 별도 폴더에 남김)
-- 사용 분석·제작 에이전트가 공용 처리를 쓰도록 수정(맥 동작은 그대로)
-- 작업 스케줄러에 두 에이전트를 등록하는 `install-agents.ps1` 추가
-- 서버 함수 `build-agent` 를 수정·배포해, 다른 PC 가 이미 처리했는지 서버에서 확인하게 함
-- CLAUDE.md 에 Windows 실행 방법 추가 후 커밋·Check Push
+- 맥·Windows 공용 처리(`agent-env.mjs`)를 새로 만들고, Windows 에서 `claude.exe` 를 찾아 실행하게 했다.
+- 사용 분석·제작 에이전트가 공용 처리를 쓰도록 바꿨다.
+- 작업 스케줄러에 사용 분석(1시간마다)·제작(10분마다)을 등록하는 `install-agents.ps1` 을 추가했다.
+- 시작 전에 서버에서 이미 처리됐는지 확인하는 로직을 넣고, `build-agent` 서버 함수를 배포했다.
+- CLAUDE.md 에 Windows 실행 방법을 적었다.
+- 커밋과 Check Push 로 올렸다(DEVLOG 포함).
 
 ### 결정과 이유
-- 맥을 끄는 대신 두 PC 를 함께 돌림 → 한쪽이 이미 했으면 건너뛰고, 켜져 있는 쪽이 처리(우선은 Windows PC, 맥은 열쇠 파일 `"backup": true` 로 보조)
-- 에이전트는 코드에 계정을 적지 않고 해당 PC 의 Claude Code 로그인 계정을 사용 → 계정 변경은 로그인만 바꾸면 됨
-- 운영 점검 에이전트는 Claude Code 계정이 아닌 Supabase secret 의 API 키로 돌아 별도
+- 두 PC 를 함께 돌리되 이 PC 를 우선으로 한다. 이유: 켜져 있는 쪽이 하면 되고 중복만 막으면 되기 때문이다.
+- 사용 분석은 그날 밤 분석이 서버에 저장돼 있으면 건너뛰고, 맥은 밤 10시 + 1시간 30분이 지나도록 결과가 없을 때만 한다.
+- 제작은 서버가 맥에는 15분 넘게 기다린 일만 주고, 이 PC 는 10분마다 확인해 먼저 가져가게 했다.
+- 한 작업을 두 PC 가 동시에 합치는 일은 서버에서 막았다.
+- 계정 이름이 DEVLOG 요약에 들어가 있어 공개 저장소에 올리기 전에 지웠고, CLAUDE.md 에도 적지 않았다.
 
 ### 해결한 문제
-- Windows 에서 `claude.cmd` 를 그대로 실행할 수 없음 → npm 래퍼 때문 → 안의 `claude.exe` 를 직접 찾아 실행
+- Windows 에서 npm 이 만든 `claude.cmd` 를 직접 실행할 수 없음 → 래퍼 구조 때문 → 안의 `claude.exe` 를 찾아 실행하게 했다.
 
 ### 남은 일
-- [ ] Supabase MCP 로그인 완료(현재 인증 필요 상태)
-- [ ] `usage-agent/run.mjs --force` 로 사용 분석 한 번 돌려 확인
-- [ ] 맥의 열쇠 파일을 Windows PC 로 복사하고, 맥 쪽 열쇠 파일에 `"backup": true` 추가
-- [ ] Windows PC 에서 제작 맡기기도 설치(`install-agents.ps1`)
-- [ ] 운영 점검 에이전트를 새 계정으로 옮기려면 새 API 키 발급 후 secret 교체
+- [ ] Supabase MCP 로그인(`/mcp` → supabase → Authenticate), Claude Code 를 다시 시작해야 목록에 보인다.
+- [ ] 맥의 열쇠 파일을 Windows PC 에 복사한다.
+- [ ] 맥 열쇠 파일에 `"backup": true` 를 넣고 맥에서 `git pull` 한다.
+- [ ] Windows 에 제작 맡기기까지 설치한다(`-Only` 없이 `install-agents.ps1` 실행).
+- [ ] 위 작업 뒤 `node scripts/usage-agent/run.mjs --force` 로 한 번 끝까지 돌려 확인한다.
 
 ### 배운 점
-- 에이전트는 로그인된 PC 가 켜져 있는 동안에만 돌고, 꺼져 있었다면 다음 실행 때 밀린 분석을 처리함
+- Claude Code 는 시작할 때만 MCP 목록을 읽어서, 세션 중에 추가한 서버는 재시작해야 보인다.
+- 사용 분석 에이전트는 Claude Code 로그인 계정으로, 운영 점검 에이전트는 Supabase secret 의 API 키로 돌아가 계정 기준이 다르다.
 
 ### 바뀐 파일
 - `CLAUDE.md`
