@@ -1,5 +1,5 @@
 // ============================================================
-// dshs42 관리 — 관리자 전용 사이트
+// dshs42 관리 · dshs43 관리 — 관리자 전용 사이트 (같은 코드, 기수는 묶을 때 cohort.js 로 정함)
 // 학생 사이트(dshs-study.js)에 있던 관리 탭(승인 · 피드백 · 학생 · 계획 · 점검 · 분석)과
 // 학교 일정 관리(추가 · 수정 · 숨기기, NEIS 일정 고치기)를 옮겨 온 곳입니다.
 // 학생 사이트와 같은 Supabase DB 를 쓰고, 권한은 DB(RLS · is_admin)가 막습니다.
@@ -7,7 +7,59 @@
 // ============================================================
 const CFG = window.DSHS_CONFIG || {};
 const EMAIL_DOMAIN = "dshs.study";   // 계정이 아이디@dshs.study 로 저장돼 있어 바꾸지 않습니다
-const STUDENT_URL = CFG.STUDENT_URL || "https://dshs42.app";
+
+// ---------- 기수 (42기 · 43기) ----------
+// 같은 코드로 42기 · 43기 관리자 사이트를 따로 묶습니다. scripts/build-admin.mjs 가 cohort.js 에 window.DSHS_COHORT 를
+// 써 넣고(기수별 값은 scripts/admin-cohorts.mjs), 여기서 읽습니다. 두 기수가 같은 DB 를 쓰므로 학생 · 학생이 만든 내용은
+// 이 기수 것만 보여 줍니다 (학번 범위 · 과목 이름으로 거름). 학번이 없는 계정(관리자 · 예전 계정)은 어느 기수에서나 보입니다.
+// cohort.js 가 없으면 42기로 동작합니다.
+const COHORT = {
+  id: 42, label: "42기", title: "dshs42 관리", min: 2000, max: 2999,
+  strict: false,          // false: 다른 기수 학번 · 과목만 빼고 모두 보임 (42기 · 예전부터 있던 것을 그대로 보이게)
+  otherRanges: [],        // 다른 기수의 학번 범위 [[1000, 1999]]
+  subjects: null,         // 이 기수 과목 (null 이면 SCHOOL_DATA 에서)
+  otherSubjects: [],      // 다른 기수 과목 (strict 가 아니면 이 과목만 뺌)
+  noAsgSubjects: ["미술", "체육"],
+  grade: null,            // 학사일정 학년 (null 이면 명단에서)
+  ...(window.DSHS_COHORT || {}),
+};
+// 기기에 남기는 이름: 42기는 예전 이름 그대로 (이미 등록한 관리자 기기가 계속 로그인돼 있게)
+const KEYS = {
+  auth: "dshs42-admin-auth", school: "dshs42-admin-school", push: "dshs42-admin-push",
+  fbSeen: "dshs-fb-seen", ovSeen: "dshs-overview-seen",
+  ...(COHORT.keys || {}),
+};
+const STUDENT_URL = COHORT.studentUrl || CFG.STUDENT_URL || "https://dshs42.app";
+// 이 기수 학생인지 (학번). 학번이 없으면 어느 기수에서나 보입니다
+function sidInCohort(sid) {
+  if (sid === null || sid === undefined || sid === "") return true;
+  const n = +sid;
+  if (COHORT.strict) return n >= COHORT.min && n <= COHORT.max;
+  return !(COHORT.otherRanges || []).some(([lo, hi]) => n >= lo && n <= hi);
+}
+// 이 기수 과목인지 (수행평가 · 합치기 제안). 42기 · 43기는 과목 이름이 겹치지 않습니다 (cohort43.sql)
+const OWN_SUBJECTS = COHORT.subjects ? new Set(COHORT.subjects) : null;
+const OTHER_SUBJECTS = new Set(COHORT.otherSubjects || []);
+const asgInCohort = (a) => (OWN_SUBJECTS ? OWN_SUBJECTS.has(a.subject) : !OTHER_SUBJECTS.has(a.subject));
+// 계정 id → 학번 (피드백 · 답글을 보낸 학생의 기수를 알아내려고. 한 번 받은 것은 기억)
+const sidOfUser = new Map();
+async function userInCohort(ids) {
+  const need = [...new Set(ids)].filter((id) => id && !sidOfUser.has(id));
+  if (need.length) {
+    const { data } = await sb.from("profiles").select("id, student_id").in("id", need);
+    (data || []).forEach((p) => sidOfUser.set(p.id, p.student_id));
+  }
+  return (id) => sidInCohort(sidOfUser.get(id));   // 프로필을 못 찾으면 보이게 둡니다
+}
+// admin_overview 결과에서 이 기수 학생만 (명단 수는 빠진 다른 기수 학생 수만큼 뺍니다)
+function cohortOverview(d) {
+  if (!d?.students) return d;
+  const students = d.students.filter((s) => sidInCohort(s.student_id));
+  const notJoined = (d.not_joined || []).filter((s) => sidInCohort(s.student_id));
+  const gone = (d.students.length - students.length) + ((d.not_joined || []).length - notJoined.length);
+  return { ...d, roster: Math.max(0, (d.roster || 0) - gone), students, not_joined: notJoined,
+    activity: (d.activity || []).filter((a) => sidInCohort(a.student_id)) };
+}
 
 let sb = null;
 let me = null;          // { id, username, name, is_admin }
@@ -107,23 +159,49 @@ function closeModal() { $("studyModal").className = "study-modal"; }
 function showErr(msg) { const e = $("authErr"); e.textContent = msg; e.classList.add("show"); }
 
 // ---------- 학생 명단 (학생 사이트의 시간표 데이터 · school-data.js) ----------
+// 43기처럼 시간표 명단(SCHOOL_DATA)이 없는 기수는 DB 명단(admin_overview 의 가입 학생 + 아직 가입 안 한 학생)을 쓰고,
+// 모든 학생이 이 기수 과목을 모두 '전체 분반'(ban 없음)으로 듣는다고 봅니다 (cohort43.sql 의 enrollments 와 같음).
 const SCHOOL_DATA = window.SCHOOL_DATA || {};
+const HAS_SCHOOL_DATA = Object.keys(SCHOOL_DATA).length > 0;
+const cohortClasses = () => Object.fromEntries((COHORT.subjects || []).map((s) => [s, null]));
+let dbRoster = null;
 function roster() {
+  if (!HAS_SCHOOL_DATA) return dbRoster || [];
   return Object.entries(SCHOOL_DATA)
     .map(([name, v]) => ({ sid: v.id, name, classes: v.classes || {} }))
     .sort((a, b) => a.sid - b.sid);
 }
+function setDbRoster(ov) {
+  if (HAS_SCHOOL_DATA || !ov?.students) return;
+  const seen = new Map();
+  for (const s of [...ov.students, ...(ov.not_joined || [])]) {
+    if (s.student_id && sidInCohort(s.student_id)) seen.set(s.student_id, { sid: s.student_id, name: s.name || String(s.student_id), classes: cohortClasses() });
+  }
+  dbRoster = [...seen.values()].sort((a, b) => a.sid - b.sid);
+}
+// 명단이 필요한 화면(학교 일정 · 대상 고르기) 전에 부릅니다. 관리 화면에서 받은 것이 있으면 그대로 씁니다
+async function loadDbRoster() {
+  if (HAS_SCHOOL_DATA || dbRoster) return;
+  let ov = ovLast?.[0]?.data;
+  if (!ov) {
+    const res = await sb.rpc("admin_overview");
+    if (res.error) return;
+    ov = cohortOverview(res.data);
+  }
+  setDbRoster(ov);
+}
 const homeroom = (sid) => Math.floor(sid / 100) % 10;   // 2113 → 1반
-// 42기 학년 (명단에서 가장 많은 학년. 2026년 2학년)
-const GRADE = (() => {
+// 학년 (기수 설정에 있으면 그것, 없으면 명단에서 가장 많은 학년. 42기는 2026년 2학년)
+const GRADE = COHORT.grade || (() => {
   const n = {};
   for (const p of roster()) { const g = Math.floor(p.sid / 1000); n[g] = (n[g] || 0) + 1; }
   return +Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || 0;
 })();
 function sortClasses(list) {
-  return list.sort((a, b) => a.subject.localeCompare(b.subject, "ko") || a.ban.localeCompare(b.ban, "ko"));
+  return list.sort((a, b) => a.subject.localeCompare(b.subject, "ko") || (a.ban || "").localeCompare(b.ban || "", "ko"));
 }
 function allClassList() {
+  if (!HAS_SCHOOL_DATA) return sortClasses((COHORT.subjects || []).map((subject) => ({ subject, ban: null })));
   const seen = new Map();
   for (const n in SCHOOL_DATA) {
     for (const [subject, ban] of Object.entries(SCHOOL_DATA[n].classes)) seen.set(`${subject}|${ban}`, { subject, ban });
@@ -132,8 +210,10 @@ function allClassList() {
 }
 const banLabel = (ban) => ban || "전체 분반";
 // 수행평가를 보지 않는 과목 (학생 사이트와 같게)
-const NO_ASG_SUBJECTS = new Set(["미술", "체육"]);
-const banSubjects = () => [...new Set(roster().flatMap((p) => Object.keys(p.classes)))].sort((a, b) => a.localeCompare(b, "ko"));
+const NO_ASG_SUBJECTS = new Set(COHORT.noAsgSubjects || []);
+const banSubjects = () => (HAS_SCHOOL_DATA
+  ? [...new Set(roster().flatMap((p) => Object.keys(p.classes)))]
+  : [...(COHORT.subjects || [])]).sort((a, b) => a.localeCompare(b, "ko"));
 
 // ---------- 시작 · 로그인 ----------
 async function init() {
@@ -147,7 +227,7 @@ async function init() {
   }
   // 학생 사이트와 주소가 달라 로그인은 따로 기억됩니다 (같은 키 이름이어도 섞이지 않음)
   sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, storageKey: "dshs42-admin-auth" },
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: KEYS.auth },
   });
   const q = new URLSearchParams(location.search);
   if (q.get("view") === "school") page = "school";
@@ -281,21 +361,24 @@ async function refresh() {
 const FEEDBACK_KINDS = { bug: "오류 제보", notice: "전체 분반 공지 오류", idea: "기능 제안", etc: "기타" };
 
 // 관리 탭에 처리할 일(승인 대기 + 마지막으로 본 뒤 새로 온 피드백 + 합치기 제안) 수를 빨갛게 보여 줍니다 (피드백은 이 기기 기준)
-const FB_SEEN_KEY = "dshs-fb-seen";
+const FB_SEEN_KEY = KEYS.fbSeen;
 const fbSeenAt = () => { try { return localStorage.getItem(FB_SEEN_KEY) || "1970-01-01T00:00:00Z"; } catch { return "1970-01-01T00:00:00Z"; } };
 async function refreshAdminCount() {
   if (!me?.is_admin) return;
+  // 이 기수 것만 세려고 수 대신 과목 · 보낸 사람을 받아 거릅니다
   const [pend, fresh, merge, reply] = await Promise.all([
-    sb.from("assignments").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    sb.from("feedback").select("id", { count: "exact", head: true }).gt("created_at", fbSeenAt()),
-    sb.from("merge_suggestions").select("id", { count: "exact", head: true }).eq("status", "open"),
-    sb.from("feedback_replies").select("id", { count: "exact", head: true }).eq("from_admin", false).gt("created_at", fbSeenAt()),   // 학생이 단 새 답글
+    sb.from("assignments").select("subject").eq("status", "pending"),
+    sb.from("feedback").select("user_id").gt("created_at", fbSeenAt()),
+    sb.from("merge_suggestions").select("subject").eq("status", "open"),
+    sb.from("feedback_replies").select("created_by").eq("from_admin", false).gt("created_at", fbSeenAt()),   // 학생이 단 새 답글
   ]);
   if (pend.error || fresh.error) return;
-  adminCount = pend.count + fresh.count + (merge.error ? 0 : merge.count) + (reply.error ? 0 : reply.count);
+  const mine = await userInCohort([...fresh.data.map((f) => f.user_id), ...(reply.data || []).map((r) => r.created_by)]);
+  adminCount = pend.data.filter(asgInCohort).length + fresh.data.filter((f) => mine(f.user_id)).length
+    + (merge.error ? 0 : merge.data.filter(asgInCohort).length) + (reply.error ? 0 : reply.data.filter((r) => mine(r.created_by)).length);
   navStat.asg = { v: adminCount, hot: adminCount > 0 };
   renderNav();
-  document.title = adminCount ? `(${adminCount}) dshs42 관리` : "dshs42 관리";
+  document.title = adminCount ? `(${adminCount}) ${COHORT.title}` : COHORT.title;
 }
 
 // ---------- 수행평가 카드 · 승인 · 수정 ----------
@@ -323,7 +406,7 @@ function card(a) {
 
 async function loadPending() {
   const { data, error } = await sb.from("assignments").select("*").eq("status", "pending").order("due_at", { ascending: true });
-  if (!error) cache.pending = data;
+  if (!error) cache.pending = data.filter(asgInCohort);   // 이 기수 과목만
 }
 
 async function review(id, status) {
@@ -360,7 +443,8 @@ function openAsgForm(a, seedDay) {
   const classes = allClassList().filter((c) => !NO_ASG_SUBJECTS.has(c.subject));
   const subjects = [...new Set(classes.map((c) => c.subject))];
   // 관리자는 올린 뒤에도 과목 · 분반을 바꿀 수 있어요 (notice.sql 의 assignments_guard 가 관리자만 허락)
-  const opts = subjects.flatMap((s) => [{ subject: s, ban: null }, ...classes.filter((c) => c.subject === s)]);
+  // 분반이 없는 기수(43기)는 과목마다 '전체 분반' 하나만 있어요
+  const opts = subjects.flatMap((s) => [{ subject: s, ban: null }, ...classes.filter((c) => c.subject === s && c.ban)]);
   if (a && !opts.some((o) => o.subject === a.subject && o.ban === a.ban)) opts.unshift({ subject: a.subject, ban: a.ban });
   const cur = a ? opts.findIndex((o) => o.subject === a.subject && o.ban === a.ban) : -1;
   openSheet(a ? "수행평가 수정" : "수행평가 공지 올리기", `
@@ -426,7 +510,7 @@ function openAsgForm(a, seedDay) {
 // 데이터는 admin_overview() 한 번으로 받습니다 (overview.sql).
 // 본인만 보는 내용(할 일 · 개인 일정 등)은 서버에서 제목 없이 수만 옵니다.
 // 마지막으로 본 뒤 생긴 활동은 강조합니다 (이 기기 기준, 처음 열 때는 강조 없음).
-const OV_SEEN_KEY = "dshs-overview-seen";
+const OV_SEEN_KEY = KEYS.ovSeen;
 const ovTime = (s) => {
   if (!s) return "기록 없음";
   const d = new Date(s);
@@ -558,7 +642,7 @@ function visitsHtml(v) {
       <i style="height:${Math.round(d.total / max * 100)}%"><em style="height:${d.total ? Math.round(d.logged_in / d.total * 100) : 0}%"></em></i>
       <small>${wd(d)}</small>
     </div>`).join("")}</div>
-    <div class="adm-foot">학생 사이트의 방문 기기 수예요. 한 학생이 폰과 노트북을 쓰면 2대로 세요. 진한 부분이 로그인한 기기예요. 관리자 기기는 세지 않아요.</div>
+    <div class="adm-foot">학생 사이트의 방문 기기 수예요. 한 학생이 폰과 노트북을 쓰면 2대로 세요. 진한 부분이 로그인한 기기예요. 관리자 기기는 세지 않아요. 기기 수는 모든 기수 사이트(42기 · 43기)를 합친 수이고, 아래 학생 이름만 ${COHORT.label}예요.</div>
     ${visitUsersHtml(v)}`;
 }
 
@@ -568,7 +652,7 @@ const LOGIN_OUTCOME = {
   done: ["로그인 성공", ""],
   abandon: ["dshs.app 로그인 화면에서 돌아오지 않음", "Google 로그인 · 동의 화면에서 그만뒀거나, 로그인 뒤 다른 브라우저 · 앱에서 열렸어요"],
   "fail:denied": ["dshs.app 동의 화면에서 취소", "동의 화면에서 '취소'를 눌렀어요. 무엇을 읽어 가는지(학번 · 이름) 미리 알려 주면 줄어요"],
-  "fail:notstudent": ["42기 명단에 없는 계정", "다른 기수 · 선생님 계정이거나, 명단(SCHOOL_DATA)에 학번이 없어요"],
+  "fail:notstudent": [`${COHORT.label} 명단에 없는 계정`, "다른 기수 · 선생님 계정이거나, 명단(SCHOOL_DATA)에 학번이 없어요"],
   "fail:expired": ["시간 초과 (10분)", "로그인 화면을 오래 열어 두었거나 같은 링크로 다시 들어왔어요"],
   "fail:failed": ["dshs.app 쪽 오류", "dshs.app 이 오류를 돌려줬어요. 몰려 있으면 dshs-oauth 함수 기록을 확인해요"],
   "fail:verify": ["돌아온 뒤 로그인 처리 실패", "일회용 토큰을 쓰지 못했어요 (이미 쓴 토큰 · 다른 브라우저). 몰려 있으면 버그예요"],
@@ -620,7 +704,7 @@ function loginFunnelHtml(f) {
     ${outRows ? `<div class="adm-label">시도 결과 <small>누르면 원인</small></div><div class="adm-uses">${outRows}</div>` : ""}
     ${envRows ? `<div class="adm-label">브라우저별 성공</div><div class="adm-uses">${envRows}</div>` : ""}
     ${recent ? `<details class="adm-acc"><summary>최근 멈춘 시도<span>${f.recent.length}</span></summary><div class="adm-visit-users">${recent}</div></details>` : ""}
-    <div class="adm-foot">시작 화면 본 기기는 기기 × 날짜로 세요. 시도는 '시작하기'를 누른 횟수예요. 다른 브라우저에서 돌아와 성공한 경우는 새 시도로 세요. 이름 · 학번은 기록하지 않아요.</div>`;
+    <div class="adm-foot">시작 화면 본 기기는 기기 × 날짜로 세요. 시도는 '시작하기'를 누른 횟수예요. 다른 브라우저에서 돌아와 성공한 경우는 새 시도로 세요. 이름 · 학번은 기록하지 않아요. 모든 기수 사이트(42기 · 43기)를 합친 수예요.</div>`;
 }
 
 // 오늘 로그인한 상태로 연 학생 (visits.sql 의 today_users). '전환'은 그전엔 이 기기에서 비로그인으로만 썼던 학생
@@ -659,8 +743,14 @@ function feedbackItemHtml(f, name, url, isNew, replies = [], nameOf = new Map())
 
 // 최근 피드백 100건과 스크린샷 주소 · 보낸 학생 이름을 받습니다
 async function loadFeedback() {
-  const { data, error } = await sb.from("feedback").select("*").order("created_at", { ascending: false }).limit(100);
+  const { data: raw, error } = await sb.from("feedback").select("*").order("created_at", { ascending: false }).limit(100);
   if (error) return { error };
+  // 보낸 학생의 학번으로 이 기수 것만 남깁니다 (학번 없는 계정 · 프로필을 못 찾은 피드백은 그대로 보여요)
+  const { data: authors } = raw.length
+    ? await sb.from("profiles").select("id, name, student_id").in("id", [...new Set(raw.map((f) => f.user_id).filter(Boolean))])
+    : { data: [] };
+  const sidBy = new Map((authors || []).map((p) => [p.id, p.student_id]));
+  const data = raw.filter((f) => sidInCohort(sidBy.get(f.user_id)));
   const paths = data.map((f) => f.image_path).filter(Boolean);
   const signed = paths.length ? (await sb.storage.from("feedback").createSignedUrls(paths, 3600)).data || [] : [];
   // 답장 (feedbackreply.sql 을 아직 실행하지 않았으면 빈 목록)
@@ -668,10 +758,10 @@ async function loadFeedback() {
     ? await sb.from("feedback_replies").select("*")
         .in("feedback_id", data.map((f) => f.id)).order("created_at")
     : { data: [] };
-  const { data: who } = data.length
-    ? await sb.from("profiles").select("id, name, student_id")
-        .in("id", [...new Set([...data.map((f) => f.user_id), ...(replies || []).map((r) => r.created_by).filter(Boolean)])])
-    : { data: [] };
+  // 답장한 관리자 이름
+  const more = [...new Set((replies || []).map((r) => r.created_by).filter((id) => id && !sidBy.has(id)))];
+  const { data: admins } = more.length ? await sb.from("profiles").select("id, name, student_id").in("id", more) : { data: [] };
+  const who = [...(authors || []), ...(admins || [])];
   return {
     rows: data,
     replies: replies || [],
@@ -873,7 +963,8 @@ async function loadReviewLog() {
     sb.from("assignments").select("id, subject, ban, title, body, due_at, submit_to, status, created_at, created_by, reviewed_by, reviewed_at, author_name, merged_from")
       .neq("status", "pending").order("reviewed_at", { ascending: false, nullsFirst: false }).limit(300),
   ]);
-  const rows = done.data || [], sugs = sug.error ? [] : sug.data;   // merge.sql 을 아직 실행하지 않았으면 제안 없이
+  // 이 기수 과목만. merge.sql 을 아직 실행하지 않았으면 제안 없이
+  const rows = (done.data || []).filter(asgInCohort), sugs = sug.error ? [] : sug.data.filter(asgInCohort);
   const ids = [...new Set([...rows.map((a) => a.reviewed_by), ...sugs.map((x) => x.resolved_by)].filter(Boolean))];
   const { data: who } = ids.length ? await sb.from("profiles").select("id, name").in("id", ids) : { data: [] };
   return {
@@ -1029,6 +1120,10 @@ async function renderOverview(cached = false) {
     sb.from("admin_plans").select("*").order("created_at", { ascending: true }),
     sb.from("dev_news").select("*").order("updated_at", { ascending: false }).limit(15),
     sb.rpc("admin_login_funnel", { p_days: 14 })]), loadPending()]);
+  // 학생 현황 · 오늘 로그인한 학생은 이 기수 학생만 (방문 기기 수 · 로그인 이탈은 서버가 합쳐 세서 나누지 못함)
+  if (res[0]?.data) res[0] = { ...res[0], data: cohortOverview(res[0].data) };
+  if (res[2]?.data?.today_users) res[2] = { ...res[2], data: { ...res[2].data, today_users: res[2].data.today_users.filter((u) => sidInCohort(u.student_id)) } };
+  setDbRoster(res[0]?.data);
   const sig = JSON.stringify([res, cache.pending]);
   if (cached && ovLast && sig === ovLast.sig) return;   // 먼저 그린 것과 같으면 그대로
   ovLast = Object.assign(res, { sig });
@@ -1148,7 +1243,8 @@ function acadCat(e) {
 }
 // 학사일정은 GitHub Actions 가 매일 beta 저장소의 academic.json 을 고칩니다. 그 최신본을 먼저 받고(_headers 로 허락),
 // 못 받으면 이 사이트를 묶을 때 함께 넣은 복사본을 씁니다.
-const ACADEMIC_SRC = CFG.ACADEMIC_URL || "https://dshs42-beta.netlify.app/academic.json";
+// 기수마다 그 학생 사이트의 academic.json (cohort.js 의 academicUrl)
+const ACADEMIC_SRC = COHORT.academicUrl || CFG.ACADEMIC_URL || "https://dshs42-beta.netlify.app/academic.json";
 let acadList = null;
 async function loadAcademic() {
   if (acadList) return;
@@ -1164,7 +1260,9 @@ async function loadAcademic() {
 async function loadSchool() {
   const { data, error } = await sb.from("school_events").select("*, school_event_targets(student_id)").order("starts_at", { ascending: true });
   if (error) { toast("학교 일정을 불러오지 못했어요", true); return false; }
-  cache.school = data;
+  // 특정 인원에게만 보이는 일정은 대상에 이 기수 학생이 있을 때만. '전체' 일정은 모든 기수 학생 달력에 함께 보입니다
+  cache.school = data.filter((e) => e.audience !== "some" || !(e.school_event_targets || []).length
+    || e.school_event_targets.some((t) => sidInCohort(t.student_id)));
   return true;
 }
 
@@ -1179,12 +1277,12 @@ function neisDraft(a) {
 }
 
 const schoolTargets = (e) => (e.school_event_targets || []).map((t) => t.student_id);
-const SCH_PREF = "dshs42-admin-school";
+const SCH_PREF = KEYS.school;
 let schPref = (() => { try { return { past: false, grades: false, ...JSON.parse(localStorage.getItem(SCH_PREF) || "{}") }; } catch { return { past: false, grades: false }; } })();
 
 async function renderSchool() {
   const cal = schPref.view === "cal";
-  const [ok] = await Promise.all([loadSchool(), loadAcademic(), cal ? loadCalAsg() : null]);
+  const [ok] = await Promise.all([loadSchool(), loadAcademic(), cal ? loadCalAsg() : null, loadDbRoster()]);
   const body = $("studyBody");
   if (page !== "school" || !body) return;
   if (!ok) { body.innerHTML = '<div class="adm-none">학교 일정을 불러오지 못했어요.</div>'; return; }
@@ -1266,7 +1364,7 @@ async function loadCalAsg() {
   const { data, error } = await sb.from("assignments")
     .select("id, subject, ban, title, body, due_at, submit_to, status, created_at, created_by, author_name")
     .neq("status", "rejected").not("due_at", "is", null).order("due_at");
-  if (!error) calAsg = data;
+  if (!error) calAsg = data.filter(asgInCohort);   // 이 기수 과목만
   calDone = new Set();
   calStats = null;
   calBusy = [];
@@ -1277,7 +1375,7 @@ async function loadCalAsg() {
       sb.rpc("admin_student_busy", { p_student_id: calStudent }),
       calOvStudents ? null : sb.rpc("admin_overview"),
     ]);
-    if (ov && !ov.error) calOvStudents = ov.data?.students || [];
+    if (ov && !ov.error) calOvStudents = cohortOverview(ov.data)?.students || [];
     calDone = new Set(done || []);
     calBusy = busy.data || [];
     calStats = !calOvStudents ? null : calOvStudents.find((s) => s.student_id === calStudent) || false;   // false = 가입 전
@@ -1574,7 +1672,8 @@ function openSchoolForm(e, seed) {
   };
   $("audSubjAdd").onclick = () => {
     const subj = $("audSubj").value, ban = $("audBan").value;
-    people.filter((p) => p.classes[subj] && (ban === "*" || p.classes[subj] === ban)).forEach((p) => picked.add(p.sid));
+    // 분반이 없는 과목(43기)은 듣는 학생 모두 (classes 값이 null)
+    people.filter((p) => p.classes[subj] !== undefined && (ban === "*" || p.classes[subj] === ban)).forEach((p) => picked.add(p.sid));
     drawAud();
   };
   mountGroups("audGroups", () => [...picked], (sids) => { sids.forEach((sid) => picked.add(sid)); drawAud(); });
@@ -1741,7 +1840,7 @@ function paintPush() {
   }
   $("btnSettings").classList.toggle("warn", warn);
 }
-const PUSH_PREF = "dshs42-admin-push";
+const PUSH_PREF = KEYS.push;
 const pushWanted = () => { try { return localStorage.getItem(PUSH_PREF) !== "off"; } catch { return true; } };
 async function autoPush() {
   if (autoPush.done || !me) return;

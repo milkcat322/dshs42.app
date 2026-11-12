@@ -8,6 +8,8 @@ mnt/
 # 관리자 사이트 빌드 결과 (scripts/build-admin.mjs 가 만들고, /deploy-admin 이 dshs42-admin 저장소에 올림)
 admin-dist/
 .admin-deploy/
+admin-dist-43/
+.admin-deploy-43/
 
 # 에디터 · OS
 .vscode/

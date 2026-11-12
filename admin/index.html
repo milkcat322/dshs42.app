@@ -8,7 +8,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0a0a0f">
 <meta name="color-scheme" content="dark light">
-<!-- 관리자 사이트. scripts/build-admin.mjs 가 학생 사이트의 테마 · 스타일 · 명단을 함께 묶어 admin-dist/ 로 만듭니다 -->
+<!-- 관리자 사이트. scripts/build-admin.mjs 가 학생 사이트의 테마 · 스타일 · 명단을 함께 묶어 admin-dist/ 로 만듭니다
+     (--cohort 43 이면 admin-dist-43/ 에 43기용으로. 그때 제목 · 앱 이름도 43기 것으로 바뀝니다) -->
 <script src="theme.js"></script>
 <link rel="icon" href="favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -160,6 +161,8 @@
 <div class="study-toast" id="studyToast"></div>
 <script src="school-data.js"></script>
 <script src="config.js"></script>
+<!-- 기수 설정 (42기 · 43기). scripts/build-admin.mjs 가 만듭니다 -->
+<script src="cohort.js"></script>
 <script type="module" src="admin.js"></script>
 <script>
   // 알림을 받으려면 서비스 워커가 있어야 합니다 (이 사이트 전용 sw.js)
