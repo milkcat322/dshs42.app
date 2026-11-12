@@ -52,9 +52,9 @@ const REDIRECT_URI = Deno.env.get("DSHS_REDIRECT_URI") ?? `${Deno.env.get("SUPAB
 
 // 로그인 뒤 돌아갈 수 있는 사이트 (다른 곳으로 보내는 데 쓰이지 않게)
 // beta(dshs42-beta.netlify.app)와 그 브랜치 미리보기(<브랜치>--dshs42-beta.netlify.app)도 그 주소로 돌아갑니다
-const RETURN_OK = /^(https:\/\/(www\.)?(dshs42\.app|dshs43\.app|dshs\.study)|https:\/\/([a-z0-9-]+--)?(dshs42-beta|dshs43)\.netlify\.app|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
-// 43기 사이트(dshs43.app)에서 시작한 로그인. 명단에 없는 1학년이면 43기로 자동 등록합니다 (cohort43.sql)
-const COHORT43 = /^https:\/\/((www\.)?dshs43\.app|([a-z0-9-]+--)?dshs43\.netlify\.app)\//;
+const RETURN_OK = /^(https:\/\/(www\.)?(dshs42\.app|dshs43\.app|dshs\.study)|https:\/\/([a-z0-9-]+--)?(dshs42-beta|dshs43|dshs43-beta)\.netlify\.app|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
+// 43기 사이트(dshs43.app · beta dshs43-beta.netlify.app)에서 시작한 로그인. 명단에 없는 1학년이면 43기로 자동 등록합니다 (cohort43.sql)
+const COHORT43 = /^https:\/\/((www\.)?dshs43\.app|([a-z0-9-]+--)?dshs43(-beta)?\.netlify\.app)\//;
 const DEFAULT_RETURN = "https://dshs42.app/";
 // 계정 이메일 도메인 (signup 과 같음). 서비스 이름이 바뀌어도 바꾸지 않습니다.
 const EMAIL_DOMAIN = "dshs.study";
