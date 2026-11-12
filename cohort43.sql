@@ -38,39 +38,5 @@ insert into public.cohort43_subjects (subject, credits) values
   ('적분과 통계', 3), ('기하와 벡터', 3), ('물리', 3), ('한국사', 2), ('프로그래밍', 3), ('생명과학', 3)
 on conflict (subject) do update set credits = excluded.credits;
 
--- 43기 학생 등록: 명단 + 12과목 수강(분반 없음). 서버(dshs-oauth, service role)만 부릅니다.
--- 이미 명단에 있는 학번(42기 등)은 건드리지 않습니다.
-create or replace function public.register_cohort43(p_student_id integer, p_name text)
-returns boolean language plpgsql security definer set search_path = public as $$
-begin
-  if p_student_id is null or p_student_id < 1000 or p_student_id > 1999 then return false; end if;
-  if exists (select 1 from public.roster where student_id = p_student_id) then return false; end if;
-  insert into public.roster (student_id, name) values (p_student_id, left(coalesce(nullif(trim(p_name), ''), '학생'), 40));
-  insert into public.enrollments (student_id, subject, ban)
-    select p_student_id, s.subject, null from public.cohort43_subjects s
-    on conflict do nothing;
-  return true;
-end $$;
-revoke execute on function public.register_cohort43(integer, text) from public, anon, authenticated;
-grant  execute on function public.register_cohort43(integer, text) to service_role;
-
--- 수행평가 올리기: 분반이 없는 과목(43기)은 '전체 분반'(ban 비어 있음)으로 올립니다.
--- 예전 규칙은 e.ban = assignments.ban 이라 둘 다 비어 있으면 막혔습니다 → is not distinct from 으로 같게 봅니다.
--- 42기(분반 있음)는 그대로입니다.
-drop policy if exists assignments_insert on public.assignments;
-create policy assignments_insert on public.assignments
-  for insert with check (
-    created_by = auth.uid()
-    and (
-      public.is_admin()
-      or (
-        status = 'pending'
-        and exists (
-          select 1 from public.enrollments e
-          where e.student_id = public.my_student_id()
-            and e.subject = assignments.subject
-            and e.ban is not distinct from assignments.ban
-        )
-      )
-    )
-  );
+-- 43기 학생 자동 등록 함수(register_cohort43)와 수행평가 올리기 규칙(assignments_insert)은
+-- cohort43ban.sql 에 있습니다 (반을 넣는 최신 버전). 이 파일 다음에 cohort43ban.sql 을 실행하세요.
