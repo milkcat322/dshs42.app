@@ -1,5 +1,5 @@
 -- ============================================================
--- dshs43.app — 43기(1학년) 명단 · 수강 (12과목, 분반 없음)
+-- dshs43.app — 43기(1학년) 명단 · 수강 (12과목, 분반 칸에 반)
 -- cohort43.sql 다음에 SQL Editor 에서 한 번 실행합니다. 이미 있는 학번은 건드리지 않습니다.
 -- 명단에 있으면 dshs.app 으로 처음 로그인할 때 바로 계정이 생깁니다.
 -- 43기 사이트(dshs43.app)의 dshs-study.js ROSTER_43 과 같게 둡니다.
@@ -102,8 +102,10 @@ insert into public.roster (student_id, name) values
   (1616, '한원희')
 on conflict (student_id) do nothing;
 
+-- 수강의 분반 칸에는 반(학번 둘째 자리, 1305 → '3반')을 넣습니다 (cohort43ban.sql 과 같게). 이미 수강이 있는 학생은 건드리지 않습니다.
 insert into public.enrollments (student_id, subject, ban)
-  select r.student_id, s.subject, null
+  select r.student_id, s.subject, ((r.student_id / 100) % 10)::text || '반'
     from public.roster r cross join public.cohort43_subjects s
    where r.student_id between 1000 and 1999
+     and not exists (select 1 from public.enrollments e where e.student_id = r.student_id)
 on conflict do nothing;
