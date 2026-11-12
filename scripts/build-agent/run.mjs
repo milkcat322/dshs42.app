@@ -12,13 +12,14 @@
 //   node scripts/build-agent/run.mjs --peek   할 일 수만 확인
 //
 // 열쇠: ~/.dshs42-build-agent.json 의 token (저장소에 올리지 않음. DB 에는 sha256 만 agent_keys 에 있음)
-// 기록: ~/Library/Logs/dshs42-build-agent.log
+// 기록: ~/Library/Logs/dshs42-build-agent.log (Windows 는 ~/.dshs42-logs, 작업 스케줄러는 install.ps1)
 
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { claudeBin, logFile } from "../agent-env.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -27,7 +28,7 @@ const PREVIEW = (branch) => `https://${branch}--dshs42-beta.netlify.app`;
 const HOME = join(homedir(), ".dshs42-build-agent");
 const WT = join(HOME, "wt");
 const LOCK = join(HOME, "running");
-const LOG = join(homedir(), "Library", "Logs", "dshs42-build-agent.log");
+const LOG = logFile("dshs42-build-agent.log");
 const TIMEOUT = 30 * 60 * 1000;
 const TARGET = process.env.BUILD_MERGE_TARGET || "main";   // 시험할 때만 다른 브랜치로
 const MODEL = process.env.BUILD_MODEL || "sonnet";   // 토큰을 아끼려고 기본은 sonnet. 큰 작업이면 BUILD_MODEL=opus
@@ -44,8 +45,9 @@ const log = (...a) => {
 const git = (args, cwd = WT) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 const tryGit = (args, cwd = WT) => { try { return git(args, cwd); } catch { return null; } };
 
-let token;
-try { token = JSON.parse(readFileSync(join(homedir(), ".dshs42-build-agent.json"), "utf8")).token; }
+// 열쇠 파일에 "backup": true 가 있으면 보조 노트북: 15분 넘게 기다린 일만 가져갑니다 (우선 노트북이 꺼져 있을 때만 일하게)
+let token, backup;
+try { ({ token, backup } = JSON.parse(readFileSync(join(homedir(), ".dshs42-build-agent.json"), "utf8"))); }
 catch { log("열쇠 파일(~/.dshs42-build-agent.json)이 없어요"); process.exit(1); }
 
 async function call(body) {
@@ -68,7 +70,7 @@ writeFileSync(LOCK, String(Date.now()));
 
 let task;
 try {
-  const got = await call({ action: "claim" });
+  const got = await call({ action: "claim", defer: backup ? 15 : 0 });
   if (!got.task) { rmSync(LOCK, { force: true }); process.exit(0); } // exit 은 finally 를 건너뛰므로 직접 지움
   task = got.task;
   log(`${got.job} 시작: ${task.title} (${task.id})`);
@@ -183,13 +185,14 @@ async function cleanup(t) {
 
 function runClaude(prompt) {
   return new Promise((resolve, reject) => {
-    const child = spawn("claude", ["-p", prompt, "--setting-sources", "user", "--allowedTools", ...TOOLS,
+    const child = spawn(claudeBin(), ["-p", prompt, "--setting-sources", "user", "--allowedTools", ...TOOLS,
       "--model", MODEL, "--no-session-persistence", "--output-format", "text"],
       { cwd: WT, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { out += d; });
     const timer = setTimeout(() => { child.kill("SIGTERM"); reject(new Error("30분이 지나 멈췄어요")); }, TIMEOUT);
+    child.on("error", (err) => { clearTimeout(timer); reject(new Error(`claude 를 실행하지 못함: ${err.message}`)); });
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) return reject(new Error(`claude 종료 코드 ${code}: ${out.slice(-500)}`));

@@ -2,7 +2,8 @@
 // 관리자 노트북의 run.mjs 가 x-agent-token 헤더로 부릅니다. 열쇠는 sha256 으로 agent_keys 와 비교합니다.
 //
 //   { action: "peek" }                       할 일 수 (approved · revise · accepted)
-//   { action: "claim" }                      가장 오래된 할 일 하나를 집어 building(제작) 또는 그대로(accepted) 돌려줌
+//   { action: "claim", defer? }              가장 오래된 할 일 하나를 집어 building(제작) 또는 그대로(accepted) 돌려줌
+//   { action: "usage_last" }                 가장 최근 사용 분석 저장 시각 (usage-agent 가 이미 했는지 확인)
 //   { action: "report", id, status, ... }    결과 저장. review · merged · failed · needs_human 이면 관리자에게 푸시
 //   버린(rejected) 작업에 브랜치가 남아 있으면 claim 이 job: "cleanup" 으로 돌려주고, 노트북이 브랜치를 지운 뒤 branch: "" 로 report 합니다.
 //
@@ -32,13 +33,30 @@ Deno.serve(async (req) => {
     return json({ build: n("approved") + n("revise"), merge: n("accepted"), building: n("building") });
   }
 
+  if (b.action === "usage_last") {
+    // 사용 분석: 가장 최근에 저장된 분석 시각 (노트북 두 대가 같은 밤 분석을 두 번 하지 않게)
+    const { data, error } = await db.from("usage_reports").select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    return json({ last: data?.created_at ?? null });
+  }
+
   if (b.action === "claim") {
     // 최종 승인(합치기)을 먼저, 그다음 제작. 다른 실행과 겹치지 않게 상태가 그대로일 때만 바꿉니다.
+    // defer(분): 보조 노트북은 그만큼 기다린 일만 가져갑니다 (우선 노트북이 켜져 있으면 먼저 가져가므로).
+    // 합치기는 상태가 accepted 그대로라, 가져갈 때 updated_at 을 새로 찍어 2분 동안 다른 노트북이 다시 가져가지 않게 합니다.
+    const defer = Math.min(Math.max(Number(b.defer) || 0, 0), 180);
     for (const status of ["accepted", "approved", "revise"]) {
+      const wait = status === "accepted" ? Math.max(defer, 2) : defer;
       const { data: t } = await db.from("agent_tasks").select("*").eq("status", status)
+        .lte("updated_at", new Date(Date.now() - wait * 60e3).toISOString())
         .order("updated_at", { ascending: true }).limit(1).maybeSingle();
       if (!t) continue;
-      if (status === "accepted") return json({ task: t, job: "merge" });
+      if (status === "accepted") {
+        const { data: got } = await db.from("agent_tasks").update({ error: t.error })
+          .eq("id", t.id).eq("status", "accepted").eq("updated_at", t.updated_at).select("*").maybeSingle();
+        if (got) return json({ task: got, job: "merge" });
+        continue;
+      }
       if (t.rounds >= MAX_ROUNDS) {
         await db.from("agent_tasks").update({ status: "needs_human", error: `제작을 ${MAX_ROUNDS}번 해서 멈췄어요` }).eq("id", t.id);
         continue;

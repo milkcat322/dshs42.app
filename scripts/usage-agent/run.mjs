@@ -9,17 +9,19 @@
 //   node scripts/usage-agent/run.mjs          때가 됐으면 실행
 //   node scripts/usage-agent/run.mjs --force  지금 바로 실행 (저장 · 푸시까지 합니다)
 //
-// 기록: ~/Library/Logs/dshs42-usage-agent.log · 상태: ~/.dshs42-usage-agent.json
+// 기록: ~/Library/Logs/dshs42-usage-agent.log (Windows 는 ~/.dshs42-logs) · 상태: ~/.dshs42-usage-agent.json
+// Windows 에서는 install.ps1 이 작업 스케줄러에 같은 일정으로 넣습니다.
 
 import { spawn } from "node:child_process";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { claudeBin, logFile, notify } from "../agent-env.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
-const LOG = join(homedir(), "Library", "Logs", "dshs42-usage-agent.log");
+const LOG = logFile("dshs42-usage-agent.log");
 const STATE = join(homedir(), ".dshs42-usage-agent.json");
 const RUN_HOUR = 22;              // 한국 시간 밤 10시
 const MAX_TRIES = 3;              // 한 번의 '밤 10시' 분석을 실패해도 다시 해 보는 횟수
@@ -46,6 +48,22 @@ function lastSlot(now = new Date()) {
   return slot.toISOString();
 }
 
+// 노트북 두 대(우선 · 보조)가 함께 돌 때: 제작 맡기기 열쇠(~/.dshs42-build-agent.json)로 서버에 이 밤 분석이 이미 저장됐는지 묻습니다.
+// 열쇠에 "backup": true 가 있는 보조 노트북은 밤 10시 + 90분이 지나도 저장된 분석이 없을 때만 합니다 (우선 노트북은 한 시간 안에 시작함).
+const FN = "https://jsanpwlleufzgglqkrkv.supabase.co/functions/v1/build-agent";
+const BACKUP_WAIT = 90 * 60e3;
+let key = {};
+try { key = JSON.parse(readFileSync(join(homedir(), ".dshs42-build-agent.json"), "utf8")); } catch {}
+
+async function lastSaved() {
+  if (!key.token) return null;
+  try {
+    const r = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-agent-token": key.token },
+      body: JSON.stringify({ action: "usage_last" }) });
+    return r.ok ? (await r.json()).last : null;
+  } catch { return null; }
+}
+
 const force = process.argv.includes("--force");
 const slot = lastSlot();
 const state = readState();
@@ -53,6 +71,13 @@ if (!force) {
   if (state.done === slot) process.exit(0);                               // 이미 했음
   if (state.slot === slot && (state.tries ?? 0) >= MAX_TRIES) process.exit(0);   // 오늘은 그만
   if (state.running && Date.now() - Date.parse(state.running) < TIMEOUT) process.exit(0);   // 실행 중
+  if (key.backup && Date.now() < Date.parse(slot) + BACKUP_WAIT) process.exit(0);   // 보조: 우선 노트북 차례
+  const last = await lastSaved();
+  if (last && Date.parse(last) >= Date.parse(slot)) {                     // 다른 노트북이 이미 했음
+    writeState({ ...state, done: slot });
+    log(`다른 노트북이 이미 분석함 (${last})`);
+    process.exit(0);
+  }
 }
 writeState({ ...state, slot, tries: state.slot === slot ? (state.tries ?? 0) + 1 : 1, running: new Date().toISOString() });
 log(`분석 시작 (${force ? "--force" : `밤 10시 분석 ${slot}`})`);
@@ -67,7 +92,7 @@ const args = [
   "--no-session-persistence",
   "--output-format", "text",
 ];
-const child = spawn("claude", args, { cwd: REPO, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+const child = spawn(claudeBin(), args, { cwd: REPO, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
 let out = "";
 child.stdout.on("data", (d) => { out += d; });
 child.stderr.on("data", (d) => { out += d; });
@@ -84,13 +109,9 @@ child.on("close", (code) => {
     log(`저장함 ${saved[1]}`);
   } else {
     log(`저장하지 못함 (종료 코드 ${code}, ${s.tries}/${MAX_TRIES}번째)\n${out.trim().split("\n").slice(-15).join("\n")}`);
-    if (s.tries >= MAX_TRIES) notify("사용 분석을 3번 실패했어요. ~/Library/Logs/dshs42-usage-agent.log 를 확인하세요.");
+    if (s.tries >= MAX_TRIES) notify("dshs42 사용 분석", `사용 분석을 3번 실패했어요. ${LOG} 를 확인하세요.`);
   }
   writeState(s);
   process.exit(saved ? 0 : 1);
 });
 child.on("error", (err) => { log(`claude 를 실행하지 못함: ${err.message}`); });
-
-function notify(msg) {
-  spawn("osascript", ["-e", `display notification "${msg.replace(/"/g, "'")}" with title "dshs42 사용 분석"`]);
-}
