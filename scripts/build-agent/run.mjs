@@ -19,7 +19,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileS
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { claudeBin, logFile } from "../agent-env.mjs";
+import { claudeBin, isLimitHit, logFile } from "../agent-env.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -28,6 +28,8 @@ const PREVIEW = (branch) => `https://${branch}--dshs42-beta.netlify.app`;
 const HOME = join(homedir(), ".dshs42-build-agent");
 const WT = join(HOME, "wt");
 const LOCK = join(HOME, "running");
+const LIMITED = join(HOME, "limited");   // 이 PC 계정이 한도에 걸린 시각. 1시간 동안 일을 가져가지 않습니다
+const LIMIT_REST = 60 * 60e3;
 const LOG = logFile("dshs42-build-agent.log");
 const TIMEOUT = 30 * 60 * 1000;
 const TARGET = process.env.BUILD_MERGE_TARGET || "main";   // 시험할 때만 다른 브랜치로
@@ -68,11 +70,15 @@ mkdirSync(HOME, { recursive: true });
 if (existsSync(LOCK) && Date.now() - Number(readFileSync(LOCK, "utf8")) < TIMEOUT + 60e3) process.exit(0);
 writeFileSync(LOCK, String(Date.now()));
 
-let task;
+// 한도에 걸린 뒤 1시간은 쉽니다 → 그동안 다른 PC(보조)가 15분 기다린 일을 가져갑니다
+if (existsSync(LIMITED) && Date.now() - Number(readFileSync(LIMITED, "utf8")) < LIMIT_REST) { rmSync(LOCK, { force: true }); process.exit(0); }
+
+let task, job;
 try {
   const got = await call({ action: "claim", defer: backup ? 15 : 0 });
   if (!got.task) { rmSync(LOCK, { force: true }); process.exit(0); } // exit 은 finally 를 건너뛰므로 직접 지움
   task = got.task;
+  job = got.job;
   log(`${got.job} 시작: ${task.title} (${task.id})`);
   prepareWorktree();
   if (got.job === "merge") await merge(task);
@@ -80,7 +86,13 @@ try {
   else await build(task, got.job === "revise");
 } catch (e) {
   log("실패:", e.message);
-  if (task) await call({ action: "report", id: task.id, status: "failed", error: String(e.message).slice(0, 1500) }).catch(() => {});
+  if (task && (job === "build" || job === "revise") && isLimitHit(e.message)) {
+    // 이 PC 계정의 한도 초과: 실패로 끝내지 않고 대기로 되돌려 다른 PC 가 이어서 만들게 합니다
+    writeFileSync(LIMITED, String(Date.now()));
+    await call({ action: "report", id: task.id, status: job === "revise" ? "revise" : "approved", release: true,
+      error: "한 PC 의 Claude 사용 한도가 차서 다른 PC 에 넘겼어요" }).catch(() => {});
+    log("한도 초과 → 대기로 되돌림, 1시간 쉼");
+  } else if (task) await call({ action: "report", id: task.id, status: "failed", error: String(e.message).slice(0, 1500) }).catch(() => {});
 } finally {
   rmSync(LOCK, { force: true });
 }

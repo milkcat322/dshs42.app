@@ -4,7 +4,7 @@
 //   { action: "peek" }                       할 일 수 (approved · revise · accepted)
 //   { action: "claim", defer? }              가장 오래된 할 일 하나를 집어 building(제작) 또는 그대로(accepted) 돌려줌
 //   { action: "usage_last" }                 가장 최근 사용 분석 저장 시각 (usage-agent 가 이미 했는지 확인)
-//   { action: "report", id, status, ... }    결과 저장. review · merged · failed · needs_human 이면 관리자에게 푸시
+//   { action: "report", id, status, release?, ... }    결과 저장 (release: 한도 초과로 대기로 되돌림). review · merged · failed · needs_human 이면 관리자에게 푸시
 //   버린(rejected) 작업에 브랜치가 남아 있으면 claim 이 job: "cleanup" 으로 돌려주고, 노트북이 브랜치를 지운 뒤 branch: "" 로 report 합니다.
 //
 // 배포:   supabase functions deploy build-agent --no-verify-jwt   (열쇠로 직접 확인)
@@ -78,6 +78,11 @@ Deno.serve(async (req) => {
     const patch: Record<string, unknown> = { status: b.status };
     for (const k of ["branch", "preview_url", "summary", "error"]) if (typeof b[k] === "string") patch[k] = b[k].slice(0, 4000);
     // 제작 중에 관리자가 버렸으면(rejected) 결과로 덮어쓰지 않고, 브랜치만 남겨 다음 claim 에서 지우게 합니다
+    // release: 노트북 계정의 한도 초과로 제작을 못 했을 때 대기(approved · revise)로 되돌림 → 제작 횟수(rounds)도 하나 되돌립니다
+    if (b.release === true && (b.status === "approved" || b.status === "revise")) {
+      const { data: cur } = await db.from("agent_tasks").select("rounds").eq("id", b.id).maybeSingle();
+      if (cur) patch.rounds = Math.max((cur.rounds ?? 1) - 1, 0);
+    }
     let q = db.from("agent_tasks").update(patch).eq("id", b.id);
     if (b.status !== "rejected") q = q.neq("status", "rejected");
     const { data: t, error } = await q.select("title, summary, error").maybeSingle();

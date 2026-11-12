@@ -17,7 +17,7 @@ import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { claudeBin, logFile, notify } from "../agent-env.mjs";
+import { claudeBin, isLimitHit, logFile, notify } from "../agent-env.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -107,6 +107,10 @@ child.on("close", (code) => {
     s.done = slot;
     s.lastId = saved[1];
     log(`저장함 ${saved[1]}`);
+  } else if (isLimitHit(out)) {
+    // 이 PC 계정의 한도 초과: 오늘 밤은 더 시도하지 않습니다 (보조 PC 가 밤 10시 + 90분에 이어서 함)
+    s.tries = MAX_TRIES;
+    log(`한도 초과로 오늘 밤 분석은 다른 PC 에 넘김\n${out.trim().split("\n").slice(-5).join("\n")}`);
   } else {
     log(`저장하지 못함 (종료 코드 ${code}, ${s.tries}/${MAX_TRIES}번째)\n${out.trim().split("\n").slice(-15).join("\n")}`);
     if (s.tries >= MAX_TRIES) notify("dshs42 사용 분석", `사용 분석을 3번 실패했어요. ${LOG} 를 확인하세요.`);

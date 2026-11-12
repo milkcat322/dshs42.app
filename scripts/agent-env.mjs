@@ -23,6 +23,11 @@ export function claudeBin() {
   return found || "claude.exe";
 }
 
+// claude -p 가 이 PC 계정의 사용 한도에 걸려 끝났는지 (그러면 다른 PC 에 넘깁니다)
+export function isLimitHit(text) {
+  return /usage limit|limit reached|hit your (usage )?limit|limit will reset|resets? at|rate[ _-]?limit|\b429\b/i.test(String(text || ""));
+}
+
 export function logFile(name) {
   const dir = process.platform === "darwin" ? join(homedir(), "Library", "Logs") : join(homedir(), ".dshs42-logs");
   try { mkdirSync(dir, { recursive: true }); } catch {}
