@@ -3245,9 +3245,10 @@ function renderTodo() {
   // 기한 있는 것 먼저(가까운 순), 기한 없는 건 추가한 순
   const sorted = cache.todos.filter((t) => !t.done)
     .sort((a, b) => (!a.due_on - !b.due_on) || (a.due_on || "").localeCompare(b.due_on || "") || a.created_at.localeCompare(b.created_at));
-  // 오늘 할 일은 맨 위 칸에만 두고, 아래(그룹 · 남은 할 일)에서는 뺍니다
+  // 오늘 할 일은 맨 위 칸에 모아 보여 주고, 원래 자리(그룹 · 남은 할 일)에도 그대로 둡니다.
+  // 완료하면 두 곳 모두에서 빠져 '완료'로 갑니다.
   const todayList = sorted.filter(isTodayTodo);
-  const open = sorted.filter((t) => !isTodayTodo(t));
+  const open = sorted;
   const keepFrom = Date.now() - TODO_KEEP_MS;
   const done = cache.todos.filter((t) => t.done && (!t.done_at || Date.parse(t.done_at) > keepFrom))
     .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || "")).slice(0, 30);
@@ -3287,7 +3288,7 @@ function renderTodo() {
       ${groups ? `<button class="study-btn small" id="tdGroupAdd">＋ 그룹</button>` : ""}</div>
     <div class="td-zone td-loose" data-tzone="">
       ${loose.length ? loose.map((t) => todoRow(t, grip)).join("")
-        : `<div class="study-empty td-loose-empty">${open.length ? "그룹 밖으로 꺼내려면 여기에 놓으세요" : todayList.length ? "나머지 할 일은 없어요" : "남은 할 일이 없어요"}</div>`}
+        : `<div class="study-empty td-loose-empty">${open.length ? "그룹 밖으로 꺼내려면 여기에 놓으세요" : "남은 할 일이 없어요"}</div>`}
     </div>
     ${groupHtml}
     ${done.length ? `<div class="study-section td-head">완료 ${done.length}개<span class="td-done-note">끝낸 지 2일 뒤 사라져요</span></div>` + done.map((t) => todoRow(t)).join("") : ""}`;
