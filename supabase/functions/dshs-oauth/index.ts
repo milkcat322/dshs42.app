@@ -52,7 +52,9 @@ const REDIRECT_URI = Deno.env.get("DSHS_REDIRECT_URI") ?? `${Deno.env.get("SUPAB
 
 // 로그인 뒤 돌아갈 수 있는 사이트 (다른 곳으로 보내는 데 쓰이지 않게)
 // beta(dshs42-beta.netlify.app)와 그 브랜치 미리보기(<브랜치>--dshs42-beta.netlify.app)도 그 주소로 돌아갑니다
-const RETURN_OK = /^(https:\/\/(www\.)?(dshs42\.app|dshs\.study)|https:\/\/([a-z0-9-]+--)?dshs42-beta\.netlify\.app|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
+const RETURN_OK = /^(https:\/\/(www\.)?(dshs42\.app|dshs43\.app|dshs\.study)|https:\/\/([a-z0-9-]+--)?(dshs42-beta|dshs43)\.netlify\.app|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
+// 43기 사이트(dshs43.app)에서 시작한 로그인. 명단에 없는 1학년이면 43기로 자동 등록합니다 (cohort43.sql)
+const COHORT43 = /^https:\/\/((www\.)?dshs43\.app|([a-z0-9-]+--)?dshs43\.netlify\.app)\//;
 const DEFAULT_RETURN = "https://dshs42.app/";
 // 계정 이메일 도메인 (signup 과 같음). 서비스 이름이 바뀌어도 바꾸지 않습니다.
 const EMAIL_DOMAIN = "dshs.study";
@@ -190,7 +192,7 @@ async function start(userId: string | null, returnTo: unknown, handoff: unknown,
 // 'dshs.app으로 로그인': 연결된 계정 → 같은 학번으로 가입한 계정 → (명단에 있으면) 새 계정 순으로 찾습니다.
 // 새 계정은 아이디 d<학번>, 비밀번호는 아무도 모르는 임의 값이라 dshs.app 으로만 로그인합니다.
 // allowCreate 가 false 면(조용한 로그인) 계정을 새로 만들지 않습니다.
-async function loginUser(sub: string, dme: { studentId?: string } | null, allowCreate = true):
+async function loginUser(sub: string, dme: { studentId?: string; name?: string } | null, allowCreate = true, cohort43 = false, claimName?: string):
   Promise<{ userId: string; created?: boolean } | { error: string }> {
   const { data: link } = await admin.from("dshs_links").select("user_id").eq("dshs_sub", sub).maybeSingle();
   if (link) return { userId: link.user_id };
@@ -201,7 +203,13 @@ async function loginUser(sub: string, dme: { studentId?: string } | null, allowC
   if (prof) return { userId: prof.id };
   if (!allowCreate) return { error: "noaccount" };
 
-  const { data: roster } = await admin.from("roster").select("name").eq("student_id", sid).maybeSingle();
+  let { data: roster } = await admin.from("roster").select("name").eq("student_id", sid).maybeSingle();
+  // 43기 사이트에서 온 1학년(학번 1000~1999)은 dshs.app 이 알려 준 이름으로 명단 · 12과목 수강에 넣습니다
+  if (!roster && cohort43 && sid < 2000) {
+    const name = String(dme?.name ?? claimName ?? "").trim();
+    const { error: regErr } = await admin.rpc("register_cohort43", { p_student_id: sid, p_name: name });
+    if (!regErr) ({ data: roster } = await admin.from("roster").select("name").eq("student_id", sid).maybeSingle());
+  }
   if (!roster) return { error: "notstudent" };
   let username = `d${sid}`;
   const { data: dup } = await admin.from("profiles").select("id").eq("username", username).maybeSingle();
@@ -277,7 +285,7 @@ async function callback(params: URLSearchParams) {
     return token ? done("login", undefined, token) : fail("failed");
   }
   if (login) {
-    const found = await loginUser(claims.sub, dme);
+    const found = await loginUser(claims.sub, dme, true, COHORT43.test(String(st.return_to ?? "")), claims.name);
     if ("error" in found) {
       await revoke(r.t.refresh_token);
       return fail(found.error);
