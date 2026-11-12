@@ -67,6 +67,8 @@
     --bar-rgb: 10,10,15;   /* 위에 붙는 탭 줄 배경 */
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* 모바일에서 두 번 톡 쳐서 확대되지 않게 (두 손가락 확대는 그대로 됨) */
+  html, body { touch-action: manipulation; }
   body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; overflow-x: hidden; }
   body::before { content: ''; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 30% 20%, rgba(124,111,224,0.08) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(224,111,158,0.06) 0%, transparent 50%); pointer-events: none; z-index: 0; }
   .container { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 40px 20px; }

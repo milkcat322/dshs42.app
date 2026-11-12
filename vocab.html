@@ -196,6 +196,8 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   html { overflow-x: hidden; }
+  /* 모바일에서 두 번 톡 쳐서 확대되지 않게 (두 손가락 확대는 그대로 됨) */
+  html, body { touch-action: manipulation; }
 
   body {
     background: var(--bg);
