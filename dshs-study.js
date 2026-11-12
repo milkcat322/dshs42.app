@@ -3193,19 +3193,44 @@ function todoDue(key) {
   return { label, tone: days < 0 ? "over" : days < 3 ? "soon" : "ok", text: dayTitle(key), short };
 }
 
+// 오늘 할 일: '오늘'로 고른 날(today_on)이 오늘인 남은 할 일. 날이 바뀌면 원래 자리로 돌아갑니다.
+const isTodayTodo = (t) => !t.done && !!t.today_on && t.today_on === dayKey(new Date());
+// 끝낸 할 일은 2일 뒤 서버에서 지워집니다 (todotoday.sql). 그 전이라도 화면에는 2일 안에 끝낸 것만.
+const TODO_KEEP_MS = 2 * 86400000;
+
 function todoRow(t, grip = false) {
   const due = t.due_on ? todoDue(t.due_on) : null;
+  const today = isTodayTodo(t);
   return `<div class="ev-row c-mint todo-row${t.done ? " done" : ""}" data-tid="${t.id}">
     ${grip ? `<span class="td-grip" data-tgrip="${t.id}" title="끌어서 그룹에 넣기" aria-hidden="true">⠿</span>` : ""}
     <button class="ev-check" data-tchk="${t.id}" aria-label="완료 표시">${t.done ? "✓" : ""}</button>
     <button class="ev-main" data-tedit="${t.id}">
       <span class="ev-title">${esc(t.title)}</span>
     </button>
-    ${due
-      ? `<button class="td-due ${t.done ? "" : due.tone}" data-tdue="${t.id}" title="${esc(due.text)}까지 · 눌러서 바꾸기">${due.short}${t.done ? "" : ` · ${due.label}`}</button>`
-      : t.done ? "" : `<button class="td-due empty" data-tdue="${t.id}" title="기한 정하기" aria-label="기한 정하기">기한</button>`}
+    ${due ? `<button class="td-due ${t.done ? "" : due.tone}" data-tdue="${t.id}" title="${esc(due.text)}까지 · 눌러서 바꾸기">${due.short}${t.done ? "" : ` · ${due.label}`}</button>` : ""}
+    ${t.done ? "" : `<button class="td-today${today ? " on" : ""}" data-ttoday="${t.id}" aria-pressed="${today}"
+      title="${today ? "오늘 할 일에서 빼기" : "오늘 할 일로 정하기"}">${today ? "✓ 오늘" : "오늘"}</button>`}
     <button class="td-del" data-tdel="${t.id}" aria-label="삭제">✕</button>
   </div>`;
+}
+
+async function toggleTodayTodo(id) {
+  const t = cache.todos.find((x) => x.id === id);
+  if (!t) return;
+  const prev = t.today_on || null;
+  const today_on = isTodayTodo(t) ? null : dayKey(new Date());
+  const { error } = await sb.from("todos").update({ today_on }).eq("id", id);
+  if (error) return toast("저장하지 못했어요", true);
+  t.today_on = today_on;
+  rerender();
+  saveSnap();
+  if (today_on) toast("오늘 할 일에 넣었어요");
+  else undoToast("오늘 할 일에서 뺐어요", async () => {
+    const { error } = await sb.from("todos").update({ today_on: prev }).eq("id", id);
+    if (error) return toast("되돌리지 못했어요", true);
+    t.today_on = prev;
+    rerender();
+  });
 }
 
 function renderTodo() {
@@ -3218,9 +3243,13 @@ function renderTodo() {
     return;
   }
   // 기한 있는 것 먼저(가까운 순), 기한 없는 건 추가한 순
-  const open = cache.todos.filter((t) => !t.done)
+  const sorted = cache.todos.filter((t) => !t.done)
     .sort((a, b) => (!a.due_on - !b.due_on) || (a.due_on || "").localeCompare(b.due_on || "") || a.created_at.localeCompare(b.created_at));
-  const done = cache.todos.filter((t) => t.done)
+  // 오늘 할 일은 맨 위 칸에만 두고, 아래(그룹 · 남은 할 일)에서는 뺍니다
+  const todayList = sorted.filter(isTodayTodo);
+  const open = sorted.filter((t) => !isTodayTodo(t));
+  const keepFrom = Date.now() - TODO_KEEP_MS;
+  const done = cache.todos.filter((t) => t.done && (!t.done_at || Date.parse(t.done_at) > keepFrom))
     .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || "")).slice(0, 30);
   // 그룹: 그룹 없는 할 일이 먼저, 그 아래 그룹마다 접고 펼치는 칸. 끝낸 할 일은 맨 아래 '완료'에 모읍니다.
   const groups = cache.todoGroups;
@@ -3249,14 +3278,19 @@ function renderTodo() {
       <input class="study-input" id="tdTitle" maxlength="200" placeholder="할 일을 적고 Enter">
       <button class="study-btn primary" id="tdAdd">추가</button>
     </div>
+    ${todayList.length || open.length ? `<div class="td-todaybox">
+      <div class="study-section td-head">오늘 할 일 ${todayList.length}개</div>
+      ${todayList.length ? todayList.map((t) => todoRow(t)).join("")
+        : `<div class="td-today-empty">할 일 옆 '오늘'을 누르면 여기에 모여요</div>`}
+    </div>` : ""}
     <div class="study-section td-head">남은 할 일 ${open.length}개
       ${groups ? `<button class="study-btn small" id="tdGroupAdd">＋ 그룹</button>` : ""}</div>
     <div class="td-zone td-loose" data-tzone="">
       ${loose.length ? loose.map((t) => todoRow(t, grip)).join("")
-        : `<div class="study-empty td-loose-empty">${open.length ? "그룹 밖으로 꺼내려면 여기에 놓으세요" : "남은 할 일이 없어요"}</div>`}
+        : `<div class="study-empty td-loose-empty">${open.length ? "그룹 밖으로 꺼내려면 여기에 놓으세요" : todayList.length ? "나머지 할 일은 없어요" : "남은 할 일이 없어요"}</div>`}
     </div>
     ${groupHtml}
-    ${done.length ? `<div class="study-section">완료 ${done.length}개</div>` + done.map((t) => todoRow(t)).join("") : ""}`;
+    ${done.length ? `<div class="study-section td-head">완료 ${done.length}개<span class="td-done-note">끝낸 지 2일 뒤 사라져요</span></div>` + done.map((t) => todoRow(t)).join("") : ""}`;
   if (groups) $("tdGroupAdd").onclick = () => openGroupForm();
   body.querySelectorAll("[data-tfold]").forEach((b) => b.onclick = () => {
     const f = todoFolds();
@@ -3284,6 +3318,7 @@ function renderTodo() {
   body.querySelectorAll("[data-tchk]").forEach((b) => b.onclick = () => toggleTodo(b.dataset.tchk));
   body.querySelectorAll("[data-tedit]").forEach((b) => b.onclick = () => openTodoForm(cache.todos.find((t) => t.id === b.dataset.tedit)));
   body.querySelectorAll("[data-tdel]").forEach((b) => b.onclick = () => removeTodo(b.dataset.tdel));
+  body.querySelectorAll("[data-ttoday]").forEach((b) => b.onclick = () => toggleTodayTodo(b.dataset.ttoday));
   body.querySelectorAll("[data-tdue]").forEach((b) => b.onclick = (e) => {
     e.stopPropagation();
     openDuePop(b, cache.todos.find((t) => t.id === b.dataset.tdue));

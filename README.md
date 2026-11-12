@@ -88,6 +88,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `share.sql` 을 **Run** (친구와 일정 공유)
    이어서 `todos.sql` 을 **Run** (할 일)
    이어서 `todogroups.sql` 을 **Run** (할 일 그룹)
+   이어서 `todotoday.sql` 을 **Run** (오늘 할 일 · 끝낸 할 일 2일 뒤 자동 삭제)
    이어서 `learn.sql` 을 **Run** (공부 탭 단어장 북마크)
    이어서 `seats.sql` 을 **Run** (자습실 자리. `dshs-oauth` 를 배포하기 **전에** 실행 — 함수가 `dshs_links.seat_ok` 칸을 씀)
    이어서 `school.sql` 을 **Run** (학교 일정 · 관리자 전용)
