@@ -360,6 +360,12 @@
   .fbm-item > .fbm-body { color: var(--text-dim); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .fbm-reply { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(136,136,170,0.12); border-left: 3px solid var(--accent1); }
   .fbm-reply.new { border-left-color: #ff4d4f; }
+  .fbm-reply.me { margin-left: 18px; border-left-color: var(--border); background: rgba(136,136,170,0.06); }
+  .fbm-write { display: flex; align-items: flex-end; gap: 6px; margin-top: 10px; }
+  .fbm-write textarea { flex: 1; min-width: 0; margin: 0; resize: vertical; }
+  .fbm-write .study-btn { flex: none; }
+  .adm-fb-re.stu { margin-right: 18px; border-left-color: #ff4d4f; background: rgba(255,77,79,0.07); }
+  .adm-fb-re:not(.stu) { margin-left: 18px; }
   .fbm-wait { margin-top: 8px; font-size: 11.5px; color: var(--text-muted); }
   /* 관리자 사이트: 피드백 답장 */
   .adm-fb-re { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(136,136,170,0.12); border-left: 3px solid var(--accent1); }

@@ -285,13 +285,14 @@ const FB_SEEN_KEY = "dshs-fb-seen";
 const fbSeenAt = () => { try { return localStorage.getItem(FB_SEEN_KEY) || "1970-01-01T00:00:00Z"; } catch { return "1970-01-01T00:00:00Z"; } };
 async function refreshAdminCount() {
   if (!me?.is_admin) return;
-  const [pend, fresh, merge] = await Promise.all([
+  const [pend, fresh, merge, reply] = await Promise.all([
     sb.from("assignments").select("id", { count: "exact", head: true }).eq("status", "pending"),
     sb.from("feedback").select("id", { count: "exact", head: true }).gt("created_at", fbSeenAt()),
     sb.from("merge_suggestions").select("id", { count: "exact", head: true }).eq("status", "open"),
+    sb.from("feedback_replies").select("id", { count: "exact", head: true }).eq("from_admin", false).gt("created_at", fbSeenAt()),   // 학생이 단 새 답글
   ]);
   if (pend.error || fresh.error) return;
-  adminCount = pend.count + fresh.count + (merge.error ? 0 : merge.count);
+  adminCount = pend.count + fresh.count + (merge.error ? 0 : merge.count) + (reply.error ? 0 : reply.count);
   navStat.asg = { v: adminCount, hot: adminCount > 0 };
   renderNav();
   document.title = adminCount ? `(${adminCount}) dshs42 관리` : "dshs42 관리";
@@ -633,14 +634,19 @@ function visitUsersHtml(v) {
     ${v.today_unknown ? `<div class="adm-foot">이름 기록을 시작하기 전에 로그인한 기기 ${v.today_unknown}대는 이름 없이 셌어요.</div>` : ""}`;
 }
 
-// replies: 이 피드백에 단 답장들 (feedbackreply.sql). 학생이 읽으면 '읽음'이 붙습니다. nameOf 로 답장한 관리자 이름을 찾습니다.
+// replies: 이 피드백에 오간 답장들 (feedbackreply.sql). from_admin 이 false 면 학생이 다시 쓴 답글.
+// 관리자 답장은 학생이 읽으면 '읽음'이 붙습니다. nameOf 로 답장한 관리자 이름을 찾습니다.
+// 마지막으로 본 뒤(fbSeen) 학생 답글이 달린 지난 피드백은 '새 답글'로 위쪽 '새 피드백'에 다시 올라옵니다.
+const fbByStudent = (r) => r.from_admin === false;
 function feedbackItemHtml(f, name, url, isNew, replies = [], nameOf = new Map()) {
+  const lastRe = replies[replies.length - 1];
+  const state = !replies.length ? "" : fbByStudent(lastRe) ? "답장 기다리는 중" : "답장함";
   return `<div class="adm-fb${isNew ? " new" : ""}">
-    <div class="adm-fb-top"><span class="adm-chip">${FEEDBACK_KINDS[f.kind]}</span>${isNew ? '<span class="fb-new">새 피드백</span>' : ""}${replies.length ? '<span class="adm-chip">답장함</span>' : ""}</div>
+    <div class="adm-fb-top"><span class="adm-chip">${FEEDBACK_KINDS[f.kind]}</span>${isNew ? `<span class="fb-new">${Date.parse(f.created_at) > fbSeen ? "새 피드백" : "새 답글"}</span>` : ""}${state ? `<span class="adm-chip">${state}</span>` : ""}</div>
     <div class="adm-fb-text">${esc(f.body)}</div>
     ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener"><img class="fb-img" src="${esc(url)}" alt="첨부한 스크린샷"></a>` : ""}
-    ${replies.map((r) => `<div class="adm-fb-re">
-      <div class="adm-fb-re-top"><b>${esc(nameOf.get(r.created_by) || "관리자")} 답장</b><span>${esc(ovTime(r.created_at))} · ${r.seen_at ? "읽음" : "아직 안 읽음"}</span><button type="button" data-redel="${r.id}">지우기</button></div>
+    ${replies.map((r) => `<div class="adm-fb-re${fbByStudent(r) ? " stu" : ""}">
+      <div class="adm-fb-re-top"><b>${fbByStudent(r) ? `${esc(name || "학생")} 답글` : `${esc(nameOf.get(r.created_by) || "관리자")} 답장`}</b><span>${esc(ovTime(r.created_at))}${fbByStudent(r) ? "" : ` · ${r.seen_at ? "읽음" : "아직 안 읽음"}`}</span><button type="button" data-redel="${r.id}">지우기</button></div>
       <div class="adm-fb-re-text">${esc(r.body)}</div>
     </div>`).join("")}
     <div class="adm-fb-write" data-rebox="${f.id}" hidden>
@@ -659,7 +665,7 @@ async function loadFeedback() {
   const signed = paths.length ? (await sb.storage.from("feedback").createSignedUrls(paths, 3600)).data || [] : [];
   // 답장 (feedbackreply.sql 을 아직 실행하지 않았으면 빈 목록)
   const { data: replies } = data.length
-    ? await sb.from("feedback_replies").select("id, feedback_id, body, created_by, created_at, seen_at")
+    ? await sb.from("feedback_replies").select("*")
         .in("feedback_id", data.map((f) => f.id)).order("created_at")
     : { data: [] };
   const { data: who } = data.length
@@ -973,8 +979,11 @@ function devNewsHtml(news) {
 
 function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, usage, tasks, plans, news, funnel) {
   const rows = fb.rows || [];
-  const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
-  const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
+  // 새로 온 피드백 + 지난 피드백에 학생이 새로 단 답글
+  const isFresh = (f) => Date.parse(f.created_at) > fbSeen
+    || (fb.replies || []).some((r) => r.feedback_id === f.id && fbByStudent(r) && Date.parse(r.created_at) > fbSeen);
+  const fresh = rows.filter(isFresh);
+  const old = rows.filter((f) => !isFresh(f));
   const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew,
     (fb.replies || []).filter((r) => r.feedback_id === f.id), fb.nameOf)).join("");
   const nAsg = pending.length + (log?.open.length || 0), nDev = tasks?.filter((t) => DEV_HOT.has(t.status)).length ?? 0;
@@ -1065,13 +1074,17 @@ function paintOverview(res) {
   body.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = () => deleteFeedback(fb.rows.find((r) => r.id === x.dataset.fbdel)));
   bindReplies(body);
   bindPlans(body, plans.data || [], bindDev(body, tasks.data || [], showPane));
-  if (fb.rows?.[0]) { try { localStorage.setItem(FB_SEEN_KEY, fb.rows[0].created_at); } catch {} }
+  // 본 데까지: 가장 최근 피드백과 학생 답글 중 늦은 쪽
+  const fbLatest = [fb.rows?.[0]?.created_at, ...(fb.replies || []).filter(fbByStudent).map((r) => r.created_at)]
+    .filter(Boolean).sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+  if (fbLatest) { try { localStorage.setItem(FB_SEEN_KEY, fbLatest); } catch {} }
   if (data?.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
   refreshAdminCount();
 }
 
 
 // 피드백 답장 쓰기 · 지우기 (feedbackreply.sql). 보내면 학생의 피드백 창에 보이고, send-reminders 가 1분 안에 그 학생에게 알립니다.
+// 한 피드백에 여러 번 답장할 수 있고, 학생이 다시 답하면 '새 답글'로 올라옵니다.
 function bindReplies(body) {
   const boxOf = (id) => body.querySelector(`[data-rebox="${id}"]`);
   body.querySelectorAll("[data-reopen]").forEach((b) => b.onclick = () => {

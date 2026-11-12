@@ -2506,48 +2506,64 @@ function openFeedback() {
 window.openFeedback = openFeedback;
 
 // ---------- 피드백 답장 (feedbackreply.sql) ----------
-// 관리자가 관리자 사이트에서 남긴 답장을 피드백 창의 '내가 보낸 피드백'에서 읽습니다.
+// 관리자가 관리자 사이트에서 남긴 답장을 피드백 창의 '내가 보낸 피드백'에서 읽고, 그 아래에서 다시 답합니다.
 // 안 읽은 답장이 있으면 📢 버튼과 '피드백' 탭에 점을 찍고, 창을 열면 읽음으로 바꿉니다.
 let fbUnread = 0, fbCheckedAt = 0;
+const fbFromAdmin = (r) => r.from_admin !== false;   // 관리자가 쓴 답장 (false 면 내가 다시 쓴 답글)
 function paintFbDot() {
   $("updBtn")?.classList.toggle("has-reply", fbUnread > 0);
 }
-// 안 읽은 답장 수 (1분 안에 다시 묻지 않습니다. 표가 아직 없으면 0)
+// 안 읽은 관리자 답장 수 (1분 안에 다시 묻지 않습니다. 표가 아직 없으면 0)
 async function checkFbReplies() {
   if (!sb || !me || me.is_admin || Date.now() - fbCheckedAt < 60000) return;
   fbCheckedAt = Date.now();
-  const { count, error } = await sb.from("feedback_replies").select("id", { count: "exact", head: true }).is("seen_at", null);
+  const { data, error } = await sb.from("feedback_replies").select("*").is("seen_at", null).order("created_at", { ascending: false }).limit(200);
   if (error) return;
-  fbUnread = count || 0;
+  fbUnread = data.filter(fbFromAdmin).length;
   paintFbDot();
 }
+// 내가 보낸 피드백마다 관리자 답장과 내 답글을 대화처럼 보여 주고, 관리자 답장이 있으면 다시 답할 수 있습니다
 async function loadMyFeedback() {
   if (!sb) await sbWait;
   const uid = me?.id;
   if (!uid) return;
   const [fb, re] = await Promise.all([
     sb.from("feedback").select("id, kind, body, created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(20),
-    sb.from("feedback_replies").select("id, feedback_id, body, created_at, seen_at").order("created_at"),
+    sb.from("feedback_replies").select("*").order("created_at"),
   ]);
   const box = $("fbMine");
   if (!box || fb.error || !fb.data.length) return;
   const replies = re.error ? [] : re.data;
   const at = (s) => { const t = new Date(s); return `${md(t)} ${hm(t)}`; };
-  // 답장이 달린 피드백을 먼저, 그다음 최근에 보낸 순
+  const isNew = (r) => fbFromAdmin(r) && !r.seen_at;
+  // 답장이 오간 피드백을 먼저, 그다음 최근에 보낸 순
   const last = (f) => Math.max(0, ...replies.filter((r) => r.feedback_id === f.id).map((r) => Date.parse(r.created_at)));
   const rows = [...fb.data].sort((a, b) => last(b) - last(a));
   box.innerHTML = `<div class="fbm-title">내가 보낸 피드백</div>${rows.map((f) => {
-    const mineRe = replies.filter((r) => r.feedback_id === f.id);
+    const thread = replies.filter((r) => r.feedback_id === f.id);
     return `<div class="fbm-item">
       <div class="fbm-head"><span class="adm-chip">${FEEDBACK_KINDS[f.kind] || "기타"}</span><span>${at(f.created_at)}</span></div>
       <div class="fbm-body">${esc(f.body)}</div>
-      ${mineRe.map((r) => `<div class="fbm-reply${r.seen_at ? "" : " new"}">
-        <div class="fbm-head"><b>관리자 답장</b>${r.seen_at ? "" : '<span class="fb-new">새 답장</span>'}<span>${at(r.created_at)}</span></div>
+      ${thread.map((r) => `<div class="fbm-reply${fbFromAdmin(r) ? "" : " me"}${isNew(r) ? " new" : ""}">
+        <div class="fbm-head"><b>${fbFromAdmin(r) ? "관리자 답장" : "나"}</b>${isNew(r) ? '<span class="fb-new">새 답장</span>' : ""}<span>${at(r.created_at)}</span></div>
         <div class="fbm-body">${esc(r.body)}</div>
       </div>`).join("") || '<div class="fbm-wait">아직 답장이 없어요</div>'}
+      ${thread.some(fbFromAdmin) ? `<div class="fbm-write">
+        <textarea class="study-input" rows="1" maxlength="2000" placeholder="관리자에게 답장하기" data-fbre="${f.id}"></textarea>
+        <button class="study-btn primary small" type="button" data-fbresend="${f.id}">보내기</button>
+      </div>` : ""}
     </div>`;
   }).join("")}`;
-  if (replies.some((r) => !r.seen_at)) {
+  box.querySelectorAll("[data-fbresend]").forEach((b) => b.onclick = async () => {
+    const ta = box.querySelector(`[data-fbre="${b.dataset.fbresend}"]`), text = ta.value.trim();
+    if (!text) return ta.focus();
+    b.disabled = true;
+    const { error } = await sb.from("feedback_replies").insert({ feedback_id: b.dataset.fbresend, body: text, created_by: uid });
+    if (error) { b.disabled = false; return toast("보내지 못했어요. 잠시 뒤 다시 시도해 주세요.", true); }
+    toast("답장을 보냈어요");
+    loadMyFeedback();
+  });
+  if (replies.some(isNew)) {
     const { error } = await sb.rpc("mark_feedback_replies_seen");
     if (!error) { fbUnread = 0; fbCheckedAt = Date.now(); paintFbDot(); }
   }

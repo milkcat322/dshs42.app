@@ -44,7 +44,7 @@ export type Note = {
   logKeys?: string[];   // 여러 건을 묶은 알림은 묶인 건마다 기록합니다
 };
 // 관리자가 확인할 활동. 본인만 보는 내용(할 일 · 일정 · 위치 등)은 넣지 않습니다.
-export type AdminItem = { kind: "signup" | "assignment" | "feedback"; id: string; who: string };
+export type AdminItem = { kind: "signup" | "assignment" | "feedback" | "reply"; id: string; who: string };
 
 const kstDay = (ms: number) => new Date(ms + KST).toISOString().slice(0, 10);
 const kstHm = (ms: number) => new Date(ms + KST).toISOString().slice(11, 16);
@@ -136,7 +136,8 @@ export function planNotes(now: number, d: Input): Note[] {
 }
 
 // 피드백 답장 (feedbackreply.sql): 관리자가 답장을 남기면 그 피드백을 보낸 학생에게 한 번 알립니다.
-// 이미 읽은 답장(seen)과 알림을 켠 기기가 없는 학생은 뺍니다.
+// 이미 읽은 답장(seen)과 알림을 켠 기기가 없는 학생은 뺍니다. 학생이 다시 쓴 답글은 여기 넣지 않고
+// 관리자 새 활동(AdminItem 의 reply)으로 알립니다.
 export type FbReply = { id: string; user_id: string; body: string; seen: boolean };
 export function planReplyNotes(replies: FbReply[], known: Set<string>): Note[] {
   return replies.filter((r) => !r.seen && known.has(r.user_id)).map((r) => {
@@ -153,15 +154,15 @@ export function planReplyNotes(replies: FbReply[], known: Set<string>): Note[] {
 
 export const adminKey = (i: AdminItem) => `adm:${i.kind}:${i.id}`;
 
-const ADMIN_LABEL = { signup: ["가입", "명"], assignment: ["승인 요청", "건"], feedback: ["피드백", "건"] } as const;
-const ADMIN_ONE = { signup: "가입했어요", assignment: "수행평가 승인을 요청했어요", feedback: "피드백을 보냈어요" } as const;
+const ADMIN_LABEL = { signup: ["가입", "명"], assignment: ["승인 요청", "건"], feedback: ["피드백", "건"], reply: ["피드백 답글", "건"] } as const;
+const ADMIN_ONE = { signup: "가입했어요", assignment: "수행평가 승인을 요청했어요", feedback: "피드백을 보냈어요", reply: "답장에 다시 답했어요" } as const;
 
 // 아직 안 보낸 활동을 관리자 한 명에게 보낼 알림 하나로 묶습니다
 export function planAdminNote(userId: string, items: AdminItem[]): Note | null {
   if (!items.length) return null;
   const logKeys = items.map(adminKey);
   const count = (k: AdminItem["kind"]) => items.filter((i) => i.kind === k).length;
-  const bits = (["signup", "assignment", "feedback"] as const).filter(count)
+  const bits = (["signup", "assignment", "feedback", "reply"] as const).filter(count)
     .map((k) => `${ADMIN_LABEL[k][0]} ${count(k)}${ADMIN_LABEL[k][1]}`);
   const one = items.length === 1;
   return {

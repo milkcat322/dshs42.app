@@ -82,18 +82,23 @@ Deno.serve(async () => {
   });
 
   // 피드백 답장 (feedbackreply.sql). 표가 없거나 조회에 실패해도 다른 알림은 그대로 보냅니다.
+  // 관리자 답장은 그 학생에게, 학생이 다시 쓴 답글(from_admin = false)은 아래 관리자 새 활동으로 알립니다.
+  const studentReplies: { id: string; who: string }[] = [];
   {
     const { data, error } = await admin.from("feedback_replies")
-      .select("id, body, seen_at, feedback(user_id)").is("seen_at", null).gte("created_at", iso(now - ADMIN_LOOKBACK));
+      .select("*, feedback(user_id, profiles(name))").gte("created_at", iso(now - ADMIN_LOOKBACK));
     if (error) console.error("피드백 답장 조회 실패", error.message);
     else {
+      const owner = (r: { feedback: unknown }) => r.feedback as { user_id: string; profiles: { name: string } | null } | null;
       planned.push(...planReplyNotes(
-        data.map((r) => ({
-          id: r.id, body: r.body, seen: !!r.seen_at,
-          user_id: (r.feedback as unknown as { user_id: string } | null)?.user_id ?? "",
+        data.filter((r) => r.from_admin !== false).map((r) => ({
+          id: r.id, body: r.body, seen: !!r.seen_at, user_id: owner(r)?.user_id ?? "",
         })),
         new Set(userIds),
       ));
+      for (const r of data.filter((r) => r.from_admin === false)) {
+        studentReplies.push({ id: r.id, who: owner(r)?.profiles?.name ?? "학생" });
+      }
     }
   }
 
@@ -126,6 +131,7 @@ Deno.serve(async () => {
         ...asked.data!.map((a) => ({ kind: "assignment" as const, id: a.id, who: a.author_name ?? "학생" })),
         ...feedback.data!.filter((f) => !admins.includes(f.user_id))
           .map((f) => ({ kind: "feedback" as const, id: f.id, who: (f.profiles as unknown as { name: string } | null)?.name ?? "학생" })),
+        ...studentReplies.map((r) => ({ kind: "reply" as const, ...r })),
       ];
       const { data: logged, error } = items.length
         ? await admin.from("notify_log").select("user_id, key").in("key", items.map(adminKey)).in("user_id", admins)
