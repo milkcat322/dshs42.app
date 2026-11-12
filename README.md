@@ -92,6 +92,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `todotoday.sql` 을 **Run** (오늘 할 일 · 끝낸 할 일 2일 뒤 자동 삭제)
    이어서 `cohort43.sql` 을 **Run** (43기 사이트 dshs43.app: 43기 과목 · 자동 등록 · 분반 없는 수행평가 올리기)
    이어서 `roster43.sql` 을 **Run** (43기 명단 95명 · 12과목 수강)
+   이어서 `cohort43ban.sql` 을 **Run** (43기 수강에 반 넣기 · 수행평가를 전체 또는 우리 반으로)
    이어서 `ttpicks43.sql` 을 **Run** (43기 시간표 칸의 선생님 고르기 · 반마다 함께)
    이어서 `learn.sql` 을 **Run** (공부 탭 단어장 북마크)
    이어서 `seats.sql` 을 **Run** (자습실 자리. `dshs-oauth` 를 배포하기 **전에** 실행 — 함수가 `dshs_links.seat_ok` 칸을 씀)
