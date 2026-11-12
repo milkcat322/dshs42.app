@@ -116,6 +116,7 @@ async function init() {
 }
 async function startApp() {
   if (!ENABLED) { $("studyNav").style.display = "none"; return; }
+  if (DEMO) return startDemo();
   if (dshsPopupLanding()) closeDshsPopup();   // 앱이 연 로그인 창이면 화면을 그리기 전에 바로 닫습니다
   silentReturned();   // 조용한 로그인에서 돌아왔으면 원래 주소로 (토큰은 # 뒤에 남겨 아래 dshsSession 이 씀)
   // 로그인 기록이 없으면 검색창이 잠깐 보였다 사라지지 않도록 처음부터 로그인 안내를 띄웁니다
@@ -183,6 +184,72 @@ async function startApp() {
   dshsReturned();
   watchDshs();
   watchStatus();
+}
+
+// ---------- 데모 (?demo) ----------
+// 선생님께 보여 드리는 화면. 주소에 ?demo 가 있으면 index.html 이 demo-data.js(scripts/make-demo.mjs 로 만든 한 학생의 자료)를
+// 불러 window.DSHS_DEMO 가 생기고, 서버에 연결하지 않고 그 자료로 로그인한 학생 화면을 그대로 보여 줍니다.
+// 눌러서 추가 · 수정 · 삭제해도 이 창 안에서만 바뀌고 실제 DB 에는 아무것도 보내지 않습니다 (새로고침하면 처음으로).
+const DEMO = window.DSHS_DEMO || null;
+function demoClient(d) {
+  const T = structuredClone(d.tables);
+  const uid = d.uid;
+  let seq = 0;
+  const newRow = (table, r) => ({ id: `demo-${++seq}`, created_at: new Date().toISOString(), user_id: uid, ...r });
+  const query = (table) => {
+    const q = { op: "select", filters: [], single: false, rows: null };
+    const rowsOf = () => (T[table] ||= []);
+    const match = (r) => q.filters.every(([k, op, v]) => op === "eq" ? String(r[k]) === String(v) : op === "in" ? v.map(String).includes(String(r[k])) : op === "is" ? (r[k] ?? null) === v : true);
+    const run = () => {
+      let data;
+      if (q.op === "select") data = rowsOf().filter(match);
+      else if (q.op === "insert" || q.op === "upsert") { const add = q.rows.map((r) => newRow(table, r)); rowsOf().push(...add); data = add; }
+      else if (q.op === "update") { data = rowsOf().filter(match); data.forEach((r) => Object.assign(r, q.rows)); }
+      else if (q.op === "delete") { data = rowsOf().filter(match); T[table] = rowsOf().filter((r) => !match(r)); }
+      data = structuredClone(data);
+      return { data: q.single ? data[0] ?? null : data, error: null };
+    };
+    const b = new Proxy({}, {
+      get(_, k) {
+        if (k === "then") return (ok, bad) => Promise.resolve().then(run).then(ok, bad);
+        if (k === "insert" || k === "upsert") return (rows) => { q.op = k; q.rows = [].concat(rows); return b; };
+        if (k === "update") return (patch) => { q.op = "update"; q.rows = patch; return b; };
+        if (k === "delete") return () => { q.op = "delete"; return b; };
+        if (k === "eq" || k === "in" || k === "is") return (col, v) => { q.filters.push([col, k, v]); return b; };
+        if (k === "single" || k === "maybeSingle") return () => { q.single = true; return b; };
+        return () => b;   // select · order · limit · neq 등은 그대로 (select 는 위에서 op 를 바꾸지 않음)
+      },
+    });
+    return b;
+  };
+  const session = { access_token: "demo", user: { id: uid } };
+  return {
+    from: query,
+    rpc: async () => ({ data: [], error: null }),
+    storage: { from: () => ({ upload: async () => ({ data: null, error: null }), createSignedUrl: async () => ({ data: null, error: null }) }) },
+    auth: {
+      getSession: async () => ({ data: { session }, error: null }),
+      refreshSession: async () => ({ data: { session }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+      signOut: async () => { location.href = location.pathname; return { error: null }; },
+      signInWithPassword: async () => ({ error: { message: "demo" } }),
+      verifyOtp: async () => ({ error: { message: "demo" } }),
+    },
+  };
+}
+async function startDemo() {
+  sb = demoClient(DEMO);
+  sbReady();
+  $("gateLogin").onclick = () => toast("데모 화면이에요");
+  $("gateAdmin").onclick = () => toast("데모 화면이에요");
+  dshs.linked = true;   // dshs.app 연결 안내가 뜨지 않게 (신청 내역은 비움)
+  await loadProfile();
+  applyAccess(false);
+  renderNav();
+  await loadAssignments();
+  openStart();
+  document.body.insertAdjacentHTML("beforeend",
+    `<div class="demo-badge">데모 화면 · 바꾼 내용은 저장되지 않아요</div>`);
 }
 
 // 알림을 누르고 들어오면 그 탭으로, 아니면 내 시간표로 시작합니다
@@ -306,6 +373,7 @@ function keepStorage() {
   try { navigator.storage?.persist?.().catch(() => {}); } catch {}
 }
 function saveSnap() {
+  if (DEMO) return;   // 데모 자료를 이 기기의 '지난 화면'으로 남기지 않음
   clearTimeout(saveSnap.t);
   saveSnap.t = setTimeout(() => {
     if (!me) return;
@@ -971,7 +1039,7 @@ function paintMyStatus() {
 
 // 자리를 보여 주기로 했는데 자리 번호가 없을 때, 왜 없는지 내 위치 줄에 알려 줍니다
 function seatNote() {
-  if (!seatShares || seatNeed === "off") return "";   // seats.sql 전이거나 서버가 자리를 받지 않음
+  if (DEMO || !seatShares || seatNeed === "off") return "";   // 데모는 자리를 받지 않음   // seats.sql 전이거나 서버가 자리를 받지 않음
   if (seatNeed === "relink") return `<button class="ms-relink" id="msRelink">dshs.app 을 다시 연결하면 자습실 자리가 함께 보여요</button>`;
   if (seatNeed === "link" || dshs.linked === false) return `<button class="ms-relink" id="msRelink">dshs.app 을 연결하면 자습실 자리가 함께 보여요</button>`;
   if (seatNeed === "error") return `<span class="ms-note">자리를 아직 못 받았어요. 잠시 뒤 다시 받아요</span>`;
@@ -2848,6 +2916,7 @@ function silentReturned() {
 }
 
 async function dshsCall(action, extra) {
+  if (DEMO) return { ok: true, body: { linked: true, items: [] } };   // 데모는 서버에 묻지 않음
   const { data: { session } } = await sb.auth.getSession();
   const res = await fetch(DSHS_FN, {
     method: "POST",

@@ -532,6 +532,8 @@
   .study-foot { font-size: 11.5px; color: var(--text-muted); line-height: 1.7; margin-top: 12px; text-align: center; }
   /* 공부 탭: 과목 고르기 + 단어장(vocab.html) */
   .learn-subjects .study-btn { flex: 1 1 auto; }
+  /* 데모 화면 표시 (?demo) */
+  .demo-badge { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 90; pointer-events: none; font-size: 12px; font-weight: 600; color: #fff; background: rgba(20,20,30,0.78); border-radius: 999px; padding: 6px 14px; white-space: nowrap; }
   /* 급식 */
   .meal-nav { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
   .meal-nav .study-btn { flex-shrink: 0; padding: 8px 14px; }
@@ -2676,7 +2678,8 @@ function switchTab(tabName, btn) {
   try { seen = localStorage.getItem(KEY); } catch {}
   // 마지막으로 본 주요 업데이트보다 최신인 것들. 처음 온 사람에게는 가장 최근 것 하나만 보여 줍니다.
   const seenAt = majors.findIndex(u => u.id === seen);
-  const unseen = seenAt < 0 ? majors.slice(0, 1) : majors.slice(0, seenAt);
+  // 데모 화면(?demo)에서는 팝업을 띄우지 않습니다
+  const unseen = /[?&]demo(=|&|$)/.test(location.search) ? [] : seenAt < 0 ? majors.slice(0, 1) : majors.slice(0, seenAt);
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const day = d => { const [, m, dd] = d.split('-'); return `${+m}월 ${+dd}일`; };
@@ -2745,6 +2748,10 @@ function switchTab(tabName, btn) {
 })();
 </script>
 <script src="config.js"></script>
+<script>
+  // 데모 화면(?demo): 한 학생 자료(demo-data.js)로 서버 없이 보여 줍니다. 바꾼 내용은 저장되지 않음 (dshs-study.js 의 startDemo)
+  if (/[?&]demo(=|&|$)/.test(location.search)) document.write('<script src="demo-data.js"><\/script>');
+</script>
 <script type="module" src="dshs-study.js"></script>
 </body>
 </html>
