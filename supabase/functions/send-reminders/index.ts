@@ -1,5 +1,5 @@
 // dshs42.app — 알림 발송 Edge Function
-// 수행평가 기한 · 내 일정 · 필수 학교 일정 알림과 관리자용 새 활동 알림을 웹 푸시로 보냅니다.
+// 수행평가 기한 · 내 일정 · 필수 학교 일정 · 피드백 답장 알림과 관리자용 새 활동 알림을 웹 푸시로 보냅니다.
 // 누구에게 무엇을 보낼지는 plan.ts 가 정하고, 여기서는 불러오고 보내고 기록만 합니다.
 // 같은 (사람, 알림) 조합은 notify_log 때문에 두 번 가지 않습니다.
 //
@@ -9,7 +9,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { adminKey, planAdminNote, planNotes, type AdminItem } from "./plan.ts";
+import { adminKey, planAdminNote, planNotes, planReplyNotes, type AdminItem } from "./plan.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const LOG_KEEP_DAYS = 3;
@@ -80,6 +80,22 @@ Deno.serve(async () => {
     assignments: [...assignments.data!, ...moved.data!], asgDone: asgDone.data!, personal: personal.data!,
     events: events.data!, members: members.data!, school: school.data!,
   });
+
+  // 피드백 답장 (feedbackreply.sql). 표가 없거나 조회에 실패해도 다른 알림은 그대로 보냅니다.
+  {
+    const { data, error } = await admin.from("feedback_replies")
+      .select("id, body, seen_at, feedback(user_id)").is("seen_at", null).gte("created_at", iso(now - ADMIN_LOOKBACK));
+    if (error) console.error("피드백 답장 조회 실패", error.message);
+    else {
+      planned.push(...planReplyNotes(
+        data.map((r) => ({
+          id: r.id, body: r.body, seen: !!r.seen_at,
+          user_id: (r.feedback as unknown as { user_id: string } | null)?.user_id ?? "",
+        })),
+        new Set(userIds),
+      ));
+    }
+  }
 
   let sent = 0, failed = 0, pruned = 0;
 

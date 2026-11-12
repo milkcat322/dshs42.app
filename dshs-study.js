@@ -160,11 +160,13 @@ async function startApp() {
   if ((session ? loadProfile.failed : sessErr && isNetErr(sessErr)) && authUserId()) retryAuth();
   renderNav();
   if (me) loadAssignments();
+  checkFbReplies();
 
   logVisit();
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) return;
     logVisit();
+    checkFbReplies();
     if (retryAuth.t) retryAuth(300);   // 앱으로 돌아오면 기다리지 않고 바로 다시 확인
   });
   sb.auth.onAuthStateChange(async (evt) => {
@@ -190,7 +192,21 @@ function openStart() {
   if (me?.is_admin) openAdminMoved();
   else if (me && opened === "assignments") openAsgLink(q.get("asg"));
   else if (me && opened === "cal") openStudy("cal");
+  else if (me && opened === "feedback") openFeedbackLink();
   else if (me?.student_id) openMyTimetable();
+}
+
+// 답장 알림으로 들어오면 피드백 창을 엽니다 (주소의 view 는 지워 새로고침해도 다시 뜨지 않게)
+function openFeedbackLink() {
+  if (me?.student_id && !$("result")?.innerHTML) openMyTimetable();
+  try {
+    const u = new URL(location.href);
+    if (u.searchParams.get("view") === "feedback") {
+      u.searchParams.delete("view");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    }
+  } catch {}
+  openFeedback();
 }
 
 // 수행평가 알림으로 들어오면 수행평가 탭을 열고, asg 가 있으면 그 수행평가 자세히 보기까지 엽니다
@@ -223,6 +239,7 @@ if ("serviceWorker" in navigator) {
       if (me.is_admin) return;
       if (v === "assignments") openAsgLink(u.searchParams.get("asg"));
       else if (v === "cal") openStudy("cal");
+      else if (v === "feedback") openFeedbackLink();
     } catch {}
   });
 }
@@ -2451,7 +2468,8 @@ function openFeedback() {
     $("fbLogin").onclick = openAuth;
     return back();
   }
-  openSheet(head, `
+  const mine = '<div id="fbMine"></div>';
+  openSheet(head, `${fbUnread ? mine : ""}
     <label class="study-label">유형</label>
     <select class="study-input" id="fbKind">${Object.entries(FEEDBACK_KINDS).map(([k, label]) =>
       `<option value="${k}">${label}</option>`).join("")}</select>
@@ -2461,8 +2479,9 @@ function openFeedback() {
     <input class="study-input" type="file" id="fbFile" accept="image/*">
     <div class="study-foot">보낸 내용은 관리자만 볼 수 있어요.</div>
     <div class="study-err" id="authErr"></div>
-    <button class="study-submit" id="fbSend">보내기</button>`);
+    <button class="study-submit" id="fbSend">보내기</button>${fbUnread ? "" : mine}`);
   back();
+  loadMyFeedback();
   $("fbKind").onchange = () => { $("fbBody").placeholder = FEEDBACK_HINT[$("fbKind").value]; };
   $("fbSend").onclick = async () => {
     const body = $("fbBody").value.trim(), file = $("fbFile").files[0];
@@ -2485,6 +2504,54 @@ function openFeedback() {
   };
 }
 window.openFeedback = openFeedback;
+
+// ---------- 피드백 답장 (feedbackreply.sql) ----------
+// 관리자가 관리자 사이트에서 남긴 답장을 피드백 창의 '내가 보낸 피드백'에서 읽습니다.
+// 안 읽은 답장이 있으면 📢 버튼과 '피드백' 탭에 점을 찍고, 창을 열면 읽음으로 바꿉니다.
+let fbUnread = 0, fbCheckedAt = 0;
+function paintFbDot() {
+  $("updBtn")?.classList.toggle("has-reply", fbUnread > 0);
+}
+// 안 읽은 답장 수 (1분 안에 다시 묻지 않습니다. 표가 아직 없으면 0)
+async function checkFbReplies() {
+  if (!sb || !me || me.is_admin || Date.now() - fbCheckedAt < 60000) return;
+  fbCheckedAt = Date.now();
+  const { count, error } = await sb.from("feedback_replies").select("id", { count: "exact", head: true }).is("seen_at", null);
+  if (error) return;
+  fbUnread = count || 0;
+  paintFbDot();
+}
+async function loadMyFeedback() {
+  if (!sb) await sbWait;
+  const uid = me?.id;
+  if (!uid) return;
+  const [fb, re] = await Promise.all([
+    sb.from("feedback").select("id, kind, body, created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(20),
+    sb.from("feedback_replies").select("id, feedback_id, body, created_at, seen_at").order("created_at"),
+  ]);
+  const box = $("fbMine");
+  if (!box || fb.error || !fb.data.length) return;
+  const replies = re.error ? [] : re.data;
+  const at = (s) => { const t = new Date(s); return `${md(t)} ${hm(t)}`; };
+  // 답장이 달린 피드백을 먼저, 그다음 최근에 보낸 순
+  const last = (f) => Math.max(0, ...replies.filter((r) => r.feedback_id === f.id).map((r) => Date.parse(r.created_at)));
+  const rows = [...fb.data].sort((a, b) => last(b) - last(a));
+  box.innerHTML = `<div class="fbm-title">내가 보낸 피드백</div>${rows.map((f) => {
+    const mineRe = replies.filter((r) => r.feedback_id === f.id);
+    return `<div class="fbm-item">
+      <div class="fbm-head"><span class="adm-chip">${FEEDBACK_KINDS[f.kind] || "기타"}</span><span>${at(f.created_at)}</span></div>
+      <div class="fbm-body">${esc(f.body)}</div>
+      ${mineRe.map((r) => `<div class="fbm-reply${r.seen_at ? "" : " new"}">
+        <div class="fbm-head"><b>관리자 답장</b>${r.seen_at ? "" : '<span class="fb-new">새 답장</span>'}<span>${at(r.created_at)}</span></div>
+        <div class="fbm-body">${esc(r.body)}</div>
+      </div>`).join("") || '<div class="fbm-wait">아직 답장이 없어요</div>'}
+    </div>`;
+  }).join("")}`;
+  if (replies.some((r) => !r.seen_at)) {
+    const { error } = await sb.rpc("mark_feedback_replies_seen");
+    if (!error) { fbUnread = 0; fbCheckedAt = Date.now(); paintFbDot(); }
+  }
+}
 
 // ---------- 학사일정 (NEIS) ----------
 // 학교 홈페이지의 학사일정을 scripts/fetch-academic.mjs 가 매일 academic.json 으로 받아 둡니다.

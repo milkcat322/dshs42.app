@@ -633,12 +633,21 @@ function visitUsersHtml(v) {
     ${v.today_unknown ? `<div class="adm-foot">이름 기록을 시작하기 전에 로그인한 기기 ${v.today_unknown}대는 이름 없이 셌어요.</div>` : ""}`;
 }
 
-function feedbackItemHtml(f, name, url, isNew) {
+// replies: 이 피드백에 단 답장들 (feedbackreply.sql). 학생이 읽으면 '읽음'이 붙습니다. nameOf 로 답장한 관리자 이름을 찾습니다.
+function feedbackItemHtml(f, name, url, isNew, replies = [], nameOf = new Map()) {
   return `<div class="adm-fb${isNew ? " new" : ""}">
-    <div class="adm-fb-top"><span class="adm-chip">${FEEDBACK_KINDS[f.kind]}</span>${isNew ? '<span class="fb-new">새 피드백</span>' : ""}</div>
+    <div class="adm-fb-top"><span class="adm-chip">${FEEDBACK_KINDS[f.kind]}</span>${isNew ? '<span class="fb-new">새 피드백</span>' : ""}${replies.length ? '<span class="adm-chip">답장함</span>' : ""}</div>
     <div class="adm-fb-text">${esc(f.body)}</div>
     ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener"><img class="fb-img" src="${esc(url)}" alt="첨부한 스크린샷"></a>` : ""}
-    <div class="adm-fb-foot"><span>${esc(name || "알 수 없음")} · ${esc(ovTime(f.created_at))}</span><button class="study-btn small no" data-fbdel="${f.id}">삭제</button></div>
+    ${replies.map((r) => `<div class="adm-fb-re">
+      <div class="adm-fb-re-top"><b>${esc(nameOf.get(r.created_by) || "관리자")} 답장</b><span>${esc(ovTime(r.created_at))} · ${r.seen_at ? "읽음" : "아직 안 읽음"}</span><button type="button" data-redel="${r.id}">지우기</button></div>
+      <div class="adm-fb-re-text">${esc(r.body)}</div>
+    </div>`).join("")}
+    <div class="adm-fb-write" data-rebox="${f.id}" hidden>
+      <textarea class="study-input" rows="3" maxlength="2000" placeholder="${esc(name || "학생")}에게 보낼 답장. 학생의 피드백 창에 보이고 알림이 가요."></textarea>
+      <div class="adm-fb-write-foot"><button class="study-btn small" type="button" data-recancel="${f.id}">취소</button><button class="study-btn primary small" type="button" data-resend="${f.id}">답장 보내기</button></div>
+    </div>
+    <div class="adm-fb-foot"><span>${esc(name || "알 수 없음")} · ${esc(ovTime(f.created_at))}</span><span class="adm-fb-foot-btns"><button class="study-btn small" data-reopen="${f.id}">답장</button><button class="study-btn small no" data-fbdel="${f.id}">삭제</button></span></div>
   </div>`;
 }
 
@@ -648,11 +657,18 @@ async function loadFeedback() {
   if (error) return { error };
   const paths = data.map((f) => f.image_path).filter(Boolean);
   const signed = paths.length ? (await sb.storage.from("feedback").createSignedUrls(paths, 3600)).data || [] : [];
+  // 답장 (feedbackreply.sql 을 아직 실행하지 않았으면 빈 목록)
+  const { data: replies } = data.length
+    ? await sb.from("feedback_replies").select("id, feedback_id, body, created_by, created_at, seen_at")
+        .in("feedback_id", data.map((f) => f.id)).order("created_at")
+    : { data: [] };
   const { data: who } = data.length
-    ? await sb.from("profiles").select("id, name, student_id").in("id", [...new Set(data.map((f) => f.user_id))])
+    ? await sb.from("profiles").select("id, name, student_id")
+        .in("id", [...new Set([...data.map((f) => f.user_id), ...(replies || []).map((r) => r.created_by).filter(Boolean)])])
     : { data: [] };
   return {
     rows: data,
+    replies: replies || [],
     urlOf: new Map(signed.map((x) => [x.path, x.signedUrl])),
     nameOf: new Map((who || []).map((p) => [p.id, p.student_id ? `${p.student_id} ${p.name}` : p.name])),
   };
@@ -959,7 +975,8 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, 
   const rows = fb.rows || [];
   const fresh = rows.filter((f) => Date.parse(f.created_at) > fbSeen);
   const old = rows.filter((f) => Date.parse(f.created_at) <= fbSeen);
-  const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew)).join("");
+  const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew,
+    (fb.replies || []).filter((r) => r.feedback_id === f.id), fb.nameOf)).join("");
   const nAsg = pending.length + (log?.open.length || 0), nDev = tasks?.filter((t) => DEV_HOT.has(t.status)).length ?? 0;
   navStat = { asg: { v: nAsg + fresh.length, hot: nAsg + fresh.length > 0 }, stu: { v: overview?.students.length ?? "-" },
     dev: { v: nDev, hot: nDev > 0 } };
@@ -1046,6 +1063,7 @@ function paintOverview(res) {
   if (acc) acc.ontoggle = () => { logOpen = acc.open; };
   bindMerge(body);
   body.querySelectorAll("[data-fbdel]").forEach((x) => x.onclick = () => deleteFeedback(fb.rows.find((r) => r.id === x.dataset.fbdel)));
+  bindReplies(body);
   bindPlans(body, plans.data || [], bindDev(body, tasks.data || [], showPane));
   if (fb.rows?.[0]) { try { localStorage.setItem(FB_SEEN_KEY, fb.rows[0].created_at); } catch {} }
   if (data?.activity[0]) { try { localStorage.setItem(OV_SEEN_KEY, data.activity[0].at); } catch {} }
@@ -1053,8 +1071,38 @@ function paintOverview(res) {
 }
 
 
+// 피드백 답장 쓰기 · 지우기 (feedbackreply.sql). 보내면 학생의 피드백 창에 보이고, send-reminders 가 1분 안에 그 학생에게 알립니다.
+function bindReplies(body) {
+  const boxOf = (id) => body.querySelector(`[data-rebox="${id}"]`);
+  body.querySelectorAll("[data-reopen]").forEach((b) => b.onclick = () => {
+    const box = boxOf(b.dataset.reopen);
+    box.hidden = !box.hidden;
+    if (!box.hidden) box.querySelector("textarea").focus();
+  });
+  body.querySelectorAll("[data-recancel]").forEach((b) => b.onclick = () => { boxOf(b.dataset.recancel).hidden = true; });
+  body.querySelectorAll("[data-resend]").forEach((b) => b.onclick = async () => {
+    const text = boxOf(b.dataset.resend).querySelector("textarea").value.trim();
+    if (!text) return toast("답장 내용을 적어 주세요", true);
+    b.disabled = true;
+    const { error } = await sb.from("feedback_replies").insert({ feedback_id: b.dataset.resend, body: text, created_by: me.id });
+    if (error) {
+      b.disabled = false;
+      return toast(/feedback_replies|schema cache|does not exist/.test(error.message || "") ? "feedbackreply.sql 을 먼저 실행해야 해요" : "답장을 보내지 못했어요", true);
+    }
+    toast("답장을 보냈어요");
+    renderOverview();
+  });
+  body.querySelectorAll("[data-redel]").forEach((b) => b.onclick = async () => {
+    if (!confirm("이 답장을 지울까요? 학생 화면에서도 사라져요.")) return;
+    const { error } = await sb.from("feedback_replies").delete().eq("id", b.dataset.redel);
+    if (error) return toast("지우지 못했어요", true);
+    toast("답장을 지웠어요");
+    renderOverview();
+  });
+}
+
 async function deleteFeedback(f) {
-  if (!confirm("이 피드백을 삭제할까요?")) return;
+  if (!confirm("이 피드백을 삭제할까요? 단 답장도 함께 지워져요.")) return;
   const { error } = await sb.from("feedback").delete().eq("id", f.id);
   if (error) return toast("삭제하지 못했어요", true);
   if (f.image_path) await sb.storage.from("feedback").remove([f.image_path]);

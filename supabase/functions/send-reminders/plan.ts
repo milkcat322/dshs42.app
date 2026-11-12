@@ -135,6 +135,22 @@ export function planNotes(now: number, d: Input): Note[] {
   return notes;
 }
 
+// 피드백 답장 (feedbackreply.sql): 관리자가 답장을 남기면 그 피드백을 보낸 학생에게 한 번 알립니다.
+// 이미 읽은 답장(seen)과 알림을 켠 기기가 없는 학생은 뺍니다.
+export type FbReply = { id: string; user_id: string; body: string; seen: boolean };
+export function planReplyNotes(replies: FbReply[], known: Set<string>): Note[] {
+  return replies.filter((r) => !r.seen && known.has(r.user_id)).map((r) => {
+    const text = r.body.replace(/\s+/g, " ").trim();
+    return {
+      userId: r.user_id, key: `fbreply:${r.id}`,
+      title: "피드백에 답장이 왔어요",
+      body: text.length > 80 ? `${text.slice(0, 80)}…` : text,
+      url: "/?view=feedback",
+      ttl: 24 * 60 * 60,
+    };
+  });
+}
+
 export const adminKey = (i: AdminItem) => `adm:${i.kind}:${i.id}`;
 
 const ADMIN_LABEL = { signup: ["가입", "명"], assignment: ["승인 요청", "건"], feedback: ["피드백", "건"] } as const;

@@ -346,6 +346,30 @@
   .upd-sheet .study-tabs, .study-sheet .sheet-title .study-tabs { margin-left: -8px; }
   .icon-btn.warn::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f; }   /* 설정: 알림이 꺼져 있음 */
   .icon-btn.has-new::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
+  .icon-btn.has-reply::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f; }   /* 📢: 안 읽은 피드백 답장 */
+  .tab-dot { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: #ff4d4f; vertical-align: 6px; }
+  /* 피드백 창: 내가 보낸 피드백과 관리자 답장 */
+  #fbMine:not(:empty) { margin: 18px 0 6px; }
+  #fbMine:first-child:not(:empty) { margin-top: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .fbm-title { margin-bottom: 8px; font-size: 12px; font-weight: 700; color: var(--text-dim); }
+  .fbm-item { padding: 12px 14px; margin-bottom: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+  .fbm-head { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); }
+  .fbm-head span:last-child { margin-left: auto; }
+  .fbm-head b { font-size: 12.5px; color: var(--text); }
+  .fbm-body { margin-top: 6px; font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .fbm-item > .fbm-body { color: var(--text-dim); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .fbm-reply { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(136,136,170,0.12); border-left: 3px solid var(--accent1); }
+  .fbm-reply.new { border-left-color: #ff4d4f; }
+  .fbm-wait { margin-top: 8px; font-size: 11.5px; color: var(--text-muted); }
+  /* 관리자 사이트: 피드백 답장 */
+  .adm-fb-re { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(136,136,170,0.12); border-left: 3px solid var(--accent1); }
+  .adm-fb-re-top { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
+  .adm-fb-re-top button { margin-left: auto; background: none; border: none; color: var(--text-muted); font-size: 12px; cursor: pointer; font-family: inherit; }
+  .adm-fb-re-text { margin-top: 4px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .adm-fb-write { margin-top: 10px; }
+  .adm-fb-write textarea { width: 100%; box-sizing: border-box; }
+  .adm-fb-write-foot { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+  .adm-fb-foot-btns { display: flex; gap: 6px; }
   .upd-sheet { max-width: 420px; }
   .upd-entry { padding: 14px 0; border-top: 1px solid var(--border); }
   .study-sheet-head + .upd-entry { border-top: none; padding-top: 0; }
@@ -2650,7 +2674,7 @@ function switchTab(tabName, btn) {
   // 업데이트 내역 · 피드백 탭 머리 (피드백 창도 같은 머리를 씁니다)
   window.updTabs = on => `<div class="study-tabs">
     <button class="study-tab${on === 'upd' ? ' on' : ''}" type="button" data-utab="upd">업데이트 내역</button>
-    <button class="study-tab${on === 'fb' ? ' on' : ''}" type="button" data-utab="fb">피드백</button></div>`;
+    <button class="study-tab${on === 'fb' ? ' on' : ''}" type="button" data-utab="fb">피드백${btn.classList.contains('has-reply') ? '<span class="tab-dot" aria-label="새 답장"></span>' : ''}</button></div>`;
   window.openUpdates = () => open(window.updTabs('upd'), list, '');
   function close() {
     modal.className = 'study-modal';
