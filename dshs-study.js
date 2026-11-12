@@ -1177,8 +1177,8 @@ function openAdminLogin() {
 function showErr(msg) { const e = $("authErr"); e.textContent = msg; e.classList.add("show"); }
 
 // ---------- 탭: 내 일정 · 수행평가 공지 · 할 일 ----------
-const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"], ["learn", "공부"]];
-const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", learn: "learn" };
+const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"], ["meal", "급식"], ["learn", "공부"]];
+const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", meal: "meal", learn: "learn" };
 
 // 내 일정: 수행평가(내 분반 공지 + 내가 올린 것)와 개인 일정을 한 달력에 모두 보여줍니다
 function openStudy(p) {
@@ -1192,6 +1192,7 @@ function openStudy(p) {
   // 시간표 검색창은 내 시간표 탭에서만 보입니다 (내 시간표 탭이 없는 관리자 계정은 그대로 둠)
   document.body.classList.toggle("study-open", !!me?.student_id);
   if (page === "learn") { renderLearn(); renderNav(); return; }   // 공부 탭은 서버 자료를 쓰지 않습니다
+  if (page === "meal") { mealDay = null; renderMeal(); renderNav(); return; }   // 급식은 NEIS 에서 바로 받습니다 (열 때마다 다음 끼니 날로)
   renderStudy();
   renderNav();
   // 받아 둔 내용(지난 화면 · 앞서 받은 것)이 있으면 '불러오는 중' 없이 바로 그리고, 서버에서 새로 받아 바뀐 것만 다시 그립니다
@@ -1207,7 +1208,7 @@ function closeStudy() {
 }
 // 지금 view 에 맞춰 studyBody 를 다시 그립니다
 function rerender() {
-  if (view === "learn") return;   // 공부 탭은 받아 온 자료로 다시 그리지 않습니다 (단어장 진행이 날아가지 않게)
+  if (view === "learn" || view === "meal") return;   // 공부 · 급식 탭은 서버 자료를 쓰지 않습니다 (단어장 진행이 날아가지 않게)
   if (view === "notice") renderNotice();
   else if (view === "todo") renderTodo();
   else renderList(view);
@@ -1294,6 +1295,99 @@ function renderLearn(pick) {
           </button>`).join("")}</div>`}
     <div class="study-foot">북마크는 계정에 저장돼 다른 기기에서도 보여요. 퀴즈 기록은 이 기기에만 남아요</div>`;
   $("studyView").querySelectorAll("[data-learn]").forEach((b) => b.onclick = () => renderLearn(b.dataset.learn));
+}
+
+// ---------- 급식 ----------
+// NEIS 급식 식단(학사일정과 같은 학교 코드). 브라우저에서 바로 받고(CORS 허용) 날짜별로 이 기기에 6시간 기억합니다.
+// 인증키 없이 한 번에 5줄까지라 하루(조식 · 중식 · 석식 3줄)씩 받습니다.
+const MEAL_API = "https://open.neis.go.kr/hub/mealServiceDietInfo";
+const MEAL_KEY = "dshs-meal";
+const MEAL_TTL = 6 * 3600 * 1000;
+const ALLERGY = ["", "난류", "우유", "메밀", "땅콩", "대두", "밀", "고등어", "게", "새우", "돼지고기", "복숭아",
+  "토마토", "아황산류", "호두", "닭고기", "쇠고기", "오징어", "조개류", "잣"];
+let mealDay = null;   // 보고 있는 날 (YYYY-MM-DD)
+
+function mealStore() { try { return JSON.parse(localStorage.getItem(MEAL_KEY) || "{}"); } catch { return {}; } }
+async function fetchMeal(key) {
+  const store = mealStore();
+  const hit = store[key];
+  if (hit && Date.now() - hit.at < MEAL_TTL) return hit.meals;
+  const q = new URLSearchParams({ Type: "json", pSize: "5", ATPT_OFCDC_SC_CODE: "G10", SD_SCHUL_CODE: "7430032", MLSV_YMD: key.replaceAll("-", "") });
+  try {
+    const r = await fetch(`${MEAL_API}?${q}`, { cache: "no-store" });
+    const j = await r.json();
+    const rows = j.mealServiceDietInfo?.[1]?.row || [];
+    if (!rows.length && j.RESULT?.CODE !== "INFO-200") throw new Error(j.RESULT?.MESSAGE || "neis");
+    const meals = rows.sort((a, b) => a.MMEAL_SC_CODE - b.MMEAL_SC_CODE).map((m) => ({
+      name: m.MMEAL_SC_NM,
+      kcal: (m.CAL_INFO || "").replace(/\s*Kcal/i, ""),
+      dishes: (m.DDISH_NM || "").split(/<br\s*\/?>/i).map((s) => s.trim()).filter(Boolean).map((s) => {
+        // 끝의 (1.2.5) 가 알레르기 번호 (1~19). '스파클링(350)' 같은 용량은 이름에 그대로 둡니다
+        let a = s.match(/\s*\(([\d.\s]+)\)\s*$/);
+        const nums = a ? a[1].split(".").map(Number).filter(Boolean) : [];
+        if (a && !(nums.length && nums.every((n) => n >= 1 && n < ALLERGY.length))) a = null;
+        return { name: (a ? s.slice(0, a.index) : s).replace(/^\*/, "").trim(), allergy: a ? nums : [] };
+      }),
+    }));
+    // 지난 날짜는 지우고 오늘 기준 앞뒤 2주만 남깁니다
+    const keep = Date.now() - 14 * 86400000;
+    for (const k of Object.keys(store)) if (parseDay(k) < keep) delete store[k];
+    store[key] = { at: Date.now(), meals };
+    try { localStorage.setItem(MEAL_KEY, JSON.stringify(store)); } catch {}
+    return meals;
+  } catch {
+    return hit ? hit.meals : null;   // 못 받으면 예전에 받아 둔 것이라도
+  }
+}
+
+// 지금 시각 기준 다음 끼니: 9시 전 조식 · 14시 전 중식 · 20시 전 석식, 그 뒤는 내일 조식
+function nextMeal() {
+  const n = new Date(), h = n.getHours() + n.getMinutes() / 60;
+  if (h >= 20) return { key: dayKey(new Date(+n + 86400000)), name: "조식" };
+  return { key: dayKey(n), name: h < 9 ? "조식" : h < 14 ? "중식" : "석식" };
+}
+
+async function renderMeal(key) {
+  const next = nextMeal();
+  mealDay = key || mealDay || next.key;
+  const day = mealDay;
+  const today = dayKey(new Date());
+  const d = parseDay(day);
+  const rel = day === today ? "오늘" : day === dayKey(new Date(Date.now() + 86400000)) ? "내일"
+    : day === dayKey(new Date(Date.now() - 86400000)) ? "어제" : "";
+  const shift = (n) => dayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n));
+  $("studyView").innerHTML = `
+    <div class="study-head">
+      <div>
+        <h2>급식</h2>
+        <div class="study-sub">대전과학고 식단 · NEIS</div>
+      </div>
+      <button class="study-btn" onclick="closeStudyView()">✕ 닫기</button>
+    </div>
+    <div class="meal-nav">
+      <button class="study-btn" id="mealPrev" aria-label="전날">◀</button>
+      <button class="meal-day" id="mealToday" title="오늘로">${d.getMonth() + 1}월 ${d.getDate()}일 (${"일월화수목금토"[d.getDay()]})${rel ? ` <span class="meal-rel">${rel}</span>` : ""}</button>
+      <button class="study-btn" id="mealNext" aria-label="다음 날">▶</button>
+    </div>
+    <div id="mealBody"><div class="study-empty">불러오는 중…</div></div>
+    <div class="study-foot meal-legend">알레르기 번호 · ${ALLERGY.slice(1).map((a, i) => `${i + 1} ${a}`).join(" · ")}</div>`;
+  $("mealPrev").onclick = () => renderMeal(shift(-1));
+  $("mealNext").onclick = () => renderMeal(shift(1));
+  $("mealToday").onclick = () => renderMeal(next.key);
+  const meals = await fetchMeal(day);
+  if (view !== "meal" || mealDay !== day) return;   // 그사이 다른 날 · 다른 탭으로 갔으면 그리지 않음
+  const box = $("mealBody");
+  if (meals === null) { box.innerHTML = `<div class="study-empty">급식 정보를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.</div>`; return; }
+  if (!meals.length) { box.innerHTML = `<div class="study-empty">이날은 급식 정보가 없어요.</div>`; return; }
+  box.innerHTML = `<div class="meal-list">${meals.map((m) => `
+    <div class="meal-card${day === next.key && m.name === next.name ? " now" : ""}">
+      <div class="meal-head"><span class="meal-name">${esc(m.name)}</span>
+        ${day === next.key && m.name === next.name ? `<span class="meal-tag">다음 끼니</span>` : ""}
+        ${m.kcal ? `<span class="meal-kcal">${esc(m.kcal)} kcal</span>` : ""}</div>
+      <ul class="meal-dishes">${m.dishes.map((x) => `<li>${esc(x.name)}${x.allergy.length
+        ? ` <span class="meal-alg" title="${esc(x.allergy.map((n) => ALLERGY[n]).filter(Boolean).join(", "))}">${x.allergy.join(".")}</span>` : ""}</li>`).join("")}</ul>
+    </div>`).join("")}</div>`;
+  fetchMeal(shift(1));   // 다음 날도 미리 받아 둡니다
 }
 
 function renderStudy() {
