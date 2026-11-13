@@ -1971,7 +1971,7 @@ function agenda() {
   const todos = allTodos().filter((t) => t.due_on).map((t) => ({
     kind: "todo", id: t.id, title: t.title, at: t.due_time ? todoDueAt(t.due_on, t.due_time) : parseDay(t.due_on), end: null, allDay: true,
     hm: todoHm(t.due_time),   // 마감 시각 (없으면 하루 종일). 달력에서는 종일 칸에 '21:00' 을 붙여 둡니다
-    color: "mint", done: t.done, owner: !t.shared, shared: !!t.shared || todoMembersOf(t.id).length > 0,
+    color: isTogether(t) ? "blue" : "mint", done: t.done, owner: !t.shared, shared: isTogether(t),
   }));
   return [...sch, ...asgs, ...todos, ...evs, ...dshsAgenda()].sort(byAgenda);
 }
@@ -1987,9 +1987,9 @@ function timeLabel(it) {
 }
 
 // 일정 종류 이름. 모든 일정은 같은 모양이고 색으로만 구분합니다 (범례 · 목록의 회색 글씨)
-const KIND_LABEL = { asg: "수행평가", todo: "할 일", ev: "내 일정", sch: "학교 일정", acad: "학교 일정", dshs: "dshs.app 신청" };
+const KIND_LABEL = { asg: "수행평가", todo: "할 일", todoTogether: "함께하는 할 일", ev: "내 일정", sch: "학교 일정", acad: "학교 일정", dshs: "dshs.app 신청" };
 function legendHtml() {
-  const kinds = [["asg", "c-asg"], ["todo", "c-mint"], ["ev", "c-violet"], ["sch", "c-school"], ["dshs", "c-dshs"]];
+  const kinds = [["asg", "c-asg"], ["todo", "c-mint"], ["todoTogether", "c-blue"], ["ev", "c-violet"], ["sch", "c-school"], ["dshs", "c-dshs"]];
   return `<div class="kind-legend">${kinds.map(([k, c]) => `<span class="kl ${c}"><i></i>${KIND_LABEL[k]}</span>`).join("")}</div>`;
 }
 
@@ -3578,7 +3578,7 @@ function todoRow(t, grip = false) {
   const today = isTodayTodo(t);
   const meta = todoShareLabel(t);
   const dueText = due ? `${due.short}${t.done ? "" : ` · ${due.label}`}` : "";
-  return `<div class="ev-row c-mint todo-row${t.done ? " done" : ""}${t.shared ? " td-shared" : ""}" data-tid="${t.id}">
+  return `<div class="ev-row ${isTogether(t) ? "c-blue" : "c-mint"} todo-row${t.done ? " done" : ""}${t.shared ? " td-shared" : ""}" data-tid="${t.id}">
     ${grip && !t.shared ? `<span class="td-grip" data-tgrip="${t.id}" title="끌어서 그룹에 넣기" aria-hidden="true">⠿</span>` : ""}
     <button class="ev-check" data-tchk="${t.id}" aria-label="완료 표시">${t.done ? "✓" : ""}</button>
     <button class="ev-main" data-tedit="${t.id}">
@@ -3638,9 +3638,11 @@ function renderTodo() {
   const gidOf = (t) => (t.group_id && gids.has(t.group_id) ? t.group_id : "");
   const grip = !!groups?.length;
   const folded = todoFolds();
-  const loose = open.filter((t) => !gidOf(t));
+  const together = open.filter(isTogether);
+  const mineOpen = open.filter((t) => !isTogether(t));
+  const loose = mineOpen.filter((t) => !gidOf(t));
   const groupHtml = (groups || []).map((g) => {
-    const list = open.filter((t) => gidOf(t) === g.id);
+    const list = mineOpen.filter((t) => gidOf(t) === g.id);
     const shut = folded.has(g.id);
     return `<div class="td-group td-zone${shut ? " shut" : ""}" data-tzone="${g.id}">
       <div class="td-ghead">
@@ -3664,11 +3666,15 @@ function renderTodo() {
       ${todayList.length ? todayList.map((t) => todoRow(t)).join("")
         : `<div class="td-today-empty">할 일 옆 '오늘'을 누르면 여기에 모여요</div>`}
     </div>` : ""}
-    <div class="study-section td-head">남은 할 일 ${open.length}개
+    ${together.length ? `<div class="td-togetherbox">
+      <div class="study-section td-head">함께하는 할 일 ${together.length}개</div>
+      ${together.map((t) => todoRow(t)).join("")}
+    </div>` : ""}
+    <div class="study-section td-head">남은 할 일 ${mineOpen.length}개
       ${groups ? `<button class="study-btn small" id="tdGroupAdd">＋ 그룹</button>` : ""}</div>
     <div class="td-zone td-loose" data-tzone="">
       ${loose.length ? loose.map((t) => todoRow(t, grip)).join("")
-        : `<div class="study-empty td-loose-empty">${open.length ? "그룹 밖으로 꺼내려면 여기에 놓으세요" : "남은 할 일이 없어요"}</div>`}
+        : `<div class="study-empty td-loose-empty">${mineOpen.length ? "그룹 밖으로 꺼내려면 여기에 놓으세요" : "남은 할 일이 없어요"}</div>`}
     </div>
     ${groupHtml}
     ${done.length ? `<div class="study-section td-head">완료 ${done.length}개<span class="td-done-note">끝낸 지 2일 뒤 사라져요</span></div>` + done.map((t) => todoRow(t)).join("") : ""}`;
@@ -3939,6 +3945,8 @@ const TODO_SHARE_FREE = [2202, 2113];
 const allTodos = () => [...(cache.todos || []), ...(cache.sharedTodos || [])];
 const findTodo = (id) => cache.todos?.find((t) => t.id === id) || cache.sharedTodos?.find((t) => t.id === id);
 const todoMembersOf = (id) => (cache.todoMembers || []).filter((m) => m.todo_id === id);
+// 함께하는 할 일: 친구가 공유한 것 + 내가 친구를 넣은 것(승인 대기 포함). 파란색 · 따로 된 칸
+const isTogether = (t) => !!t.shared || todoMembersOf(t.id).length > 0;
 // 내 것은 todos 행, 공유받은 것은 todo_members 의 내 행(완료 · 오늘)을 고칩니다
 const todoUpdate = (t, patch) => t.shared
   ? sb.from("todo_members").update(patch).eq("todo_id", t.id).eq("student_id", me.student_id)
