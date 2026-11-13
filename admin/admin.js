@@ -51,6 +51,15 @@ async function userInCohort(ids) {
   }
   return (id) => sidInCohort(sidOfUser.get(id));   // 프로필을 못 찾으면 보이게 둡니다
 }
+// 방문 · 로그인 이탈은 서버에 기수를 넘겨 이 기수 사이트 것만 받습니다 (visits.sql · loginsteps.sql 의 p_cohort).
+// DB 에 아직 기수 칸을 넣지 않았으면(함수 없음) 예전처럼 두 기수 합계를 받습니다.
+let cohortSplit = true;
+async function cohortRpc(fn, args) {
+  const r = await sb.rpc(fn, { ...args, p_cohort: COHORT.id });
+  if (r.error?.code === "PGRST202") { cohortSplit = false; return sb.rpc(fn, args); }
+  cohortSplit = true;
+  return r;
+}
 // admin_overview 결과에서 이 기수 학생만 (명단 수는 빠진 다른 기수 학생 수만큼 뺍니다)
 function cohortOverview(d) {
   if (!d?.students) return d;
@@ -644,7 +653,7 @@ function visitsHtml(v) {
       <i style="height:${Math.round(d.total / max * 100)}%"><em style="height:${d.total ? Math.round(d.logged_in / d.total * 100) : 0}%"></em></i>
       <small>${wd(d)}</small>
     </div>`).join("")}</div>
-    <div class="adm-foot">학생 사이트의 방문 기기 수예요. 한 학생이 폰과 노트북을 쓰면 2대로 세요. 진한 부분이 로그인한 기기예요. 관리자 기기는 세지 않아요. 기기 수는 모든 기수 사이트(42기 · 43기)를 합친 수이고, 아래 학생 이름만 ${COHORT.label}예요.</div>
+    <div class="adm-foot">학생 사이트의 방문 기기 수예요. 한 학생이 폰과 노트북을 쓰면 2대로 세요. 진한 부분이 로그인한 기기예요. 관리자 기기는 세지 않아요. ${cohortSplit ? `${COHORT.label} 사이트 방문만 셌어요.` : `기기 수는 모든 기수 사이트(42기 · 43기)를 합친 수이고, 아래 학생 이름만 ${COHORT.label}예요.`}</div>
     ${visitUsersHtml(v)}`;
 }
 
@@ -706,7 +715,7 @@ function loginFunnelHtml(f) {
     ${outRows ? `<div class="adm-label">시도 결과 <small>누르면 원인</small></div><div class="adm-uses">${outRows}</div>` : ""}
     ${envRows ? `<div class="adm-label">브라우저별 성공</div><div class="adm-uses">${envRows}</div>` : ""}
     ${recent ? `<details class="adm-acc"><summary>최근 멈춘 시도<span>${f.recent.length}</span></summary><div class="adm-visit-users">${recent}</div></details>` : ""}
-    <div class="adm-foot">시작 화면 본 기기는 기기 × 날짜로 세요. 시도는 '시작하기'를 누른 횟수예요. 다른 브라우저에서 돌아와 성공한 경우는 새 시도로 세요. 이름 · 학번은 기록하지 않아요. 모든 기수 사이트(42기 · 43기)를 합친 수예요.</div>`;
+    <div class="adm-foot">시작 화면 본 기기는 기기 × 날짜로 세요. 시도는 '시작하기'를 누른 횟수예요. 다른 브라우저에서 돌아와 성공한 경우는 새 시도로 세요. 이름 · 학번은 기록하지 않아요. ${cohortSplit ? `${COHORT.label} 사이트에서 시작한 시도만 셌어요.` : "모든 기수 사이트(42기 · 43기)를 합친 수예요."}</div>`;
 }
 
 // 오늘 로그인한 상태로 연 학생 (visits.sql 의 today_users). '전환'은 그전엔 이 기기에서 비로그인으로만 썼던 학생
@@ -1143,14 +1152,14 @@ async function renderOverview(cached = false) {
   }
   if (cached && ovLast) paintOverview(ovLast);
   const [res] = await Promise.all([Promise.all([sb.rpc("admin_overview"), loadFeedback(),
-    sb.rpc("admin_visits", { p_days: 7 }), loadReviewLog(),
+    cohortRpc("admin_visits", { p_days: 7 }), loadReviewLog(),
     sb.from("usage_reports").select("id, created_at, report").order("created_at", { ascending: false }).limit(1),
     sb.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(60),
     sb.from("admin_plans").select("*").order("created_at", { ascending: true }),
     sb.from("dev_news").select("*").order("updated_at", { ascending: false }).limit(15),
-    sb.rpc("admin_login_funnel", { p_days: 14 }),
+    cohortRpc("admin_login_funnel", { p_days: 14 }),
     sb.rpc("admin_todo_shares")]), loadPending()]);   // 할 일 공유 승인 대기 (todoshare.sql)
-  // 학생 현황 · 오늘 로그인한 학생은 이 기수 학생만 (방문 기기 수 · 로그인 이탈은 서버가 합쳐 세서 나누지 못함)
+  // 학생 현황 · 오늘 로그인한 학생은 이 기수 학생만. 방문 기기 수 · 로그인 이탈은 서버가 기수(p_cohort)로 나눠 줍니다
   if (res[0]?.data) res[0] = { ...res[0], data: cohortOverview(res[0].data) };
   if (res[2]?.data?.today_users) res[2] = { ...res[2], data: { ...res[2].data, today_users: res[2].data.today_users.filter((u) => sidInCohort(u.student_id)) } };
   setDbRoster(res[0]?.data);

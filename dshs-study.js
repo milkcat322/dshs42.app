@@ -428,13 +428,19 @@ async function logVisit() {
     const login = !!session;
     if (st.day === today && (st.login || !login)) return;
     st.id = visitId();
-    const { error } = await sb.rpc("log_visit", { p_device: st.id, p_kind: visitKind(), p_standalone: isStandalone() });
+    const { error } = await logRpc("log_visit", { p_device: st.id, p_kind: visitKind(), p_standalone: isStandalone() });
     if (error) return;
     const now = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");   // 그사이 logGate 가 남긴 값을 지우지 않게 다시 읽습니다
     now.login = (now.day === today && now.login) || login;
     now.day = today;
     localStorage.setItem(VISIT_KEY, JSON.stringify(now));
   } catch {}
+}
+// 방문 · 로그인 기록에 이 사이트의 기수(42기)를 함께 남깁니다 (visits.sql · loginsteps.sql 의 p_cohort, 관리자 사이트가 기수별로 봄).
+// DB 에 아직 기수 칸이 없으면(함수 없음) 예전처럼 기수 없이 남깁니다.
+const SITE_COHORT = 42;
+function logRpc(fn, args) {
+  return sb.rpc(fn, { ...args, p_cohort: SITE_COHORT }).then((r) => (r.error?.code === "PGRST202" ? sb.rpc(fn, args) : r));
 }
 // 기기 ID 는 바로 저장해 logVisit · logGate 가 동시에 불려도 같은 값을 씁니다
 function visitId() {
@@ -454,7 +460,7 @@ async function logGate(ev) {
     const key = ev === "click" ? "gateClick" : "gateSeen", today = dayKey(new Date());
     const st = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");
     if (st.skip || st[key] === today) return;
-    const { error } = await sb.rpc("log_gate", { p_device: visitId(), p_kind: visitKind(), p_standalone: isStandalone(), p_event: ev });
+    const { error } = await logRpc("log_gate", { p_device: visitId(), p_kind: visitKind(), p_standalone: isStandalone(), p_event: ev });
     if (error) return;
     const now = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");
     now[key] = today;
@@ -493,7 +499,7 @@ function logLogin(step, reason) {
     if (!sb) return Promise.resolve();
     const attempt = step === "click" ? loginTry(true) : loginTry() || loginTry(true);
     if (step === "done" || step === "fail") localStorage.removeItem(LOGIN_TRY);
-    return sb.rpc("log_login_step", { p_device: visitId(), p_attempt: attempt, p_step: step, p_reason: reason || null, p_env: loginEnv() })
+    return logRpc("log_login_step", { p_device: visitId(), p_attempt: attempt, p_step: step, p_reason: reason || null, p_env: loginEnv() })
       .then(() => {}, () => {});
   } catch { return Promise.resolve(); }
 }
