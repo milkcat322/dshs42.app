@@ -3411,7 +3411,7 @@ function parseStudents(text) {
   for (const w of text.split(/[\s,]+/).filter(Boolean)) {
     const p = /^\d{4}$/.test(w) ? list.find((x) => x.sid === +w) : list.find((x) => x.name === w);
     if (!p) miss.push(w);
-    else if (!sids.includes(p.sid)) sids.push(p.sid);
+    else if (p.sid !== me?.student_id && !sids.includes(p.sid)) sids.push(p.sid);   // 나는 넣지 않음
   }
   return { sids, miss };
 }
