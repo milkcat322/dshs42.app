@@ -41,7 +41,7 @@ export const COHORTS = {
     repo: "https://github.com/milkcat322/dshs43-admin.git",
     site: "dshs43.app",
     schoolData: false,                                       // 43기는 시간표가 없어 빈 SCHOOL_DATA → 명단은 DB 에서
-    // 43기 학생 사이트는 처음에 Netlify 주소로 열립니다. dshs43.app 도메인을 연결하면 아래 두 주소를 https://dshs43.app 로 바꿔요
+    // 43기 학생 사이트 주소는 Netlify 주소입니다 (dshs43.app 도메인은 사지 않음)
     config: {
       ADMIN_URL: "https://dshs43-admin.netlify.app",
       STUDENT_URL: "https://dshs43.netlify.app",
@@ -54,7 +54,7 @@ export const COHORTS = {
       strict: true, otherRanges: [[2000, 2999]], subjects: SUBJECTS_43, otherSubjects: [],
       noAsgSubjects: ["체육"],                               // 43기 학생 사이트의 NO_ASG_SUBJECTS 와 같게
       grade: 1,                                              // 2026년 1학년
-      studentUrl: "https://dshs43.netlify.app",              // TODO: dshs43.app 도메인을 연결하면 https://dshs43.app
+      studentUrl: "https://dshs43.netlify.app",
       academicUrl: "https://dshs43.netlify.app/academic.json", // 43기 저장소의 _headers 가 다른 주소 읽기를 허락
       keys: { auth: "dshs43-admin-auth", school: "dshs43-admin-school", push: "dshs43-admin-push", fbSeen: "dshs43-fb-seen", ovSeen: "dshs43-overview-seen" },
     },
