@@ -11,6 +11,9 @@
 -- 예전 화면(메인 · 43기 사이트)에 남의 할 일이 내 것처럼 섞이지 않습니다.
 -- ============================================================
 
+-- 할 일 마감 시각 (선택). 비어 있으면 그날 하루 종일(당일 마감). 정하면 그 시각 30분 전에 알림 (send-reminders)
+alter table public.todos add column if not exists due_time time;
+
 create table if not exists public.todo_members (
   todo_id     uuid    not null references public.todos(id) on delete cascade,
   student_id  integer not null references public.roster(student_id) on delete cascade,
@@ -84,11 +87,13 @@ grant  update (done, done_at, today_on) on public.todo_members to authenticated;
 -- ============================================================
 -- 공유받은 할 일 (승인된 것만). 만든 사람 이름과 함께하는 친구 학번도 돌려줍니다.
 -- ============================================================
-create or replace function public.my_shared_todos()
-returns table (id uuid, title text, due_on date, owner_name text, owner_sid integer,
+-- 돌려주는 칸이 바뀌면 create or replace 가 안 되므로 지우고 다시 만듭니다
+drop function if exists public.my_shared_todos();
+create function public.my_shared_todos()
+returns table (id uuid, title text, due_on date, due_time time, owner_name text, owner_sid integer,
                done boolean, done_at timestamptz, today_on date, added_at timestamptz, member_sids integer[])
 language sql stable security definer set search_path = public as $$
-  select t.id, t.title, t.due_on, p.name, p.student_id, m.done, m.done_at, m.today_on, m.added_at,
+  select t.id, t.title, t.due_on, t.due_time, p.name, p.student_id, m.done, m.done_at, m.today_on, m.added_at,
     array(select x.student_id from public.todo_members x
           where x.todo_id = t.id and x.status = 'approved' order by x.student_id)
   from public.todo_members m

@@ -260,6 +260,7 @@ function openStart() {
   if (me?.is_admin) openAdminMoved();
   else if (me && opened === "assignments") openAsgLink(q.get("asg"));
   else if (me && opened === "cal") openStudy("cal");
+  else if (me && opened === "todo") openStudy("todo");
   else if (me && opened === "feedback") openFeedbackLink();
   else if (me?.student_id) openMyTimetable();
 }
@@ -307,6 +308,7 @@ if ("serviceWorker" in navigator) {
       if (me.is_admin) return;
       if (v === "assignments") openAsgLink(u.searchParams.get("asg"));
       else if (v === "cal") openStudy("cal");
+      else if (v === "todo") openStudy("todo");
       else if (v === "feedback") openFeedbackLink();
     } catch {}
   });
@@ -1796,7 +1798,7 @@ function fcEvents() {
     const base = {
       id: `${it.kind}:${it.id}`, title: it.title,
       classNames: [`c-${it.color}`, it.kind === "asg" ? "fcx-asg" : "", it.status && it.status !== "approved" ? "fcx-pend" : "", it.done ? "is-done" : ""],
-      extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared },
+      extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared, hm: it.hm },
     };
     if (it.shared) base.classNames.push("fcx-shared");
     if (it.kind === "todo") return { ...base, classNames: [...base.classNames, "fcx-todo"], start: dayKey(it.at), allDay: true, editable: !!it.owner, durationEditable: false };
@@ -1820,7 +1822,7 @@ function fcContent(arg) {
   const compact = compactCal(arg);
   const full = arg.event.title, title = full;
   if (p.kind === "tt") return { html: `<div class="fcx-tt-in"><b>${esc(title)}</b>${compact ? "" : `<span>${esc(p.label)}</span>`}</div>` };
-  if (p.kind === "todo") return { html: `<div class="fcx" title="${esc(full)}"><div class="fcx-title"><span class="fcx-tchk" role="checkbox" aria-checked="${p.done}" aria-label="완료 표시">${p.done ? "✓" : ""}</span>${esc(title)}</div></div>` };
+  if (p.kind === "todo") return { html: `<div class="fcx" title="${esc(full)}">${p.hm && !compact ? `<div class="fcx-time">${p.hm} 마감</div>` : ""}<div class="fcx-title"><span class="fcx-tchk" role="checkbox" aria-checked="${p.done}" aria-label="완료 표시">${p.done ? "✓" : ""}</span>${esc(title)}</div></div>` };
   const s = arg.event.start, e = arg.event.end;
   const time = compact ? ""
     : p.kind === "asg" ? `${hm(p.at)} 마감`
@@ -1847,18 +1849,19 @@ async function moveEvent(arg) {
   } else {
     row = { all_day: false, starts_at: s.toISOString(), ends_at: (e || new Date(+s + HOUR)).toISOString() };
   }
-  if (kind === "todo") {   // 할 일: 놓은 날짜로 기한만 옮깁니다 (시간 칸에 놓아도 그날 종일로)
+  if (kind === "todo") {   // 할 일: 종일 칸에 놓으면 날짜만(시각 그대로), 시간 칸에 놓으면 그 시각을 마감으로
     const t = cache.todos.find((x) => x.id === id);
-    const prev = t.due_on, due_on = dayKey(s);
-    if (due_on === prev) { fc.refetchEvents(); return; }
-    const { error } = await sb.from("todos").update({ due_on }).eq("id", id);
+    const prev = { due_on: t.due_on, due_time: t.due_time ?? null };
+    const next = { due_on: dayKey(s), due_time: arg.event.allDay ? prev.due_time : hm(s) };
+    if (next.due_on === prev.due_on && todoHm(next.due_time) === todoHm(prev.due_time)) { fc.refetchEvents(); return; }
+    const { error } = await sb.from("todos").update(next).eq("id", id);
     if (error) { arg.revert(); return toast("옮기지 못했어요", true); }
-    t.due_on = due_on;
+    Object.assign(t, next);
     fc.refetchEvents();
-    return undoToast(`할 일 기한을 옮겼어요 · ${todoDue(due_on).short}`, async () => {
-      const { error } = await sb.from("todos").update({ due_on: prev }).eq("id", id);
+    return undoToast(`할 일 기한을 옮겼어요 · ${todoDue(next.due_on, next.due_time).short}`, async () => {
+      const { error } = await sb.from("todos").update(prev).eq("id", id);
       if (error) return false;
-      t.due_on = prev;
+      Object.assign(t, prev);
       fc?.refetchEvents();
     });
   }
@@ -1966,7 +1969,8 @@ function agenda() {
   }));
   // 기한을 정한 할 일은 그날 종일 칸에 체크박스로 둡니다
   const todos = allTodos().filter((t) => t.due_on).map((t) => ({
-    kind: "todo", id: t.id, title: t.title, at: parseDay(t.due_on), end: null, allDay: true,
+    kind: "todo", id: t.id, title: t.title, at: t.due_time ? todoDueAt(t.due_on, t.due_time) : parseDay(t.due_on), end: null, allDay: true,
+    hm: todoHm(t.due_time),   // 마감 시각 (없으면 하루 종일). 달력에서는 종일 칸에 '21:00' 을 붙여 둡니다
     color: "mint", done: t.done, owner: !t.shared, shared: !!t.shared || todoMembersOf(t.id).length > 0,
   }));
   return [...sch, ...asgs, ...todos, ...evs, ...dshsAgenda()].sort(byAgenda);
@@ -1976,6 +1980,7 @@ const byAgenda = (x, y) => (y.allDay - x.allDay) || (x.at - y.at);
 function timeLabel(it) {
   const multi = it.end && dayKey(it.end) !== dayKey(it.at);
   if (it.kind === "asg") return `${hm(it.at)} 마감`;
+  if (it.kind === "todo" && it.hm) return `${it.hm} 마감`;
   if (it.allDay) return multi ? `${md(it.at)} – ${md(it.end)} · 하루 종일` : "하루 종일";
   if (!it.end) return hm(it.at);
   return multi ? `${md(it.at)} ${hm(it.at)} – ${md(it.end)} ${hm(it.end)}` : `${hm(it.at)} – ${hm(it.end)}`;
@@ -3545,13 +3550,22 @@ function subjDetail(sj) {
 
 // ---------- 할 일 탭 ----------
 // 기한 표시: 날짜만 있으므로 오늘 0시 기준으로 셉니다
-function todoDue(key) {
+// time: 마감 시각 "21:00"(:00 초가 붙어 와도 됨, todos.due_time). 없으면 그날 하루 종일(당일 마감)
+const todoHm = (time) => (time ? String(time).slice(0, 5) : "");
+function todoDueAt(key, time) {
+  const d = parseDay(key);
+  const [h, m] = time ? todoHm(time).split(":").map(Number) : [23, 59];
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m, time ? 0 : 59);
+}
+function todoDue(key, time) {
   const t = new Date();
   const days = Math.round((parseDay(key) - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000);
-  const label = days < 0 ? "지남" : days === 0 ? "오늘" : days === 1 ? "내일" : `D-${days}`;
+  const over = todoDueAt(key, time) < t;
+  const label = over ? "지남" : days === 0 ? "오늘" : days === 1 ? "내일" : `D-${days}`;
   const d = parseDay(key);
-  const short = `${d.getMonth() + 1}/${d.getDate()} (${"일월화수목금토"[d.getDay()]})`;
-  return { label, tone: days < 0 ? "over" : days < 3 ? "soon" : "ok", text: dayTitle(key), short };
+  const hmText = todoHm(time);
+  const short = `${d.getMonth() + 1}/${d.getDate()} (${"일월화수목금토"[d.getDay()]})${hmText ? ` ${hmText}` : ""}`;
+  return { label, tone: over ? "over" : days < 3 ? "soon" : "ok", text: dayTitle(key) + (hmText ? ` ${hmText}` : ""), short };
 }
 
 // 오늘 할 일: '오늘'로 고른 날(today_on)이 오늘인 남은 할 일. 날이 바뀌면 원래 자리로 돌아갑니다.
@@ -3560,7 +3574,7 @@ const isTodayTodo = (t) => !t.done && !!t.today_on && t.today_on === dayKey(new 
 const TODO_KEEP_MS = 2 * 86400000;
 
 function todoRow(t, grip = false) {
-  const due = t.due_on ? todoDue(t.due_on) : null;
+  const due = t.due_on ? todoDue(t.due_on, t.due_time) : null;
   const today = isTodayTodo(t);
   const meta = todoShareLabel(t);
   const dueText = due ? `${due.short}${t.done ? "" : ` · ${due.label}`}` : "";
@@ -3609,7 +3623,8 @@ function renderTodo() {
   }
   // 기한 있는 것 먼저(가까운 순), 기한 없는 건 추가한 순
   const sorted = allTodos().filter((t) => !t.done)
-    .sort((a, b) => (!a.due_on - !b.due_on) || (a.due_on || "").localeCompare(b.due_on || "") || a.created_at.localeCompare(b.created_at));
+    .sort((a, b) => (!a.due_on - !b.due_on) || (a.due_on || "").localeCompare(b.due_on || "")
+      || (!a.due_time - !b.due_time) || todoHm(a.due_time).localeCompare(todoHm(b.due_time)) || a.created_at.localeCompare(b.created_at));
   // 오늘 할 일은 맨 위 칸에 모아 보여 주고, 원래 자리(그룹 · 남은 할 일)에도 그대로 둡니다.
   // 완료하면 두 곳 모두에서 빠져 '완료'로 갑니다.
   const todayList = sorted.filter(isTodayTodo);
@@ -3876,11 +3891,12 @@ function openDuePop(btn, t) {
     closeDuePop();
     const due_on = key || null;
     if (due_on === t.due_on) return;
-    const { error } = await sb.from("todos").update({ due_on }).eq("id", t.id);
+    const patch = due_on ? { due_on } : { due_on: null, due_time: null };   // 날짜만 바꾸면 시각은 그대로
+    const { error } = await sb.from("todos").update(patch).eq("id", t.id);
     if (error) return toast("저장하지 못했어요", true);
-    t.due_on = due_on;
+    Object.assign(t, patch);
     renderTodo();
-    toast(due_on ? `${todoDue(due_on).short}까지로 정했어요` : "기한을 없앴어요");
+    toast(due_on ? `${todoDue(due_on, t.due_time).short}까지로 정했어요` : "기한을 없앴어요");
   };
   pop.querySelectorAll("[data-key]").forEach((b) => b.onclick = () => set(b.dataset.key));
   const cal = pop.querySelector("input[type=date]");
@@ -3949,7 +3965,7 @@ async function leaveTodo(t) {
 
 // 공유받은 할 일: 누가 만들었고 누구와 함께하는지 보여 주고, 완료 · 나가기만 합니다
 function openSharedTodo(t) {
-  const due = t.due_on ? todoDue(t.due_on) : null;
+  const due = t.due_on ? todoDue(t.due_on, t.due_time) : null;
   const people = (t.member_sids || []).filter((sid) => sid !== me.student_id).map(rosterName);
   openSheet("함께하는 할 일", `
     <div class="asg-title">${esc(t.title)}</div>
@@ -4033,7 +4049,8 @@ function openTodoForm(t) {
     <label class="study-label">할 일</label>
     <input class="study-input" id="tfTitle" maxlength="200" value="${esc(t.title)}">
     <label class="study-label">기한 (없어도 돼요 · 정하면 달력에도 떠요)</label>
-    <input class="study-input" type="date" id="tfDue" value="${t.due_on || ""}">
+    <div class="ev-when"><input class="study-input" type="date" id="tfDue" value="${t.due_on || ""}"><input class="study-input" type="time" id="tfTime" step="300" value="${todoHm(t.due_time)}" aria-label="마감 시각 (선택)"></div>
+    <div class="study-foot fr-note">시각은 선택이에요. 비워 두면 그날 하루 종일, 정하면 30분 전에 알림이 와요 (함께하는 친구도).</div>
     ${cache.todoGroups?.length ? `<label class="study-label">그룹</label>
     <select class="study-input" id="tfGroup">
       <option value="">그룹 없음</option>
@@ -4053,6 +4070,7 @@ function openTodoForm(t) {
   const picker = cache.todoMembers ? mountTodoFriends(t) : null;
   $("tfSave").onclick = async () => {
     const patch = { title: $("tfTitle").value.trim(), due_on: $("tfDue").value || null };
+    patch.due_time = patch.due_on && $("tfTime").value ? $("tfTime").value : null;   // 날짜 없이 시각만은 저장하지 않습니다
     if ($("tfGroup")) patch.group_id = $("tfGroup").value || null;
     if (!patch.title) return showErr("할 일을 입력해 주세요.");
     $("tfSave").disabled = true;

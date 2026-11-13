@@ -90,7 +90,7 @@ CLAUDE.md                 Claude Code 가 매 세션 자동으로 읽는 팀 공
    이어서 `todos.sql` 을 **Run** (할 일)
    이어서 `todogroups.sql` 을 **Run** (할 일 그룹)
    이어서 `todotoday.sql` 을 **Run** (오늘 할 일 · 끝낸 할 일 2일 뒤 자동 삭제)
-   이어서 `todoshare.sql` 을 **Run** (할 일 함께하기 · 관리자 승인 · 자동 삭제 규칙 갱신)
+   이어서 `todoshare.sql` 을 **Run** (할 일 함께하기 · 관리자 승인 · 할 일 마감 시각 · 자동 삭제 규칙 갱신)
    이어서 `cohort43.sql` 을 **Run** (43기 사이트 dshs43.app: 43기 과목 · 자동 등록 · 분반 없는 수행평가 올리기)
    이어서 `roster43.sql` 을 **Run** (43기 명단 95명 · 12과목 수강)
    이어서 `cohort43ban.sql` 을 **Run** (43기 수강에 반 넣기 · 수행평가를 전체 또는 우리 반으로)

@@ -4,6 +4,7 @@
 //   내 일정       시작 30분 전 (친구가 공유한 일정 포함, 완료 표시한 건 빼고)
 //   학교 일정     notify 를 켠 일정만 시작 30분 전
 //   하루 종일     시작 시각이 없으므로 그날 1교시 30분 전(07:50)에 한 번
+//   할 일         마감 시각(due_time)을 정한 것만 마감 30분 전 (만든 사람 + 승인된 함께하는 친구, 끝낸 사람은 빼고 · planTodoNotes)
 //   관리자        학생 가입 · 수행평가 승인 요청 · 피드백 · 할 일 공유 승인 요청이 생기면 묶어서 한 번 (planAdminNote)
 
 const MIN = 60000;
@@ -133,6 +134,37 @@ export function planNotes(now: number, d: Input): Note[] {
     for (const u of d.users) if (sees(e, u)) push(u.id, note);
   }
 
+  return notes;
+}
+
+// 할 일 마감 (todoshare.sql 의 todos.due_time · todo_members). 시각 없는 할 일(하루 종일)은 알리지 않습니다.
+export type TodoRow = { id: string; user_id: string; title: string; due_on: string; due_time: string | null; done: boolean };
+export type TodoMember = { todo_id: string; student_id: number; done: boolean; status: string };
+export function planTodoNotes(now: number, todos: TodoRow[], members: TodoMember[], users: User[]): Note[] {
+  const notes: Note[] = [];
+  const known = new Set(users.map((u) => u.id));
+  const bySid = new Map(users.filter((u) => u.student_id !== null).map((u) => [u.student_id, u.id]));
+  for (const t of todos) {
+    if (!t.due_time) continue;
+    const due = kstAt(t.due_on, t.due_time.slice(0, 5));
+    const left = (due - now) / MIN;
+    if (!(left > LEAD - GRACE && left <= LEAD)) continue;
+    const note = {
+      key: `todo:${t.id}:${due}`,
+      title: `${Math.ceil(left)}분 뒤 마감: ${t.title}`,
+      body: `할 일 · ${kstHm(due)} 마감`,
+      url: "/?view=todo",
+      ttl: Math.ceil(left * 60),
+    };
+    const to = new Set<string>();
+    if (!t.done && known.has(t.user_id)) to.add(t.user_id);
+    for (const m of members) {
+      if (m.todo_id !== t.id || m.status !== "approved" || m.done) continue;
+      const uid = bySid.get(m.student_id);
+      if (uid) to.add(uid);
+    }
+    for (const userId of to) notes.push({ userId, ...note });
+  }
   return notes;
 }
 

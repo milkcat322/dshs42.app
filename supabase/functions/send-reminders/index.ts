@@ -9,7 +9,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { adminKey, planAdminNote, planNotes, planReplyNotes, type AdminItem } from "./plan.ts";
+import { adminKey, planAdminNote, planNotes, planReplyNotes, planTodoNotes, type AdminItem } from "./plan.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const LOG_KEEP_DAYS = 3;
@@ -80,6 +80,20 @@ Deno.serve(async () => {
     assignments: [...assignments.data!, ...moved.data!], asgDone: asgDone.data!, personal: personal.data!,
     events: events.data!, members: members.data!, school: school.data!,
   });
+
+  // 할 일 마감 (todoshare.sql). 시각을 정한 할 일 중 어제~내일 것만 받습니다. 실패해도 다른 알림은 그대로
+  {
+    const kday = (ms: number) => new Date(ms + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const todos = await admin.from("todos").select("id, user_id, title, due_on, due_time, done")
+      .not("due_time", "is", null).gte("due_on", kday(now - DAY)).lte("due_on", kday(now + DAY));
+    if (todos.error) console.error("할 일 조회 실패", todos.error.message);
+    else if (todos.data.length) {
+      const tm = await admin.from("todo_members").select("todo_id, student_id, done, status")
+        .in("todo_id", todos.data.map((t) => t.id));
+      if (tm.error) console.error("할 일 친구 조회 실패", tm.error.message);
+      planned.push(...planTodoNotes(now, todos.data, tm.data ?? [], users.data!));
+    }
+  }
 
   // 피드백 답장 (feedbackreply.sql). 표가 없거나 조회에 실패해도 다른 알림은 그대로 보냅니다.
   // 관리자 답장은 그 학생에게, 학생이 다시 쓴 답글(from_admin = false)은 아래 관리자 새 활동으로 알립니다.
