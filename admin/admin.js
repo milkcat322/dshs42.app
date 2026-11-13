@@ -366,16 +366,18 @@ const fbSeenAt = () => { try { return localStorage.getItem(FB_SEEN_KEY) || "1970
 async function refreshAdminCount() {
   if (!me?.is_admin) return;
   // 이 기수 것만 세려고 수 대신 과목 · 보낸 사람을 받아 거릅니다
-  const [pend, fresh, merge, reply] = await Promise.all([
+  const [pend, fresh, merge, reply, tshare] = await Promise.all([
     sb.from("assignments").select("subject").eq("status", "pending"),
     sb.from("feedback").select("user_id").gt("created_at", fbSeenAt()),
     sb.from("merge_suggestions").select("subject").eq("status", "open"),
     sb.from("feedback_replies").select("created_by").eq("from_admin", false).gt("created_at", fbSeenAt()),   // 학생이 단 새 답글
+    sb.rpc("admin_todo_shares"),   // 할 일 공유 승인 대기
   ]);
   if (pend.error || fresh.error) return;
   const mine = await userInCohort([...fresh.data.map((f) => f.user_id), ...(reply.data || []).map((r) => r.created_by)]);
   adminCount = pend.data.filter(asgInCohort).length + fresh.data.filter((f) => mine(f.user_id)).length
-    + (merge.error ? 0 : merge.data.filter(asgInCohort).length) + (reply.error ? 0 : reply.data.filter((r) => mine(r.created_by)).length);
+    + (merge.error ? 0 : merge.data.filter(asgInCohort).length) + (reply.error ? 0 : reply.data.filter((r) => mine(r.created_by)).length)
+    + (tshare.error ? 0 : (tshare.data || []).filter((r) => !r.owner_sid || sidInCohort(r.owner_sid)).length);
   navStat.asg = { v: adminCount, hot: adminCount > 0 };
   renderNav();
   document.title = adminCount ? `(${adminCount}) ${COHORT.title}` : COHORT.title;
@@ -1068,7 +1070,33 @@ function devNewsHtml(news) {
     </details>`).join("") : '<div class="adm-none">아직 소식이 없어요. push 하면 10분 안에 생겨요.</div>'}</div>`;
 }
 
-function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, usage, tasks, plans, news, funnel) {
+// 할 일 함께하기 승인 (todoshare.sql). 반민지 · 진주빈 말고 다른 학생이 할 일에 친구를 넣으면 여기서 승인해야 공유됩니다.
+const sidName = (sid) => roster().find((p) => p.sid === sid)?.name || String(sid);
+function todoShareHtml(list) {
+  if (!list) return "";
+  return `<div class="adm-label">할 일 공유 승인${list.length ? ` ${list.length}` : ""}</div>`
+    + (list.length ? list.map((r) => {
+      const d = r.due_on ? parseDay(r.due_on) : null;
+      return `<div class="asg-card">
+        <div class="asg-top"><span class="asg-subject">${esc(r.owner_name || "학생")}${r.owner_sid ? ` (${r.owner_sid})` : ""} · 할 일 공유</span></div>
+        <div class="asg-title">${esc(r.title)}</div>
+        <div class="asg-due"><span>${d ? `${md(d)}까지` : "기한 없음"}</span><span class="asg-by">${esc(new Date(r.asked_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }))} 요청</span></div>
+        <div class="asg-due">공유할 친구 ${r.sids.length}명: ${esc(r.sids.map(sidName).join(", "))}</div>
+        <div class="asg-actions">
+          <button class="study-btn small ok" data-tsok="${r.todo_id}">승인</button>
+          <button class="study-btn small no" data-tsno="${r.todo_id}">반려</button>
+        </div>
+      </div>`;
+    }).join("") : '<div class="adm-empty">승인 대기 중인 할 일 공유가 없어요.</div>');
+}
+async function reviewTodoShare(id, ok) {
+  const { error } = await sb.rpc("review_todo_share", { p_todo: id, p_ok: ok });
+  if (error) return toast("처리하지 못했어요", true);
+  toast(ok ? "승인했어요. 친구들 할 일 목록에 생겨요" : "반려했어요");
+  await refresh();
+}
+
+function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, usage, tasks, plans, news, funnel, tshares) {
   const rows = fb.rows || [];
   // 새로 온 피드백 + 지난 피드백에 학생이 새로 단 답글
   const isFresh = (f) => Date.parse(f.created_at) > fbSeen
@@ -1077,7 +1105,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, 
   const old = rows.filter((f) => !isFresh(f));
   const fbHtml = (list, isNew) => list.map((f) => feedbackItemHtml(f, fb.nameOf.get(f.user_id), fb.urlOf.get(f.image_path), isNew,
     (fb.replies || []).filter((r) => r.feedback_id === f.id), fb.nameOf)).join("");
-  const nAsg = pending.length + (log?.open.length || 0), nDev = tasks?.filter((t) => DEV_HOT.has(t.status)).length ?? 0;
+  const nAsg = pending.length + (log?.open.length || 0) + (tshares?.length || 0), nDev = tasks?.filter((t) => DEV_HOT.has(t.status)).length ?? 0;
   navStat = { asg: { v: nAsg + fresh.length, hot: nAsg + fresh.length > 0 }, stu: { v: overview?.students.length ?? "-" },
     dev: { v: nDev, hot: nDev > 0 } };
   const box = (k, html) => `<div class="adm-pane" data-pane="${k}"${pane === k ? "" : " hidden"}>${html}</div>`;
@@ -1086,6 +1114,7 @@ function manageHtml(pending, fb, fbSeen, overview, ovSeenAt, pane, visits, log, 
       + mergeHtml(log)
       + `<div class="adm-label">승인 대기${pending.length ? ` ${pending.length}` : ""}</div>`
       + (pending.length ? pending.map(card).join("") : '<div class="adm-empty">승인 대기 중인 수행평가가 없어요.</div>')
+      + todoShareHtml(tshares)
       + `<div class="adm-label" id="fbSec">새 피드백${fresh.length ? ` ${fresh.length}` : ""}</div>`
       + (fb.error ? '<div class="adm-empty">피드백을 불러오지 못했어요.</div>'
         : fresh.length ? fbHtml(fresh, true) : '<div class="adm-empty">새 피드백이 없어요.</div>')
@@ -1119,7 +1148,8 @@ async function renderOverview(cached = false) {
     sb.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(60),
     sb.from("admin_plans").select("*").order("created_at", { ascending: true }),
     sb.from("dev_news").select("*").order("updated_at", { ascending: false }).limit(15),
-    sb.rpc("admin_login_funnel", { p_days: 14 })]), loadPending()]);
+    sb.rpc("admin_login_funnel", { p_days: 14 }),
+    sb.rpc("admin_todo_shares")]), loadPending()]);   // 할 일 공유 승인 대기 (todoshare.sql)
   // 학생 현황 · 오늘 로그인한 학생은 이 기수 학생만 (방문 기기 수 · 로그인 이탈은 서버가 합쳐 세서 나누지 못함)
   if (res[0]?.data) res[0] = { ...res[0], data: cohortOverview(res[0].data) };
   if (res[2]?.data?.today_users) res[2] = { ...res[2], data: { ...res[2].data, today_users: res[2].data.today_users.filter((u) => sidInCohort(u.student_id)) } };
@@ -1130,14 +1160,16 @@ async function renderOverview(cached = false) {
   paintOverview(res);
 }
 function paintOverview(res) {
-  const [{ data, error }, fb, visits, log, usage, tasks, plans, news, funnel] = res;
+  const [{ data, error }, fb, visits, log, usage, tasks, plans, news, funnel, tshare] = res;
+  // 이 기수 학생이 요청한 것만. 표가 아직 없으면(error) 칸을 숨깁니다
+  const tshares = !tshare || tshare.error ? null : (tshare.data || []).filter((r) => !r.owner_sid || sidInCohort(r.owner_sid));
   const body = $("studyBody");
   if (page !== "admin" || !body) return;   // 그사이 다른 탭으로 옮겼으면 그리지 않습니다
   const pending = cache.pending || [];
   logRows = log?.reviewed || [];
   // 처음에는 처리할 일이 있는 칸을 엽니다
   if (!OV_GROUP[ovPane]) ovPane = "asg";
-  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, visits.error ? null : visits.data, log, usage.error ? null : usage.data, tasks.error ? null : tasks.data, plans.error ? null : plans.data, !news || news.error ? null : news.data, !funnel || funnel.error ? null : funnel.data);
+  body.innerHTML = manageHtml(pending, fb, fbSeen, error ? null : data, ovSeen, ovPane, visits.error ? null : visits.data, log, usage.error ? null : usage.data, tasks.error ? null : tasks.data, plans.error ? null : plans.data, !news || news.error ? null : news.data, !funnel || funnel.error ? null : funnel.data, tshares);
   const showPane = (k) => {
     if (k === "fb") { showPane("asg"); return $("fbSec")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
     k = OV_GROUP[k] ? k : PANE_ALIAS[k] || "asg";
@@ -1160,6 +1192,8 @@ function paintOverview(res) {
   const pend = (id) => pending.find((a) => a.id === id);
   body.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => review(b.dataset.ok, "approved"));
   body.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => review(b.dataset.no, "rejected"));
+  body.querySelectorAll("[data-tsok]").forEach((b) => b.onclick = () => reviewTodoShare(b.dataset.tsok, true));
+  body.querySelectorAll("[data-tsno]").forEach((b) => b.onclick = () => reviewTodoShare(b.dataset.tsno, false));
   body.querySelectorAll("[data-aedit]").forEach((b) => b.onclick = () => openAsgForm(pend(b.dataset.aedit)));
   body.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => removeAsg(pend(b.dataset.del)));
   body.querySelectorAll("[data-logasg]").forEach((r) => r.onclick = () => openAsgForm(logRows.find((a) => a.id === r.dataset.logasg)));

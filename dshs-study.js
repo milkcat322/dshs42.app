@@ -1540,7 +1540,7 @@ async function loadAssignments({ quiet = false } = {}) {
   if (!me || me.is_admin) return;   // 관리자 계정은 관리자 사이트에서 씁니다
   if (quiet && haveData && Date.now() - dataAt < 30000) return;
   loadDshs();   // dshs.app 신청 내역은 따로 받아서, 오면 달력에 더합니다
-  const [asg, personal, evs, done, people, todos, school, invites, tgroups] = await Promise.all([
+  const [asg, personal, evs, done, people, todos, school, invites, tgroups, tmembers, tshared] = await Promise.all([
     sb.from("assignments").select("*").order("due_at", { ascending: true }),
     sb.from("assignment_personal").select("*"),
     sb.from("events").select("*").order("starts_at", { ascending: true }),   // 내 일정 + 친구가 공유한 일정
@@ -1550,6 +1550,8 @@ async function loadAssignments({ quiet = false } = {}) {
     sb.from("school_events").select("*, school_event_targets(student_id)").order("starts_at", { ascending: true }),
     sb.from("event_invites").select("event_id, student_id"),   // 내 일정에 학번으로 넣은 가입 전 친구 (invites.sql)
     sb.from("todo_groups").select("*").order("position").order("created_at"),   // 할 일 그룹 (todogroups.sql)
+    sb.from("todo_members").select("*"),   // 내 할 일에 넣은 친구 (todoshare.sql)
+    sb.rpc("my_shared_todos"),             // 친구가 나에게 공유한 할 일 (승인된 것만)
   ]);
   cache.school = school.data || [];
   cache.invites = new Map();   // 일정 id → [학번]
@@ -1559,6 +1561,10 @@ async function loadAssignments({ quiet = false } = {}) {
   }
   cache.todos = todos.error ? null : todos.data;
   cache.todoGroups = tgroups.error ? null : tgroups.data;   // null 이면 그룹 기능을 숨깁니다 (표가 아직 없을 때)
+  // 할 일 함께하기: 표가 없으면(null) 친구 넣기 칸을 숨깁니다. 내 것이 아닌 행(공유받은 내 행)은 빼고 둡니다
+  const ownTodo = new Set((todos.data || []).map((t) => t.id));
+  cache.todoMembers = tmembers.error ? null : tmembers.data.filter((m) => ownTodo.has(m.todo_id));
+  cache.sharedTodos = tshared.error ? [] : (tshared.data || []).map((r) => ({ ...r, shared: true, created_at: r.added_at }));
   const { data, error } = asg;
   // 개인 일정·완료 체크를 못 불러와도 수행평가는 그대로 보여줍니다
   cache.events = evs.data || [];
@@ -1573,7 +1579,7 @@ async function loadAssignments({ quiet = false } = {}) {
     if (body) body.innerHTML = `<div class="study-empty">불러오지 못했어요.</div>`;
     return;
   }
-  const sig = JSON.stringify([data, personal.data, evs.data, done.data, people.data, todos.data, school.data, invites.data, tgroups.data]);
+  const sig = JSON.stringify([data, personal.data, evs.data, done.data, people.data, todos.data, school.data, invites.data, tgroups.data, tmembers.data, tshared.data]);
   const same = haveData && sig === dataSig;
   haveData = true; dataAt = Date.now(); dataSig = sig;
   const mineOnly = new Map((personal.data || []).map((p) => [p.assignment_id, p]));
@@ -1677,7 +1683,7 @@ function openItem(kind, id) {
   else if (kind === "tt") return;
   else if (kind === "acad") openAcadDetail(acadList.find((e) => e.id === id));
   else if (kind === "dshs") openDshsDetail(dshs.items.find((r) => r.uid === id));
-  else if (kind === "todo") openTodoForm(cache.todos.find((t) => t.id === id));
+  else if (kind === "todo") { const t = findTodo(id); if (t) t.shared ? openSharedTodo(t) : openTodoForm(t); }
   else {
     const ev = cache.events.find((e) => e.id === id);
     ownsEvent(ev) ? openEventForm(ev) : openSharedEvent(ev);
@@ -1793,8 +1799,9 @@ function fcEvents() {
       extendedProps: { kind: it.kind, at: it.at, done: it.done, shared: it.shared },
     };
     if (it.shared) base.classNames.push("fcx-shared");
-    if (it.kind === "todo") return { ...base, classNames: [...base.classNames, "fcx-todo"], start: dayKey(it.at), allDay: true, editable: true, durationEditable: false };
-    if (it.kind === "asg") return { ...base, start: dayKey(it.at), allDay: true, editable: false };
+    if (it.kind === "todo") return { ...base, classNames: [...base.classNames, "fcx-todo"], start: dayKey(it.at), allDay: true, editable: !!it.owner, durationEditable: false };
+    // 수행평가: 끌어서 다른 날(종일 칸 · 월 보기는 시각 그대로, 시간 칸은 놓은 시각)로 마감을 옮깁니다
+    if (it.kind === "asg") return { ...base, start: dayKey(it.at), allDay: true, editable: !!it.owner, durationEditable: false };
     if (it.allDay) {
       const last = it.end || it.at;   // 종일 일정의 끝은 마지막 날 23:59 → FullCalendar 는 다음 날 0시(미포함)
       return { ...base, start: dayKey(it.at), end: dayKey(new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1)), allDay: true, editable: !!it.owner };
@@ -1827,6 +1834,7 @@ function fcContent(arg) {
 // 끌어서 옮기거나 늘린 개인 일정 저장
 async function moveEvent(arg) {
   const [kind, id] = arg.event.id.split(":");
+  if (kind === "asg") return moveAsg(arg, id);
   const s = arg.event.start, e = arg.event.end;
   let row;
   if (arg.event.allDay) {
@@ -1875,6 +1883,35 @@ async function moveEvent(arg) {
   });
 }
 
+// 끌어서 옮긴 수행평가 마감 저장. 승인된 공지는 내 계정에서만(assignment_personal), 승인 전 내 공지는 공지 자체를 고칩니다.
+async function moveAsg(arg, id) {
+  const a = findAsg(id);
+  if (!a?.due_at || !canEditAsg(a)) { arg.revert(); return; }
+  const old = new Date(a.due_at), s = arg.event.start;
+  const due = arg.event.allDay
+    ? new Date(s.getFullYear(), s.getMonth(), s.getDate(), old.getHours(), old.getMinutes())
+    : s;
+  if (+due === +old) { fc.refetchEvents(); return; }
+  const save = async (iso) => {
+    const cur = findAsg(id);   // 저장 · 되돌리기 때마다 지금 모습(내 수정 포함)을 기준으로
+    if (!cur) return { error: { message: "없음" } };
+    if (editsOnlyForMe(cur)) {
+      return savePersonal(cur, { title: cur.title, body: cur.body || "", submit_to: cur.submit_to || null, due_at: iso });
+    }
+    const r = await sb.from("assignments").update({ due_at: iso }).eq("id", id).select("id");
+    return { error: r.error || (!r.data?.length && { message: "수정 권한이 없어요" }) };
+  };
+  const { error } = await save(due.toISOString());
+  if (error) { arg.revert(); return toast("옮기지 못했어요", true); }
+  const onlyMe = editsOnlyForMe(a);
+  await loadAssignments();
+  undoToast(`마감을 ${md(due)} ${hm(due)}(으)로 옮겼어요${onlyMe ? " · 내 계정에서만" : ""}`, async () => {
+    const { error } = await save(old.toISOString());
+    if (error) return false;
+    await loadAssignments();
+  });
+}
+
 // ---------- 지난 일정 자동 완료 ----------
 // 끝나는 시각이 지나면 완료로 보여줍니다 (DB 에 쓰지 않고 그릴 때 계산).
 // 끝이 없으면: 종일 일정은 그날 밤 23:59:59, 시간 일정은 시작 시각.
@@ -1913,7 +1950,7 @@ function agenda() {
     kind: "asg", id: a.id, title: a.title, at: new Date(a.due_at), end: null, allDay: false,
     color: "asg", done: cache.done.has(a.id) || new Date(a.due_at) < now, status: a.status,
     auto: !cache.done.has(a.id) && new Date(a.due_at) < now,
-    tag: `${a.subject} · ${banLabel(a.ban)}`,
+    tag: `${a.subject} · ${banLabel(a.ban)}`, owner: canEditAsg(a),   // 끌어서 마감 옮기기 (승인된 공지는 내 계정에서만)
   }));
   const evs = cache.events.map((e) => ({
     kind: "ev", id: e.id, title: e.title, at: new Date(e.starts_at), end: e.ends_at ? new Date(e.ends_at) : null,
@@ -1928,9 +1965,9 @@ function agenda() {
     tag: [e.no_class && "수업 없음", e.memo.split("\n")[0]].filter(Boolean).join(" · "),
   }));
   // 기한을 정한 할 일은 그날 종일 칸에 체크박스로 둡니다
-  const todos = (cache.todos || []).filter((t) => t.due_on).map((t) => ({
+  const todos = allTodos().filter((t) => t.due_on).map((t) => ({
     kind: "todo", id: t.id, title: t.title, at: parseDay(t.due_on), end: null, allDay: true,
-    color: "mint", done: t.done, owner: true,
+    color: "mint", done: t.done, owner: !t.shared, shared: !!t.shared || todoMembersOf(t.id).length > 0,
   }));
   return [...sch, ...asgs, ...todos, ...evs, ...dshsAgenda()].sort(byAgenda);
 }
@@ -3493,32 +3530,36 @@ const TODO_KEEP_MS = 2 * 86400000;
 function todoRow(t, grip = false) {
   const due = t.due_on ? todoDue(t.due_on) : null;
   const today = isTodayTodo(t);
-  return `<div class="ev-row c-mint todo-row${t.done ? " done" : ""}" data-tid="${t.id}">
-    ${grip ? `<span class="td-grip" data-tgrip="${t.id}" title="끌어서 그룹에 넣기" aria-hidden="true">⠿</span>` : ""}
+  const meta = todoShareLabel(t);
+  const dueText = due ? `${due.short}${t.done ? "" : ` · ${due.label}`}` : "";
+  return `<div class="ev-row c-mint todo-row${t.done ? " done" : ""}${t.shared ? " td-shared" : ""}" data-tid="${t.id}">
+    ${grip && !t.shared ? `<span class="td-grip" data-tgrip="${t.id}" title="끌어서 그룹에 넣기" aria-hidden="true">⠿</span>` : ""}
     <button class="ev-check" data-tchk="${t.id}" aria-label="완료 표시">${t.done ? "✓" : ""}</button>
     <button class="ev-main" data-tedit="${t.id}">
       <span class="ev-title">${esc(t.title)}</span>
+      ${meta ? `<span class="ev-meta">${esc(meta)}</span>` : ""}
     </button>
-    ${due ? `<button class="td-due ${t.done ? "" : due.tone}" data-tdue="${t.id}" title="${esc(due.text)}까지 · 눌러서 바꾸기">${due.short}${t.done ? "" : ` · ${due.label}`}</button>` : ""}
+    ${!due ? "" : t.shared ? `<span class="td-due ${t.done ? "" : due.tone}" title="${esc(due.text)}까지">${dueText}</span>`
+      : `<button class="td-due ${t.done ? "" : due.tone}" data-tdue="${t.id}" title="${esc(due.text)}까지 · 눌러서 바꾸기">${dueText}</button>`}
     ${t.done ? "" : `<button class="td-today${today ? " on" : ""}" data-ttoday="${t.id}" aria-pressed="${today}"
       title="${today ? "오늘 할 일에서 빼기" : "오늘 할 일로 정하기"}">${today ? "✓ 오늘" : "오늘"}</button>`}
-    <button class="td-del" data-tdel="${t.id}" aria-label="삭제">✕</button>
+    <button class="td-del" data-tdel="${t.id}" aria-label="${t.shared ? "이 할 일에서 나가기" : "삭제"}">✕</button>
   </div>`;
 }
 
 async function toggleTodayTodo(id) {
-  const t = cache.todos.find((x) => x.id === id);
+  const t = findTodo(id);
   if (!t) return;
   const prev = t.today_on || null;
   const today_on = isTodayTodo(t) ? null : dayKey(new Date());
-  const { error } = await sb.from("todos").update({ today_on }).eq("id", id);
+  const { error } = await todoUpdate(t, { today_on });
   if (error) return toast("저장하지 못했어요", true);
   t.today_on = today_on;
   rerender();
   saveSnap();
   if (today_on) toast("오늘 할 일에 넣었어요");
   else undoToast("오늘 할 일에서 뺐어요", async () => {
-    const { error } = await sb.from("todos").update({ today_on: prev }).eq("id", id);
+    const { error } = await todoUpdate(t, { today_on: prev });
     if (error) return toast("되돌리지 못했어요", true);
     t.today_on = prev;
     rerender();
@@ -3535,14 +3576,14 @@ function renderTodo() {
     return;
   }
   // 기한 있는 것 먼저(가까운 순), 기한 없는 건 추가한 순
-  const sorted = cache.todos.filter((t) => !t.done)
+  const sorted = allTodos().filter((t) => !t.done)
     .sort((a, b) => (!a.due_on - !b.due_on) || (a.due_on || "").localeCompare(b.due_on || "") || a.created_at.localeCompare(b.created_at));
   // 오늘 할 일은 맨 위 칸에 모아 보여 주고, 원래 자리(그룹 · 남은 할 일)에도 그대로 둡니다.
   // 완료하면 두 곳 모두에서 빠져 '완료'로 갑니다.
   const todayList = sorted.filter(isTodayTodo);
   const open = sorted;
   const keepFrom = Date.now() - TODO_KEEP_MS;
-  const done = cache.todos.filter((t) => t.done && (!t.done_at || Date.parse(t.done_at) > keepFrom))
+  const done = allTodos().filter((t) => t.done && (!t.done_at || Date.parse(t.done_at) > keepFrom))
     .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || "")).slice(0, 30);
   // 그룹: 그룹 없는 할 일이 먼저, 그 아래 그룹마다 접고 펼치는 칸. 끝낸 할 일은 맨 아래 '완료'에 모읍니다.
   const groups = cache.todoGroups;
@@ -3609,7 +3650,10 @@ function renderTodo() {
   $("tdAdd").onclick = add;
   $("tdTitle").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) add(); };
   body.querySelectorAll("[data-tchk]").forEach((b) => b.onclick = () => toggleTodo(b.dataset.tchk));
-  body.querySelectorAll("[data-tedit]").forEach((b) => b.onclick = () => openTodoForm(cache.todos.find((t) => t.id === b.dataset.tedit)));
+  body.querySelectorAll("[data-tedit]").forEach((b) => b.onclick = () => {
+    const t = findTodo(b.dataset.tedit);
+    if (t) t.shared ? openSharedTodo(t) : openTodoForm(t);
+  });
   body.querySelectorAll("[data-tdel]").forEach((b) => b.onclick = () => removeTodo(b.dataset.tdel));
   body.querySelectorAll("[data-ttoday]").forEach((b) => b.onclick = () => toggleTodayTodo(b.dataset.ttoday));
   body.querySelectorAll("[data-tdue]").forEach((b) => b.onclick = (e) => {
@@ -3817,21 +3861,129 @@ function openDuePop(btn, t) {
 }
 
 async function toggleTodo(id) {
-  const t = cache.todos.find((x) => x.id === id);
+  const t = findTodo(id);
+  if (!t) return;
   const patch = { done: !t.done, done_at: t.done ? null : new Date().toISOString() };
-  const { error } = await sb.from("todos").update(patch).eq("id", id);
+  const { error } = await todoUpdate(t, patch);
   if (error) return toast("저장하지 못했어요", true);
   Object.assign(t, patch);
   rerender();
 }
 
 async function removeTodo(id) {
-  if (!confirm("이 할 일을 삭제할까요?")) return false;
+  const t = findTodo(id);
+  if (t?.shared) return leaveTodo(t);
+  const n = todoMembersOf(id).filter((m) => m.status === "approved").length;
+  if (!confirm(n ? `이 할 일을 삭제할까요? 함께하는 친구 ${n}명의 목록에서도 사라져요.` : "이 할 일을 삭제할까요?")) return false;
   const { error } = await sb.from("todos").delete().eq("id", id);
   if (error) { toast("삭제하지 못했어요", true); return false; }
   cache.todos = cache.todos.filter((t) => t.id !== id);
+  if (cache.todoMembers) cache.todoMembers = cache.todoMembers.filter((m) => m.todo_id !== id);
   rerender();
   return true;
+}
+
+// ---------- 할 일 함께하기 (todoshare.sql) ----------
+// 내 할 일에 친구(학번)를 넣으면 그 친구 할 일 목록에도 생깁니다. 반민지 · 진주빈 계정은 바로,
+// 다른 학생은 관리자가 관리자 사이트에서 승인한 뒤에 생깁니다 (서버가 todo_share_free() 로 정함 — 화면 값은 안내용).
+// 공유받은 할 일(cache.sharedTodos, t.shared)은 제목 · 기한을 못 고치고, 완료 · 오늘 · 나가기만 각자 합니다.
+const TODO_SHARE_FREE = [2202, 2113];
+const allTodos = () => [...(cache.todos || []), ...(cache.sharedTodos || [])];
+const findTodo = (id) => cache.todos?.find((t) => t.id === id) || cache.sharedTodos?.find((t) => t.id === id);
+const todoMembersOf = (id) => (cache.todoMembers || []).filter((m) => m.todo_id === id);
+// 내 것은 todos 행, 공유받은 것은 todo_members 의 내 행(완료 · 오늘)을 고칩니다
+const todoUpdate = (t, patch) => t.shared
+  ? sb.from("todo_members").update(patch).eq("todo_id", t.id).eq("student_id", me.student_id)
+  : sb.from("todos").update(patch).eq("id", t.id);
+function todoShareLabel(t) {
+  if (t.shared) {
+    const others = (t.member_sids || []).filter((sid) => sid !== me.student_id).length;
+    return `${t.owner_name || "친구"}님이 공유${others ? ` · 함께 ${others + 1}명` : ""}`;
+  }
+  const ms = todoMembersOf(t.id);
+  const ok = ms.filter((m) => m.status === "approved").length, wait = ms.filter((m) => m.status === "pending").length;
+  return [ok && `함께 ${ok}명`, wait && `승인 대기 ${wait}명`].filter(Boolean).join(" · ");
+}
+
+async function leaveTodo(t) {
+  if (!confirm("이 할 일에서 나갈까요? 내 목록에서만 사라지고, 다시 들어오려면 만든 친구가 넣어 줘야 해요.")) return false;
+  const { error } = await sb.from("todo_members").delete().eq("todo_id", t.id).eq("student_id", me.student_id);
+  if (error) { toast("나가지 못했어요", true); return false; }
+  cache.sharedTodos = cache.sharedTodos.filter((x) => x.id !== t.id);
+  toast("할 일에서 나갔어요");
+  rerender();
+  return true;
+}
+
+// 공유받은 할 일: 누가 만들었고 누구와 함께하는지 보여 주고, 완료 · 나가기만 합니다
+function openSharedTodo(t) {
+  const due = t.due_on ? todoDue(t.due_on) : null;
+  const people = (t.member_sids || []).filter((sid) => sid !== me.student_id).map(rosterName);
+  openSheet("함께하는 할 일", `
+    <div class="asg-title">${esc(t.title)}</div>
+    <div class="study-foot">${due ? `${esc(due.text)}까지 · ` : ""}${esc(t.owner_name || "친구")}님이 공유했어요</div>
+    <label class="study-label">함께하는 사람</label>
+    <div class="fr-chips"><span class="fr-chip">${esc(t.owner_name || "친구")}<small>만든 사람</small></span>${
+      people.map((n) => `<span class="fr-chip">${esc(n)}</span>`).join("")}<span class="fr-chip">나</span></div>
+    <div class="study-foot fr-note">제목 · 기한은 만든 친구만 고칠 수 있어요. 완료 체크와 '오늘'은 나에게만 적용돼요.</div>
+    <button class="study-submit" id="tsDone">${t.done ? "완료 취소" : "완료"}</button>
+    <button class="study-submit ghost danger" id="tsLeave">이 할 일에서 나가기</button>`);
+  $("tsDone").onclick = async () => { closeModal(); await toggleTodo(t.id); };
+  $("tsLeave").onclick = async () => { if (await leaveTodo(t)) closeModal(); };
+}
+
+// 할 일 수정 창의 '함께하는 친구' 칸. 학번으로 넣고 빼며, 저장할 때 바뀐 것만 보냅니다 (saveTodoFriends)
+function mountTodoFriends(t) {
+  const before = todoMembersOf(t.id).map((m) => ({ sid: m.student_id, status: m.status }));
+  const friends = before.map((f) => ({ ...f }));
+  const STATUS = { pending: "승인 대기", rejected: "반려됨" };
+  const draw = () => {
+    $("tfChips").innerHTML = friends.map((f, i) =>
+      `<span class="fr-chip">${esc(rosterName(f.sid))}${STATUS[f.status] ? `<small>${STATUS[f.status]}</small>` : ""}<button type="button" data-rm="${i}" aria-label="${esc(rosterName(f.sid))} 빼기">✕</button></span>`).join("");
+    $("tfChips").querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { friends.splice(+b.dataset.rm, 1); draw(); });
+  };
+  const add = (sid) => {
+    if (sid === me.student_id || friends.some((f) => f.sid === sid)) return;
+    friends.push({ sid });
+  };
+  draw();
+  mountGroups("tfGroups", () => friends.map((f) => f.sid), (sids) => { sids.forEach(add); draw(); }, true);
+  const find = (q) => roster().filter((p) => p.sid !== me.student_id && !friends.some((f) => f.sid === p.sid)
+    && (/^\d+$/.test(q) ? String(p.sid).startsWith(q) : p.name.includes(q))).slice(0, 6);
+  const show = () => {
+    const q = $("tfQ").value.trim();
+    const list = q ? find(q) : [];
+    $("tfRes").innerHTML = !q ? "" : list.length
+      ? list.map((p) => `<button type="button" class="fr-item" data-sid="${p.sid}"><b>${esc(p.name)}</b><span>${p.sid}</span></button>`).join("")
+      : `<div class="fr-empty">명단에 없어요. 이름이나 학번을 확인해 주세요.</div>`;
+    $("tfRes").querySelectorAll("[data-sid]").forEach((b) => b.onclick = () => {
+      add(+b.dataset.sid); draw();
+      $("tfQ").value = ""; $("tfRes").innerHTML = ""; $("tfQ").focus();
+    });
+  };
+  $("tfQ").oninput = show;
+  $("tfQ").onkeydown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    setTimeout(() => { show(); $("tfRes").querySelector(".fr-item")?.click(); }, 0);   // 한글 입력을 마무리한 뒤
+  };
+  return {
+    add: () => friends.filter((f) => !before.some((b) => b.sid === f.sid)).map((f) => f.sid),
+    drop: () => before.filter((b) => !friends.some((f) => f.sid === b.sid)).map((b) => b.sid),
+  };
+}
+
+async function saveTodoFriends(t, picker) {
+  const add = picker.add(), drop = picker.drop();
+  if (!add.length && !drop.length) return { added: 0 };
+  const res = await Promise.all([
+    add.length && sb.from("todo_members").insert(add.map((sid) => ({ todo_id: t.id, student_id: sid }))).select(),
+    drop.length && sb.from("todo_members").delete().eq("todo_id", t.id).in("student_id", drop),
+  ]);
+  if (res.some((r) => r && r.error)) return { error: true };
+  cache.todoMembers = [...cache.todoMembers.filter((m) => !(m.todo_id === t.id && drop.includes(m.student_id))), ...(res[0]?.data || [])];
+  const rows = res[0]?.data || [];
+  return { added: rows.length, waiting: rows.filter((m) => m.status === "pending").length };
 }
 
 function openTodoForm(t) {
@@ -3845,18 +3997,32 @@ function openTodoForm(t) {
       <option value="">그룹 없음</option>
       ${cache.todoGroups.map((g) => `<option value="${g.id}"${t.group_id === g.id ? " selected" : ""}>${esc(g.name)}</option>`).join("")}
     </select>` : ""}
+    ${cache.todoMembers ? `<label class="study-label">함께하는 친구 (선택)</label>
+    <div class="fr-chips" id="tfChips"></div>
+    <div class="aud-quick" id="tfGroups"><span class="aud-label">그룹</span><span class="aud-hint">불러오는 중…</span></div>
+    <input class="study-input" id="tfQ" autocomplete="off" placeholder="이름·학번으로 찾기">
+    <div class="fr-results" id="tfRes"></div>
+    <div class="study-foot fr-note">${TODO_SHARE_FREE.includes(me.student_id)
+      ? "넣은 친구 할 일 목록에도 바로 생겨요."
+      : "관리자가 확인하고 승인하면 넣은 친구 할 일 목록에도 생겨요."} 제목 · 기한을 고치면 친구 목록에도 반영되고, 완료 체크는 각자 해요.</div>` : ""}
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="tfSave">저장</button>
     <button class="study-submit ghost danger" id="tfDel">삭제</button>`);
+  const picker = cache.todoMembers ? mountTodoFriends(t) : null;
   $("tfSave").onclick = async () => {
     const patch = { title: $("tfTitle").value.trim(), due_on: $("tfDue").value || null };
     if ($("tfGroup")) patch.group_id = $("tfGroup").value || null;
     if (!patch.title) return showErr("할 일을 입력해 주세요.");
+    $("tfSave").disabled = true;
     const { error } = await sb.from("todos").update(patch).eq("id", t.id);
-    if (error) return showErr("저장하지 못했어요.");
+    if (error) { $("tfSave").disabled = false; return showErr("저장하지 못했어요."); }
     Object.assign(t, patch);
+    const fr = picker ? await saveTodoFriends(t, picker) : { added: 0 };
     closeModal();
     rerender();
+    if (fr.error) toast("할 일은 저장했지만 친구 목록을 바꾸지 못했어요", true);
+    else if (fr.waiting) toast(`친구 ${fr.waiting}명은 관리자가 승인하면 공유돼요`);
+    else if (fr.added) toast(`친구 ${fr.added}명과 함께하는 할 일이 됐어요`);
   };
   $("tfDel").onclick = async () => { if (await removeTodo(t.id)) closeModal(); };
 }

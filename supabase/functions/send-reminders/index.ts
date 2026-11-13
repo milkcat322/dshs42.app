@@ -123,6 +123,16 @@ Deno.serve(async () => {
       admin.from("assignments").select("id, author_name").eq("status", "pending").gte("created_at", since),
       admin.from("feedback").select("id, user_id, profiles(name)").gte("created_at", since),
     ]);
+    // 할 일 공유 승인 요청: 할 일마다 하나로 묶습니다 (다시 넣으면 시각이 바뀌어 새로 알림). 표가 없어도 다른 알림은 그대로
+    const shares = await admin.from("todo_members").select("todo_id, added_at, todos(profiles(name))")
+      .eq("status", "pending").gte("added_at", since);
+    if (shares.error) console.error("할 일 공유 조회 실패", shares.error.message);
+    const shareItems = new Map<string, AdminItem>();
+    for (const r of shares.data ?? []) {
+      const who = (r.todos as unknown as { profiles: { name: string } | null } | null)?.profiles?.name ?? "학생";
+      const prev = shareItems.get(r.todo_id);
+      if (!prev || prev.id < `${r.todo_id}@${r.added_at}`) shareItems.set(r.todo_id, { kind: "todoshare", id: `${r.todo_id}@${r.added_at}`, who });
+    }
     const failed = [joined, asked, feedback].find((r) => r.error);
     if (failed) console.error("관리자 알림 조회 실패", failed.error!.message);
     else {
@@ -132,6 +142,7 @@ Deno.serve(async () => {
         ...feedback.data!.filter((f) => !admins.includes(f.user_id))
           .map((f) => ({ kind: "feedback" as const, id: f.id, who: (f.profiles as unknown as { name: string } | null)?.name ?? "학생" })),
         ...studentReplies.map((r) => ({ kind: "reply" as const, ...r })),
+        ...shareItems.values(),
       ];
       const { data: logged, error } = items.length
         ? await admin.from("notify_log").select("user_id, key").in("key", items.map(adminKey)).in("user_id", admins)
