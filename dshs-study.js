@@ -2170,7 +2170,7 @@ function openEventForm(ev, seed) {
     <label class="study-label">함께하는 친구 (선택)</label>
     <div class="fr-chips" id="frChips"></div>
     <div class="aud-quick" id="frGroups"><span class="aud-label">그룹</span><span class="aud-hint">불러오는 중…</span></div>
-    <input class="study-input" id="frQ" autocomplete="off" placeholder="이름·학번으로 찾기 (가입 전 친구도 돼요)">
+    <input class="study-input" id="frQ" autocomplete="off" placeholder="이름·학번으로 찾기 · 여러 명은 띄어 쓰고 Enter">
     <div class="fr-results" id="frRes"></div>
     <div class="study-foot fr-note">넣은 친구 달력에도 이 일정이 생겨요. 고치거나 지우면 친구 달력에도 반영돼요. 가입 전인 친구는 가입하면 바로 생겨요.</div>
     ${ev ? `<label class="ev-allday"><input type="checkbox" id="eDone"${ev.done || isPastEvent(ev) ? " checked" : ""}${isPastEvent(ev) ? " disabled" : ""}> 완료한 일정${
@@ -2269,11 +2269,19 @@ function openEventForm(ev, seed) {
     });
     shownQ = q;
   };
+  const addSidsAsInvite = (sids) => {
+    for (const sid of sids) {
+      if (sid === me.student_id || friends.some((f) => f.sid === sid)) continue;
+      friends.push({ sid, name: rosterName(sid), invite: true, fromGroup: true });
+    }
+    drawChips();
+  };
   $("frQ").oninput = () => {
     clearTimeout(qTimer);
     const q = $("frQ").value.trim();
     shownQ = "";
     if (!q) { $("frRes").innerHTML = ""; return; }
+    if (isMulti(q)) { qSeq++; $("frRes").innerHTML = multiHint(parseStudents(q)); return; }
     qTimer = setTimeout(() => search(q), 250);
   };
   $("frQ").onkeydown = (e) => {
@@ -2284,6 +2292,14 @@ function openEventForm(ev, seed) {
       const q = $("frQ").value.trim();
       if (!q) return;
       clearTimeout(qTimer);
+      if (isMulti(q)) {   // 여러 명: 한 번에 넣고 못 찾은 말만 남깁니다
+        qSeq++;
+        const r = parseStudents(q);
+        addSidsAsInvite(r.sids);
+        $("frQ").value = r.miss.join(" ");
+        $("frRes").innerHTML = r.miss.length ? multiHint({ sids: [], miss: r.miss }) : "";
+        return $("frQ").focus();
+      }
       if (shownQ !== q) await search(q);
       if ($("frQ").value.trim() === q) $("frRes").querySelector(".fr-item")?.click();
     }, 0);
@@ -3387,6 +3403,22 @@ function dshsReturned() {
 }
 
 // 전체 학생 명단 (시간표 데이터에서)
+// "2101 반민지 2113 2505" 처럼 띄어쓰기(쉼표)로 여러 명을 적으면 명단에서 학번 4자리 · 이름이 딱 맞는 학생을 찾습니다.
+// 친구 넣기 칸(일정 · 할 일)에서 Enter 로 한 번에 넣을 때 씁니다. 못 찾은 말은 miss 로 돌려줍니다.
+const isMulti = (q) => /[\s,]/.test(q.trim());
+function parseStudents(text) {
+  const list = roster(), sids = [], miss = [];
+  for (const w of text.split(/[\s,]+/).filter(Boolean)) {
+    const p = /^\d{4}$/.test(w) ? list.find((x) => x.sid === +w) : list.find((x) => x.name === w);
+    if (!p) miss.push(w);
+    else if (!sids.includes(p.sid)) sids.push(p.sid);
+  }
+  return { sids, miss };
+}
+const multiHint = ({ sids, miss }) => `<div class="fr-empty">${sids.length
+  ? `Enter 를 누르면 ${sids.length}명을 넣어요: ${esc(sids.map(rosterName).join(", "))}` : "넣을 학생을 찾지 못했어요."}${
+  miss.length ? `<br>못 찾음: ${esc(miss.join(", "))} (학번 4자리나 이름 전체를 적어 주세요)` : ""}</div>`;
+
 function roster() {
   return Object.entries(window.SCHOOL_DATA || {})
     .map(([name, v]) => ({ sid: v.id, name, classes: v.classes || {} }))
@@ -3952,6 +3984,7 @@ function mountTodoFriends(t) {
     && (/^\d+$/.test(q) ? String(p.sid).startsWith(q) : p.name.includes(q))).slice(0, 6);
   const show = () => {
     const q = $("tfQ").value.trim();
+    if (isMulti(q)) { $("tfRes").innerHTML = multiHint(parseStudents(q)); return; }
     const list = q ? find(q) : [];
     $("tfRes").innerHTML = !q ? "" : list.length
       ? list.map((p) => `<button type="button" class="fr-item" data-sid="${p.sid}"><b>${esc(p.name)}</b><span>${p.sid}</span></button>`).join("")
@@ -3965,7 +3998,16 @@ function mountTodoFriends(t) {
   $("tfQ").onkeydown = (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    setTimeout(() => { show(); $("tfRes").querySelector(".fr-item")?.click(); }, 0);   // 한글 입력을 마무리한 뒤
+    setTimeout(() => {   // 한글 입력을 마무리한 뒤
+      const q = $("tfQ").value.trim();
+      if (!isMulti(q)) { show(); return $("tfRes").querySelector(".fr-item")?.click(); }
+      const r = parseStudents(q);
+      r.sids.forEach(add); draw();
+      // 못 찾은 말만 칸에 남겨 고칠 수 있게 합니다
+      $("tfQ").value = r.miss.join(" ");
+      $("tfRes").innerHTML = r.miss.length ? multiHint({ sids: [], miss: r.miss }) : "";
+      $("tfQ").focus();
+    }, 0);
   };
   return {
     add: () => friends.filter((f) => !before.some((b) => b.sid === f.sid)).map((f) => f.sid),
@@ -4000,7 +4042,7 @@ function openTodoForm(t) {
     ${cache.todoMembers ? `<label class="study-label">함께하는 친구 (선택)</label>
     <div class="fr-chips" id="tfChips"></div>
     <div class="aud-quick" id="tfGroups"><span class="aud-label">그룹</span><span class="aud-hint">불러오는 중…</span></div>
-    <input class="study-input" id="tfQ" autocomplete="off" placeholder="이름·학번으로 찾기">
+    <input class="study-input" id="tfQ" autocomplete="off" placeholder="이름·학번으로 찾기 · 여러 명은 띄어 쓰고 Enter">
     <div class="fr-results" id="tfRes"></div>
     <div class="study-foot fr-note">${TODO_SHARE_FREE.includes(me.student_id)
       ? "넣은 친구 할 일 목록에도 바로 생겨요."
