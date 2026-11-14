@@ -1211,7 +1211,7 @@ const openHome = () => (me.is_admin ? openAdminMoved() : me.student_id ? openMyT
 
 async function logout() {
   await forgetPush();   // 이 기기로 다음 사람의 알림이 오지 않도록, 로그아웃하기 전에 서버 등록만 지웁니다
-  await sb.auth.signOut();
+  await sb.auth.signOut({ scope: "local" });   // 이 기기만 (기본값 global 은 그 학생의 다른 기기 · 다른 기수 사이트 로그인까지 모두 끊음)
   silentState({ off: true });   // 직접 로그아웃했으면 조용한 로그인으로 다시 들어가지 않게
   autoPush.done = false;   // 다음에 로그인하는 사람의 알림을 다시 맞춥니다
   paintPush.known = false;
@@ -1265,7 +1265,7 @@ function bindIdLogin() {
     if (error) return showErr("아이디나 비밀번호가 맞지 않아요.");
     await loadProfile();
     if (!me) {
-      await sb.auth.signOut();
+      await sb.auth.signOut({ scope: "local" });
       return showErr("계정 정보(프로필)를 찾지 못했어요. 관리자 계정이라면 admins.sql 을 실행했는지 확인해 주세요.");
     }
     closeModal(); renderNav(); openHome();
@@ -3042,8 +3042,9 @@ const DSHS_GAP = 55000;   // 1분 타이머가 조금 일찍 울려도 건너뛰
 const DSHS_REST = 5 * 60000;
 const calOpen = () => $("studyView").style.display === "block" && view === "feed";
 
-async function loadDshs() {
-  if (Date.now() - dshs.at < DSHS_GAP) return;
+async function loadDshs({ force = false } = {}) {
+  if (!force && Date.now() - dshs.at < DSHS_GAP) return;
+  if (!sb) await sbWait;
   dshs.at = Date.now();
   const before = JSON.stringify([dshs.linked, dshs.items]);
   try {
@@ -3162,14 +3163,6 @@ function openSettings() {
     bindHomeGuide();
     return bindAdminTap();
   }
-  const link = dshs.linked
-    ? `<div class="asg-body">dshs.app ${dshs.name ? `${esc(dshs.name)} 계정과 ` : ""}연결돼 있어요. 진행 중인 내 신청 ${dshsItems().length}건이 달력에 보여요.</div>
-       <div class="study-foot">내 일정을 보는 동안 1분마다 새로 받아 와요. 연결을 해제하면 이 사이트에 저장된 dshs.app 로그인 정보가 지워져요.</div>
-       <button class="study-btn wide" id="dshsUnlink">dshs.app 연결 해제</button>`
-    : `<div class="asg-body">dshs.app 계정을 연결하면 내가 낸 신청이 내 일정 달력에 자동으로 보여요.</div>
-       <div class="study-foot">dshs.app 로그인 화면에서 로그인하고 동의하면 돼요. 비밀번호는 이 사이트에 전달되지 않아요.<br>
-         신청 내역은 보기만 할 수 있고, 신청 · 변경은 dshs.app 에서 해요.</div>
-       <button class="study-submit" id="doDshs">dshs.app으로 로그인해서 연결</button>`;
   openSheet("설정", `
     <label class="set-row"><span><b>알림</b><span class="ev-hint" id="pushHint">${PUSH_HINT}</span></span>
       <input type="checkbox" id="setPush"></label>
@@ -3181,14 +3174,20 @@ function openSettings() {
     <div class="set-sec">계정</div>
     <div class="ev-title">${esc(me.name)}</div>
     <div class="ev-meta">${esc(me.username)}</div>
-    ${link}
+    <div id="dshsLinkBox">${dshsLinkHtml()}</div>
     <button class="study-btn wide" id="doLogout">로그아웃</button>`);
   $("setPush").onchange = togglePush;
   paintPush(); refreshPush();
   bindSeatSetting();
   bindCalSettings();
-  if ($("doDshs")) $("doDshs").onclick = startDshs;
-  if ($("dshsUnlink")) $("dshsUnlink").onclick = unlinkDshs;
+  bindDshsLink();
+  // 연결 상태를 아직 모르면(일정 탭을 열기 전) 서버에 물어보고 그 칸만 다시 그립니다
+  if (dshs.linked === null) loadDshs({ force: true }).then(() => {
+    const box = $("dshsLinkBox");
+    if (!box) return;
+    box.innerHTML = dshs.linked === null ? `<div class="study-foot" style="text-align:left">지금은 dshs.app 연결을 확인하지 못했어요. 잠시 뒤 설정을 다시 열어 주세요.</div>` : dshsLinkHtml();
+    bindDshsLink();
+  });
   $("doLogout").onclick = () => { closeModal(); logout(); };
   bindTheme();
   bindHomeGuide();
@@ -3206,6 +3205,23 @@ async function startDshs(e) {
     toast(body.error || "dshs.app 연결을 시작하지 못했어요", true);
   } catch { toast("dshs.app 연결을 시작하지 못했어요", true); }
   btn.disabled = false;
+}
+
+// 설정의 dshs.app 연결 칸. 연결 상태를 아직 모르면(linked: null) '확인하는 중'으로 두고, 연결 버튼을 띄우지 않습니다
+function dshsLinkHtml() {
+  if (dshs.linked === null) return `<div class="study-foot" style="text-align:left">dshs.app 연결을 확인하는 중이에요…</div>`;
+  return dshs.linked
+    ? `<div class="asg-body">dshs.app ${dshs.name ? `${esc(dshs.name)} 계정과 ` : ""}연결돼 있어요. 진행 중인 내 신청 ${dshsItems().length}건이 달력에 보여요.</div>
+       <div class="study-foot">내 일정을 보는 동안 1분마다 새로 받아 와요. 연결을 해제하면 이 사이트에 저장된 dshs.app 로그인 정보가 지워져요.</div>
+       <button class="study-btn wide" id="dshsUnlink">dshs.app 연결 해제</button>`
+    : `<div class="asg-body">dshs.app 계정을 연결하면 내가 낸 신청이 내 일정 달력에 자동으로 보여요.</div>
+       <div class="study-foot">dshs.app 로그인 화면에서 로그인하고 동의하면 돼요. 비밀번호는 이 사이트에 전달되지 않아요.<br>
+         신청 내역은 보기만 할 수 있고, 신청 · 변경은 dshs.app 에서 해요.</div>
+       <button class="study-submit" id="doDshs">dshs.app으로 로그인해서 연결</button>`;
+}
+function bindDshsLink() {
+  if ($("doDshs")) $("doDshs").onclick = startDshs;
+  if ($("dshsUnlink")) $("dshsUnlink").onclick = unlinkDshs;
 }
 
 async function unlinkDshs() {

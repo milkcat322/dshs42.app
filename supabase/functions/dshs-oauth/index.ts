@@ -124,11 +124,19 @@ async function currentUser(req: Request) {
 type Link = { user_id: string; refresh_token: string | null; access_token: string | null; access_expires: string | null };
 
 // refresh token 으로 새 access token. 갱신에 실패하면(30일 미사용·동의 철회) 연결을 지우고 null.
-async function refresh(link: Link) {
+// refresh token 은 쓸 때마다 새로 바뀌어서, 같은 학생의 요청 두 개(신청 내역 · 자리, 폰 · PC)가 동시에 갱신하면
+// 늦은 쪽이 이미 쓴 값을 내서 invalid_grant 를 받습니다. 그때는 먼저 갱신한 쪽이 저장한 새 토큰을 쓰고 연결을 지우지 않습니다.
+// 그 밖의 일시적인 실패(요청 한도 · 서버 오류)는 TEMP 를 돌려줘 '연결 안 됨'으로 보이지 않게 합니다.
+const TEMP = "temp";
+async function refresh(link: Link): Promise<string | null> {
   if (!link.refresh_token) return null;
   const r = await tokenRequest({ grant_type: "refresh_token", refresh_token: link.refresh_token });
   if (!r.ok) {
-    if (r.error === "invalid_grant") await admin.from("dshs_links").delete().eq("user_id", link.user_id);
+    const { data: now } = await admin.from("dshs_links").select("refresh_token, access_token, access_expires").eq("user_id", link.user_id).maybeSingle();
+    if (!now) return null;
+    if (now.refresh_token !== link.refresh_token && now.access_token) { Object.assign(link, now); return now.access_token; }
+    if (r.error !== "invalid_grant") return TEMP;
+    await admin.from("dshs_links").delete().eq("user_id", link.user_id).eq("refresh_token", link.refresh_token);
     return null;
   }
   const row = {
@@ -142,13 +150,17 @@ async function refresh(link: Link) {
 }
 
 // 401 이면 토큰을 갱신해 한 번 더 보냅니다. 갱신도 안 되면 null (다시 연결해야 함).
+// 갱신이 잠깐 실패했으면(TEMP) 503 응답처럼 돌려줘, 부른 쪽이 '연결됨 · 잠시 실패'로 답하게 합니다.
+const tempFail = () => new Response(null, { status: 503 });
 async function api(link: Link, path: string) {
   let token = link.access_token && link.access_expires && Date.parse(link.access_expires) > Date.now()
     ? link.access_token : await refresh(link);
+  if (token === TEMP) return tempFail();
   if (!token) return null;
   let res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (res.status === 401) {
     token = await refresh(link);
+    if (token === TEMP) return tempFail();
     if (!token) return null;
     res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   }
