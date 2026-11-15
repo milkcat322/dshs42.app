@@ -1323,6 +1323,7 @@ function openStudy(p) {
 }
 function closeStudy() {
   destroyCal();
+  document.body.classList.remove("offline-learn");
   $("studyView").style.display = "none";
   document.body.classList.remove("study-open");
   if (!$("result").classList.contains("show")) $("welcomeState").style.display = "";
@@ -1336,6 +1337,16 @@ function rerender() {
   else renderList(view);
 }
 window.closeStudyView = closeStudy;
+// 인터넷이 없을 때 오프라인 안내의 '단어장' 버튼: 단어장은 서버 없이 동작하므로 공부 탭만 열어 줍니다 (북마크는 다시 연결되면 올림)
+window.openOfflineLearn = () => {
+  destroyCal();
+  page = "learn"; view = "learn";
+  document.body.classList.add("offline-learn");
+  $("result").classList.remove("show");
+  $("welcomeState").style.display = "none";
+  $("studyView").style.display = "block";
+  renderLearn();
+};
 
 // ---------- 공부: 단어장 북마크를 계정에 (learn.sql) ----------
 // 단어장(vocab.html, iframe)이 window.learnBookmarks 를 불러 이 사이트의 로그인 연결로 읽고 씁니다.
