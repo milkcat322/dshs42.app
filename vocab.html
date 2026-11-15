@@ -1356,6 +1356,10 @@ html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.sel
       <span class="search-icon">🔍</span>
       <input type="text" id="search-input" placeholder="단어 또는 뜻으로 검색..." oninput="renderTable()">
     </div>
+    <label class="syn-toggle hidden" style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted);justify-content:flex-start;margin:-4px 0 12px;">
+            <input type="checkbox" checked onchange="setSynonyms(this.checked)" style="accent-color:var(--accent);width:15px;height:15px;">
+            동의어도 함께 보기 (끄면 한 뜻에 첫 단어만)
+          </label>
 
     <table class="word-table">
       <thead>
@@ -1489,6 +1493,10 @@ html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.sel
             <input type="checkbox" id="auto-bookmark-toggle" onchange="setAutoBookmark(this.checked)" style="accent-color:var(--accent);width:15px;height:15px;">
             🔖 틀리면 자동 북마크
           </label>
+          <label class="syn-toggle hidden" style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted);margin-top:10px;">
+            <input type="checkbox" checked onchange="setSynonyms(this.checked)" style="accent-color:var(--accent);width:15px;height:15px;">
+            동의어도 함께 보기 (끄면 한 뜻에 첫 단어만)
+          </label>
         </div>
         <div class="total-info" id="total-info"></div>
         <button class="btn primary" onclick="startQuiz()" style="padding:12px 36px;font-size:15px;">퀴즈 시작</button>
@@ -1605,19 +1613,19 @@ const DATA_CRIT = [
   { en: "address the drawback", ko: "문제점을 해결하다", cat: "필수동사", topic: "1~30" },
   { en: "adjust", ko: "조정[조절]하다", cat: "필수동사", topic: "1~30" },
   { en: "admire", ko: "존경하다", cat: "필수동사", topic: "1~30" },
-  { en: "respect", ko: "존경하다", cat: "필수동사", topic: "1~30" },
+  { en: "respect", ko: "존경하다", cat: "필수동사", topic: "1~30", syn: true },
   { en: "alleviate", ko: "경감시키다, 완화하다", cat: "필수동사", topic: "1~30" },
   { en: "allocate", ko: "할당하다, 배분하다", cat: "필수동사", topic: "1~30" },
   { en: "analyze", ko: "분석하다", cat: "필수동사", topic: "1~30" },
   { en: "appoint", ko: "임명하다", cat: "필수동사", topic: "1~30" },
   { en: "approve", ko: "찬성하다, 인정하다; 승인하다", cat: "필수동사", topic: "1~30" },
   { en: "arrange", ko: "배치하다, 정리하다", cat: "필수동사", topic: "1~30" },
-  { en: "organize", ko: "배치하다, 정리하다", cat: "필수동사", topic: "1~30" },
+  { en: "organize", ko: "배치하다, 정리하다", cat: "필수동사", topic: "1~30", syn: true },
   { en: "ascend", ko: "오르다, 올라가다, 상승하다", cat: "필수동사", topic: "1~30" },
   { en: "aspire", ko: "열망하다, 포부를 갖다", cat: "필수동사", topic: "1~30" },
   { en: "assemble", ko: "모이다, 조립하다", cat: "필수동사", topic: "1~30" },
   { en: "assess", ko: "평가하다, 감정하다", cat: "필수동사", topic: "1~30" },
-  { en: "evaluate", ko: "평가하다, 감정하다", cat: "필수동사", topic: "1~30" },
+  { en: "evaluate", ko: "평가하다, 감정하다", cat: "필수동사", topic: "1~30", syn: true },
   { en: "assign", ko: "(책임 등을) 맡기다, 배정[할당]하다; 임명[지명]하다; (날짜·시간 등을) 지정하다", cat: "필수동사", topic: "1~30" },
   { en: "assume", ko: "추정하다, 가정하다", cat: "필수동사", topic: "1~30" },
   { en: "attain", ko: "얻다, 달성하다; 이르다, 도달하다", cat: "필수동사", topic: "1~30" },
@@ -1638,7 +1646,7 @@ const DATA_CRIT = [
   { en: "concentrate", ko: "집중하다[시키다], 전념하다; 응축[농축]하다", cat: "필수동사", topic: "31~60" },
   { en: "conclude", ko: "추론[추정]하다, 연역하다", cat: "필수동사", topic: "31~60" },
   { en: "infer", ko: "추론[추정]하다, 연역하다; 추론하다; (간접적으로) 뜻하다, 암시하다", cat: "필수동사", topic: "31~60" },
-  { en: "reason", ko: "추론[추정]하다, 연역하다", cat: "필수동사", topic: "31~60" },
+  { en: "reason", ko: "추론[추정]하다, 연역하다", cat: "필수동사", topic: "31~60", syn: true },
   { en: "consent", ko: "동의하다, 허락하다; 승낙, 동의, 합의", cat: "필수동사", topic: "31~60" },
   { en: "constrain", ko: "억지로 시키다, 강요하다; 제한하다, 감금하다", cat: "필수동사", topic: "31~60" },
   { en: "contaminate", ko: "오염시키다", cat: "필수동사", topic: "31~60" },
@@ -1653,11 +1661,11 @@ const DATA_CRIT = [
   { en: "declare", ko: "선언하다, 공표하다; 분명하게 말하다[밝히다]; (세관 등에) 신고하다", cat: "필수동사", topic: "31~60" },
   { en: "decline", ko: "감소하다, 쇠퇴하다; 거절하다; 감소, 하락, 축소", cat: "필수동사", topic: "31~60" },
   { en: "decorate", ko: "꾸미다, 장식하다", cat: "필수동사", topic: "31~60" },
-  { en: "embellish", ko: "꾸미다, 장식하다", cat: "필수동사", topic: "31~60" },
-  { en: "ornament", ko: "꾸미다, 장식하다", cat: "필수동사", topic: "31~60" },
+  { en: "embellish", ko: "꾸미다, 장식하다", cat: "필수동사", topic: "31~60", syn: true },
+  { en: "ornament", ko: "꾸미다, 장식하다", cat: "필수동사", topic: "31~60", syn: true },
   { en: "dedicate", ko: "바치다, 전념하다", cat: "필수동사", topic: "31~60" },
   { en: "deny", ko: "반박하다, 이의를 제기하다", cat: "필수동사", topic: "31~60" },
-  { en: "oppose", ko: "반박하다, 이의를 제기하다", cat: "필수동사", topic: "31~60" },
+  { en: "oppose", ko: "반박하다, 이의를 제기하다", cat: "필수동사", topic: "31~60", syn: true },
   { en: "depict", ko: "그리다, 묘사하다", cat: "필수동사", topic: "31~60" },
   { en: "descend", ko: "내려가다, 하강하다", cat: "필수동사", topic: "31~60" },
   { en: "describe", ko: "말하다, 서술하다, 묘사하다", cat: "필수동사", topic: "31~60" },
@@ -1667,16 +1675,16 @@ const DATA_CRIT = [
   { en: "diagnose", ko: "(질병·문제 등의 원인을) 진단하다", cat: "필수동사", topic: "61~90" },
   { en: "diminish", ko: "감소시키다", cat: "필수동사", topic: "61~90" },
   { en: "disappear", ko: "사라지다, 소멸하다", cat: "필수동사", topic: "61~90" },
-  { en: "fade away", ko: "사라지다, 소멸하다", cat: "필수동사", topic: "61~90" },
+  { en: "fade away", ko: "사라지다, 소멸하다", cat: "필수동사", topic: "61~90", syn: true },
   { en: "discard", ko: "버리다, 폐기하다", cat: "필수동사", topic: "61~90" },
   { en: "discern", ko: "식별하다, 인식[인지]하다", cat: "필수동사", topic: "61~90" },
   { en: "disclose", ko: "밝히다, 드러내다, 폭로하다", cat: "필수동사", topic: "61~90" },
   { en: "discriminate", ko: "(인종·성별 등으로) 차별하다", cat: "필수동사", topic: "61~90" },
   { en: "disguise", ko: "변장[위장]하다; 숨기다, 감추다", cat: "필수동사", topic: "61~90" },
   { en: "dismiss", ko: "해고하다, 면직시키다", cat: "필수동사", topic: "61~90" },
-  { en: "fire", ko: "해고하다, 면직시키다", cat: "필수동사", topic: "61~90" },
+  { en: "fire", ko: "해고하다, 면직시키다", cat: "필수동사", topic: "61~90", syn: true },
   { en: "distinguish", ko: "구분하다, 구별하다", cat: "필수동사", topic: "61~90" },
-  { en: "separate", ko: "구분하다, 구별하다", cat: "필수동사", topic: "61~90" },
+  { en: "separate", ko: "구분하다, 구별하다", cat: "필수동사", topic: "61~90", syn: true },
   { en: "distribute", ko: "분배하다, 나누어 주다; 유통시키다, 배포[배달]하다; 분포시키다, 퍼뜨리다", cat: "필수동사", topic: "61~90" },
   { en: "disturb", ko: "방해하다, 불안하게 만들다", cat: "필수동사", topic: "61~90" },
   { en: "dominate", ko: "지배하다; 우세하다", cat: "필수동사", topic: "61~90" },
@@ -1694,11 +1702,11 @@ const DATA_CRIT = [
   { en: "evoke", ko: "(느낌·상상을) 불러일으키다, 상기시키다", cat: "필수동사", topic: "61~90" },
   { en: "exaggerate", ko: "과장하다, 허풍을 떨다", cat: "필수동사", topic: "61~90" },
   { en: "examine", ko: "세심히 살피다, 면밀히 조사[검토]하다; 조사하다, 탐사[탐색]하다", cat: "필수동사", topic: "61~90" },
-  { en: "inspect", ko: "세심히 살피다, 면밀히 조사[검토]하다", cat: "필수동사", topic: "61~90" },
-  { en: "survey", ko: "세심히 살피다, 면밀히 조사[검토]하다", cat: "필수동사", topic: "61~90" },
+  { en: "inspect", ko: "세심히 살피다, 면밀히 조사[검토]하다", cat: "필수동사", topic: "61~90", syn: true },
+  { en: "survey", ko: "세심히 살피다, 면밀히 조사[검토]하다", cat: "필수동사", topic: "61~90", syn: true },
   { en: "excavate", ko: "(구멍 등을) 파다; 발굴하다, 출토하다", cat: "필수동사", topic: "61~90" },
   { en: "exceed", ko: "초과하다, 웃돌다", cat: "필수동사", topic: "61~90" },
-  { en: "surpass", ko: "초과하다, 웃돌다", cat: "필수동사", topic: "61~90" },
+  { en: "surpass", ko: "초과하다, 웃돌다", cat: "필수동사", topic: "61~90", syn: true },
   { en: "exclude", ko: "제외하다", cat: "필수동사", topic: "91~120" },
   { en: "expire", ko: "(기간이) 만료되다, 끝나다; 숨을 거두다", cat: "필수동사", topic: "91~120" },
   { en: "explore", ko: "탐험하다, 탐구하다; 조사하다, 탐사[탐색]하다", cat: "필수동사", topic: "91~120" },
@@ -1706,11 +1714,11 @@ const DATA_CRIT = [
   { en: "flourish", ko: "번창하다, 번성하다, 잘 자라다", cat: "필수동사", topic: "91~120" },
   { en: "fluctuate", ko: "변동하다, 오르내리다", cat: "필수동사", topic: "91~120" },
   { en: "forbid", ko: "금(지)하다", cat: "필수동사", topic: "91~120" },
-  { en: "ban", ko: "금(지)하다", cat: "필수동사", topic: "91~120" },
+  { en: "ban", ko: "금(지)하다", cat: "필수동사", topic: "91~120", syn: true },
   { en: "foster", ko: "촉진하다, 조성하다; 기르다, 양육하다", cat: "필수동사", topic: "91~120" },
   { en: "frustrate", ko: "좌절시키다", cat: "필수동사", topic: "91~120" },
   { en: "hesitate", ko: "(말 등을) 더듬거리다", cat: "필수동사", topic: "91~120", alt: "망설이다, 주저하다" },
-  { en: "stutter", ko: "(말 등을) 더듬거리다", cat: "필수동사", topic: "91~120" },
+  { en: "stutter", ko: "(말 등을) 더듬거리다", cat: "필수동사", topic: "91~120", syn: true },
   { en: "identify", ko: "확인하다, 식별하다; 동일시하다", cat: "필수동사", topic: "91~120" },
   { en: "illuminate", ko: "조명하다, 비추다; 계몽[계발]하다; 명확히 하다, 설명하다", cat: "필수동사", topic: "91~120" },
   { en: "illustrate", ko: "(책 등에) 삽화를 넣다; (예를 들어) 설명하다, 실증하다", cat: "필수동사", topic: "91~120" },
@@ -1720,8 +1728,8 @@ const DATA_CRIT = [
   { en: "inherit", ko: "상속받다, 물려받다", cat: "필수동사", topic: "91~120" },
   { en: "inhibit", ko: "억제하다, 제지하다; 금하다, 못하게 막다", cat: "필수동사", topic: "91~120" },
   { en: "inject", ko: "주입하다, 스며들게 하다", cat: "필수동사", topic: "91~120" },
-  { en: "instill", ko: "주입하다, 스며들게 하다", cat: "필수동사", topic: "91~120" },
-  { en: "implant", ko: "주입하다, 스며들게 하다", cat: "필수동사", topic: "91~120" },
+  { en: "instill", ko: "주입하다, 스며들게 하다", cat: "필수동사", topic: "91~120", syn: true },
+  { en: "implant", ko: "주입하다, 스며들게 하다", cat: "필수동사", topic: "91~120", syn: true },
   { en: "inquire", ko: "묻다, 질문하다; 알아보다, 조사하다", cat: "필수동사", topic: "91~120" },
   { en: "integrate", ko: "통합하다", cat: "필수동사", topic: "91~120" },
   { en: "interfere", ko: "간섭하다, 방해하다", cat: "필수동사", topic: "91~120" },
@@ -1729,13 +1737,13 @@ const DATA_CRIT = [
   { en: "intervene", ko: "개입하다, 중재하다", cat: "필수동사", topic: "91~120" },
   { en: "invade", ko: "침입하다", cat: "필수동사", topic: "91~120" },
   { en: "investigate", ko: "조사하다, 탐사[탐색]하다", cat: "필수동사", topic: "91~120" },
-  { en: "research", ko: "조사하다, 탐사[탐색]하다", cat: "필수동사", topic: "91~120" },
+  { en: "research", ko: "조사하다, 탐사[탐색]하다", cat: "필수동사", topic: "91~120", syn: true },
   { en: "isolate", ko: "격리하다, 고립시키다", cat: "필수동사", topic: "91~120" },
   { en: "justify", ko: "정당화하다", cat: "필수동사", topic: "91~120" },
   { en: "launch", ko: "착수하다, 시작하다; 출시[출간]하다; 내보내다, 진출시키다; (로켓 등을) 발사하다; 시작; 출시; 발사", cat: "필수동사", topic: "91~120" },
   { en: "manipulate", ko: "교묘히 다루다, 조종하다", cat: "필수동사", topic: "121~150" },
-  { en: "operate", ko: "교묘히 다루다, 조종하다", cat: "필수동사", topic: "121~150" },
-  { en: "handle", ko: "교묘히 다루다, 조종하다", cat: "필수동사", topic: "121~150" },
+  { en: "operate", ko: "교묘히 다루다, 조종하다", cat: "필수동사", topic: "121~150", syn: true },
+  { en: "handle", ko: "교묘히 다루다, 조종하다", cat: "필수동사", topic: "121~150", syn: true },
   { en: "migrate", ko: "이주[이동]하다, 이주[이동]시키다", cat: "필수동사", topic: "121~150" },
   { en: "modify", ko: "수정하다, 바꾸다; 완화하다, 경감하다; (어구를) 수식하다", cat: "필수동사", topic: "121~150" },
   { en: "mourn", ko: "슬퍼하다, 애도하다", cat: "필수동사", topic: "121~150" },
@@ -1763,7 +1771,7 @@ const DATA_CRIT = [
   { en: "revolve", ko: "회전하다, 회전시키다", cat: "필수동사", topic: "121~150" },
   { en: "substitute for", ko: "~을 대신[대체]하다", cat: "필수동사", topic: "121~150" },
   { en: "suppress", ko: "억누르다, 억압하다", cat: "필수동사", topic: "121~150" },
-  { en: "repress", ko: "억누르다, 억압하다", cat: "필수동사", topic: "121~150" },
+  { en: "repress", ko: "억누르다, 억압하다", cat: "필수동사", topic: "121~150", syn: true },
   { en: "withstand", ko: "견뎌 내다, 버티다", cat: "필수동사", topic: "121~150" },
   { en: "vary", ko: "서로 다르다, 바꾸다", cat: "필수동사", topic: "121~150" },
   { en: "abstract", ko: "추상적인, 관념적인; 개요; 추상화; 추출하다, 끌어내다; 요약[발췌]하다", cat: "필수형용사", topic: "1~25" },
@@ -1873,7 +1881,7 @@ const SUBJECTS = {
           cats: ['Ch4 Social Proof'], typoMin: 4, store: 'atcvocab_' },
   // 지문 빈칸 탭(blank: true)은 껐습니다. 코드(BLNK)는 남아 있어 다시 켤 수 있습니다.
   crit: { name: '비판적 영어 읽기와 토론', sub: '필수동사 150개, 필수형용사 100개', emoji: '⚖️', data: DATA_CRIT,
-          cats: ['필수동사', '필수형용사'], typoMin: 4, store: 'critvocab_' },
+          cats: ['필수동사', '필수형용사'], typoMin: 4, store: 'critvocab_', synToggle: true },
 };
 const SUBJECT_ORDER = ['atc', 'crit'];
 const BADGE_CLASSES = ['cat-1', 'cat-2', 'cat-3', 'cat-4', 'cat-5'];
@@ -1961,7 +1969,7 @@ async function pullBookmarks(subj) {
   }
   if (subj !== currentSubject) return;
   if (!firstTime && !pending && bmFlag(subj, 'bm-pending')) return;   // 받는 사이 북마크를 눌렀으면 그쪽이 최신 (이미 올리는 중)
-  const valid = new Set(DATA.map(w => w.en));
+  const valid = new Set(SUBJECTS[subj].data.map(w => w.en));
   bookmarks = new Set(list.filter(en => valid.has(en)));
   store.set('bookmarks', JSON.stringify([...bookmarks]));
   updateBookmarkTab(); renderTable(); updateTotalInfo();
@@ -2154,7 +2162,7 @@ function toggleGroup(cat) {
 
 function updateTotalInfo() {
   const bookmarkOnly = document.getElementById('bookmark-only-toggle')?.checked;
-  const count = bookmarkOnly ? bookmarks.size : DATA.filter(w => selectedTopics.has(topicKey(w))).length;
+  const count = bookmarkOnly ? DATA.filter(w => bookmarks.has(w.en)).length : DATA.filter(w => selectedTopics.has(topicKey(w))).length;
   document.getElementById('total-info').textContent = `총 ${count}개 단어`;
 }
 
@@ -4490,10 +4498,22 @@ function renderHome() {
   }).join('');
 }
 
+// 동의어 켜기/끄기 (synToggle 과목만): 끄면 한 뜻에 단어가 여럿일 때 첫 단어만 남김 (syn: true 인 단어를 뺌)
+const synOff = () => store.get('syn') === 'off';
+const synData = s => s.synToggle && synOff() ? s.data.filter(w => !w.syn) : s.data;
+function setSynonyms(on) {
+  store.set('syn', on ? 'on' : 'off');
+  document.querySelectorAll('.syn-toggle input').forEach(el => { el.checked = on; });
+  DATA = synData(SUBJECTS[currentSubject]);
+  ALL_ACCEPTED = null;
+  renderQuizSelector(); renderSubPills(); renderTable(); updateTotalInfo();
+  if (!document.getElementById('tab-bookmark').classList.contains('hidden')) renderBookmarkTable();
+}
+
 function selectSubject(id) {
   const s = SUBJECTS[id];
   currentSubject = id;
-  DATA = s.data;
+  DATA = synData(s);
   TYPO_MIN = s.typoMin;
   STORE_PREFIX = s.store;
   ALL_ACCEPTED = null;
@@ -4511,10 +4531,14 @@ function selectSubject(id) {
   // 북마크 (현재 단어 목록에 없는 것은 정리)
   let saved = [];
   try { saved = JSON.parse(store.get('bookmarks') || '[]'); } catch (e) {}
-  const valid = new Set(DATA.map(w => w.en));
+  const valid = new Set(s.data.map(w => w.en));   // 동의어를 꺼 둬도 그 단어 북마크는 지우지 않음
   bookmarks = new Set(saved.filter(en => valid.has(en)));
   autoBookmark = store.get('autobookmark') === 'on';
   setAutoBookmark(autoBookmark);
+  document.querySelectorAll('.syn-toggle').forEach(l => {
+    l.classList.toggle('hidden', !s.synToggle);
+    l.querySelector('input').checked = !synOff();
+  });
 
   // 학습 탭 태그 버튼: 상위 태그가 하나뿐이면 바로 하위 태그를 보여줌
   const pills = document.getElementById('cat-pills');
