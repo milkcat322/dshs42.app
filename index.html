@@ -2122,25 +2122,25 @@ const EXAM_SCHEDULE = [
       { name: '화법과 의사소통', key: '화법소통' } ] }
   ]},
   { date: '12/15', iso: '2026-12-15', dow: '화', slots: [
-    { band: '4교시', time: '11:20~12:10', items: [
+    { band: '3·4교시', time: '10:50~12:10<br>(80분)', items: [
       { name: '미적분학II', key: '미적분학2' },
       { name: '응용수학', key: '응용수학' } ] }
   ]},
   { date: '12/16', iso: '2026-12-16', dow: '수', slots: [
     { band: '2교시', time: '09:20~10:10', items: [
       { name: '일반지구과학', key: '일반지구과학' } ] },
-    { band: '4교시', time: '11:20~12:10', items: [
+    { band: '3·4교시', time: '10:50~12:10<br>(80분)', items: [
       { name: '일반화학I', key: '일반화학1' } ] }
   ]},
   { date: '12/17', iso: '2026-12-17', dow: '목', slots: [
     { band: '1교시', time: '08:20~09:10', items: [
       { name: '인공지능 기반 정보과학 탐구', key: '인공지능정보' } ] },
-    { band: '4교시', time: '11:20~12:10', items: [
+    { band: '3·4교시', time: '10:50~12:10<br>(80분)', items: [
       { name: '일반생물학', key: '일반생물학' },
       { name: '일반화학II', key: '일반화학2' } ] }
   ]},
   { date: '12/18', iso: '2026-12-18', dow: '금', slots: [
-    { band: '4교시', time: '11:20~12:10', items: [
+    { band: '3·4교시', time: '10:50~12:10<br>(80분)', items: [
       { name: '일반물리학II', key: '일반물리2' } ] }
   ]}
 ];
@@ -2215,6 +2215,7 @@ function buildExamPanel(name) {
     <div class="section-title">날짜별 시간표 <span style="font-size:11px;color:var(--text-muted);font-weight:400">— 강조된 것이 내 시험</span></div>
     ${days}
     <div class="exam-foot">
+      80분 시험(수학 · 화학 · 생물 · 물리)은 10:50에 시작합니다.<br>
       실기·수행평가는 이 표에 없으며, 최종 일정은 학교 공지를 확인하세요.
     </div>`;
 }
