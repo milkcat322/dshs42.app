@@ -21,3 +21,10 @@ node_modules/
 .claude/settings.local.json
 CLAUDE.local.md
 .vercel
+
+# dshsplus 묶은 결과 (scripts/build-plus.mjs · deploy-plus.mjs · build-admin-plus.mjs)
+plus-dist/
+.plus-deploy/
+.plus-deploy-main/
+admin-dist-plus/
+.admin-deploy-plus/
