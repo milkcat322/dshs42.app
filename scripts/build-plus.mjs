@@ -90,6 +90,39 @@ writeFileSync(join(out, "plus-roster.js"), `// scripts/build-plus.mjs 가 만든
 window.PLUS_ROSTER = ${JSON.stringify({ 42: r42, 43: r43 })};
 `);
 
+// 두 기수 시간표 (plus-tt.json) — 다른 기수 학생을 검색하면 plus.js 가 지금 앱의 시간표 모양으로 그립니다 (필요할 때만 받음)
+//   42: 학생마다 [요일, 교시, 과목, 분반] · 화면 이름(shortName 의 map) · 색 순서 · 공통 활동
+//   43: 반마다 { "월-1": 과목 } · 화면 이름(SUBJECT_LABEL) · 과목 순서(SUBJECTS_43) · 학번 → 반 예외(BAN_OVERRIDE)
+const short42 = vm.runInNewContext("(" + (html42.match(/function shortName\(name\) \{\s*const map = (\{.*?\});/) || [])[1] + ")");
+const common42 = vm.runInNewContext((html42.match(/^const COMMON_SUBJECTS = (\[.*?\]);/m) || [])[1]);
+const order42 = [];
+const sched42 = {};
+for (const v of Object.values(data42)) {
+  sched42[v.id] = v.schedule.map((s) => [s.day, s.period, s.subject, s.ban]);
+  for (const s of v.schedule) if (!order42.includes(s.subject) && !common42.includes(s.subject)) order42.push(s.subject);
+}
+const tt43src = readFileSync(join(src43, "js", "timetable.js"), "utf8");
+const core43 = readFileSync(join(src43, "js", "core.js"), "utf8");
+const grab = (src, re, what) => { const m = src.match(re); if (!m) throw new Error(`43기 ${what} 을 찾지 못했어요`); return m[0]; };
+const ctx = {};
+vm.runInNewContext([
+  grab(tt43src, /const TT_CLUB = [^\n]*/, "TT_CLUB"),
+  grab(tt43src, /const TIMETABLE_43 = \{[\s\S]*?\n\};/, "TIMETABLE_43"),
+  grab(tt43src, /const BAN_OVERRIDE = [^\n]*/, "BAN_OVERRIDE"),
+  grab(core43, /const SUBJECTS_43 = \[[\s\S]*?\];/, "SUBJECTS_43"),
+  grab(core43, /const SUBJECT_LABEL = [^\n]*/, "SUBJECT_LABEL"),
+  "this.out = { T: TIMETABLE_43, O: BAN_OVERRIDE, S: SUBJECTS_43.map((x) => x[0]), L: SUBJECT_LABEL };",
+].join("\n"), ctx);
+const bans43 = {};
+for (const [ban, days] of Object.entries(ctx.out.T)) {
+  bans43[ban] = {};
+  for (const [d, row] of Object.entries(days)) row.split(",").forEach((c, i) => { if (c.trim()) bans43[ban][`${d}-${i + 1}`] = c.trim(); });
+}
+writeFileSync(join(out, "plus-tt.json"), JSON.stringify({
+  42: { short: short42, common: common42, order: order42, students: sched42 },
+  43: { label: ctx.out.L, subjects: ctx.out.S, override: ctx.out.O, bans: bans43 },
+}));
+
 // 첫 화면 · 공용 스크립트 · 아이콘
 copyFileSync(join(root, "plus", "index.html"), join(out, "index.html"));
 copyFileSync(join(root, "plus", "plus.js"), join(out, "plus.js"));

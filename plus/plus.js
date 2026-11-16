@@ -1,39 +1,29 @@
 // ============================================================
-// dshsplus.app — 42기 앱(/42/) · 43기 앱(/43/) 안에서 함께 도는 스크립트
+// dshsplus — 42기 앱(/42/) · 43기 앱(/43/) 안에서 함께 도는 스크립트
 // scripts/build-plus.mjs 가 두 앱의 index.html <head> 맨 앞에 window.PLUS_APP(42 · 43)과 함께 넣습니다.
 // 두 앱의 코드는 고치지 않고, 여기서만 dshsplus 에 필요한 일을 합니다.
-//  1. 내 기수 맞추기: 설정에서 고른 기수(계정의 user_metadata.plus_cohort) · 없으면 로그인한 학생(me)의 학번 기수가
+//  1. 내 기수 맞추기: 설정에서 고른 기수(계정의 user_metadata.plus_cohort) · 없으면 로그인한 계정의 학번 기수가
 //     이 앱이 아니면 그 기수 앱으로 옮깁니다. 지난 화면(dshs-snap)으로도 미리 봅니다. 설정 창에 '사이트 화면 42기 · 43기' 줄을 넣습니다.
-//  2. 두 기수 검색: 시간표 검색 칸(#nameInput)에 다른 기수 학생도 나오고, 누르면 그 기수 앱에서 시간표를 엽니다 (?plusfind=학번).
+//  2. 두 기수 검색: 시간표 검색 칸(#nameInput)에 다른 기수 학생도 나오고, 누르면 지금 앱의 시간표 자리에
+//     그 학생 시간표를 이 앱의 모양으로 그립니다 (자료는 묶을 때 만든 ../plus-tt.json, 다른 기수 앱으로 넘어가지 않음).
 // 두 앱은 같은 주소(origin)라 로그인(dshs-study-auth)과 이 기기 저장(localStorage)을 함께 씁니다.
+// 42기 앱(dshs-study.js)은 모듈이라 앱의 me · sb 를 밖에서 읽을 수 없어, 로그인 정보로 서버에 직접 묻습니다.
 // ============================================================
 (function () {
   const APP = window.PLUS_APP;
   if (APP !== 42 && APP !== 43) return;
   const OTHER = APP === 42 ? 43 : 42;
-  const KEY = "dshsplus-cohort";   // 첫 화면(/)이 바로 열 기수 (로그인한 학생의 기수)
+  const KEY = "dshsplus-cohort";   // 첫 화면(/)이 바로 열 기수 (계정에 맞춘 마지막 값)
   const cohortOf = (sid) => (sid >= 1000 && sid <= 1999 ? 43 : 42);
   const save = (c) => { try { localStorage.setItem(KEY, String(c)); } catch {} };
-  const params = new URLSearchParams(location.search);
-  const find = params.get("plusfind");   // 다른 기수 앱에서 검색해 온 학생의 학번 (이때는 내 기수로 되돌리지 않음)
   const goCohort = (c) => { location.replace(`../${c}/${location.search}${location.hash}`); };
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const $ = (id) => document.getElementById(id);
 
-  // 다른 기수 앱에서 잠깐 보는 동안에는 지난 화면(dshs-snap)을 읽지도 남기지도 않습니다
-  // (두 앱의 지난 화면 모양이 달라, 내 기수 앱이 남긴 것을 이 앱이 그리거나 그 반대가 되지 않게)
-  if (find) {
-    const get = Storage.prototype.getItem, set = Storage.prototype.setItem;
-    Storage.prototype.getItem = function (k) { return k === "dshs-snap" ? null : get.call(this, k); };
-    Storage.prototype.setItem = function (k, v) { if (k !== "dshs-snap") set.call(this, k, v); };
-  }
-
-  // 어느 기수 화면으로 열지는 계정에 저장합니다: 설정에서 고른 값(로그인 계정의 user_metadata.plus_cohort) → 없으면 학번으로.
-  // 로그인 정보(dshs-study-auth)는 이 기기에 그대로 남아 있어 서버를 기다리지 않고 읽습니다.
-  const picked = () => {
-    try {
-      const c = +JSON.parse(localStorage.getItem("dshs-study-auth") || "null")?.user?.user_metadata?.plus_cohort;
-      return c === 42 || c === 43 ? c : null;
-    } catch { return null; }
-  };
+  // 1. 내 기수 맞추기 ------------------------------------------------
+  const session = () => { try { return JSON.parse(localStorage.getItem("dshs-study-auth") || "null"); } catch { return null; } };
+  // 어느 기수 화면으로 열지: 설정에서 고른 값(계정의 user_metadata.plus_cohort) → 없으면 학번으로
+  const picked = () => { const c = +session()?.user?.user_metadata?.plus_cohort; return c === 42 || c === 43 ? c : null; };
   const leave = (c) => {
     try { localStorage.removeItem("dshs-snap"); } catch {}   // 다른 기수 앱이 남긴 지난 화면은 쓰지 않음 (모양이 다름)
     save(c);
@@ -41,20 +31,15 @@
   };
 
   // 1-1. 그리기 전에(앱 스크립트보다 먼저) 고른 기수 · 지난 화면의 학번이 이 앱이 아니면 그 기수로
-  if (!find) {
-    try {
-      const snap = JSON.parse(localStorage.getItem("dshs-snap") || "null");
-      const sid = snap?.me?.is_admin ? null : snap?.me?.student_id;
-      const c = picked() || (sid ? cohortOf(sid) : null);
-      if (c && c !== APP) { leave(c); return; }
-    } catch {}
-  }
+  try {
+    const snap = JSON.parse(localStorage.getItem("dshs-snap") || "null");
+    const sid = snap?.me?.is_admin ? null : snap?.me?.student_id;
+    const c = picked() || (sid ? cohortOf(sid) : null);
+    if (c && c !== APP) { leave(c); return; }
+  } catch {}
 
-  // 1-2. 로그인한 학생을 보고 기수를 맞춥니다.
-  // 42기 앱(dshs-study.js)은 모듈이라 앱의 me · sb 를 밖에서 읽을 수 없어, 이 기기의 로그인 정보로 서버에 직접 묻습니다
-  // (내 프로필은 본인이 읽을 수 있음 · 로그인 계정 정보 고치기는 /auth/v1/user).
+  // 1-2. 로그인한 계정을 서버에 물어 기수를 맞춥니다 (내 프로필은 본인이 읽을 수 있음)
   const CFG = () => window.DSHS_CONFIG || {};
-  const session = () => { try { return JSON.parse(localStorage.getItem("dshs-study-auth") || "null"); } catch { return null; } };
   const api = (path, init = {}) => {
     const s = session(), c = CFG();
     if (!s?.access_token || !c.SUPABASE_URL) return Promise.resolve(null);
@@ -80,14 +65,38 @@
       const c = picked() || (m.student_id && !m.is_admin ? cohortOf(m.student_id) : null);
       if (!c) return;
       save(c);
-      if (c !== APP && !find) { clearInterval(watch); leave(c); }
+      if (c !== APP) { clearInterval(watch); leave(c); }
     } finally { busy = false; }
   }, 1000);
 
-  // 1-3. 설정 창에 '사이트 화면 42기 · 43기' 줄 (두 앱 모두 설정 창 맨 아래에 로그아웃 단추 #doLogout 이 있음)
+  // 1-3. 43기 앱은 42기 계정이면 "43기 사이트예요 · dshs42.app 열기" 창(openOtherCohort, js/start.js)을 띄우고
+  //      이 기기 알림 등록까지 지웁니다. dshsplus 에서는 그 대신 42기 화면(../42/)으로 옮깁니다.
+  //      설정에서 43기를 골라 둔 42기 계정이면 그 선택을 지워 둘 사이를 오가지 않게 합니다.
+  if (APP === 43) {
+    const swap = () => {
+      try {
+        window.openOtherCohort = async () => {
+          if (picked() === 43) {
+            const user = await api("/auth/v1/user", { method: "PUT", body: JSON.stringify({ data: { plus_cohort: null } }) });
+            // 서버에 못 지웠어도 이 기기에서는 지웁니다 (두 앱 사이를 계속 오가지 않게)
+            try {
+              const s = session();
+              s.user = user?.id ? user : { ...s.user, user_metadata: { ...(s.user?.user_metadata || {}), plus_cohort: null } };
+              localStorage.setItem("dshs-study-auth", JSON.stringify(s));
+            } catch {}
+          }
+          leave(42);
+        };
+      } catch {}
+    };
+    swap();
+    document.addEventListener("DOMContentLoaded", swap);   // 앱 스크립트(defer)가 함수를 만든 뒤 다시 바꿔 끼움
+  }
+
+  // 1-4. 설정 창에 '사이트 화면 42기 · 43기' 줄 (두 앱 모두 설정 창 맨 아래에 로그아웃 단추 #doLogout 이 있음)
   const addSiteRow = () => {
-    const out = document.getElementById("doLogout");
-    if (!out || document.getElementById("plusSite")) return;
+    const out = $("doLogout");
+    if (!out || $("plusSite")) return;
     const btn = (c) => `<button type="button" class="study-btn small${c === APP ? " primary" : ""}" data-plus-c="${c}">${c}기</button>`;
     out.insertAdjacentHTML("beforebegin", `<div class="set-row" id="plusSite">
       <span><b>사이트 화면</b><span class="ev-hint">42기 · 43기 중 어느 화면으로 열지 골라요. 계정에 저장돼 다른 기기에서도 같아요</span></span>
@@ -110,6 +119,7 @@
 
   // 2. 두 기수 검색 ------------------------------------------------
   const otherList = () => ((window.PLUS_ROSTER || {})[OTHER] || []);   // [[학번, 이름], ...] (plus-roster.js)
+  const nameOf = (sid) => otherList().find(([s]) => s === sid)?.[1] || String(sid);
   const otherHits = (q) => {
     q = q.trim().replace(/\s+/g, " ");
     if (!q) return [];
@@ -134,8 +144,86 @@
       return ttFind(q).some((h) => h.type === "student" || h.type === "ban");   // eslint-disable-line no-undef
     } catch { return false; }
   };
-  const openOther = (sid) => { location.href = `../${OTHER}/?plusfind=${encodeURIComponent(sid)}`; };
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // 다른 기수 시간표 자료 (묶을 때 만든 ../plus-tt.json, 처음 쓸 때 한 번 받음)
+  let ttData = null;
+  const loadTT = () => ttData || (ttData = fetch("../plus-tt.json").then((r) => (r.ok ? r.json() : null)).catch(() => (ttData = null)));
+  const DAYS = ["월", "화", "수", "목", "금"], DAY_CLASS = ["mon", "tue", "wed", "thu", "fri"];
+
+  // 다른 기수 학생의 시간표 → { meta, cells: { "월-1": { name, sub, color | null(공통 활동) } } }
+  function otherGrid(sid, data) {
+    if (OTHER === 43) {
+      const d = data[43];
+      const ban = d.override[sid] ?? Math.floor(sid / 100) % 10;
+      const cells = {};
+      for (const [k, s] of Object.entries(d.bans[ban] || {})) {
+        const i = d.subjects.indexOf(s);
+        cells[k] = { name: d.label[s] || s, sub: i >= 0 ? `${ban}반` : "전체", color: i >= 0 ? i % 13 : null };
+      }
+      return { meta: `학번 ${sid} · 43기 1학년 ${ban}반`, cells };
+    }
+    const d = data[42];
+    const cells = {};
+    for (const [day, p, s, ban] of d.students[sid] || []) {
+      const k = `${day}-${p}`;
+      if (cells[k]) continue;
+      const common = d.common.includes(s);
+      cells[k] = { name: d.short[s] || s, sub: common ? "전체" : ban, color: common ? null : Math.max(0, d.order.indexOf(s)) % 13 };
+    }
+    return { meta: `학번 ${sid} · 42기 2학년`, cells };
+  }
+  // 지금 앱의 시간표 표 모양으로 그립니다 (42기: 칸 안 div 에 색 · 43기: 칸(td)에 색)
+  function gridHtml(cells) {
+    const last = Math.max(7, ...Object.keys(cells).map((k) => +k.split("-")[1]));
+    let rows = "";
+    for (let p = 1; p <= last; p++) {
+      rows += `<tr><td class="period-col">${p}</td>` + DAYS.map((d) => {
+        const c = cells[`${d}-${p}`];
+        if (!c) return `<td><div class="empty-cell"></div></td>`;
+        const inner = `<div class="subj-name">${esc(c.name)}</div><div class="ban-name">${esc(c.sub)}</div>`;
+        if (APP === 42) return `<td><div class="class-cell ${c.color === null ? "common-cell" : `color-${c.color}`}">${inner}</div></td>`;
+        return c.color === null ? `<td class="common-cell"><div class="class-cell">${inner}</div></td>`
+          : `<td class="color-${c.color}"><div class="class-cell">${inner}</div></td>`;
+      }).join("") + "</tr>";
+    }
+    return `<div class="timetable-wrap"><table class="timetable">
+      <thead><tr><th></th>${DAYS.map((d, i) => `<th class="day-header ${DAY_CLASS[i]}">${d}요일</th>`).join("")}</tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  // 지금 앱의 시간표 자리에 다른 기수 학생 시간표를 그립니다
+  async function showOther(sid) {
+    sid = +sid;
+    const name = nameOf(sid);
+    document.querySelectorAll(".suggestions").forEach((b) => b.classList.remove("show"));
+    const q = $("nameInput");
+    if (q) { q.value = name; q.blur(); }
+    const data = await loadTT();
+    const g = data ? otherGrid(sid, data) : null;
+    const body = `<div class="student-profile">
+        <div class="student-avatar">${esc(name[0] || "?")}</div>
+        <div class="student-info"><h2>${esc(name)}</h2><div class="student-meta">${esc(g?.meta || `학번 ${sid} · ${OTHER}기`)}</div></div>
+      </div>
+      ${g && Object.keys(g.cells).length ? gridHtml(g.cells) : `<div class="study-empty">시간표를 불러오지 못했어요.</div>`}`;
+    const back = `<button class="study-btn tt-back" id="plusBack" type="button">← 내 시간표</button>`;
+    if (APP === 42) {
+      const res = $("result");
+      if (!res) return;
+      $("errorMsg")?.classList.remove("show");
+      if ($("welcomeState")) $("welcomeState").style.display = "none";
+      if ($("studyView")) $("studyView").style.display = "none";
+      res.innerHTML = back + body;
+      res.classList.add("show");
+      $("plusBack").onclick = () => document.querySelector('#studyNav [data-page="mytt"]')?.click();
+    } else {
+      try {
+        $("studyView").innerHTML = ttSearchHtml() + back + body;   // eslint-disable-line no-undef
+        bindTtSearch();   // eslint-disable-line no-undef
+        $("nameInput").value = name;
+        $("plusBack").onclick = () => openTtView(null);   // eslint-disable-line no-undef
+      } catch { return; }
+    }
+    scrollTo({ top: 0 });
+  }
 
   // 앱이 자기 목록을 그린 뒤(같은 input 이벤트의 요소 처리기 다음) 다른 기수 학생을 덧붙입니다
   document.addEventListener("input", (e) => {
@@ -150,19 +238,20 @@
     box.insertAdjacentHTML("beforeend", hits.map(([sid, name]) =>
       `<div class="suggestion-item plus-other" data-plus-sid="${sid}"><span>${esc(name)}</span><span class="suggestion-id">${sid} · ${OTHER}기</span></div>`).join(""));
     box.classList.add("show");
+    loadTT();   // 고르기 전에 미리 받아 둠
   });
   document.addEventListener("click", (e) => {
     const item = e.target.closest?.("[data-plus-sid]");
-    if (item) { e.preventDefault(); e.stopPropagation(); openOther(item.dataset.plusSid); }
+    if (item) { e.preventDefault(); e.stopPropagation(); showOther(item.dataset.plusSid); }
   }, true);
-  // 엔터 · 검색 버튼: 이 앱에 없는 이름 · 학번이 다른 기수 학생 한 명과 꼭 맞으면 그 기수 앱으로
+  // 엔터 · 검색 버튼: 이 앱에 없는 이름 · 학번이 다른 기수 학생 한 명과 꼭 맞으면 그 학생 시간표를
   const tryOther = (e) => {
-    const q = document.getElementById("nameInput");
+    const q = $("nameInput");
     if (!q || ownHas(q.value)) return;
     const hit = exactOther(q.value);
     if (!hit) return;
     e.preventDefault(); e.stopImmediatePropagation();
-    openOther(hit[0]);
+    showOther(hit[0]);
   };
   document.addEventListener("keydown", (e) => {
     if (e.target?.id === "nameInput" && e.key === "Enter" && !e.isComposing) tryOther(e);
@@ -170,37 +259,4 @@
   document.addEventListener("click", (e) => {
     if (e.target.closest?.("#searchBtn, #ttGo")) tryOther(e);
   }, true);
-
-  // ?plusfind=학번 으로 왔으면, 로그인하고 내 화면이 뜬 뒤 그 학생 시간표를 엽니다
-  if (find) {
-    const sid = Number(find);
-    const tries = setInterval(() => {
-      if (!session()?.user) return;   // 로그인한 뒤에
-      try {
-        if (APP === 42) {
-          const name = (window.ID_TO_NAME || {})[String(sid)];
-          if (!name) return clearInterval(tries);
-          // 로그인 뒤 첫 화면(내 시간표, 43기 학생이면 내 일정)이 뜬 뒤에 — 위쪽 메뉴가 보이면 다 뜬 것
-          if (document.getElementById("studyNav")?.style.display !== "flex") return;
-          document.getElementById("nameInput").value = name;
-          searchStudent();   // eslint-disable-line no-undef
-        } else {
-          if (typeof openTtView !== "function" || !document.getElementById("nameInput")) return;   // eslint-disable-line no-undef
-          openTtView({ type: "student", sid });   // eslint-disable-line no-undef
-        }
-      } catch { return; }
-      clearInterval(tries);
-      history.replaceState(null, "", location.pathname + location.hash);
-    }, 400);
-    setTimeout(() => clearInterval(tries), 60000);
-    // 내 기수 앱으로 돌아가는 단추
-    const back = () => {
-      if (document.getElementById("plusBack")) return;
-      document.body.insertAdjacentHTML("beforeend",
-        `<a id="plusBack" href="../" style="position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9999;`
-        + `padding:10px 16px;border-radius:999px;background:var(--accent1,#7c6fe0);color:#fff;font:600 13px/1 'Noto Sans KR',sans-serif;`
-        + `text-decoration:none;box-shadow:0 6px 20px rgba(0,0,0,.35)">← 내 기수로 돌아가기</a>`);
-    };
-    if (document.body) back(); else document.addEventListener("DOMContentLoaded", back);
-  }
 })();
