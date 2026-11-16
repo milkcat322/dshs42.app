@@ -43,10 +43,15 @@ export type Input = {
 export type Note = {
   userId: string; key: string; title: string; body: string; url: string; ttl: number;
   logKeys?: string[];   // 여러 건을 묶은 알림은 묶인 건마다 기록합니다
+  cohort?: number;      // 관리자 알림: 이 기수(42 · 43) 관리자 사이트 기기로만 보냄. 없으면 그 계정의 모든 기기
 };
 // 관리자가 확인할 활동. 본인만 보는 내용(할 일 · 일정 · 위치 등)은 넣지 않습니다.
 // todoshare: 할 일 함께하기 승인 요청 (todoshare.sql. 반민지 · 진주빈 말고 다른 학생이 할 일에 친구를 넣었을 때)
-export type AdminItem = { kind: "signup" | "assignment" | "feedback" | "reply" | "todoshare"; id: string; who: string };
+// uid: 그 활동을 한 학생 계정 (학번으로 기수를 가름)
+export type AdminItem = { kind: "signup" | "assignment" | "feedback" | "reply" | "todoshare"; id: string; who: string; uid?: string };
+// 학번으로 기수: 1000~1999 는 43기, 그 밖(42기 · 학번 없음)은 42기. 관리자 사이트 기기의 cohort 가 없으면(예전 기기) 42기로 봅니다
+export const cohortOfSid = (sid: number | null | undefined) => (sid != null && sid >= 1000 && sid <= 1999 ? 43 : 42);
+export const deviceCohort = (c: number | null | undefined) => c ?? 42;
 
 const kstDay = (ms: number) => new Date(ms + KST).toISOString().slice(0, 10);
 const kstHm = (ms: number) => new Date(ms + KST).toISOString().slice(11, 16);

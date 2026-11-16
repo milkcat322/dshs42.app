@@ -9,7 +9,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { adminKey, planAdminNote, planNotes, planReplyNotes, planTodoNotes, type AdminItem } from "./plan.ts";
+import { adminKey, cohortOfSid, deviceCohort, planAdminNote, planNotes, planReplyNotes, planTodoNotes, type AdminItem } from "./plan.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const LOG_KEEP_DAYS = 3;
@@ -32,8 +32,12 @@ Deno.serve(async () => {
   const iso = (ms: number) => new Date(ms).toISOString();
 
   // 알림을 켠 기기가 없으면 할 일이 없습니다
-  const { data: subs, error: subsErr } = await admin
-    .from("push_subscriptions").select("endpoint, p256dh, auth, user_id");
+  // cohort: 관리자 사이트 기기의 기수 (schema.sql). 칸이 아직 없는 DB 면 없이 받습니다
+  let { data: subs, error: subsErr } = await admin
+    .from("push_subscriptions").select("endpoint, p256dh, auth, user_id, cohort") as {
+      data: { endpoint: string; p256dh: string; auth: string; user_id: string; cohort?: number | null }[] | null; error: { message: string } | null };
+  const cohortKnown = !subsErr;   // false 면 기수를 나누지 않고 예전처럼 모든 기기로
+  if (subsErr) ({ data: subs, error: subsErr } = await admin.from("push_subscriptions").select("endpoint, p256dh, auth, user_id"));
   if (subsErr) return new Response(subsErr.message, { status: 500 });
   if (!subs?.length) return json({ sent: 0, failed: 0, pruned: 0 });
   const userIds = [...new Set(subs.map((s) => s.user_id))];
@@ -97,7 +101,7 @@ Deno.serve(async () => {
 
   // 피드백 답장 (feedbackreply.sql). 표가 없거나 조회에 실패해도 다른 알림은 그대로 보냅니다.
   // 관리자 답장은 그 학생에게, 학생이 다시 쓴 답글(from_admin = false)은 아래 관리자 새 활동으로 알립니다.
-  const studentReplies: { id: string; who: string }[] = [];
+  const studentReplies: { id: string; who: string; uid?: string }[] = [];
   {
     const { data, error } = await admin.from("feedback_replies")
       .select("*, feedback(user_id, profiles(name))").gte("created_at", iso(now - ADMIN_LOOKBACK));
@@ -111,7 +115,7 @@ Deno.serve(async () => {
         new Set(userIds),
       ));
       for (const r of data.filter((r) => r.from_admin === false)) {
-        studentReplies.push({ id: r.id, who: owner(r)?.profiles?.name ?? "학생" });
+        studentReplies.push({ id: r.id, who: owner(r)?.profiles?.name ?? "학생", uid: r.created_by ?? owner(r)?.user_id });
       }
     }
   }
@@ -134,27 +138,28 @@ Deno.serve(async () => {
     const since = iso(now - ADMIN_LOOKBACK);
     const [joined, asked, feedback] = await Promise.all([
       admin.from("profiles").select("id, name, student_id").eq("is_admin", false).gte("created_at", since),
-      admin.from("assignments").select("id, author_name").eq("status", "pending").gte("created_at", since),
+      admin.from("assignments").select("id, author_name, created_by").eq("status", "pending").gte("created_at", since),
       admin.from("feedback").select("id, user_id, profiles(name)").gte("created_at", since),
     ]);
     // 할 일 공유 승인 요청: 할 일마다 하나로 묶습니다 (다시 넣으면 시각이 바뀌어 새로 알림). 표가 없어도 다른 알림은 그대로
-    const shares = await admin.from("todo_members").select("todo_id, added_at, todos(profiles(name))")
+    const shares = await admin.from("todo_members").select("todo_id, added_at, todos(user_id, profiles(name))")
       .eq("status", "pending").gte("added_at", since);
     if (shares.error) console.error("할 일 공유 조회 실패", shares.error.message);
     const shareItems = new Map<string, AdminItem>();
     for (const r of shares.data ?? []) {
-      const who = (r.todos as unknown as { profiles: { name: string } | null } | null)?.profiles?.name ?? "학생";
+      const todo = r.todos as unknown as { user_id: string; profiles: { name: string } | null } | null;
+      const who = todo?.profiles?.name ?? "학생";
       const prev = shareItems.get(r.todo_id);
-      if (!prev || prev.id < `${r.todo_id}@${r.added_at}`) shareItems.set(r.todo_id, { kind: "todoshare", id: `${r.todo_id}@${r.added_at}`, who });
+      if (!prev || prev.id < `${r.todo_id}@${r.added_at}`) shareItems.set(r.todo_id, { kind: "todoshare", id: `${r.todo_id}@${r.added_at}`, who, uid: todo?.user_id });
     }
     const failed = [joined, asked, feedback].find((r) => r.error);
     if (failed) console.error("관리자 알림 조회 실패", failed.error!.message);
     else {
       const items: AdminItem[] = [
-        ...joined.data!.map((p) => ({ kind: "signup" as const, id: p.id, who: p.name })),
-        ...asked.data!.map((a) => ({ kind: "assignment" as const, id: a.id, who: a.author_name ?? "학생" })),
+        ...joined.data!.map((p) => ({ kind: "signup" as const, id: p.id, who: p.name, uid: p.id })),
+        ...asked.data!.map((a) => ({ kind: "assignment" as const, id: a.id, who: a.author_name ?? "학생", uid: a.created_by })),
         ...feedback.data!.filter((f) => !admins.includes(f.user_id))
-          .map((f) => ({ kind: "feedback" as const, id: f.id, who: (f.profiles as unknown as { name: string } | null)?.name ?? "학생" })),
+          .map((f) => ({ kind: "feedback" as const, id: f.id, who: (f.profiles as unknown as { name: string } | null)?.name ?? "학생", uid: f.user_id })),
         ...studentReplies.map((r) => ({ kind: "reply" as const, ...r })),
         ...shareItems.values(),
       ];
@@ -164,9 +169,26 @@ Deno.serve(async () => {
       if (error) console.error("관리자 알림 기록 조회 실패", error.message);
       else {
         const seen = new Set(logged!.map((r) => `${r.user_id}|${r.key}`));
+        // 기수별로 나눠, 그 기수 관리자 사이트 기기가 있는 관리자에게만 보냅니다 (43기 활동이 42기 관리 앱에 가지 않게)
+        const uids = [...new Set(items.map((i) => i.uid).filter(Boolean))] as string[];
+        const sidOf = new Map<string, number | null>();
+        if (uids.length) {
+          const { data: ps, error: pe } = await admin.from("profiles").select("id, student_id").in("id", uids);
+          if (pe) console.error("활동 학생 학번 조회 실패", pe.message);
+          for (const p of ps ?? []) sidOf.set(p.id, p.student_id);
+        }
+        const itemCohort = (i: AdminItem) => cohortOfSid(i.uid ? sidOf.get(i.uid) : null);
         for (const id of admins) {
-          const note = planAdminNote(id, items.filter((i) => !seen.has(`${id}|${adminKey(i)}`)));
-          if (note) notes.push(note);
+          if (!cohortKnown) {
+            const note = planAdminNote(id, items.filter((i) => !seen.has(`${id}|${adminKey(i)}`)));
+            if (note) notes.push(note);
+            continue;
+          }
+          for (const c of [42, 43]) {
+            if (!subs.some((s) => s.user_id === id && deviceCohort(s.cohort) === c)) continue;
+            const note = planAdminNote(id, items.filter((i) => itemCohort(i) === c && !seen.has(`${id}|${adminKey(i)}`)));
+            if (note) notes.push({ ...note, cohort: c });
+          }
         }
       }
     }
@@ -176,7 +198,8 @@ Deno.serve(async () => {
   const adminSent: { title: string; body: string; url: string; devices: number; delivered: number }[] = [];
   await Promise.all(notes.map(async (n) => {
     const payload = JSON.stringify({ title: n.title, body: n.body, tag: n.key, url: n.url });
-    const devices = subs.filter((s) => s.user_id === n.userId && !gone.has(s.endpoint));
+    const devices = subs.filter((s) => s.user_id === n.userId && !gone.has(s.endpoint)
+      && (n.cohort === undefined || deviceCohort(s.cohort) === n.cohort));
     const results = await Promise.all(devices.map(async (s) => {
       try {
         // 시작이 지나면 받아도 소용없으므로 그때까지만 재시도하게 합니다
