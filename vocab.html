@@ -2170,7 +2170,8 @@ function toggleGroup(cat) {
 
 function updateTotalInfo() {
   const bookmarkOnly = document.getElementById('bookmark-only-toggle')?.checked;
-  const count = bookmarkOnly ? DATA.filter(w => bookmarks.has(w.en)).length : DATA.filter(w => selectedTopics.has(topicKey(w))).length;
+  // 북마크만 풀 때도 고른 카테고리(예: 필수동사) 안의 북마크만 센다
+  const count = DATA.filter(w => selectedTopics.has(topicKey(w)) && (!bookmarkOnly || bookmarks.has(w.en))).length;
   document.getElementById('total-info').textContent = `총 ${count}개 단어`;
 }
 
@@ -2180,19 +2181,15 @@ function shuffle(arr) {
 
 function startQuiz() {
   const bookmarkOnly = document.getElementById('bookmark-only-toggle')?.checked;
-  let pool;
-  if (bookmarkOnly) {
-    pool = DATA.filter(w => bookmarks.has(w.en));
-    if (pool.length === 0) {
-      alert('북마크한 단어가 없어요! 학습 탭에서 ☆를 눌러 추가하세요.');
-      return;
-    }
-  } else {
-    pool = DATA.filter(w => selectedTopics.has(topicKey(w)));
-    if (pool.length === 0) {
-      alert('선택된 주제가 없어요! 카테고리를 하나 이상 선택하세요.');
-      return;
-    }
+  // 북마크만 풀 때도 고른 카테고리 안의 북마크만 낸다 (동사 · 형용사 시험을 따로 보므로)
+  const pool = DATA.filter(w => selectedTopics.has(topicKey(w)) && (!bookmarkOnly || bookmarks.has(w.en)));
+  if (pool.length === 0) {
+    alert(bookmarkOnly
+      ? (DATA.some(w => bookmarks.has(w.en))
+          ? '고른 카테고리에 북마크한 단어가 없어요! 카테고리를 바꾸거나 북마크를 추가하세요.'
+          : '북마크한 단어가 없어요! 학습 탭에서 ☆를 눌러 추가하세요.')
+      : '선택된 주제가 없어요! 카테고리를 하나 이상 선택하세요.');
+    return;
   }
   runQuiz(pool);
 }
