@@ -1227,7 +1227,7 @@ async function renderOverview(cached = false) {
     sb.from("dev_news").select("*").order("updated_at", { ascending: false }).limit(15),
     cohortRpc("admin_login_funnel", { p_days: 14 }),
     sb.rpc("admin_todo_shares"),
-    cohortRpc("admin_feature_uses", {})]), loadPending()]);   // 화면 기능 사용 (features.sql)   // 할 일 공유 승인 대기 (todoshare.sql)
+    cohortRpc("admin_feature_uses", {})]), loadPending()]);   // 화면 기능 사용 (features.sql) · 할 일 공유 승인 대기 (todoshare.sql)
   // 학생 현황 · 오늘 로그인한 학생은 이 기수 학생만. 방문 기기 수 · 로그인 이탈은 서버가 기수(p_cohort)로 나눠 줍니다
   if (res[0]?.data) res[0] = { ...res[0], data: cohortOverview(res[0].data) };
   if (res[2]?.data?.today_users) res[2] = { ...res[2], data: { ...res[2].data, today_users: res[2].data.today_users.filter((u) => sidInCohort(u.student_id)) } };
