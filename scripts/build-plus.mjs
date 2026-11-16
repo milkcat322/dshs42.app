@@ -10,11 +10,11 @@
 //        plus-dist/plus-roster.js  두 기수 명단 [학번, 이름] (42기 SCHOOL_DATA · 43기 ROSTER_43 에서 뽑음)
 // 두 앱의 코드는 늘 원래 저장소에서 고치고, 여기서는 아래만 바꿉니다:
 //   - index.html <head> 맨 앞에 window.PLUS_APP · plus-roster.js · plus.js
-//   - config.js 의 STUDENT_URL · ADMIN_URL, manifest 이름
+//   - config.js 의 STUDENT_URL · ADMIN_URL, manifest 이름, 아이콘(plus/icons/ — 흰 배경 · 검은 D+)
 //   - sw.js: 캐시 이름 뒤에 묶은 시각을 붙이고(묶을 때마다 새로 받게), 다른 앱 캐시를 지우지 않게
 // ============================================================
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync, rmSync, copyFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, copyFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
@@ -51,6 +51,8 @@ function copyApp(dir, id, cachePrefix) {
     copyFileSync(join(dir, f), join(dst, f));
   }
   const p = (f) => join(dst, f);
+  // 아이콘: dshsplus 아이콘(흰 배경 · 검은 D+, scripts/make-plus-icons.py 가 만든 plus/icons/)으로 같은 이름의 파일을 덮어씀
+  for (const f of readdirSync(join(root, "plus", "icons"))) copyFileSync(join(root, "plus", "icons", f), p(f));
   // index.html: 앱 스크립트보다 먼저 plus.js (지난 화면이 다른 기수면 그리기 전에 옮김)
   let html = readFileSync(p("index.html"), "utf8");
   html = html.replace(/<head>/i, `<head>\n<script>window.PLUS_APP = ${id};</script><script src="../plus-roster.js?v=${stamp}"></script><script src="../plus.js?v=${stamp}"></script>`);
@@ -66,6 +68,7 @@ function copyApp(dir, id, cachePrefix) {
   man.id = `dshsplus-${id}`;
   man.name = `dshsplus · ${id}기`;
   man.short_name = "dshsplus";
+  man.background_color = "#ffffff";   // 앱을 열 때 잠깐 보이는 화면도 아이콘처럼 흰 바탕
   writeFileSync(p("manifest.webmanifest"), JSON.stringify(man, null, 2) + "\n");
   // sw.js: 묶을 때마다 새 캐시 이름(그래서 plus.js 가 바뀌어도 기기에 감) · 같은 주소의 다른 앱 캐시는 지우지 않음
   let sw = readFileSync(p("sw.js"), "utf8");
@@ -126,7 +129,7 @@ writeFileSync(join(out, "plus-tt.json"), JSON.stringify({
 // 첫 화면 · 공용 스크립트 · 아이콘
 copyFileSync(join(root, "plus", "index.html"), join(out, "index.html"));
 copyFileSync(join(root, "plus", "plus.js"), join(out, "plus.js"));
-for (const f of ["favicon-32.png", "apple-touch-icon.png"]) copyFileSync(join(root, f), join(out, f));
+for (const f of ["favicon-32.png", "apple-touch-icon.png"]) copyFileSync(join(root, "plus", "icons", f), join(out, f));
 
 const rev = (dir) => execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: dir, encoding: "utf8" }).trim();
 console.log(`plus-dist/ 를 만들었어요 (${MAIN ? "메인" : "beta"} · ${PLUS.site}) — 42기 ${rev(root)} · 43기 ${rev(src43)} · 명단 ${r42.length} + ${r43.length}명`);
