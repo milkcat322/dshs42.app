@@ -83,7 +83,7 @@
   .login-gate, .offline-note { display: none; }
   body.need-login .search-section, body.need-login #result, body.need-login #welcomeState { display: none !important; }
   body.need-login .login-gate { display: block; }
-  body.offline .study-nav, body.offline .study-view, body.offline #btnSettings { display: none !important; }
+  body.offline .study-nav, body.offline .study-view, body.offline #btnSettings, body.offline #fbBtn, body.need-login #fbBtn { display: none !important; }
   body.offline.study-open .search-section { display: block; }
   body.offline .offline-note { display: block; }
   /* 인터넷이 없어도 단어장(vocab.html, 서비스 워커에 받아 둠)은 열 수 있습니다 — dshs-study.js 의 openOfflineLearn */
@@ -352,7 +352,7 @@
   .upd-sheet .study-tabs, .study-sheet .sheet-title .study-tabs { margin-left: -8px; }
   .icon-btn.warn::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f; }   /* 설정: 알림이 꺼져 있음 */
   .icon-btn.has-new::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
-  .icon-btn.has-reply::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f; }   /* 📢: 안 읽은 피드백 답장 */
+  .icon-btn.has-reply::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f; }   /* 💬: 안 읽은 피드백 답장 */
   .tab-dot { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: #ff4d4f; vertical-align: 6px; }
   /* 피드백 창: 내가 보낸 피드백과 관리자 답장 */
   #fbMine:not(:empty) { margin: 18px 0 6px; }
@@ -1213,6 +1213,7 @@
     <div class="nav-icons">
       <span class="nav-logo" aria-hidden="true">dshs42.app</span>
       <button class="icon-btn" id="updBtn" type="button" title="업데이트 소식" aria-label="업데이트 소식">📢</button>
+      <button class="icon-btn" id="fbBtn" type="button" title="피드백 보내기" aria-label="피드백 보내기">💬</button>
       <button class="icon-btn" id="btnSettings" type="button" title="설정" aria-label="설정" style="display:none">⚙️</button>
     </div>
     <div class="study-nav" id="studyNav" style="display:none"></div>
@@ -2843,15 +2844,9 @@ function switchTab(tabName, btn) {
     modal.className = 'study-modal show';
     modal.querySelectorAll('.study-x, .upd-ok').forEach(b => b.onclick = close);
     modal.onclick = e => { if (e.target === modal) close(); };
-    // 피드백 탭: 보내는 창은 dshs-study.js 의 openFeedback (로그인 정보가 거기 있음)
-    const fbTab = modal.querySelector('[data-utab="fb"]');
-    if (fbTab) fbTab.onclick = () => { close(); if (window.openFeedback) window.openFeedback(); };
   }
-  // 업데이트 내역 · 피드백 탭 머리 (피드백 창도 같은 머리를 씁니다)
-  window.updTabs = on => `<div class="study-tabs">
-    <button class="study-tab${on === 'upd' ? ' on' : ''}" type="button" data-utab="upd">업데이트 내역</button>
-    <button class="study-tab${on === 'fb' ? ' on' : ''}" type="button" data-utab="fb">피드백${btn.classList.contains('has-reply') ? '<span class="tab-dot" aria-label="새 답장"></span>' : ''}</button></div>`;
-  window.openUpdates = () => open(window.updTabs('upd'), list, '');
+  // 피드백은 따로 된 💬 버튼(fbBtn)이 dshs-study.js 의 openFeedback 을 엽니다
+  window.openUpdates = () => open('📢 업데이트 내역', list, '');
   function close() {
     modal.className = 'study-modal';
     if (majors.length) { try { localStorage.setItem(KEY, majors[0].id); } catch {} }

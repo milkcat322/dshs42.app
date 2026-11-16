@@ -2740,16 +2740,15 @@ async function shrinkImage(file) {
   return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("empty"))), "image/jpeg", 0.85));
 }
 
-// 📢 업데이트 창의 '피드백' 탭 (index.html 이 부릅니다). 머리의 '업데이트 내역' 을 누르면 업데이트 창으로 돌아갑니다.
+// 💬 피드백 창 (위쪽 💬 버튼 fbBtn · 답장 알림 주소 ?view=feedback)
 function openFeedback() {
-  const head = window.updTabs ? window.updTabs("fb") : "피드백";
-  const back = () => $("studyModal").querySelector('[data-utab="upd"]')?.addEventListener("click", () => { closeModal(); window.openUpdates?.(); });
+  const head = "💬 피드백";
   if (!me) {
     openSheet(head, `
       <div class="asg-body">로그인하면 피드백을 보낼 수 있어요.</div>
       <button class="study-submit" id="fbLogin">로그인</button>`);
     $("fbLogin").onclick = openAuth;
-    return back();
+    return;
   }
   const mine = '<div id="fbMine"></div>';
   openSheet(head, `${fbUnread ? mine : ""}
@@ -2763,7 +2762,6 @@ function openFeedback() {
     <div class="study-foot">보낸 내용은 관리자만 볼 수 있어요.</div>
     <div class="study-err" id="authErr"></div>
     <button class="study-submit" id="fbSend">보내기</button>${fbUnread ? "" : mine}`);
-  back();
   loadMyFeedback();
   $("fbKind").onchange = () => { $("fbBody").placeholder = FEEDBACK_HINT[$("fbKind").value]; };
   $("fbSend").onclick = async () => {
@@ -2787,14 +2785,15 @@ function openFeedback() {
   };
 }
 window.openFeedback = openFeedback;
+$("fbBtn") && ($("fbBtn").onclick = openFeedback);
 
 // ---------- 피드백 답장 (feedbackreply.sql) ----------
 // 관리자가 관리자 사이트에서 남긴 답장을 피드백 창의 '내가 보낸 피드백'에서 읽고, 그 아래에서 다시 답합니다.
-// 안 읽은 답장이 있으면 📢 버튼과 '피드백' 탭에 점을 찍고, 창을 열면 읽음으로 바꿉니다.
+// 안 읽은 답장이 있으면 💬 버튼에 점을 찍고, 창을 열면 읽음으로 바꿉니다.
 let fbUnread = 0, fbCheckedAt = 0;
 const fbFromAdmin = (r) => r.from_admin !== false;   // 관리자가 쓴 답장 (false 면 내가 다시 쓴 답글)
 function paintFbDot() {
-  $("updBtn")?.classList.toggle("has-reply", fbUnread > 0);
+  $("fbBtn")?.classList.toggle("has-reply", fbUnread > 0);
 }
 // 안 읽은 관리자 답장 수 (1분 안에 다시 묻지 않습니다. 표가 아직 없으면 0)
 async function checkFbReplies() {
