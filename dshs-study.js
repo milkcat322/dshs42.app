@@ -452,6 +452,30 @@ function visitId() {
   return st.id;
 }
 
+// 화면 기능 사용 (features.sql). 기말고사 · 급식 · 공부 탭과 시간표의 학점 계산 · 분반 목록 등 서버에 자료가 남지 않는 기능을
+// 처음 연 날 기기마다 기능별로 하루 한 번 남깁니다. 화면에는 아무것도 보이지 않고, 관리자가 잘 안 쓰는 기능을 정리하는 근거로 봅니다.
+const FEATURE_KEY = "dshs-feature-day";
+async function logFeature(name) {
+  try {
+    if (DEMO) return;
+    const st = JSON.parse(localStorage.getItem(VISIT_KEY) || "{}");
+    if (st.skip || me?.is_admin) return;   // 관리자 기기는 세지 않습니다
+    const today = dayKey(new Date());
+    const login = !!me;
+    const done = JSON.parse(localStorage.getItem(FEATURE_KEY) || "{}");
+    if (done.day !== today) { done.day = today; done.f = {}; }
+    if (done.f[name] === 2 || (done.f[name] === 1 && !login)) return;   // 오늘 이미 (로그인한 상태로) 남김
+    if (!sb) await sbWait;
+    const { error } = await logRpc("log_feature", { p_device: visitId(), p_feature: name });
+    if (error) return;
+    const now = JSON.parse(localStorage.getItem(FEATURE_KEY) || "{}");
+    if (now.day !== today) { now.day = today; now.f = {}; }
+    now.f[name] = Math.max(now.f[name] || 0, login ? 2 : 1);
+    localStorage.setItem(FEATURE_KEY, JSON.stringify(now));
+  } catch {}
+}
+window.logFeature = logFeature;
+
 // 비로그인 시간표 막힘 화면을 본 날('seen') · 그 화면의 로그인 버튼을 누른 날('click')을 하루 한 번씩 남깁니다 (visits.sql 의 log_gate).
 // 사용 분석 에이전트가 "본 기기 → 누른 기기 → 로그인한 기기"로 로그인 유도 효과를 판단합니다. 화면에는 아무것도 보이지 않습니다.
 async function logGate(ev) {
@@ -1314,6 +1338,7 @@ function openStudy(p) {
   $("studyView").style.display = "block";
   // 시간표 검색창은 내 시간표 탭에서만 보입니다 (내 시간표 탭이 없는 관리자 계정은 그대로 둠)
   document.body.classList.toggle("study-open", !!me?.student_id);
+  if (page !== "cal") logFeature(page);   // 내 일정은 처음 열면 나오는 화면이라 세지 않습니다
   if (page === "learn") { renderLearn(); renderNav(); return; }   // 공부 탭은 서버 자료를 쓰지 않습니다
   if (page === "exam") { renderExam(); renderNav(); return; }     // 기말고사 탭도 시간표(SCHOOL_DATA)만 씁니다
   if (page === "meal") { mealDay = null; renderMeal(); renderNav(); return; }   // 급식은 NEIS 에서 바로 받습니다 (열 때마다 다음 끼니 날로)

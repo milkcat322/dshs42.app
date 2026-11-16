@@ -2807,6 +2807,7 @@ function switchTab(tabName, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('panel-' + tabName).classList.add('active');
+  if (tabName !== 'timetable' && window.logFeature) window.logFeature('tt_' + tabName);   // 몇 명이 쓰는지 세기 (features.sql)
 }
 </script>
 <script src="updates.js"></script>
