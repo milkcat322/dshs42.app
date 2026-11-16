@@ -6,7 +6,7 @@
 // 각 기수는 build-admin.mjs 로 지금과 똑같이 묶고, 여기서는 아래만 바꿉니다:
 //   - 학생 사이트 주소 → dshsplus.app/42 · /43
 //   - sw.js: 같은 주소의 다른 기수 캐시를 지우지 않게, 알림을 누르면 그 기수 관리 화면에서 열리게
-//   - index.html: 마지막으로 연 기수를 기억(첫 화면이 그 기수로 보냄) · 다른 기수 관리로 가는 작은 단추
+//   - index.html: 마지막으로 연 기수를 기억(첫 화면이 그 기수로 보냄) · cohort.js 의 plusSwitch → 설정 창에 '기수 42기 · 43기'
 // 기기 등록(로그인 저장 이름)은 기수마다 따로라, 두 기수 관리를 쓰려면 각각 한 번씩 등록합니다.
 // ============================================================
 import { execFileSync } from "node:child_process";
@@ -39,7 +39,9 @@ for (const id of [42, 43]) {
   const p = (f) => join(dst, f);
   // 학생 사이트 주소
   let co = readFileSync(p("cohort.js"), "utf8");
-  co = co.replace(/"studentUrl":\s*"[^"]*"/, `"studentUrl": "${STUDENT}/${id}"`);
+  co = co.replace(/"studentUrl":\s*"[^"]*"/, `"studentUrl": "${STUDENT}/${id}"`)
+    .replace(/^window\.DSHS_COHORT = \{/m, `window.DSHS_COHORT = {\n  "plusSwitch": true,`);   // 설정 창의 '기수 42기 · 43기' (admin.js)
+  if (!co.includes('"plusSwitch": true')) throw new Error(`${id}/cohort.js 를 바꾸지 못했어요`);
   writeFileSync(p("cohort.js"), co);
   let cfg = readFileSync(p("config.js"), "utf8");
   cfg = cfg.replace(/STUDENT_URL:\s*"[^"]*"/, `STUDENT_URL: "${STUDENT}/${id}"`).replace(/ADMIN_URL:\s*"[^"]*"/, `ADMIN_URL: "${ADMIN}/${id}/"`);
@@ -57,12 +59,10 @@ for (const id of [42, 43]) {
   man.name = `dshsplus 관리 · ${id}기`;
   man.short_name = `plus 관리 ${id}`;
   writeFileSync(p("manifest.webmanifest"), JSON.stringify(man, null, 2) + "\n");
-  // 마지막으로 연 기수 기억 + 다른 기수 관리로 가는 단추
-  const other = id === 42 ? 43 : 42;
+  // 마지막으로 연 기수 기억 (기수 바꾸기는 설정 창 — cohort.js 의 plusSwitch)
   let html = readFileSync(p("index.html"), "utf8");
   html = html.replace(/<head>/i, `<head>\n<script>try { localStorage.setItem("dshsplus-admin-cohort", "${id}"); } catch {}</script>`);
-  html = html.replace(/<\/body>/i, `<a href="../${other}/" title="${other}기 관리로" style="position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:9999;padding:8px 13px;border-radius:999px;background:var(--surface,#16161f);border:1px solid var(--border,#2a2a3d);color:var(--text-dim,#9a9ab0);font:600 12px/1 'Noto Sans KR',sans-serif;text-decoration:none">${other}기 관리 →</a>\n</body>`);
-  if (!html.includes("dshsplus-admin-cohort") || !html.includes(`../${other}/`)) throw new Error(`${id}/index.html 을 바꾸지 못했어요`);
+  if (!html.includes("dshsplus-admin-cohort")) throw new Error(`${id}/index.html 을 바꾸지 못했어요`);
   writeFileSync(p("index.html"), html);
 }
 // 첫 화면: 마지막으로 연 기수 관리로 (처음이면 고르기)
