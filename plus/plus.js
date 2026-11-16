@@ -50,19 +50,41 @@
     } catch {}
   }
 
-  // 1-2. 로그인한 학생(앱의 전역 me)을 보고 기수를 맞춥니다
-  const myMe = () => { try { return me; } catch { return undefined; } };   // eslint-disable-line no-undef
-  const watch = setInterval(() => {
-    const m = myMe();
-    if (!m) return;
-    const c = picked() || (m.student_id && !m.is_admin ? cohortOf(m.student_id) : null);
-    if (!c) return;
-    save(c);
-    if (c !== APP && !find) { clearInterval(watch); leave(c); }
-  }, 700);
+  // 1-2. 로그인한 학생을 보고 기수를 맞춥니다.
+  // 42기 앱(dshs-study.js)은 모듈이라 앱의 me · sb 를 밖에서 읽을 수 없어, 이 기기의 로그인 정보로 서버에 직접 묻습니다
+  // (내 프로필은 본인이 읽을 수 있음 · 로그인 계정 정보 고치기는 /auth/v1/user).
+  const CFG = () => window.DSHS_CONFIG || {};
+  const session = () => { try { return JSON.parse(localStorage.getItem("dshs-study-auth") || "null"); } catch { return null; } };
+  const api = (path, init = {}) => {
+    const s = session(), c = CFG();
+    if (!s?.access_token || !c.SUPABASE_URL) return Promise.resolve(null);
+    return fetch(c.SUPABASE_URL + path, { ...init, headers: { apikey: c.SUPABASE_ANON_KEY, Authorization: `Bearer ${s.access_token}`, "Content-Type": "application/json", ...(init.headers || {}) } })
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  };
+  let prof = null;   // { id, student_id, is_admin } — 지금 로그인한 계정 것
+  async function whoAmI() {
+    const uid = session()?.user?.id;
+    if (!uid) { prof = null; return null; }
+    if (prof?.id === uid) return prof;
+    const rows = await api(`/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=id,student_id,is_admin`);
+    if (Array.isArray(rows) && rows[0]) prof = rows[0];   // 실패(토큰 만료 등)하면 다음에 다시
+    return prof?.id === uid ? prof : null;
+  }
+  let busy = false;
+  const watch = setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const m = await whoAmI();
+      if (!m) return;
+      const c = picked() || (m.student_id && !m.is_admin ? cohortOf(m.student_id) : null);
+      if (!c) return;
+      save(c);
+      if (c !== APP && !find) { clearInterval(watch); leave(c); }
+    } finally { busy = false; }
+  }, 1000);
 
   // 1-3. 설정 창에 '사이트 화면 42기 · 43기' 줄 (두 앱 모두 설정 창 맨 아래에 로그아웃 단추 #doLogout 이 있음)
-  const mySb = () => { try { return sb; } catch { return null; } };   // eslint-disable-line no-undef
   const addSiteRow = () => {
     const out = document.getElementById("doLogout");
     if (!out || document.getElementById("plusSite")) return;
@@ -73,13 +95,14 @@
     document.querySelectorAll("#plusSite [data-plus-c]").forEach((b) => b.onclick = async () => {
       const c = +b.dataset.plusC;
       if (c === APP) return;
-      const s = mySb();
       b.disabled = true;
       // 학번과 같은 기수면 따로 남기지 않고(null) 지웁니다 → 학번대로
-      const m = myMe();
+      const m = await whoAmI();
       const value = m?.student_id && !m.is_admin && cohortOf(m.student_id) === c ? null : c;
-      const { error } = s ? await s.auth.updateUser({ data: { plus_cohort: value } }) : { error: true };
-      if (error) { b.disabled = false; return; }
+      const user = await api("/auth/v1/user", { method: "PUT", body: JSON.stringify({ data: { plus_cohort: value } }) });
+      if (!user?.id) { b.disabled = false; return; }
+      // 이 기기의 로그인 정보에도 바로 반영 (다음에 열 때 서버를 기다리지 않고 그 기수로)
+      try { const s = session(); s.user = user; localStorage.setItem("dshs-study-auth", JSON.stringify(s)); } catch {}
       leave(c);
     });
   };
@@ -152,13 +175,13 @@
   if (find) {
     const sid = Number(find);
     const tries = setInterval(() => {
-      const m = myMe();
-      if (!m) return;
+      if (!session()?.user) return;   // 로그인한 뒤에
       try {
         if (APP === 42) {
           const name = (window.ID_TO_NAME || {})[String(sid)];
           if (!name) return clearInterval(tries);
-          if (!document.getElementById("result")?.classList.contains("show")) return;   // 내 시간표가 먼저 뜬 뒤
+          // 로그인 뒤 첫 화면(내 시간표, 43기 학생이면 내 일정)이 뜬 뒤에 — 위쪽 메뉴가 보이면 다 뜬 것
+          if (document.getElementById("studyNav")?.style.display !== "flex") return;
           document.getElementById("nameInput").value = name;
           searchStudent();   // eslint-disable-line no-undef
         } else {
