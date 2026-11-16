@@ -2,7 +2,8 @@
 // dshsplus.app — 42기 앱(/42/) · 43기 앱(/43/) 안에서 함께 도는 스크립트
 // scripts/build-plus.mjs 가 두 앱의 index.html <head> 맨 앞에 window.PLUS_APP(42 · 43)과 함께 넣습니다.
 // 두 앱의 코드는 고치지 않고, 여기서만 dshsplus 에 필요한 일을 합니다.
-//  1. 내 기수 맞추기: 로그인한 학생(me)이 다른 기수면 그 기수 앱으로 옮깁니다. 지난 화면(dshs-snap)으로도 미리 봅니다.
+//  1. 내 기수 맞추기: 설정에서 고른 기수(계정의 user_metadata.plus_cohort) · 없으면 로그인한 학생(me)의 학번 기수가
+//     이 앱이 아니면 그 기수 앱으로 옮깁니다. 지난 화면(dshs-snap)으로도 미리 봅니다. 설정 창에 '사이트 화면 42기 · 43기' 줄을 넣습니다.
 //  2. 두 기수 검색: 시간표 검색 칸(#nameInput)에 다른 기수 학생도 나오고, 누르면 그 기수 앱에서 시간표를 엽니다 (?plusfind=학번).
 // 두 앱은 같은 주소(origin)라 로그인(dshs-study-auth)과 이 기기 저장(localStorage)을 함께 씁니다.
 // ============================================================
@@ -25,12 +26,27 @@
     Storage.prototype.setItem = function (k, v) { if (k !== "dshs-snap") set.call(this, k, v); };
   }
 
-  // 1-1. 지난 화면이 다른 기수 학생 것이면 그리기 전에 그 기수로 (앱 스크립트보다 먼저 돕니다)
+  // 어느 기수 화면으로 열지는 계정에 저장합니다: 설정에서 고른 값(로그인 계정의 user_metadata.plus_cohort) → 없으면 학번으로.
+  // 로그인 정보(dshs-study-auth)는 이 기기에 그대로 남아 있어 서버를 기다리지 않고 읽습니다.
+  const picked = () => {
+    try {
+      const c = +JSON.parse(localStorage.getItem("dshs-study-auth") || "null")?.user?.user_metadata?.plus_cohort;
+      return c === 42 || c === 43 ? c : null;
+    } catch { return null; }
+  };
+  const leave = (c) => {
+    try { localStorage.removeItem("dshs-snap"); } catch {}   // 다른 기수 앱이 남긴 지난 화면은 쓰지 않음 (모양이 다름)
+    save(c);
+    goCohort(c);
+  };
+
+  // 1-1. 그리기 전에(앱 스크립트보다 먼저) 고른 기수 · 지난 화면의 학번이 이 앱이 아니면 그 기수로
   if (!find) {
     try {
       const snap = JSON.parse(localStorage.getItem("dshs-snap") || "null");
-      const sid = snap?.me?.student_id;
-      if (sid && !snap.me.is_admin && cohortOf(sid) !== APP) { save(cohortOf(sid)); goCohort(cohortOf(sid)); return; }
+      const sid = snap?.me?.is_admin ? null : snap?.me?.student_id;
+      const c = picked() || (sid ? cohortOf(sid) : null);
+      if (c && c !== APP) { leave(c); return; }
     } catch {}
   }
 
@@ -38,15 +54,36 @@
   const myMe = () => { try { return me; } catch { return undefined; } };   // eslint-disable-line no-undef
   const watch = setInterval(() => {
     const m = myMe();
-    if (!m?.student_id || m.is_admin) return;
-    const c = cohortOf(m.student_id);
+    if (!m) return;
+    const c = picked() || (m.student_id && !m.is_admin ? cohortOf(m.student_id) : null);
+    if (!c) return;
     save(c);
-    if (c !== APP && !find) {
-      clearInterval(watch);
-      try { localStorage.removeItem("dshs-snap"); } catch {}   // 다른 기수 앱이 남긴 지난 화면은 쓰지 않음
-      goCohort(c);
-    }
+    if (c !== APP && !find) { clearInterval(watch); leave(c); }
   }, 700);
+
+  // 1-3. 설정 창에 '사이트 화면 42기 · 43기' 줄 (두 앱 모두 설정 창 맨 아래에 로그아웃 단추 #doLogout 이 있음)
+  const mySb = () => { try { return sb; } catch { return null; } };   // eslint-disable-line no-undef
+  const addSiteRow = () => {
+    const out = document.getElementById("doLogout");
+    if (!out || document.getElementById("plusSite")) return;
+    const btn = (c) => `<button type="button" class="study-btn small${c === APP ? " primary" : ""}" data-plus-c="${c}">${c}기</button>`;
+    out.insertAdjacentHTML("beforebegin", `<div class="set-row" id="plusSite">
+      <span><b>사이트 화면</b><span class="ev-hint">42기 · 43기 중 어느 화면으로 열지 골라요. 계정에 저장돼 다른 기기에서도 같아요</span></span>
+      <span style="display:flex;gap:6px;flex:none">${btn(42)}${btn(43)}</span></div>`);
+    document.querySelectorAll("#plusSite [data-plus-c]").forEach((b) => b.onclick = async () => {
+      const c = +b.dataset.plusC;
+      if (c === APP) return;
+      const s = mySb();
+      b.disabled = true;
+      // 학번과 같은 기수면 따로 남기지 않고(null) 지웁니다 → 학번대로
+      const m = myMe();
+      const value = m?.student_id && !m.is_admin && cohortOf(m.student_id) === c ? null : c;
+      const { error } = s ? await s.auth.updateUser({ data: { plus_cohort: value } }) : { error: true };
+      if (error) { b.disabled = false; return; }
+      leave(c);
+    });
+  };
+  new MutationObserver(addSiteRow).observe(document.documentElement, { childList: true, subtree: true });
 
   // 2. 두 기수 검색 ------------------------------------------------
   const otherList = () => ((window.PLUS_ROSTER || {})[OTHER] || []);   // [[학번, 이름], ...] (plus-roster.js)

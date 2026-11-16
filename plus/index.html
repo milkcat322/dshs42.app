@@ -9,52 +9,21 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script>
 // dshsplus.app 첫 화면 — 42기 앱(42/)과 43기 앱(43/) 중 내 기수로 바로 보냅니다 (scripts/build-plus.mjs 가 묶음).
-// 기수는 앱이 로그인한 학생을 보고 남긴 값(dshsplus-cohort) → 지난 화면(dshs-snap)의 학번 순으로 정하고, 모르면 고르게 합니다.
+// 기수는 계정에 저장합니다: 설정에서 고른 값(로그인 계정의 user_metadata.plus_cohort) → 앱이 마지막으로 맞춘 값(dshsplus-cohort)
+// → 지난 화면(dshs-snap)의 학번. 아무것도 없으면(로그인 전) 42기 앱의 로그인 화면으로 가고, 로그인하면 plus.js 가 학번으로 맞춥니다.
 // 알림을 누르면 이 주소(/?view=…)로 오므로, 주소 뒤 ?… · #… 는 그대로 넘깁니다.
 (function () {
-  let c = null;
-  try { c = localStorage.getItem("dshsplus-cohort"); } catch {}
-  if (c !== "42" && c !== "43") {
-    try {
-      const sid = JSON.parse(localStorage.getItem("dshs-snap") || "null")?.me?.student_id;
-      if (sid) c = sid >= 1000 && sid <= 1999 ? "43" : "42";
-    } catch {}
-  }
-  if (c === "42" || c === "43") location.replace(`${c}/${location.search}${location.hash}`);
-  else document.documentElement.classList.add("pick");
+  const ok = (c) => (c === 42 || c === 43 ? c : null);
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
+  const sid = read("dshs-snap")?.me?.student_id;
+  const c = ok(+read("dshs-study-auth")?.user?.user_metadata?.plus_cohort)
+    || ok(+read("dshsplus-cohort"))
+    || (sid ? (sid >= 1000 && sid <= 1999 ? 43 : 42) : null)
+    || 42;
+  location.replace(`${c}/${location.search}${location.hash}`);
 })();
-function pick(c) {
-  try { localStorage.setItem("dshsplus-cohort", c); } catch {}
-  location.href = `${c}/${location.search}${location.hash}`;
-}
 </script>
-<style>
-  :root { color-scheme: dark; --bg: #0a0a0f; --card: #13131c; --border: #2a2a3d; --text: #e8e8f0; --dim: #9a9ab0; --a1: #7c6fe0; --a2: #e06f9e; }
-  @media (prefers-color-scheme: light) { :root { color-scheme: light; --bg: #f6f6fb; --card: #ffffff; --border: #dcdce8; --text: #1a1a26; --dim: #5d5d72; } }
-  html:not(.pick) body { visibility: hidden; }
-  * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
-    display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
-  .wrap { width: 100%; max-width: 420px; text-align: center; }
-  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--a1), var(--a2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  p { color: var(--dim); font-size: 14px; line-height: 1.6; margin: 0 0 24px; }
-  .btns { display: grid; gap: 12px; }
-  button { width: 100%; padding: 18px 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--card); color: var(--text);
-    font: 700 18px/1.3 inherit; font-family: inherit; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-  button:hover { border-color: var(--a1); }
-  button small { font-weight: 500; font-size: 13px; color: var(--dim); }
-  .foot { margin-top: 28px; font-size: 12px; color: var(--dim); }
-</style>
+<style>body { margin: 0; background: #0a0a0f; }</style>
 </head>
-<body>
-  <div class="wrap">
-    <h1>dshsplus</h1>
-    <p>대전과학고 42기 · 43기 종합 웹서비스<br>내 기수를 골라 주세요. 로그인하면 다음부터는 바로 열려요.</p>
-    <div class="btns">
-      <button onclick="pick('42')">42기 <small>2학년</small></button>
-      <button onclick="pick('43')">43기 <small>1학년</small></button>
-    </div>
-    <div class="foot">학생 비공식 사이트</div>
-  </div>
-</body>
+<body></body>
 </html>
