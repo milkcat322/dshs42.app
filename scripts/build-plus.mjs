@@ -1,7 +1,7 @@
 // ============================================================
 // dshsplus.app 묶기: 42기 앱(이 저장소) + 43기 앱(dshs43 저장소) → plus-dist/
 //   node scripts/build-plus.mjs              beta 용 (주소 https://dshsplus-beta.netlify.app)
-//   node scripts/build-plus.mjs --main       메인 용 (주소 https://dshsplus.app)
+//   node scripts/build-plus.mjs --main       메인 용 (주소 https://dshsplus.netlify.app)
 //   --43 <폴더>                              43기 저장소 위치 (기본: 이 저장소 옆 ../dshs43.app)
 //
 // 결과:  plus-dist/index.html      첫 화면 — 내 기수 앱으로 보냄 (plus/index.html)
@@ -26,7 +26,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src43 = resolve(at >= 0 ? argv[at + 1] : join(root, "..", "dshs43.app"));
 const out = join(root, "plus-dist");
 export const PLUS = {
-  site: MAIN ? "https://dshsplus.app" : "https://dshsplus-beta.netlify.app",
+  site: MAIN ? "https://dshsplus.netlify.app" : "https://dshsplus-beta.netlify.app",
   admin: "https://dshsplus-admin.netlify.app",
 };
 if (!existsSync(join(src43, "js", "main.js"))) throw new Error(`43기 저장소를 찾지 못했어요: ${src43} (--43 <폴더>)`);

@@ -1,7 +1,7 @@
 // ============================================================
 // dshsplus.app 배포: 42기 앱 + 43기 앱을 묶어(build-plus.mjs) dshsplus 저장소에 올립니다.
 //   node scripts/deploy-plus.mjs            beta → milkcat322/dshsplus-beta (dshsplus-beta.netlify.app)
-//   node scripts/deploy-plus.mjs --main     메인 → milkcat322/dshsplus       (dshsplus.app)
+//   node scripts/deploy-plus.mjs --main     메인 → milkcat322/dshsplus       (dshsplus.netlify.app)
 //   --43 <폴더>                             43기 저장소 위치 (기본 ../dshs43.app)
 //
 // 두 저장소에는 묶은 결과만 있습니다. 코드는 늘 dshs-study(42기) · dshs43(43기)에서 고치고 여기서 묶어 올립니다.

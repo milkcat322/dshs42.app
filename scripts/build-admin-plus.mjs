@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { COHORTS } from "./admin-cohorts.mjs";
 
 const DEPLOY = process.argv.includes("--deploy");
-const STUDENT = "https://dshsplus.app";
+const STUDENT = "https://dshsplus.netlify.app";
 const ADMIN = "https://dshsplus-admin.netlify.app";
 const REPO = "https://github.com/milkcat322/dshsplus-admin.git";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
