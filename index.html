@@ -1030,9 +1030,9 @@
     body:not(.scrolled) .nav-bar { -webkit-backdrop-filter: none; backdrop-filter: none; }
     .nav-icons { margin-bottom: 6px; }
     .icon-btn { width: 32px; height: 32px; font-size: 15px; }
-    .study-nav { flex-wrap: nowrap; gap: 5px; margin: 0; }
-    /* 탭 6개(시간표 · 내 일정 · 수행평가 · 할 일 · 급식 · 공부)가 좁은 폰에서도 한 줄에 들어가게 글자 크기를 화면 폭에 맞춥니다 */
-    .study-nav .study-btn { flex: 1 1 0; min-width: 0; padding: 10px 1px; font-size: clamp(11.5px, 3.3vw, 13.5px); letter-spacing: -0.02em; border-radius: 11px; white-space: nowrap; position: relative; overflow: visible; }
+    .study-nav { flex-wrap: nowrap; gap: 4px; margin: 0; }
+    /* 탭 7개(시간표 · 내 일정 · 수행평가 · 할 일 · 급식 · 공부 · 기말고사)가 좁은 폰(360px)에서도 한 줄에 들어가게 글자 크기를 화면 폭에 맞춥니다 */
+    .study-nav .study-btn { flex: 1 1 0; min-width: 0; padding: 10px 1px; font-size: clamp(10.5px, 2.95vw, 13.5px); letter-spacing: -0.02em; border-radius: 11px; white-space: nowrap; position: relative; overflow: visible; }
     /* 숫자 배지는 글자 옆이 아니라 탭 오른쪽 위 모서리에 (좁은 탭에서 잘리지 않게) */
     .study-nav .tab-count { position: absolute; top: -6px; right: -3px; margin: 0; min-width: 15px; height: 15px; line-height: 15px; padding: 0 4px; font-size: 10px; letter-spacing: 0; }
 
@@ -1740,7 +1740,6 @@ function renderResult(name, student) {
       <div class="stat-chip"><span class="stat-num">${sorted.filter(s => !COMMON_SUBJECTS.includes(s.subject)).length}</span><span class="stat-label">주간 수업 교시</span></div>    </div>
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('timetable',this)">📅 시간표</button>
-      <button class="tab-btn" onclick="switchTab('exam',this)">📝 기말고사</button>
       <button class="tab-btn" onclick="switchTab('gpa',this)">🎓 학점 계산</button>
       <button class="tab-btn" onclick="switchTab('classes',this)">📚 분반 목록</button>
       <button class="tab-btn" onclick="switchTab('overlap',this)">🔗 겹치는 수업</button>
@@ -1769,7 +1768,6 @@ function renderResult(name, student) {
     </div>
     <div class="tab-panel" id="panel-overlap">${buildOverlapPanel(name)}</div>
     <div class="tab-panel" id="panel-compare">${buildComparePanel(name)}</div>
-    <div class="tab-panel" id="panel-exam">${buildExamPanel(name)}</div>
     <div class="tab-panel" id="panel-gpa">${buildGpaPanel(name)}</div>
     <div class="tab-panel" id="panel-wallpaper">${buildWallpaperPanel(name)}</div>
   `;

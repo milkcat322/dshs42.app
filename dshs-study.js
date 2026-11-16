@@ -1299,8 +1299,9 @@ function openAdminLogin() {
 function showErr(msg) { const e = $("authErr"); e.textContent = msg; e.classList.add("show"); }
 
 // ---------- 탭: 내 일정 · 수행평가 공지 · 할 일 ----------
-const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"], ["meal", "급식"], ["learn", "공부"]];
-const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", meal: "meal", learn: "learn" };
+// exam: 기말고사 일정 (index.html 의 buildExamPanel). 시험이 끝나면 이 탭을 뺍니다
+const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"], ["meal", "급식"], ["learn", "공부"], ["exam", "기말고사"]];
+const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", meal: "meal", learn: "learn", exam: "exam" };
 
 // 내 일정: 수행평가(내 분반 공지 + 내가 올린 것)와 개인 일정을 한 달력에 모두 보여줍니다
 function openStudy(p) {
@@ -1314,6 +1315,7 @@ function openStudy(p) {
   // 시간표 검색창은 내 시간표 탭에서만 보입니다 (내 시간표 탭이 없는 관리자 계정은 그대로 둠)
   document.body.classList.toggle("study-open", !!me?.student_id);
   if (page === "learn") { renderLearn(); renderNav(); return; }   // 공부 탭은 서버 자료를 쓰지 않습니다
+  if (page === "exam") { renderExam(); renderNav(); return; }     // 기말고사 탭도 시간표(SCHOOL_DATA)만 씁니다
   if (page === "meal") { mealDay = null; renderMeal(); renderNav(); return; }   // 급식은 NEIS 에서 바로 받습니다 (열 때마다 다음 끼니 날로)
   renderStudy();
   renderNav();
@@ -1331,7 +1333,7 @@ function closeStudy() {
 }
 // 지금 view 에 맞춰 studyBody 를 다시 그립니다
 function rerender() {
-  if (view === "learn" || view === "meal") return;   // 공부 · 급식 탭은 서버 자료를 쓰지 않습니다 (단어장 진행이 날아가지 않게)
+  if (view === "learn" || view === "meal" || view === "exam") return;   // 공부 · 급식 탭은 서버 자료를 쓰지 않습니다 (단어장 진행이 날아가지 않게)
   if (view === "notice") renderNotice();
   else if (view === "todo") renderTodo();
   else renderList(view);
@@ -1388,6 +1390,24 @@ window.learnBookmarks = {
 // ---------- 공부 ----------
 // 과목을 고르면 그 과목 단어장(vocab.html)을 아래에 띄웁니다. 단어장 안의 탭(학습 · 퀴즈 · 빈칸 · 배열 · 셀프 · 북마크)은
 // vocab.html 이 그리고, 기록 · 북마크는 이 기기에만 남습니다(localStorage). 과목을 늘리려면 vocab.html 의 SUBJECTS 와 여기에 함께 넣습니다.
+// ---------- 기말고사 ----------
+// 내 시간표의 과목으로 기말고사 일정을 보여 줍니다. 일정 · 모양은 index.html 의 EXAM_SCHEDULE · buildExamPanel
+function renderExam() {
+  const nm = (window.ID_TO_NAME || {})[String(me?.student_id)];
+  const body = nm && typeof window.buildExamPanel === "function"
+    ? window.buildExamPanel(nm)
+    : '<div class="study-empty">시간표에 내 정보가 없어 기말고사 일정을 보여 줄 수 없어요.</div>';
+  $("studyView").innerHTML = `
+    <div class="study-head">
+      <div>
+        <h2>기말고사</h2>
+        <div class="study-sub">내가 보는 시험 과목과 날짜별 시간표</div>
+      </div>
+      <button class="study-btn" onclick="closeStudyView()">✕ 닫기</button>
+    </div>
+    ${body}`;
+}
+
 const LEARN_SUBJECTS = [
   { id: "atc", name: "학술영어 세미나", sub: "The Art of Thinking Clearly 어휘 · 문장 배열 · 문장 암기", emoji: "🧠" },
   { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 150개 · 필수형용사 100개", emoji: "⚖️" },
