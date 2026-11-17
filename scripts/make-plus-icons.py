@@ -1,5 +1,5 @@
 # ============================================================
-# dshsplus 앱 아이콘 만들기: 흰 배경에 검은 글자 "D+" (D 는 크게, + 는 작게)
+# dshsplus 앱 아이콘 만들기: 흰 배경에 검은 글자 "D+" (D 는 크게, + 는 작게 D 오른쪽 가운데)
 #   python scripts/make-plus-icons.py      → plus/icons/*.png
 # scripts/build-plus.mjs 가 이 그림들로 42/ · 43/ · 첫 화면의 아이콘(같은 파일 이름)을 덮어씁니다.
 # 두 앱(dshs42 · dshs43) 자체의 아이콘은 바꾸지 않습니다. 모양을 바꾸려면 여기를 고치고 다시 실행해 커밋합니다.
@@ -40,8 +40,8 @@ def draw(size, width_ratio):
     x0 = (S - (dw + gap + pw)) // 2
     y0 = (S - dh) // 2
     d.text((x0 - bd[0], y0 - bd[1]), "D", font=big, fill="black")
-    # + 는 D 의 위쪽에 맞춤 (성적 표기 'A+' 처럼 위로)
-    d.text((x0 + dw + gap - bp[0], y0 - bp[1] - int(dh * 0.02)), "+", font=small, fill="black")
+    # + 는 D 오른쪽 가운데 (세로 가운데를 D 와 맞춤)
+    d.text((x0 + dw + gap - bp[0], y0 + (dh - ph) // 2 - bp[1]), "+", font=small, fill="black")
     return img.resize((size, size), Image.LANCZOS)
 
 
