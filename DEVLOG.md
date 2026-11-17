@@ -3912,3 +3912,8 @@ sw.js
 ### 바뀐 파일
 - `admin/admin.js`
 <!-- news: 관리자 사이트가 안 열리던 오류를 고쳤어요. | 42기 관리자 사이트는 다시 정상으로 열려요. -->
+
+## 2026-11-17 11:16 · 아니 갑자기 https://dshs42-admin.netlify.app/
+
+### 바뀐 파일
+- `admin/admin.js`
