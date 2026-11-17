@@ -5,7 +5,9 @@
 //  1. 내 기수 맞추기: 설정에서 고른 기수(계정의 user_metadata.plus_cohort) · 없으면 로그인한 계정의 학번 기수가
 //     이 앱이 아니면 그 기수 앱으로 옮깁니다. 지난 화면(dshs-snap)으로도 미리 봅니다. 설정 창에 '사이트 화면 42기 · 43기' 줄을 넣습니다.
 //  2. 두 기수 검색: 시간표 검색 칸(#nameInput)에 다른 기수 학생도 나오고, 누르면 지금 앱의 시간표 자리에
-//     그 학생 시간표를 이 앱의 모양으로 그립니다 (자료는 묶을 때 만든 ../plus-tt.json, 다른 기수 앱으로 넘어가지 않음).
+//     그 학생 시간표를 그 학생 기수의 모양(42기 · 43기 시간표 칸)으로 그립니다 (자료는 묶을 때 만든 ../plus-tt.json, 다른 기수 앱으로 넘어가지 않음).
+//  3. 로그인 전 · 오프라인은 42기 앱만 씁니다: 로그인 전이면 42기의 '흐린 시간표 + 시작하기' 화면, 오프라인이면 42기의 시간표 검색만
+//     (43기 앱은 로그인 · 온라인일 때만 — 로그아웃되거나 오프라인이 되면 42기 앱으로 옮김).
 // 두 앱은 같은 주소(origin)라 로그인(dshs-study-auth)과 이 기기 저장(localStorage)을 함께 씁니다.
 // 42기 앱(dshs-study.js)은 모듈이라 앱의 me · sb 를 밖에서 읽을 수 없어, 로그인 정보로 서버에 직접 묻습니다.
 // ============================================================
@@ -31,7 +33,12 @@
   };
 
   // 1-1. 그리기 전에(앱 스크립트보다 먼저) 고른 기수 · 지난 화면의 학번이 이 앱이 아니면 그 기수로
+  const OFF = "dshsplus-offline";   // 43기 앱이 오프라인이라 42기로 옮겼음 (이 탭에서만) — 서버에 다시 닿을 때까지 43기로 돌려보내지 않음
+  const offMark = () => { try { return !!sessionStorage.getItem(OFF); } catch { return false; } };
+  const loggingIn = () => /dshs_login=|[?&]code=/.test(location.hash + location.search);
+  if (APP === 43 && !session()?.access_token && !loggingIn()) { leave(42); return; }   // 로그인 전 → 42기 시작하기 화면
   try {
+    if (offMark()) throw 0;
     const snap = JSON.parse(localStorage.getItem("dshs-snap") || "null");
     const sid = snap?.me?.is_admin ? null : snap?.me?.student_id;
     const c = picked() || (sid ? cohortOf(sid) : null);
@@ -60,8 +67,19 @@
     if (busy) return;
     busy = true;
     try {
+      if (APP === 43) {
+        // 로그아웃했거나 오프라인이면 42기 앱으로 (42기 앱이 시작하기 화면 · 오프라인 시간표 검색을 보여 줌)
+        const off = document.body?.classList.contains("offline");
+        if (off || (!session()?.access_token && !loggingIn())) {
+          clearInterval(watch);
+          if (off) { try { sessionStorage.setItem(OFF, "1"); } catch {} }
+          leave(42);
+          return;
+        }
+      }
       const m = await whoAmI();
       if (!m) return;
+      try { sessionStorage.removeItem(OFF); } catch {}   // 서버에 닿음 → 다시 내 기수로
       const c = picked() || (m.student_id && !m.is_admin ? cohortOf(m.student_id) : null);
       if (!c) return;
       save(c);
@@ -91,6 +109,11 @@
     };
     swap();
     document.addEventListener("DOMContentLoaded", swap);   // 앱 스크립트(defer)가 함수를 만든 뒤 다시 바꿔 끼움
+  }
+
+  // 1-3b. 43기 앱에서 42기 앱의 서비스 워커도 미리 설치해 둡니다 — 오프라인이 되어 42기로 옮겨도 열리게
+  if (APP === 43 && navigator.serviceWorker && navigator.onLine) {
+    addEventListener("load", () => setTimeout(() => navigator.serviceWorker.register("../42/sw.js", { scope: "../42/" }).catch(() => {}), 3000));
   }
 
   // 1-4. 설정 창에 '사이트 화면 42기 · 43기' 줄 (두 앱 모두 설정 창 맨 아래에 로그아웃 단추 #doLogout 이 있음)
@@ -147,7 +170,9 @@
 
   // 다른 기수 시간표 자료 (묶을 때 만든 ../plus-tt.json, 처음 쓸 때 한 번 받음)
   let ttData = null;
-  const loadTT = () => ttData || (ttData = fetch("../plus-tt.json").then((r) => (r.ok ? r.json() : null)).catch(() => (ttData = null)));
+  const loadTT = () => ttData || (ttData = fetch("../plus-tt.json").then((r) => (r.ok ? r.json() : Promise.reject())).catch(() => (ttData = null)));
+  // 인터넷이 있을 때 미리 한 번 받아 둡니다 — 서비스 워커가 저장해 두어 오프라인 검색에서도 다른 기수 시간표가 나옴
+  addEventListener("load", () => setTimeout(() => { if (navigator.onLine) loadTT(); }, 4000));
   const DAYS = ["월", "화", "수", "목", "금"], DAY_CLASS = ["mon", "tue", "wed", "thu", "fri"];
 
   // 다른 기수 학생의 시간표 → { meta, cells: { "월-1": { name, sub, color | null(공통 활동) } } }
@@ -172,23 +197,59 @@
     }
     return { meta: `학번 ${sid} · 42기 2학년`, cells };
   }
-  // 지금 앱의 시간표 표 모양으로 그립니다 (42기: 칸 안 div 에 색 · 43기: 칸(td)에 색)
-  function gridHtml(cells) {
+  // 그 학생 기수의 시간표 모양으로 그립니다 — 42기: 칸 안 둥근 상자(div)에 색 · 43기: 칸(td) 전체에 색, 이어지는 교시는 한 칸으로.
+  // 다른 기수 앱 안에서 그릴 때는 그 기수의 칸 모양을 .plus-ui-42 · .plus-ui-43 안에서만 다시 정합니다 (두 앱 CSS 의 값을 옮겨 온 것 —
+  // 두 앱의 시간표 색 · 칸 모양을 바꾸면 여기도 함께 고칩니다)
+  const C42 = [["124,111,224", "#a78bfa"], ["224,111,158", "#f472b6"], ["111,224,196", "#34d399"], ["96,165,250", "#60a5fa"], ["251,146,60", "#fb923c"],
+    ["250,204,21", "#facc15"], ["52,211,153", "#6ee7b7"], ["167,139,250", "#c4b5fd"], ["248,113,113", "#fca5a5"], ["129,140,248", "#a5b4fc"],
+    ["45,212,191", "#5eead4"], ["251,191,36", "#fbbf24"], ["52,211,153", "#a7f3d0"]];
+  const C43 = ["#9f86e4", "#f08fb0", "#78cb87", "#7aa5e9", "#fbaa68", "#ebc26a", "#a6c96f", "#d094ec", "#eb8471", "#6cc4e6", "#97d9db", "#c8a78c", "#8a9be8"];
+  const UI_CSS = {
+    42: `.plus-ui-42 .timetable-wrap{border-radius:16px}
+.plus-ui-42 .timetable td{padding:6px;vertical-align:middle;background:none;box-shadow:none}
+.plus-ui-42 .class-cell{border-radius:8px;padding:5px 6px;font-weight:700;line-height:1.3;height:42px;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.plus-ui-42 .class-cell .subj-name{font-size:10.5px;font-weight:700}
+.plus-ui-42 .class-cell .ban-name{font-size:9px;opacity:.8;margin-top:1px}
+.plus-ui-42 .class-cell.common-cell{background:rgba(136,136,170,.12);color:var(--text-dim);border:1px dashed var(--border)}
+${C42.map(([rgb, c], i) => `.plus-ui-42 .class-cell.color-${i}{background:rgba(${rgb},${i === 12 ? 0.2 : 0.25});color:${c};border:1px solid rgba(${rgb},${i === 12 ? 0.2 : 0.3})}`).join("\n")}
+@media (max-width:600px){.plus-ui-42 .timetable td{padding:2px;height:46px}.plus-ui-42 .class-cell{padding:2px 1px;border-radius:6px;overflow:hidden;word-break:keep-all}.plus-ui-42 .class-cell .subj-name{font-size:10px;line-height:1.2;letter-spacing:-.03em}}`,
+    43: `.plus-ui-43 .timetable-wrap{border-radius:0}
+.plus-ui-43 .timetable td{padding:0 0 0 1px}
+.plus-ui-43 .timetable td.plus-c{vertical-align:top;box-shadow:inset 1px 0 0 var(--card)}
+.plus-ui-43 .class-cell{border-radius:0;border:0;background:none;padding:5px 6px;font-weight:600;line-height:1.3;height:auto;min-height:50px;color:#fff;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:left}
+.plus-ui-43 .class-cell .subj-name{font-size:14px;font-weight:600}
+.plus-ui-43 .class-cell .ban-name{font-size:12px;opacity:.8;margin-top:1px}
+.plus-ui-43 .timetable td.plus-common{background:color-mix(in srgb,#aab2bd 70%,transparent)}
+${C43.map((c, i) => `.plus-ui-43 .timetable td.plus-color-${i}{background:color-mix(in srgb,${c} 70%,transparent)}`).join("\n")}
+@media (max-width:600px){.plus-ui-43 .class-cell{padding:3px;min-height:0;overflow:hidden;word-break:keep-all}.plus-ui-43 .class-cell .subj-name{font-size:11px;line-height:1.2;letter-spacing:-.03em}.plus-ui-43 .class-cell .ban-name{font-size:9px}}`,
+  };
+  const addCss = (c) => {
+    if (c === APP || $(`plusUi${c}`)) return;   // 지금 앱의 기수면 앱 CSS 그대로
+    document.head.insertAdjacentHTML("beforeend", `<style id="plusUi${c}">${UI_CSS[c]}</style>`);
+  };
+  function gridHtml(cells, c) {
+    addCss(c);
     const last = Math.max(7, ...Object.keys(cells).map((k) => +k.split("-")[1]));
+    const skip = new Set();   // 43기: 위 칸에 묶인 교시
     let rows = "";
     for (let p = 1; p <= last; p++) {
       rows += `<tr><td class="period-col">${p}</td>` + DAYS.map((d) => {
-        const c = cells[`${d}-${p}`];
-        if (!c) return `<td><div class="empty-cell"></div></td>`;
-        const inner = `<div class="subj-name">${esc(c.name)}</div><div class="ban-name">${esc(c.sub)}</div>`;
-        if (APP === 42) return `<td><div class="class-cell ${c.color === null ? "common-cell" : `color-${c.color}`}">${inner}</div></td>`;
-        return c.color === null ? `<td class="common-cell"><div class="class-cell">${inner}</div></td>`
-          : `<td class="color-${c.color}"><div class="class-cell">${inner}</div></td>`;
+        const k = `${d}-${p}`;
+        if (skip.has(k)) return "";
+        const x = cells[k];
+        if (!x) return `<td><div class="empty-cell"></div></td>`;
+        const inner = `<div class="subj-name">${esc(x.name)}</div><div class="ban-name">${esc(x.sub)}</div>`;
+        if (c === 42) return `<td><div class="class-cell ${x.color === null ? "common-cell" : `color-${x.color}`}">${inner}</div></td>`;
+        let span = 1;
+        for (let n; (n = cells[`${d}-${p + span}`]) && n.name === x.name && n.sub === x.sub; span++) skip.add(`${d}-${p + span}`);
+        // 43기 앱 안이면 앱 CSS(td.color-n · td.common-cell)를 그대로, 42기 앱 안이면 위 .plus-ui-43 규칙으로
+        const cls = x.color === null ? `plus-c plus-common${APP === 43 ? " common-cell" : ""}` : `plus-c plus-color-${x.color}${APP === 43 ? ` color-${x.color}` : ""}`;
+        return `<td class="${cls}"${span > 1 ? ` rowspan="${span}"` : ""}><div class="class-cell">${inner}</div></td>`;
       }).join("") + "</tr>";
     }
-    return `<div class="timetable-wrap"><table class="timetable">
+    return `<div class="plus-ui-${c}"><div class="timetable-wrap"><table class="timetable">
       <thead><tr><th></th>${DAYS.map((d, i) => `<th class="day-header ${DAY_CLASS[i]}">${d}요일</th>`).join("")}</tr></thead>
-      <tbody>${rows}</tbody></table></div>`;
+      <tbody>${rows}</tbody></table></div></div>`;
   }
   // 지금 앱의 시간표 자리에 다른 기수 학생 시간표를 그립니다
   async function showOther(sid) {
@@ -203,8 +264,10 @@
         <div class="student-avatar">${esc(name[0] || "?")}</div>
         <div class="student-info"><h2>${esc(name)}</h2><div class="student-meta">${esc(g?.meta || `학번 ${sid} · ${OTHER}기`)}</div></div>
       </div>
-      ${g && Object.keys(g.cells).length ? gridHtml(g.cells) : `<div class="study-empty">시간표를 불러오지 못했어요.</div>`}`;
-    const back = `<button class="study-btn tt-back" id="plusBack" type="button">← 내 시간표</button>`;
+      ${g && Object.keys(g.cells).length ? gridHtml(g.cells, OTHER) : `<div class="study-empty">시간표를 불러오지 못했어요.</div>`}`;
+    // 오프라인 · 로그인 전(내 시간표 탭이 없음)에는 '← 내 시간표' 없이
+    const hasMine = APP === 43 || (!document.body.classList.contains("offline") && document.querySelector('#studyNav [data-page="mytt"]'));
+    const back = hasMine ? `<button class="study-btn tt-back" id="plusBack" type="button">← 내 시간표</button>` : "";
     if (APP === 42) {
       const res = $("result");
       if (!res) return;
@@ -213,7 +276,7 @@
       if ($("studyView")) $("studyView").style.display = "none";
       res.innerHTML = back + body;
       res.classList.add("show");
-      $("plusBack").onclick = () => document.querySelector('#studyNav [data-page="mytt"]')?.click();
+      if ($("plusBack")) $("plusBack").onclick = () => document.querySelector('#studyNav [data-page="mytt"]')?.click();
     } else {
       try {
         $("studyView").innerHTML = ttSearchHtml() + back + body;   // eslint-disable-line no-undef

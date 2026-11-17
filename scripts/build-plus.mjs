@@ -58,6 +58,22 @@ function copyApp(dir, id, cachePrefix) {
   html = html.replace(/<head>/i, `<head>\n<script>window.PLUS_APP = ${id};</script><script src="../plus-roster.js?v=${stamp}"></script><script src="../plus.js?v=${stamp}"></script>`);
   if (!html.includes("window.PLUS_APP")) throw new Error(`${id}/index.html 에 <head> 가 없어요`);
   writeFileSync(p("index.html"), html);
+  // 사이트 이름: 화면에 보이는 dshs42.app · dshs43.app 은 늘 dshsplus 로 (제목 · 머리글 · 폰 로고 · 알림 제목 · 설치 안내 그림).
+  //   로그인 이메일 도메인(dshs.study) · 저장 이름 · 캐시 이름(dshs-study- · dshs43-)은 건드리지 않습니다.
+  const host = new URL(PLUS.site).host;
+  const brand = (s) => s
+    .replace(/https:\/\/dshs4[23](\.netlify)?\.app/g, PLUS.site)
+    .replace(/\bdshs4[23]\.netlify\.app\b/g, host)
+    .replace(/\bdshs4[23]\.app\b/g, "dshsplus")
+    .replace(/<b>dshs4[23]<\/b>/g, "<b>dshsplus</b>")
+    .replace(/>dshs4[23]<\/text>/g, ">dshsplus</text>")
+    .replace(/대전과학고 (42|43)기<\/title>/, "대전과학고</title>");
+  const brandFiles = ["index.html", "sw.js", ...readdirSync(dst).filter((f) => f.endsWith(".js")), ...(existsSync(p("js")) ? readdirSync(p("js")).map((f) => `js/${f}`) : [])];
+  for (const f of new Set(brandFiles)) {
+    if (!existsSync(p(f)) || f === "config.js") continue;
+    const s = readFileSync(p(f), "utf8"), b = brand(s);
+    if (b !== s) writeFileSync(p(f), b);
+  }
   // config.js: 이 앱 주소 · 관리자 사이트 주소
   let cfg = readFileSync(p("config.js"), "utf8");
   cfg = cfg.replace(/STUDENT_URL:\s*"[^"]*"/, `STUDENT_URL: "${PLUS.site}/${id}"`).replace(/ADMIN_URL:\s*"[^"]*"/, `ADMIN_URL: "${PLUS.admin}/${id}/"`);
@@ -66,7 +82,7 @@ function copyApp(dir, id, cachePrefix) {
   // manifest: 홈 화면 이름
   const man = JSON.parse(readFileSync(p("manifest.webmanifest"), "utf8"));
   man.id = `dshsplus-${id}`;
-  man.name = `dshsplus · ${id}기`;
+  man.name = "dshsplus";
   man.short_name = "dshsplus";
   man.background_color = "#ffffff";   // 앱을 열 때 잠깐 보이는 화면도 아이콘처럼 흰 바탕
   writeFileSync(p("manifest.webmanifest"), JSON.stringify(man, null, 2) + "\n");
