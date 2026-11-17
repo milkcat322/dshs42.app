@@ -74,6 +74,12 @@ function copyApp(dir, id, cachePrefix) {
     const s = readFileSync(p(f), "utf8"), b = brand(s);
     if (b !== s) writeFileSync(p(f), b);
   }
+  // 위쪽 로고(머리글 h1 · 폰에서 위에 붙는 .nav-logo): 앱 아이콘처럼 "D+" (+ 는 작게 D 오른쪽 가운데). 색 · 글꼴은 앱 것 그대로
+  const LOGO = `D<span style="font-size:.62em;vertical-align:.18em;margin-left:.04em">+</span>`;
+  let idx = readFileSync(p("index.html"), "utf8");
+  idx = idx.replace(/(<h1[^>]*>)dshsplus(<\/h1>)/, `$1${LOGO}$2`).replace(/(<span class="nav-logo"[^>]*>)dshsplus(<\/span>)/, `$1${LOGO}$2`);
+  if ((idx.match(/vertical-align:\.18em/g) || []).length !== 2) throw new Error(`${id}/index.html 의 로고를 바꾸지 못했어요`);
+  writeFileSync(p("index.html"), idx);
   // config.js: 이 앱 주소 · 관리자 사이트 주소
   let cfg = readFileSync(p("config.js"), "utf8");
   cfg = cfg.replace(/STUDENT_URL:\s*"[^"]*"/, `STUDENT_URL: "${PLUS.site}/${id}"`).replace(/ADMIN_URL:\s*"[^"]*"/, `ADMIN_URL: "${PLUS.admin}/${id}/"`);
