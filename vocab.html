@@ -533,6 +533,20 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
     margin-bottom: 8px;
     line-height: 1.2;
   }
+  /* 영영풀이 퀴즈: 단어 자리에 영어 풀이 문장 */
+  .quiz-word.def {
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.55;
+    text-align: left;
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+  .quiz-word.def .def-blank { color: var(--accent); font-family: 'Space Mono', monospace; }
+  /* 퀴즈 종류 고르기 (영→한 뜻 · 영영풀이) */
+  .quiz-mode { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .quiz-mode .btn { min-width: 132px; }
   .quiz-hint {
     font-size: 12px;
     color: var(--text-dim);
@@ -588,7 +602,7 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
   .feedback-note { margin-top:8px; font-size:13px; color:var(--text-muted); }
   .auto-bm-inline {
     display:flex; align-items:center; justify-content:center; gap:8px;
-    margin-top:16px; font-size:13px; color:var(--text-muted); cursor:pointer; user-select:none;
+    margin-top:16px; padding-bottom:2px; font-size:13px; line-height:1.6; color:var(--text-muted); cursor:pointer; user-select:none;
   }
   .auto-bm-inline input { accent-color:var(--accent); width:15px; height:15px; }
   .feedback-answer {
@@ -1490,7 +1504,11 @@ html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.sel
       <!-- 시작 화면 -->
       <div id="quiz-start-screen" class="quiz-start">
         <h2>QUIZ MODE</h2>
-        <p>영어 단어를 보고 한국어 뜻을 입력하세요.<br>카테고리를 선택한 후 시작하세요.</p>
+        <div class="quiz-mode hidden" id="quiz-mode">
+          <button class="btn" data-qmode="ko" onclick="setQuizMode('ko')">영어 → 한국어 뜻</button>
+          <button class="btn" data-qmode="def" onclick="setQuizMode('def')">영영풀이 → 영어 단어</button>
+        </div>
+        <p id="quiz-desc">영어 단어를 보고 한국어 뜻을 입력하세요.<br>카테고리를 선택한 후 시작하세요.</p>
         <div id="quiz-selector"></div>
         <div style="margin-bottom:16px;">
           <label style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted);">
@@ -1886,7 +1904,7 @@ const DATA_CRIT = [
 
 const SUBJECTS = {
   atc:  { name: '학술영어 세미나', sub: 'The Art of Thinking Clearly Ch.4 Social Proof 어휘', emoji: '🧠', data: DATA_ATC,
-          cats: ['Ch4 Social Proof'], typoMin: 4, store: 'atcvocab_' },
+          cats: ['Ch4 Social Proof'], typoMin: 4, store: 'atcvocab_', defQuiz: true },   // defQuiz: 퀴즈에 영영풀이(note 의 영어 풀이) 문제
   // 지문 빈칸 탭(blank: true)은 껐습니다. 코드(BLNK)는 남아 있어 다시 켤 수 있습니다.
   crit: { name: '비판적 영어 읽기와 토론', sub: '필수동사 150개, 필수형용사 100개', emoji: '⚖️', data: DATA_CRIT,
           cats: ['필수동사', '필수형용사'], typoMin: 4, store: 'critvocab_', synToggle: true },
@@ -2111,6 +2129,49 @@ let selectedTopics = new Set();
 
 function topicKey(w) { return w.cat + '::' + w.topic; }
 
+// ---- 영영풀이 퀴즈 (SUBJECTS 의 defQuiz) ----
+// 'ko': 영어 단어 → 한국어 뜻 · 'def': 영어 풀이(note 의 ' · ' 앞 영어 문장) → 영어 단어
+let quizMode = 'ko';
+const defOf = w => String(w.note || '').split(' · ')[0].trim();
+const hasDef = w => /[a-z]/i.test(defOf(w)) && !/[가-힣]/.test(defOf(w));
+// 정답이 되는 영어 표기: "social proof (= herd instinct)" → social proof · herd instinct
+function enAnswers(en) {
+  const alt = [];
+  const out = String(en).replace(/\(=\s*([^)]+)\)/g, (_, x) => { alt.push(x); return ''; }).split(/[\/,;]/);
+  return [...new Set([...out, ...alt].map(s => s.replace(/\([^)]*\)/g, '').trim()).filter(Boolean))];   // 본래 단어가 먼저 (힌트에 씀)
+}
+const normEn = s => String(s).toLowerCase().replace(/[^a-z]/g, '');
+// 채점: 'exact' | 'typo' | false. 다섯 글자 이상이면 한 글자 오타는 봐줌 (다른 단어와 같으면 오답)
+function gradeEnglish(raw, w) {
+  const u = normEn(raw);
+  if (!u) return false;
+  const acc = enAnswers(w.en).map(normEn);
+  if (acc.includes(u)) return 'exact';
+  if (DATA.some(o => o !== w && enAnswers(o.en).map(normEn).includes(u))) return false;
+  return acc.some(a => a.length >= 5 && editDistance([...u], [...a], 1) <= 1) ? 'typo' : false;
+}
+const escHtml = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// 풀이 문장에 답 단어(또는 그 변형)가 그대로 나오면 빈칸으로 가립니다
+function defHtml(w) {
+  let html = escHtml(defOf(w));
+  for (const a of enAnswers(w.en)) {
+    const stem = a.length > 5 ? a.slice(0, a.length - 2) : a;
+    const re = new RegExp('\\b' + stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[a-z]*', 'gi');
+    html = html.replace(re, '<span class="def-blank">____</span>');
+  }
+  return html;
+}
+function setQuizMode(mode, remember = true) {
+  quizMode = mode === 'def' ? 'def' : 'ko';
+  if (remember) store.set('quizmode', quizMode);
+  document.querySelectorAll('#quiz-mode [data-qmode]').forEach(b => b.classList.toggle('primary', b.dataset.qmode === quizMode));
+  document.getElementById('quiz-desc').innerHTML = quizMode === 'def'
+    ? '영어 풀이를 보고 알맞은 영어 단어를 입력하세요.<br>카테고리를 선택한 후 시작하세요.'
+    : '영어 단어를 보고 한국어 뜻을 입력하세요.<br>카테고리를 선택한 후 시작하세요.';
+  updateTotalInfo();
+}
+const inQuizMode = w => quizMode !== 'def' || hasDef(w);
+
 // 퀴즈 카테고리/하위 카테고리 선택 UI를 그린다
 function renderQuizSelector() {
   const box = document.getElementById('quiz-selector');
@@ -2171,7 +2232,7 @@ function toggleGroup(cat) {
 function updateTotalInfo() {
   const bookmarkOnly = document.getElementById('bookmark-only-toggle')?.checked;
   // 북마크만 풀 때도 고른 카테고리(예: 필수동사) 안의 북마크만 센다
-  const count = DATA.filter(w => selectedTopics.has(topicKey(w)) && (!bookmarkOnly || bookmarks.has(w.en))).length;
+  const count = DATA.filter(w => selectedTopics.has(topicKey(w)) && (!bookmarkOnly || bookmarks.has(w.en)) && inQuizMode(w)).length;
   document.getElementById('total-info').textContent = `총 ${count}개 단어`;
 }
 
@@ -2182,7 +2243,7 @@ function shuffle(arr) {
 function startQuiz() {
   const bookmarkOnly = document.getElementById('bookmark-only-toggle')?.checked;
   // 북마크만 풀 때도 고른 카테고리 안의 북마크만 낸다 (동사 · 형용사 시험을 따로 보므로)
-  const pool = DATA.filter(w => selectedTopics.has(topicKey(w)) && (!bookmarkOnly || bookmarks.has(w.en)));
+  const pool = DATA.filter(w => selectedTopics.has(topicKey(w)) && (!bookmarkOnly || bookmarks.has(w.en)) && inQuizMode(w));
   if (pool.length === 0) {
     alert(bookmarkOnly
       ? (DATA.some(w => bookmarks.has(w.en))
@@ -2222,7 +2283,10 @@ function showQuestion() {
   catTag.textContent = (w.topic && w.topic !== w.cat) ? `${w.cat} · ${w.topic}` : w.cat;
   catTag.className = 'quiz-category-tag ' + CAT_COLORS[w.cat];
 
-  document.getElementById('quiz-word').textContent = w.en;
+  const qw = document.getElementById('quiz-word');
+  qw.classList.toggle('def', quizMode === 'def');
+  if (quizMode === 'def') qw.innerHTML = defHtml(w);
+  else qw.textContent = w.en;
   document.getElementById('quiz-hint').textContent = '';
   document.getElementById('feedback-area').innerHTML = '';
   const qbm = document.getElementById('quiz-bookmark-btn');
@@ -2232,7 +2296,10 @@ function showQuestion() {
   inp.value = '';
   inp.className = 'answer-input';
   inp.disabled = false;
-  inp.placeholder = '한국어 뜻을 입력하세요';
+  inp.placeholder = quizMode === 'def' ? '영어 단어를 입력하세요' : '한국어 뜻을 입력하세요';
+  inp.lang = quizMode === 'def' ? 'en' : 'ko';
+  inp.setAttribute('autocapitalize', 'off');
+  inp.setAttribute('spellcheck', 'false');
   inp.focus();
 
   document.getElementById('hint-btn').disabled = false;
@@ -2408,13 +2475,14 @@ function buildAccepted(ko) {
 function checkAnswer() {
   if (answered) return;
   const inp = document.getElementById('answer-input');
-  const userAns = normalize(inp.value);
+  const def = quizMode === 'def';
+  const userAns = def ? normEn(inp.value) : normalize(inp.value);
   if (!userAns) return;
 
   const w = quizQueue[quizIdx];
 
-  // 괄호·조사·어미·외래어 표기·오타 1개까지 유연하게 채점
-  const grade = gradeAnswer(inp.value, w.alt ? w.ko + '; ' + w.alt : w.ko);
+  // 뜻 퀴즈: 괄호·조사·어미·외래어 표기·오타 1개까지 유연하게 채점 · 영영풀이: 영어 단어 (대소문자 · 띄어쓰기 무시, 긴 단어는 오타 1개)
+  const grade = def ? gradeEnglish(inp.value, w) : gradeAnswer(inp.value, w.alt ? w.ko + '; ' + w.alt : w.ko);
   const isCorrect = !!grade;
 
   answered = true;
@@ -2426,7 +2494,7 @@ function checkAnswer() {
     correct++;
     fb.innerHTML = `
       <div class="feedback-correct">✓ 정답!${grade === 'typo' ? ' <span style="font-size:12px;opacity:.8;">(오타 허용 · 철자 확인)</span>' : ''}</div>
-      <div class="feedback-answer">정답: <strong style="color:var(--accent)">${w.ko}</strong></div>${w.note ? `<div class="feedback-note">💡 ${w.note}</div>` : ''}
+      ${answerHtml(w)}
     `;
   } else {
     inp.classList.add('wrong');
@@ -2434,7 +2502,7 @@ function checkAnswer() {
     autoBookmarkWrong(w);
     fb.innerHTML = `
       <div class="feedback-wrong">✗ 틀렸어요</div>
-      <div class="feedback-answer">정답: <strong style="color:var(--accent)">${w.ko}</strong></div>${w.note ? `<div class="feedback-note">💡 ${w.note}</div>` : ''}
+      ${answerHtml(w)}
     `;
   }
 
@@ -2447,6 +2515,12 @@ function checkAnswer() {
   hint.style.cssText = 'font-size:11px;color:var(--text-dim);margin-top:6px;';
   hint.textContent = 'Enter 또는 확인을 눌러 다음으로';
   fb.appendChild(hint);
+}
+
+// 채점 뒤 정답 표시: 뜻 퀴즈는 한국어 뜻 + 풀이, 영영풀이는 영어 단어 + 한국어 뜻 (풀이는 이미 문제로 봤으므로 빼고)
+function answerHtml(w) {
+  if (quizMode === 'def') return `<div class="feedback-answer">정답: <strong style="color:var(--accent)">${escHtml(w.en)}</strong> · ${escHtml(w.ko)}</div>`;
+  return `<div class="feedback-answer">정답: <strong style="color:var(--accent)">${w.ko}</strong></div>${w.note ? `<div class="feedback-note">💡 ${w.note}</div>` : ''}`;
 }
 
 function submitOrNext() {
@@ -2499,7 +2573,10 @@ function getChosung(str) {
 
 function showHint() {
   const w = quizQueue[quizIdx];
-  const hint = getChosung(w.ko);
+  // 영영풀이: 첫 글자와 글자 수 (예: c _ _ _ _ _ _ _ _ _) · 뜻 퀴즈: 초성
+  const hint = quizMode === 'def'
+    ? enAnswers(w.en)[0].replace(/[a-z]/gi, (ch, i) => (i === 0 ? ch : '_')).split('').join(' ')
+    : getChosung(w.ko);
   document.getElementById('quiz-hint').textContent = `힌트: ${hint}`;
   document.getElementById('hint-btn').disabled = true;
 }
@@ -2511,7 +2588,7 @@ function skipWord() {
   autoBookmarkWrong(w);
   answered = true;
   const fb = document.getElementById('feedback-area');
-  fb.innerHTML = `<div class="feedback-answer">정답: <strong style="color:var(--accent)">${w.ko}</strong></div>${w.note ? `<div class="feedback-note">💡 ${w.note}</div>` : ''}`;
+  fb.innerHTML = answerHtml(w);
   document.getElementById('answer-input').disabled = true;
   document.getElementById('hint-btn').disabled = true;
   document.getElementById('skip-btn').disabled = true;
@@ -4560,6 +4637,9 @@ function selectSubject(id) {
   currentSubFilter = 'all';
   document.getElementById('search-input').value = '';
   document.getElementById('bookmark-only-toggle').checked = false;
+  // 퀴즈 종류: 영영풀이가 있는 과목만 고르기 단추를 보이고, 마지막에 고른 종류를 기억
+  document.getElementById('quiz-mode').classList.toggle('hidden', !s.defQuiz);
+  setQuizMode(s.defQuiz && store.get('quizmode') === 'def' ? 'def' : 'ko', false);
 
   document.getElementById('nav-grammar').classList.toggle('hidden', !s.grammar);
   document.getElementById('nav-test').classList.toggle('hidden', !s.test);
@@ -4621,7 +4701,9 @@ if (window.VOCAB_EMBED) {
   // ResizeObserver 만으로는 늦게 오는 경우가 있어(탭 전환 · 목록 그리기 직후) 화면이 바뀔 때마다 바로 재고, 1초마다 한 번 더 확인합니다
   const fit = () => {
     if (!frame) return;
-    const h = Math.ceil(document.body.getBoundingClientRect().height) + 'px';
+    // 본문의 높이가 아니라 '문서 맨 위에서 본문 끝까지'(본문 위 여백 포함) + 아래 여백으로 잽니다 — 높이만 재면 위 여백만큼 아래가 잘림
+    const b = document.body, r = b.getBoundingClientRect();
+    const h = Math.ceil(r.bottom + root.scrollTop + (parseFloat(getComputedStyle(b).marginBottom) || 0)) + 'px';
     if (frame.style.height !== h) frame.style.height = h;
     if (root.scrollTop) root.scrollTop = 0;
   };
