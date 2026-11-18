@@ -5,6 +5,7 @@
 //   학교 일정     notify 를 켠 일정만 시작 30분 전
 //   하루 종일     시작 시각이 없으므로 그날 1교시 30분 전(07:50)에 한 번
 //   할 일         마감 시각(due_time)을 정한 것만 마감 30분 전 (만든 사람 + 승인된 함께하는 친구, 끝낸 사람은 빼고 · planTodoNotes)
+//   주간 요약     일요일 20시: 이번 주(7일 안) 마감 수행평가를 한 번에 (관리자 제외 · 승인된 것만)
 //   관리자        학생 가입 · 수행평가 승인 요청 · 피드백 · 할 일 공유 승인 요청이 생기면 묶어서 한 번 (planAdminNote)
 
 const MIN = 60000;
@@ -13,7 +14,7 @@ const LEAD = 30;     // 시작 몇 분 전에 알릴지
 const GRACE = 10;    // 크론이 한 번 밀려도 놓치지 않도록 이만큼은 늦게 보내도 됩니다
 const DAY_START = "08:20";
 
-export type User = { id: string; student_id: number | null };
+export type User = { id: string; student_id: number | null; is_admin?: boolean | null };
 export type Enrollment = { student_id: number; subject: string; ban: string };
 export type Assignment = {
   id: string; subject: string; ban: string | null; title: string;
@@ -66,6 +67,11 @@ function asgStage(minsLeft: number) {
   return minsLeft > 6 * 60 ? "d1" : "h6";
 }
 
+// 일요일 20:00 ~ 20:30 (KST). 크론이 밀려도 한 번은 잡히게 30분 폭을 둡니다
+export const WEEK_DAYS = 7;
+export const isWeeklyWindow = (now: number) =>
+  new Date(now + KST).getUTCDay() === 0 && kstHm(now) >= "20:00" && kstHm(now) < "20:30";
+
 function leftLabel(minsLeft: number) {
   const hours = Math.round(minsLeft / 60);
   if (hours >= 24) return "1일 남았어요";
@@ -115,6 +121,39 @@ export function planNotes(now: number, d: Input): Note[] {
         body: `${p?.title ?? a.title}\n마감 ${when}`,
         url: `/?view=assignments&asg=${a.id}`,
         ttl: Math.ceil(left * 60),
+      });
+    }
+  }
+
+  // 주간 요약: 일요일 밤 이번 주(7일 안) 수행평가 (관리자 제외 · 승인된 것만 · 끝낸 건 제외)
+  if (isWeeklyWindow(now)) {
+    for (const u of d.users) {
+      if (u.is_admin || u.student_id === null) continue;
+      const items: { at: number; subject: string; title: string }[] = [];
+      for (const a of d.assignments) {
+        if (a.status !== "approved") continue;
+        const ban = banOf.get(`${u.student_id}|${a.subject}`);
+        if (ban === undefined || (a.ban && ban !== a.ban) || asgDone.has(`${u.id}|${a.id}`)) continue;
+        const p = personal.get(`${u.id}|${a.id}`);
+        const dueAt = p?.no_due ? null : p?.due_at ?? a.due_at;
+        if (!dueAt) continue;
+        const at = Date.parse(dueAt);
+        if (at > now && at <= now + WEEK_DAYS * 24 * 60 * MIN) items.push({ at, subject: a.subject, title: p?.title ?? a.title });
+      }
+      if (!items.length) continue;
+      items.sort((x, y) => x.at - y.at);
+      const lines = items.slice(0, 3).map((i) => {
+        const day = kstDay(i.at);
+        return `${i.subject} · ${i.title} (${Number(day.slice(5, 7))}/${Number(day.slice(8))})`;
+      });
+      if (items.length > 3) lines.push(`외 ${items.length - 3}개`);
+      lines.push("끝낸 건 체크해 두면 마감 알림이 오지 않아요");
+      push(u.id, {
+        key: `wk:${kstDay(now)}`,
+        title: `이번 주 수행평가 ${items.length}개`,
+        body: lines.join("\n"),
+        url: "/?view=assignments",
+        ttl: 6 * 60 * 60,
       });
     }
   }

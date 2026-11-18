@@ -9,7 +9,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { adminKey, cohortOfSid, deviceCohort, planAdminNote, planNotes, planReplyNotes, planTodoNotes, type AdminItem } from "./plan.ts";
+import { adminKey, cohortOfSid, deviceCohort, isWeeklyWindow, planAdminNote, planNotes, planReplyNotes, planTodoNotes, type AdminItem } from "./plan.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const LOG_KEEP_DAYS = 3;
@@ -42,11 +42,12 @@ Deno.serve(async () => {
   if (!subs?.length) return json({ sent: 0, failed: 0, pruned: 0 });
   const userIds = [...new Set(subs.map((s) => s.user_id))];
 
+  const asgHorizon = isWeeklyWindow(now) ? 7 * DAY : DAY;   // 일요일 밤 주간 요약은 7일 안 마감까지 봅니다
   const asgColumns = "id, subject, ban, title, due_at, status, created_by";
   const [users, assignments, personal, asgDone, events, members, school] = await Promise.all([
     admin.from("profiles").select("id, student_id, is_admin").in("id", userIds),
     admin.from("assignments").select(asgColumns)
-      .in("status", ["approved", "pending"]).gt("due_at", iso(now)).lte("due_at", iso(now + DAY)),
+      .in("status", ["approved", "pending"]).gt("due_at", iso(now)).lte("due_at", iso(now + asgHorizon)),
     admin.from("assignment_personal").select("user_id, assignment_id, title, due_at, no_due").in("user_id", userIds),
     admin.from("assignment_done").select("user_id, assignment_id").in("user_id", userIds),
     admin.from("events").select("id, user_id, title, starts_at, all_day, done")
@@ -61,7 +62,7 @@ Deno.serve(async () => {
   // 공지 마감은 멀어도 내 계정에서 고친 마감이 가까운 수행평가를 더합니다
   const near = new Set(assignments.data!.map((a) => a.id));
   const movedIds = [...new Set(personal.data!
-    .filter((p) => p.due_at && Date.parse(p.due_at) > now && Date.parse(p.due_at) <= now + DAY && !near.has(p.assignment_id))
+    .filter((p) => p.due_at && Date.parse(p.due_at) > now && Date.parse(p.due_at) <= now + asgHorizon && !near.has(p.assignment_id))
     .map((p) => p.assignment_id))];
   const moved = movedIds.length
     ? await admin.from("assignments").select(asgColumns).eq("status", "approved").in("id", movedIds)
