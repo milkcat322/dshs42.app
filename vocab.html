@@ -1318,6 +1318,10 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 /* 배경은 투명하게 두어 사이트 배경(빛 번짐 포함)이 그대로 비치게 합니다. 색 모드는 vocabTheme 이 iframe 과 같게 맞춥니다 */
 html.embed, html.embed body { background: transparent; }
 html.embed body { min-height: 0; }
+/* Netlify 가 HTML 페이지마다 넣는 'Powered by Netlify' 배지(#nl-badge-frame, 사이트 주인이 볼 때는 #nl-hud-frame)는
+   바깥 사이트에 이미 하나 있으므로 공부 탭 안(iframe)에서는 그리지 않습니다 — 안 그러면 단어장 맨 아래에 하나 더 생김.
+   따로 연 단어장(embed 아님)에는 그대로 보입니다 */
+html.embed #nl-badge-frame, html.embed #nl-hud-frame { display: none !important; }
 /* 스크롤은 사이트 하나로: 단어장 문서는 스스로 스크롤되지 않게 (조금이라도 스크롤되면 손가락 · 휠이 단어장 안에 붙잡혀 사이트가 안 내려감).
    body 의 overflow-x: hidden 은 body 를 스크롤 상자로 만들어서 clip 으로, flow-root 는 마지막 칸 여백까지 높이에 넣으려고 */
 html.embed { overflow: hidden; }
