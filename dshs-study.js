@@ -3230,12 +3230,14 @@ function openSettings() {
     <div class="ev-title">${esc(me.name)}</div>
     <div class="ev-meta">${esc(me.username)}</div>
     <div id="dshsLinkBox">${dshsLinkHtml()}</div>
+    ${apiKeyHtml()}
     <button class="study-btn wide" id="doLogout">로그아웃</button>`);
   $("setPush").onchange = togglePush;
   paintPush(); refreshPush();
   bindSeatSetting();
   bindCalSettings();
   bindDshsLink();
+  bindApiKey();
   // 연결 상태를 아직 모르면(일정 탭을 열기 전) 서버에 물어보고 그 칸만 다시 그립니다
   if (dshs.linked === null) loadDshs({ force: true }).then(() => {
     const box = $("dshsLinkBox");
@@ -3247,6 +3249,47 @@ function openSettings() {
   bindTheme();
   bindHomeGuide();
   bindAdminTap();
+}
+
+// 설정 창의 '내 정보 가져오기' (myapi.sql): 열쇠를 만들어 내가 만든 다른 프로그램에 넣으면 내 정보만 읽기 전용으로 받아 갑니다.
+// 열쇠 원문은 만들 때 한 번만 보이고 서버에는 sha256 만 남습니다. 읽는 쪽은 POST /rest/v1/rpc/api_me (헤더 apikey · x-api-key)
+function apiKeyHtml() {
+  if (DEMO) return "";
+  return `<details class="api-key" style="margin:14px 0">
+    <summary class="ev-hint" style="cursor:pointer">내 정보 가져오기 (개발하는 친구용)</summary>
+    <div class="study-foot" style="text-align:left">열쇠를 만들어 내가 만든 프로그램에 넣으면 내 수행평가 · 일정 · 할 일을 읽어 갈 수 있어요. 읽기만 되고 고칠 수는 없어요.<br>
+      열쇠를 가진 사람은 내 정보를 볼 수 있으니 다른 사람에게 주지 마세요.</div>
+    <div id="apiKeyOut"></div>
+    <button class="study-btn wide" id="apiKeyNew">열쇠 만들기</button>
+    <button class="study-btn wide no" id="apiKeyDrop" style="margin-top:6px">내 열쇠 모두 없애기</button>
+  </details>`;
+}
+function bindApiKey() {
+  const mk = $("apiKeyNew"), drop = $("apiKeyDrop");
+  if (!mk) return;
+  mk.onclick = async () => {
+    mk.disabled = true;
+    const { data, error } = await sb.rpc("create_api_key");
+    mk.disabled = false;
+    if (error || !data) return toast(error?.message?.includes("5개") ? "열쇠는 5개까지예요. 모두 없앤 뒤 다시 만들어 주세요" : "열쇠를 만들지 못했어요", true);
+    const url = `${window.DSHS_CONFIG.SUPABASE_URL}/rest/v1/rpc/api_me`;
+    $("apiKeyOut").innerHTML = `<div class="asg-body" style="margin:8px 0">지금만 볼 수 있어요. 복사해서 안전한 곳에 두세요.</div>
+      <input class="study-input" id="apiKeyVal" readonly value="${esc(data)}" style="width:100%;font-family:monospace;font-size:12px">
+      <button class="study-btn wide" id="apiKeyCopy" style="margin:6px 0">열쇠 복사</button>
+      <div class="study-foot" style="text-align:left;word-break:break-all">주소 (POST): ${esc(url)}<br>헤더: apikey = 사이트 공개 키, x-api-key = 내 열쇠</div>`;
+    $("apiKeyVal").onfocus = (e) => e.target.select();
+    $("apiKeyCopy").onclick = async () => {
+      try { await navigator.clipboard.writeText(data); toast("열쇠를 복사했어요"); }
+      catch { $("apiKeyVal").focus(); toast("복사하지 못했어요. 길게 눌러 복사해 주세요", true); }
+    };
+  };
+  drop.onclick = async () => {
+    if (!confirm("내 열쇠를 모두 없앨까요? 이 열쇠를 쓰던 프로그램은 더 읽지 못해요.")) return;
+    const { data, error } = await sb.rpc("revoke_api_keys");
+    if (error) return toast("열쇠를 없애지 못했어요", true);
+    $("apiKeyOut").innerHTML = "";
+    toast(data ? `열쇠 ${data}개를 없앴어요` : "없앨 열쇠가 없어요");
+  };
 }
 
 // 설정 창의 연결 버튼, 또는 내 위치 줄의 '다시 연결' 버튼
