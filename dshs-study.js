@@ -257,12 +257,68 @@ async function startDemo() {
 function openStart() {
   const q = new URLSearchParams(location.search);
   const opened = q.get("view");
+  if (maybeConnect()) return;
   if (me?.is_admin) openAdminMoved();
   else if (me && opened === "assignments") openAsgLink(q.get("asg"));
   else if (me && opened === "cal") openStudy("cal");
   else if (me && opened === "todo") openStudy("todo");
   else if (me && opened === "feedback") openFeedbackLink();
   else if (me?.student_id) openMyTimetable();
+}
+
+// ---------- 밖의 프로그램 연결 (지금은 밤하늘만) ----------
+// 주소 ?connect=bamhaneul&state=<무작위> 로 들어오면 허락 화면을 띄우고, '허락'을 누르면 내 정보 API 열쇠(myapi.sql)를 하나 만들어
+// 그 프로그램으로 돌아갑니다. 열쇠를 복사해 붙여 넣지 않아도 되게 하려는 것.
+// - 돌아갈 주소는 CONNECT_APPS 에 적힌 것만 씁니다 (주소로 받은 값은 쓰지 않음 → 다른 사이트가 흉내 내 열쇠를 받아 갈 수 없음).
+// - 열쇠는 주소의 # 뒤에 실어 서버 기록에 남지 않게 하고, state 는 받은 그대로 돌려줘 그 프로그램이 자기가 시작한 연결인지 확인합니다.
+// - 로그인이 필요하면 로그인하고 돌아온 뒤 이어서 띄웁니다 (15분 안, 이 기기에만 `dshs-connect`).
+const CONNECT_APPS = { bamhaneul: { name: "밤하늘", subj: "밤하늘이", to: "밤하늘로", back: "https://bamhaneul-iota.vercel.app/" } };
+function pendingConnect() {
+  try {
+    const u = new URL(location.href), app = u.searchParams.get("connect");
+    if (app) {
+      const state = u.searchParams.get("state") || "";
+      u.searchParams.delete("connect"); u.searchParams.delete("state");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+      if (CONNECT_APPS[app] && /^[A-Za-z0-9_-]{8,64}$/.test(state)) {
+        localStorage.setItem("dshs-connect", JSON.stringify({ app, state, at: Date.now() }));
+      }
+    }
+    const p = JSON.parse(localStorage.getItem("dshs-connect") || "null");
+    if (!p || !CONNECT_APPS[p.app] || Date.now() - p.at > 15 * 60 * 1000) { localStorage.removeItem("dshs-connect"); return null; }
+    return p;
+  } catch { return null; }
+}
+function maybeConnect() {
+  if (DEMO) return false;
+  const p = pendingConnect();
+  if (!p) return false;
+  const app = CONNECT_APPS[p.app];
+  if (!me) { toast(`로그인하면 ${app.name} 연결을 이어서 할게요`); return false; }
+  if (me.is_admin || !me.student_id) { localStorage.removeItem("dshs-connect"); return false; }
+  localStorage.removeItem("dshs-connect");   // 한 번만 묻습니다 (닫으면 그 프로그램에서 다시 시작)
+  const back = (frag) => { location.href = `${app.back}#${frag}&state=${encodeURIComponent(p.state)}`; };
+  openMyTimetable();
+  openSheet(`🔗 ${esc(app.name)} 연결`, `
+    <div class="asg-body">${esc(app.subj)} 내 수행평가 · 일정 · 할 일을 읽도록 허락할까요?<br>읽기만 되고 고칠 수는 없어요.</div>
+    <div class="study-foot" style="text-align:left">허락하면 ${esc(app.name)} 전용 열쇠가 하나 만들어져요 (열쇠는 5개까지).<br>그만 쓰려면 설정 → '내 정보 가져오기' → '내 열쇠 모두 없애기'를 누르세요.</div>
+    <div class="study-err" id="authErr"></div>
+    <button class="study-submit" id="cnOk">허락하고 ${esc(app.to)} 돌아가기</button>
+    <button class="study-btn wide no" id="cnNo" style="margin-top:6px">취소</button>`);
+  $("cnOk").onclick = async () => {
+    $("cnOk").disabled = true;
+    const { data, error } = await sb.rpc("create_api_key", { p_label: app.name });
+    if (error || !data) {
+      $("cnOk").disabled = false;
+      $("authErr").textContent = error?.message?.includes("5개")
+        ? "열쇠가 이미 5개예요. 설정 → '내 정보 가져오기' → '내 열쇠 모두 없애기'를 누른 뒤 다시 연결해 주세요"
+        : "열쇠를 만들지 못했어요. 잠시 뒤에 다시 해 주세요";
+      return;
+    }
+    back("dshs_key=" + encodeURIComponent(data));
+  };
+  $("cnNo").onclick = () => back("dshs_cancel=1");
+  return true;
 }
 
 // 답장 알림으로 들어오면 피드백 창을 엽니다 (주소의 view 는 지워 새로고침해도 다시 뜨지 않게)
