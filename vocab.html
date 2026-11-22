@@ -1262,6 +1262,8 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 :is(#tab-memo, #tab-defmemo) .m-lock { display: flex; align-items: center; gap: 8px; margin: -4px 0 12px; font-size: 13.5px; color: var(--text-muted); cursor: pointer; user-select: none; word-break: keep-all; }
 :is(#tab-memo, #tab-defmemo) .m-lock input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); flex: none; }
 :is(#tab-memo, #tab-defmemo) .m-lock.on { color: var(--accent); font-weight: 600; }
+#tab-defmemo .m-steps { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#tab-defmemo .m-step { padding: 8px 8px; }
 #tab-defmemo .m-wordrow { display: flex; align-items: center; gap: 8px; }
 #tab-defmemo .m-star { background: none; border: 0; padding: 2px 4px; font-size: 22px; line-height: 1; cursor: pointer; color: var(--text-muted); flex: none; }
 #tab-defmemo .m-row .m-star { font-size: 18px; }
@@ -4422,11 +4424,26 @@ return { start, setScope, setAutoBm, playWrong, clearBm, count: DATA.items.lengt
 
 // ===== 문장 암기 모듈 (셀프 탭 · 영영풀이 탭) =====
 // 1단계 전체 문장 → 2단계 글자 수만 → 3단계 빈칸, 글자마다 바로 채점 (대소문자 · 띄어쓰기 · 문장부호 무시).
+// O.keyStep: 1단계와 글자 수 사이에 '핵심 단어만 빈칸'(DEF_STOP 이 아닌 단어, 글자 수는 보임) 단계를 넣어 4단계로 (영영풀이)
 // makeMemo(O): O.root 화면 id · O.name 전역 이름(onclick 에 씀) · O.sets 과목별 { key 저장 이름, importFrom | items }
 //   O.fixed: 학생이 문장을 추가하지 않고 items() 목록만 외움 (영영풀이) · O.title · O.sub · O.listTitle
 function makeMemo(O) {
 const G = O.name;
-const STEP_DESC = { 1: '전체 문장이 보여요', 2: '글자 수만 보여요', 3: '완전히 빈칸이에요' };
+const MODES = O.keyStep ? ['full', 'key', 'count', 'blank'] : ['full', 'count', 'blank'], MAX = MODES.length;
+const MODE_DESC = { full: '전체 문장이 보여요', key: '핵심 단어만 빈칸이에요', count: '글자 수만 보여요', blank: '완전히 빈칸이에요' };
+const STEPS = MODES.map((m, i) => i + 1);
+// 핵심 단어 글자인지 (글자 위치마다): 흔한 단어(DEF_STOP) · 2글자 이하는 보여 줌
+function keyMask(T) {
+  const mask = new Array(T.length).fill(false);
+  for (let i = 0; i < T.length;) {
+    if (!isAl(T[i])) { i++; continue; }
+    let j = i; while (j < T.length && isAl(T[j])) j++;
+    const w = T.slice(i, j).join('').toLowerCase();
+    if (!DEF_STOP.has(w) && defStem(w).length >= 3) for (let x = i; x < j; x++) mask[x] = true;
+    i = j;
+  }
+  return mask;
+}
 let subj = null, CONF = null, st = null;
 let typed = '', editId = null, formOpen = false;
 const R = () => document.getElementById(O.root);
@@ -4436,14 +4453,16 @@ const low = c => c.toLocaleLowerCase();
 // 대소문자·띄어쓰기·문장부호 무시: 글자와 숫자만 남김
 const norm = s => Array.from(String(s)).filter(isAl).map(low);
 const save = () => { try { localStorage.setItem(CONF.key, JSON.stringify(O.fixed
-  ? { cur: st.cur, step: st.step, lock3: st.lock3, bmOnly: st.bmOnly, best: Object.fromEntries(st.sents.filter(x => x.best).map(x => [x.id, x.best])) } : st)); } catch (e) {} };
+  ? { v: MAX, cur: st.cur, step: st.step, lock3: st.lock3, bmOnly: st.bmOnly, best: Object.fromEntries(st.sents.filter(x => x.best).map(x => [x.id, x.best])) } : st)); } catch (e) {} };
 
 function use(id) {
   if (subj === id) return; subj = id; CONF = O.sets[id] || Object.values(O.sets)[0];
   st = { sents: [], cur: null, step: 1 };
   try { Object.assign(st, JSON.parse(localStorage.getItem(CONF.key) || '{}')); } catch (e) {}
-  if (O.fixed) { const best = st.best || {}; delete st.best; st.sents = CONF.items().map(x => ({ ...x, best: best[x.id] || 0 })); }
-  if (![1, 2, 3].includes(+st.step)) st.step = 1;
+  // 예전 3단계 기록(v 없음)을 4단계로 옮김: 2 → 3, 3 → 4 (글자 수 · 빈칸 단계가 한 칸씩 뒤로)
+  const up = O.fixed && O.keyStep && st.v !== MAX ? (k => (k >= 2 ? k + 1 : k)) : (k => k);
+  if (O.fixed) { const best = st.best || {}; delete st.best; delete st.v; st.sents = CONF.items().map(x => ({ ...x, best: up(best[x.id] || 0) })); st.step = up(+st.step); }
+  if (!STEPS.includes(+st.step)) st.step = 1;
   typed = ''; editId = null; formOpen = !st.sents.length;
 }
 // O.bookmark: 단어장 북마크(bookmarks, 학습 · 북마크 탭과 같음)를 쓰고, '북마크한 단어만'(st.bmOnly)이면 그 단어만 돌며 외움
@@ -4464,10 +4483,10 @@ function render() {
 }
 function practiceHTML(s) {
   const L = pool(), i = L.indexOf(s), n = L.length;
-  const steps = [1, 2, 3].map(k => `<button class="m-step ${+st.step === k ? 'on' : ''}" onclick="${G}.setStep(${k})"><b>${k}단계</b><span>${STEP_DESC[k]}</span></button>`).join('');
+  const steps = STEPS.map(k => `<button class="m-step ${+st.step === k ? 'on' : ''}" onclick="${G}.setStep(${k})"><b>${k}단계</b><span>${MODE_DESC[MODES[k - 1]]}</span></button>`).join('');
   return `
     <div class="m-steps">${steps}</div>
-    <label class="m-lock ${st.lock3 ? 'on' : ''}"><input type="checkbox" ${st.lock3 ? 'checked' : ''} onchange="${G}.setLock(this.checked)">3단계 고정 · 다음 ${O.fixed ? '단어' : '문장'}도 3단계(빈칸)로 시작</label>
+    <label class="m-lock ${st.lock3 ? 'on' : ''}"><input type="checkbox" ${st.lock3 ? 'checked' : ''} onchange="${G}.setLock(this.checked)">${MAX}단계 고정 · 다음 ${O.fixed ? '단어' : '문장'}도 ${MAX}단계(빈칸)로 시작</label>
     <div class="m-card">
       <div class="m-meta"><span>${O.fixed ? '단어' : '문장'} ${i + 1} / ${n}</span><span class="m-badge" id="m-best" ${s.best ? '' : 'hidden'}>${s.best ? `${s.best}단계까지 완료` : ''}</span>
         <span class="m-nav"><button class="m-tool" onclick="${G}.go(-1)" ${n > 1 ? '' : 'disabled'}>← 이전</button><button class="m-tool" onclick="${G}.go(1)" ${n > 1 ? '' : 'disabled'}>다음 →</button></span></div>
@@ -4489,7 +4508,7 @@ function listHTML() {
     </div>`).join('');
     const nb = O.bookmark ? st.sents.filter(isBm).length : 0;
     const bmBar = O.bookmark ? `<label class="m-lock ${st.bmOnly ? 'on' : ''}" style="margin:0 0 6px"><input type="checkbox" ${st.bmOnly ? 'checked' : ''} onchange="${G}.setBmOnly(this.checked)">⭐ 북마크한 단어만 외우기 (${nb}개)</label>` : '';
-    return n ? `<div class="m-card m-list">${bmBar}<div class="m-listhead"><b>${O.listTitle} ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= 3).length}개 3단계 완료</span></div>${rows}</div>` : '';
+    return n ? `<div class="m-card m-list">${bmBar}<div class="m-listhead"><b>${O.listTitle} ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= MAX).length}개 ${MAX}단계 완료</span></div>${rows}</div>` : '';
   }
   const imp = CONF.importFrom(), have = new Set(st.sents.map(x => norm(x.en).join('')));
   const fresh = imp.filter(d => !have.has(norm(d.en).join('')));
@@ -4508,18 +4527,20 @@ function listHTML() {
         : `<button class="btn primary" onclick="${G}.add()">추가</button>${fresh.length ? `<button class="btn ghost" onclick="${G}.importAll()">문장 배열 탭 문장 가져오기 (${fresh.length})</button>` : ''}`}</div>
       <div class="m-msg" id="m-msg"></div>
     </details>
-    ${n ? `<div class="m-card m-list"><div class="m-listhead"><b>저장한 문장 ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= 3).length}개 3단계 완료</span><button class="m-tool del" onclick="${G}.clearAll(this)">전체 삭제</button></div>${rows}</div>` : ''}`;
+    ${n ? `<div class="m-card m-list"><div class="m-listhead"><b>저장한 문장 ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= MAX).length}개 ${MAX}단계 완료</span><button class="m-tool del" onclick="${G}.clearAll(this)">전체 삭제</button></div>${rows}</div>` : ''}`;
 }
 
 // ---------- 입력 표시 (덮어쓰기) ----------
 function refreshPractice() {
   const s = curS(); if (!s) return;
   const T = Array.from(s.en), tgt = norm(s.en), N = tgt.length;
-  const t = norm(typed), L = t.length, step = +st.step;
+  const t = norm(typed), L = t.length, step = +st.step, mode = MODES[step - 1], km = mode === 'key' ? keyMask(T) : null;
+  let ci = -1;
   let out = '', html = '', k = 0, caret = false, wrong = 0;
   const flush = () => { if (html) { out += `<span class="w">${html}</span>`; html = ''; } };
   const putCaret = () => { if (!caret) { html += '<span class="m-caret"></span>'; caret = true; } };
   for (const c of T) {
+    ci++;
     if (isAl(c)) {
       const idx = k++;
       if (idx < L) {
@@ -4527,15 +4548,15 @@ function refreshPractice() {
         else { html += `<span class="bad">${esc(t[idx])}</span>`; wrong++; }
       } else {
         putCaret();
-        if (step === 1) html += `<span class="rest">${esc(c)}</span>`;
-        else if (step === 2) html += `<span class="gap"></span>`;
+        if (mode === 'full' || (mode === 'key' && !km[ci])) html += `<span class="rest">${esc(c)}</span>`;
+        else if (mode === 'count' || mode === 'key') html += `<span class="gap"></span>`;
       }
     } else {
       const passed = L > k || (L >= N && k >= N);
-      if (c === ' ' || c === '\n') { flush(); if (passed || step !== 3) out += ' '; continue; }
+      if (c === ' ' || c === '\n') { flush(); if (passed || mode !== 'blank') out += ' '; continue; }
       if (passed) html += `<span class="ok">${esc(c)}</span>`;
-      else if (step === 1 || step === 2) html += `<span class="rest">${c === ' ' ? ' ' : esc(c)}</span>`;
-      else if (c === ' ' && k === L && L > 0) { /* 3단계: 다음 단어 앞 띄어쓰기는 쓰기 전까지 숨김 */ }
+      else if (mode !== 'blank') html += `<span class="rest">${c === ' ' ? ' ' : esc(c)}</span>`;
+      else if (c === ' ' && k === L && L > 0) { /* 빈칸 단계: 다음 단어 앞 띄어쓰기는 쓰기 전까지 숨김 */ }
     }
   }
   if (L > N) { for (let x = N; x < L; x++) html += `<span class="bad extra">${esc(t[x])}</span>`; wrong += L - N; }
@@ -4552,7 +4573,7 @@ function refreshPractice() {
     const bd = document.getElementById('m-best'); if (bd) { bd.textContent = `${step}단계까지 완료`; bd.hidden = false; }
   }
   document.getElementById('m-actions').innerHTML = done
-    ? `${step < 3 ? `<button class="btn primary" onclick="${G}.setStep(${step + 1})">${step + 1}단계로 →</button>` : ''}<button class="btn ${step < 3 ? '' : 'primary'}" onclick="${G}.go(1)">다음 문장</button><button class="btn ghost" onclick="${G}.reset()">다시 쓰기</button>`
+    ? `${step < MAX ? `<button class="btn primary" onclick="${G}.setStep(${step + 1})">${step + 1}단계로 →</button>` : ''}<button class="btn ${step < MAX ? '' : 'primary'}" onclick="${G}.go(1)">다음 문장</button><button class="btn ghost" onclick="${G}.reset()">다시 쓰기</button>`
     : `<button class="btn ghost" onclick="${G}.reset()">처음부터</button><button class="btn ghost" onclick="${G}.peek()" ${step === 1 ? 'disabled' : ''}>잠깐 보기</button>`;
   return done;
 }
@@ -4563,7 +4584,7 @@ function bind() {
     if (e.key === 'Enter' && !e.isComposing) {
       e.preventDefault();
       const s = curS(); if (!s) return;
-      if (norm(typed).join('') === norm(s.en).join('')) { +st.step < 3 ? setStep(+st.step + 1) : go(1); }
+      if (norm(typed).join('') === norm(s.en).join('')) { +st.step < MAX ? setStep(+st.step + 1) : go(1); }
     }
   });
 }
@@ -4572,15 +4593,15 @@ function focusInput() { const i = document.getElementById('m-input'); if (i) { i
 // ---------- 동작 ----------
 function setStep(k) { st.step = k; save(); typed = ''; render(); focusInput(); }
 // 다른 문장(단어)으로 옮기면 1단계부터 (3단계를 끝내고 '다음'을 눌러도 새 문장은 전체 문장부터 보며 외움).
-// '3단계 고정'(st.lock3)을 켜면 옮길 때 늘 3단계부터
-const firstStep = () => st.lock3 ? 3 : 1;
+// '마지막 단계 고정'(st.lock3)을 켜면 옮길 때 늘 마지막(빈칸) 단계부터
+const firstStep = () => st.lock3 ? MAX : 1;
 function bm(id, btn) {   // 북마크 켜고 끄기: 연습 카드 · 목록의 별을 함께 바꿈 (입력 중인 글은 그대로)
   toggleBookmark(id, btn);
   R().querySelectorAll('.m-star').forEach(b => { if (b.dataset.bm === id && b !== btn) b.textContent = btn.textContent; });
   const c = R().querySelector('.m-list .m-lock'); if (c) c.lastChild.textContent = `⭐ 북마크한 단어만 외우기 (${st.sents.filter(isBm).length}개)`;
 }
 function setBmOnly(on) { st.bmOnly = !!on; const s = curS(); if (s && s.id !== st.cur) { st.cur = s.id; st.step = firstStep(); } save(); typed = ''; render(); }
-function setLock(on) { st.lock3 = !!on; if (on) st.step = 3; save(); typed = ''; render(); focusInput(); }
+function setLock(on) { st.lock3 = !!on; if (on) st.step = MAX; save(); typed = ''; render(); focusInput(); }
 function go(d) { const L = pool(), n = L.length; if (!n) return; const i = L.indexOf(curS()); st.cur = L[(i + d + n) % n].id; st.step = firstStep(); save(); typed = ''; render(); focusInput(); }
 function pick(id) { if (id !== st.cur) st.step = firstStep(); st.cur = id; save(); typed = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); focusInput(); }
 function reset() { typed = ''; render(); focusInput(); }
@@ -4652,7 +4673,7 @@ const MEMO = makeMemo({ root: 'tab-memo', name: 'MEMO', listTitle: '저장한 �
   } });
 // 영영풀이 탭 (SUBJECTS 의 defMemo): 단어를 보고 그 영어 풀이(note 의 ' · ' 앞 영어 문장, defOf)를 셀프 탭처럼 단계별로 외워 씀.
 // 단어 목록은 단어장 자료에서 그대로 만들고, 이 기기에는 단계 기록만 남깁니다
-const DEFM = makeMemo({ root: 'tab-defmemo', name: 'DEFM', fixed: true, bookmark: true, listTitle: '단어',
+const DEFM = makeMemo({ root: 'tab-defmemo', name: 'DEFM', fixed: true, bookmark: true, keyStep: true, listTitle: '단어',
   title: '영영풀이', sub: '단어를 보고 영어 풀이를 외워 써요 · 대소문자·띄어쓰기·문장부호는 무시하고 채점해요',
   sets: { atc: { key: 'atc-defmemo-v1', items: () => DATA_ATC.filter(hasDef).map(w => ({ id: w.en, word: w.en, en: defOf(w), ko: w.ko })) } } });
 
