@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v187';
+const CACHE = 'dshs-study-v188';
 
 const SHELL = [
   './',
@@ -10,6 +10,7 @@ const SHELL = [
   './dshs-study.js',
   './updates.js',
   './vocab.html',
+  './bio.html',
   './icon-144.png',
   './icon-192.png',
   './icon-256.png',
@@ -104,6 +105,7 @@ self.addEventListener('fetch', e => {
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
     // 공부 탭 단어장은 따로 된 페이지라 index.html 대신 그 파일을 줍니다 (주소의 ?embed=1 은 빼고 찾음)
     if (url.pathname.endsWith('/vocab.html')) { e.respondWith(cacheFirst(req, './vocab.html')); return; }
+    if (url.pathname.endsWith('/bio.html')) { e.respondWith(cacheFirst(req, './bio.html')); return; }
     e.respondWith(cacheFirst(req, './index.html'));
     return;
   }

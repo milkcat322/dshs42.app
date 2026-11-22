@@ -1498,7 +1498,10 @@ function renderExam() {
 const LEARN_SUBJECTS = [
   { id: "atc", name: "학술영어 세미나", sub: "The Art of Thinking Clearly 어휘 · 문장 배열 · 문장 암기", emoji: "🧠" },
   { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 150개 · 필수형용사 100개", emoji: "⚖️" },
+  // page: 단어장(vocab.html)이 아닌 따로 된 페이지 (같은 iframe 에 ?embed=1 로 띄움 · 높이 맞추기 · 테마(vocabTheme)는 그 페이지가 함)
+  { id: "bio", name: "일반생물학", sub: "Ch17 전사 · 가공 · 번역 · 돌연변이 핵심 기작 애니메이션", emoji: "🧬", page: "bio.html" },
 ];
+const learnSrc = (id) => { const s = LEARN_SUBJECTS.find((x) => x.id === id); return s?.page ? `${s.page}?embed=1` : `vocab.html?embed=1#${id}`; };
 const LEARN_KEY = "dshs-learn-subject";
 function learnSubject() {
   let id = null;
@@ -1512,7 +1515,10 @@ function renderLearn(pick) {
   // 이미 단어장이 떠 있으면 다시 만들지 않고 과목만 바꿉니다 (푸는 중이던 화면 유지)
   if (cur && frame) {
     $("studyView").querySelectorAll("[data-learn]").forEach((b) => b.classList.toggle("primary", b.dataset.learn === cur));
-    try { frame.contentWindow.vocabSubject(cur); } catch { frame.src = `vocab.html?embed=1#${cur}`; }
+    // 단어장 ↔ 따로 된 페이지(일반생물학)로 바뀌면 주소를 새로, 단어장 과목끼리는 화면을 유지한 채 과목만
+    const src = learnSrc(cur), samePage = src.split(/[?#]/)[0] === (frame.getAttribute("src") || "").split(/[?#]/)[0];
+    if (!samePage) frame.src = src;
+    else if (src.startsWith("vocab.html")) { try { frame.contentWindow.vocabSubject(cur); } catch { frame.src = src; } }
     return;
   }
   $("studyView").innerHTML = `
@@ -1527,7 +1533,7 @@ function renderLearn(pick) {
       ${LEARN_SUBJECTS.map((s) => `<button class="study-btn${s.id === cur ? " primary" : ""}" data-learn="${s.id}">${s.emoji} ${esc(s.name)}</button>`).join("")}
     </div>
     ${cur
-      ? `<iframe id="learnFrame" class="learn-frame" src="vocab.html?embed=1#${cur}" title="단어장" scrolling="no"></iframe>`
+      ? `<iframe id="learnFrame" class="learn-frame" src="${learnSrc(cur)}" title="공부" scrolling="no"></iframe>`
       : `<div class="learn-pick">${LEARN_SUBJECTS.map((s) => `
           <button class="asg-card learn-card" data-learn="${s.id}">
             <span class="learn-emoji">${s.emoji}</span>

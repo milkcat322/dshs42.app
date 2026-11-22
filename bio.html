@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>일반생물학 · Ch17 핵심 기작</title>
+<script>
+// dshs42.app '공부' 탭 안에 띄울 때(bio.html?embed=1): 사이트 밝기(data-tone)를 따르고, 높이를 내용에 맞춥니다 (아래 끝 스크립트).
+// 따로 열면 기기 설정(다크 · 라이트)을 따릅니다. 사이트가 테마를 바꾸면 vocabTheme() 을 부릅니다 (단어장과 같은 이름).
+window.BIO_EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+window.vocabTheme = function () {
+  if (!window.BIO_EMBED) return;
+  try {
+    const p = window.parent.document.documentElement, r = document.documentElement;
+    const tone = p.dataset.tone === 'light' ? 'light' : 'dark';
+    r.dataset.theme = tone; r.style.colorScheme = tone;
+    // 문서와 iframe 의 색 모드가 다르면 브라우저가 iframe 뒤에 흰(검은) 바탕을 깔아 사이트 배경이 가려집니다
+    if (window.frameElement) window.frameElement.style.colorScheme = tone;
+  } catch (e) {}
+};
+if (window.BIO_EMBED) { document.documentElement.classList.add('embed'); window.vocabTheme(); }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 교과서 그림처럼 차분하고 정확하게
+   IDEA: 캠벨 Ch17 그림을 한 컷씩 넘기는 "움직이는 교과서 그림"
+   PICTURE: 각 기작을 펼치면 큰 SVG 무대에서 분자가 시간 순서대로 움직임
+   COLOUR/TYPE: 흰 지면, DNA 파랑·RNA 분홍·리보솜 보라·tRNA 연두 / Noto Sans KR
+   LAYOUT: 접히는 구조 트리 → 펼친 칸 안에 그림 무대 + 단계 설명 */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121417);--ink:light-dark(#16181c,#e9ebee);--sub:light-dark(#5b6470,#a3abb6);--line:light-dark(#dfe4ea,#2b3138);--card:light-dark(#f7f9fb,#1a1e23);--stage:light-dark(#fbfcfe,#f4f6f9);--acc:#1f4e8c;--pink:#e0457b}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip}
+header{padding:clamp(24px,4vw,48px) max(5vw,16px) 12px;max-width:1240px;margin:auto}
+h1{font-size:clamp(30px,4.4vw,46px);line-height:1.08;margin:0 0 8px;font-weight:800;text-wrap:balance}
+.lead{color:var(--sub);margin:0 0 14px;max-width:70ch}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button:focus-visible,summary:focus-visible{outline:3px solid #5b95cf;outline-offset:2px}
+button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+main{max-width:1240px;margin:auto;padding:8px max(5vw,16px) 64px}
+details{border-left:2px solid var(--line);margin:6px 0 6px 6px;padding-left:14px}
+details.lv1{border-left:4px solid var(--c,#1f4e8c);margin:14px 0;padding-left:16px}
+summary{cursor:pointer;list-style:none;padding:8px 0;font-weight:600;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;min-height:44px}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸";color:var(--sub);transition:transform .2s;display:inline-block}
+details[open]>summary::before{transform:rotate(90deg)}
+.lv1>summary{font-size:22px;font-weight:800}
+.en{color:var(--sub);font-weight:400;font-size:.85em}
+.leaf>summary{color:var(--ink)}
+.leaf>summary .tag{font-size:12px;padding:1px 8px;border-radius:99px;background:var(--card);border:1px solid var(--line);color:var(--sub);font-weight:400}
+.viewer{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:6px 0 16px}
+.stage{background:radial-gradient(circle at 30% 20%,#ffffff 0,#f3f6fa 60%,#e9eef5 100%),var(--stage);background-image:radial-gradient(rgba(120,140,170,.10) 1.2px,transparent 1.6px),radial-gradient(circle at 30% 20%,#ffffff 0,#f2f5f9 60%,#e7ecf3 100%);background-size:22px 22px,100% 100%;border-radius:10px;position:relative;aspect-ratio:820/380;width:100%}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;font-family:"Noto Sans KR",sans-serif}
+
+.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.scrub{flex:1;min-width:160px;accent-color:var(--acc);height:44px}
+select{font:inherit;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:0 8px}
+.ticks{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.ticks i{font-style:normal;font-size:13px;min-width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:var(--line);color:var(--sub);cursor:pointer}
+.ticks i.on{background:var(--acc);color:#fff}
+.cap{margin-top:10px;font-size:16px;min-height:3.2em}
+.cap b{color:var(--pink)}
+.cap .no{display:inline-block;background:var(--acc);color:#fff;border-radius:6px;padding:0 8px;margin-right:8px;font-size:14px}
+.kp{margin:8px 0 0;padding:10px 14px;border-radius:10px;background:light-dark(#fff8e6,#2a2414);border:1px solid light-dark(#efd79a,#5a4a20);font-size:15px}
+.kp b{color:light-dark(#a4161a,#ff8a8a)}
+@media(max-width:600px){.lv1>summary{font-size:19px}.scrub{width:100%;flex-basis:100%}}
+
+/* ===== dshs42.app 공부 탭 안 (html.embed): 사이트 배경이 비치고, 스크롤은 사이트 하나로 ===== */
+html.embed,html.embed body{background:transparent;overflow:hidden}
+html.embed body{display:flow-root}
+html.embed header{padding:4px 0 6px}
+html.embed h1{font-size:clamp(22px,3.4vw,30px)}
+html.embed .lead{font-size:14px}
+html.embed main{padding:4px 0 16px}
+@media(max-width:600px){html.embed details{margin-left:2px;padding-left:8px}html.embed details.lv1{padding-left:10px}html.embed .viewer{padding:8px}}
+/* Netlify 무료 요금제가 HTML 마다 넣는 배지: iframe 안에서는 숨김 (바깥 사이트 것만 남김) */
+html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
+</style></head><body>
+<header>
+<h1>Ch 17 핵심 기작 <span class="en">손희창T</span></h1>
+<p class="lead">구조를 펼쳐 기작을 고르면 캠벨 그림 모양의 분자들이 시간 순서대로 이어서 움직입니다. 펼치면 애니메이션이 자동 재생되고, 슬라이더로 원하는 순간을 되감거나 숫자를 눌러 단계로 이동할 수 있습니다.</p>
+<div class="tools"><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
+</header>
+<main id="tree"></main>
+<script>
+{
+const C={tpl:'#1f4e8c',ntpl:'#8fb8e0',rna:'#e0457b',pol:'#ecd3a0',polS:'#a07c3c',L:'#b9a6d1',S:'#d6cbe8',ribS:'#6d5a8a',tr:'#b5d86a',trS:'#5f8a1f',prot:'#6b4fa0'};
+const AA={Met:'#e76f51',fMet:'#e76f51',Ala:'#43aa8b',Phe:'#f4a261',Gly:'#2a9d8f',Lys:'#5aa9e6',Leu:'#9b5de5',Ser:'#e9c46a',Tyr:'#d4a373'};
+const T=(x,y,s,o={})=>`<text x="${x}" y="${y}" font-size="${o.size||13}" fill="${o.c||'#222'}" text-anchor="${o.a||'middle'}" font-weight="${o.w||400}">${s}</text>`;
+const GR={};const hx=c=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16));const mix=(c,m,t)=>{const a=hx(c),b=hx(m);return '#'+a.map((v,i)=>Math.round(v+(b[i]-v)*t).toString(16).padStart(2,'0')).join('');};
+let DEFS=null;const mkG=id=>{const c=GR[id];return id[0]==='r'?`<radialGradient id="${id}" cx="36%" cy="30%" r="78%"><stop offset="0" stop-color="${mix(c,'#ffffff',.6)}"/><stop offset=".5" stop-color="${c}"/><stop offset="1" stop-color="${dk(c,.3)}"/></radialGradient>`:`<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${mix(c,'#ffffff',.45)}"/><stop offset=".55" stop-color="${c}"/><stop offset="1" stop-color="${dk(c,.22)}"/></linearGradient>`;};
+const reg=(id,c)=>{if(!GR[id]){GR[id]=c;if(DEFS)DEFS.insertAdjacentHTML('beforeend',mkG(id));}return `url(#${id})`;};
+const gid=c=>reg('rg'+c.slice(1),c);
+const lid=c=>reg('lg'+c.slice(1),c);
+const dk=(c,t=.35)=>mix(c,'#000000',t);
+function bumps(rx,ry,c,n=7){let s='';for(let i=0;i<n;i++){const a=i*2.39996,r=.35+.45*((i*37)%10)/10;s+=`<ellipse cx="${(Math.cos(a)*rx*r).toFixed(1)}" cy="${(Math.sin(a)*ry*r).toFixed(1)}" rx="${(rx*.22).toFixed(1)}" ry="${(ry*.2).toFixed(1)}" fill="${dk(c,.18)}" opacity=".13"/>`;}return s;}
+const blob=(rx,ry,f,st,lab,ls=12,lc='#222')=>`<ellipse rx="${rx}" ry="${ry}" fill="${gid(f)}" stroke="${dk(f,.3)}" stroke-width="1"/>`+bumps(rx,ry,f)+`<ellipse cx="${-rx*.32}" cy="${-ry*.42}" rx="${rx*.3}" ry="${ry*.18}" fill="#fff" opacity=".5"/>`+(lab?T(0,ls/3,lab,{size:ls,w:700,c:lc}):'');
+const BP=['#e76f51','#f4a261','#2a9d8f','#8ab17d'];
+function dna(len,lab=true){const P=40,A=8.5,yc=8;let s='';
+ for(let x=3,i=0;x<len;x+=5,i++){const ph=Math.sin(2*Math.PI*x/P);const y1=yc-A*ph,y2=yc+A*ph;const c=BP[(i*7+3)%4];s+=`<line x1="${x}" y1="${y1.toFixed(1)}" x2="${x}" y2="${((y1+y2)/2).toFixed(1)}" stroke="${c}" stroke-width="2.2" opacity="${(.45+.4*Math.abs(Math.cos(2*Math.PI*x/P))).toFixed(2)}"/><line x1="${x}" y1="${((y1+y2)/2).toFixed(1)}" x2="${x}" y2="${y2.toFixed(1)}" stroke="${BP[3-((i*7+3)%4)]}" stroke-width="2.2" opacity="${(.45+.4*Math.abs(Math.cos(2*Math.PI*x/P))).toFixed(2)}"/>`;}
+ const pth=sg=>{let d='';for(let x=0;x<=len;x+=2)d+=(x?'L':'M')+x+','+(yc+sg*A*Math.sin(2*Math.PI*x/P)).toFixed(1);return d;};
+ s+=`<path d="${pth(-1)}" stroke="${dk(C.ntpl,.25)}" stroke-width="5.5" fill="none" stroke-linecap="round"/><path d="${pth(-1)}" stroke="${C.ntpl}" stroke-width="3.5" fill="none"/>`;
+ s+=`<path d="${pth(1)}" stroke="${dk(C.tpl,.3)}" stroke-width="5.5" fill="none" stroke-linecap="round"/><path d="${pth(1)}" stroke="${mix(C.tpl,'#ffffff',.2)}" stroke-width="3.5" fill="none"/>`;
+ if(lab)s+=T(-12,2,"5′",{size:11})+T(-12,22,"3′",{size:11})+T(len+12,2,"3′",{size:11})+T(len+12,22,"5′",{size:11});return s;}
+function pol(lab,open=true,w=128,h=76){let s=`<ellipse rx="${w/2}" ry="${h/2}" fill="${gid(C.pol)}" stroke="${C.polS}" stroke-width="1.2" opacity=".93"/>`+bumps(w/2,h/2,C.pol,9);
+ s+=open?`<path d="M${-w/2+6},-2 Q0,-34 ${w/2-6},-2" stroke="${dk(C.ntpl,.25)}" stroke-width="5.5" fill="none"/><path d="M${-w/2+6},-2 Q0,-34 ${w/2-6},-2" stroke="${C.ntpl}" stroke-width="3.5" fill="none"/><path d="M${-w/2+6},16 Q0,34 ${w/2-6},16" stroke="${dk(C.tpl,.3)}" stroke-width="5.5" fill="none"/><path d="M${-w/2+6},16 Q0,34 ${w/2-6},16" stroke="${mix(C.tpl,'#ffffff',.2)}" stroke-width="3.5" fill="none"/>`
+ :`<path d="M${-w/2+4},0 C${-w/4},-9 ${w/4},25 ${w/2-4},8" stroke="${C.ntpl}" stroke-width="4" fill="none"/><path d="M${-w/2+4},16 C${-w/4},25 ${w/4},-9 ${w/2-4},8" stroke="${C.tpl}" stroke-width="4" fill="none"/>`;
+ s+=`<ellipse cx="${-w*.18}" cy="${-h*.26}" rx="${w*.2}" ry="${h*.1}" fill="#fff" opacity=".45"/>`;
+ return s+T(0,-h/2-8,lab,{size:12,w:700,c:'#7a5b20'});}
+function tailS(len,extra=''){const ex=-25-len,ey=-34-Math.min(len,260)*.06;const d=`M24,10 Q-6,4 -25,-28 L${ex},${ey}`;return `<path d="${d}" stroke="${mix(C.rna,'#ffffff',.35)}" stroke-width="12" stroke-dasharray="1.6 3.4" fill="none"/><path d="${d}" stroke="${dk(C.rna,.25)}" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" stroke="${C.rna}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+T(ex-12,ey+4,"5′",{size:11,c:C.rna})+extra;}
+const tail=(len,extra='')=>({k:'tail'+extra,p:len,f:l=>tailS(l,extra)});
+function riboL(){let s=`<path d="M-108,-6 C-126,-40 -118,-70 -100,-92 C-96,-116 -70,-130 -40,-126 C-14,-136 14,-136 40,-126 C70,-130 96,-116 100,-92 C118,-70 126,-40 108,-6 Z" fill="${gid(C.L)}" stroke="${C.ribS}" stroke-width="1.2"/>`+bumps(100,60,C.L,14).replace(/<ellipse cx="([-\d.]+)" cy="([-\d.]+)"/g,(m,a,b)=>`<ellipse cx="${a}" cy="${(+b-62).toFixed(1)}"`)+`<ellipse cx="-50" cy="-108" rx="40" ry="10" fill="#fff" opacity=".4"/>`;
+ ['E','P','A'].forEach((n,i)=>{const x=(i-1)*50;s+=`<rect x="${x-21}" y="-104" width="42" height="96" rx="12" fill="${dk(C.L,.25)}" opacity=".22"/>`+T(x,-110,n,{size:13,w:800,c:'#3d2f5a'});});return s;}
+const riboS=()=>`<path d="M-102,4 C-116,26 -96,56 -60,58 C-36,66 36,66 60,58 C96,56 116,26 102,4 Z" fill="${gid(C.S)}" stroke="${C.ribS}" stroke-width="1.2"/>`+bumps(90,22,C.S,9).replace(/<ellipse cx="([-\d.]+)" cy="([-\d.]+)"/g,(m,a,b)=>`<ellipse cx="${a}" cy="${(+b+30).toFixed(1)}"`);
+function mrna(cod,o={}){const cw=50,lead=o.lead||0,W=lead+cod.length*cw+(o.trail||30);let s=`<rect x="0" y="-11" width="${W}" height="22" fill="none" stroke="${mix(C.rna,'#ffffff',.45)}" stroke-width="0"/>`+`<path d="M0,0 L${W},0" stroke="${mix(C.rna,'#ffffff',.4)}" stroke-width="19" stroke-dasharray="1.8 3.2"/><rect x="0" y="-7" width="${W}" height="14" rx="7" fill="${lid('#fbd3e2')}" stroke="${C.rna}" stroke-width="1"/>`;
+ if(o.sd)s+=`<rect x="${lead-110}" y="-7" width="60" height="14" fill="#f39abb"/>`+T(lead-80,24,'Shine-Dalgarno',{size:11,c:'#a3204f',w:700});
+ if(o.cap)s+=`<rect x="-34" y="-9" width="34" height="18" rx="4" fill="#d9c3a5" stroke="#8a6d2d"/>`+T(-17,4,'cap',{size:10,w:700});
+ cod.forEach((c,i)=>{const x=lead+i*cw;s+=`<line x1="${x}" y1="-7" x2="${x}" y2="7" stroke="${C.rna}" stroke-width=".8"/>`+T(x+cw/2,5,c,{size:12,w:700,c:o.hi&&o.hi.includes(i)?'#c1121f':'#7a1f3d'});});
+ return s+T(o.cap?-44:-10,4,"5′",{size:11,c:C.rna,a:'end'})+T(W+10,4,"3′",{size:11,c:C.rna,a:'start'});}
+function aaC(x,y,l,r=11){return `<circle cx="${x}" cy="${y}" r="${r}" fill="${gid(AA[l]||'#f2b134')}" stroke="${dk(AA[l]||'#f2b134',.35)}" stroke-width=".8"/>`+T(x,y+3.5,l,{size:r>9?9:7.5,w:700});}
+function trna(anti,aa){let s=`<path d="M-13,-7 C-16,-30 -10,-50 -14,-74 Q-13,-88 -2,-87 C8,-90 20,-84 30,-88 Q36,-77 30,-68 C22,-66 16,-70 13,-62 C10,-45 16,-25 13,-7 Z" fill="${gid(C.tr)}" stroke="${C.trS}" stroke-width="1.1"/><path d="M-6,-12 C-8,-35 -4,-55 -7,-78" stroke="#fff" stroke-width="2.5" opacity=".35" fill="none"/>`;
+ for(let i=0;i<3;i++)s+=`<rect x="${-12+i*8.5}" y="-7" width="6.5" height="7" fill="#3d6b14"/>`;
+ if(anti)s+=T(0,-14,anti,{size:9.5,w:700,c:'#2d4d0d'});if(aa)s+=aaC(40,-90,aa);return s;}
+function chain(list){let s='';const n=list.length;for(let k=n-1;k>=0;k--){const j=n-1-k;s+=aaC(-j*17,-j*12,list[k],10);if(j>0)s+='';}return s;}
+const RF=()=>`<path d="M-14,-7 C-18,-30 -12,-60 -14,-80 Q-14,-92 -2,-90 C8,-94 18,-92 22,-86 C26,-60 18,-30 22,-7 Z" fill="${gid('#f4a261')}" stroke="#b5651d" stroke-width="1.1"/>`+T(4,-40,'RF',{size:12,w:800,c:'#6b3510'});
+const lab=(s,o={})=>T(0,0,s,Object.assign({size:13,w:700,c:'#1d3557'},o));
+const arrow=(x1,y1,x2,y2,c='#555')=>{const a=Math.atan2(y2-y1,x2-x1),L=9;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="2"/><path d="M${x2},${y2} L${x2-L*Math.cos(a-.45)},${y2-L*Math.sin(a-.45)} L${x2-L*Math.cos(a+.45)},${y2-L*Math.sin(a+.45)}Z" fill="${c}"/>`;};
+const O=(id,svg,x=0,y=0,e={})=>Object.assign({id,svg,x,y},e);
+const gtp=(s='GTP → GDP')=>`<rect x="-46" y="-14" width="92" height="24" rx="12" fill="${gid('#a8dadc')}" stroke="#457b9d"/>`+T(0,3,s,{size:11,w:700,c:'#1d3557'});
+const DY=230;
+
+/* ---------- mechanisms ---------- */
+const M={};
+const cl=v=>Math.max(0,Math.min(1,v)),lp=(a,b,u)=>a+(b-a)*u;
+/* --- RNA polymerase with variable DNA bubble --- */
+function polSvg(lab,o){let s=`<ellipse rx="64" ry="38" fill="${gid(C.pol)}" stroke="${C.polS}" stroke-width="1.2" opacity=".94"/>`+bumps(64,38,C.pol,9);
+ const st=(d,c)=>`<path d="${d}" stroke="${dk(c,.3)}" stroke-width="5.5" fill="none"/><path d="${d}" stroke="${mix(c,'#ffffff',.15)}" stroke-width="3.5" fill="none"/>`;
+ s+=st(`M-60,-6 Q0,${(-6-52*o).toFixed(1)} 60,-6`,C.ntpl)+st(`M-60,6 Q0,${(6+22*o).toFixed(1)} 60,6`,C.tpl);
+  s+=`<ellipse cx="-22" cy="-24" rx="24" ry="7" fill="#fff" opacity=".42"/>`;
+ return s+T(0,-46,lab,{size:12,w:700,c:'#7a5b20'});}
+const PV=(lab,o=1)=>({k:'pol',p:{o,lab},f:q=>polSvg(q.lab,q.o)});
+/* --- RNA transcript geometry (3′ end inside polymerase, s = distance from exit toward 5′) --- */
+const E0=[-28,-30],DV=[-.995,-.1],LP=Math.PI*9,STEM=30;
+function rpt(s,p){const a=p.a??8,f=p.fold||0;const st=[E0[0]+DV[0]*s,E0[1]+DV[1]*s];if(!f||s<a)return st;
+ const R=[E0[0]+DV[0]*a,E0[1]+DV[1]*a];let q;
+ if(s<a+STEM)q=[R[0],R[1]-(s-a)];
+ else if(s<a+STEM+LP){const th=(s-a-STEM)/9;q=[R[0]-9+9*Math.cos(th),R[1]-STEM-9*Math.sin(th)];}
+ else if(s<a+2*STEM+LP)q=[R[0]-18,R[1]-STEM+(s-a-STEM-LP)];
+ else{const r=s-(a+2*STEM+LP);q=[R[0]-18+DV[0]*r,R[1]+DV[1]*r];}
+ return [lp(st[0],q[0],f),lp(st[1],q[1],f)];}
+const INS='M34,8 C12,14 -18,12 -26,-8 L-28,-30';
+const PAC=`<path d="M0,0 L14,-9 A16,16 0 1,0 14,9 Z" fill="${gid('#ffd166')}" stroke="#b08800" stroke-width="1.2"/><circle cx="-3" cy="-8" r="2" fill="#333"/>`+T(-2,30,'exonuclease',{size:11,w:700,c:'#8a6d00'});
+const rstroke=d=>`<path d="${d}" stroke="${mix(C.rna,'#ffffff',.4)}" stroke-width="12" stroke-dasharray="1.6 3.4" fill="none"/><path d="${d}" stroke="${dk(C.rna,.25)}" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" stroke="${C.rna}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+function segP(s0,s1,p,c,w=4){let dd='';for(let s=s0;s<=s1+.01;s+=2){const q=rpt(Math.min(s,s1),p);dd+=(dd?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1);}return `<path d="${dd}" stroke="${c}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;}
+const op=(svg,o)=>`<g opacity="${o.toFixed(3)}">${svg}</g>`;
+function rnaSvg(p){const len=Math.max(0,p.len);let d=p.cut?'':INS;
+ for(let s=0;s<=len;s+=3){const q=rpt(s,p);d+=(d?' L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1);}
+ const e=rpt(len,p);d+=` L${e[0].toFixed(1)},${e[1].toFixed(1)}`;let o=len>0||!p.cut?rstroke(d):'';const a=p.a??8,f=p.fold||0;
+ if(p.hp){let g=segP(a,a+STEM,p,'#7b0a3a',4.5)+segP(a+STEM+LP,a+2*STEM+LP,p,'#7b0a3a',4.5);
+  if(f<.5){const q=rpt(a+STEM/2,p),q2=rpt(a+1.5*STEM+LP,p);g+=op(T(q[0],q[1]-12,'GC 풍부',{size:10,w:800,c:'#7b0a3a'})+T(q2[0],q2[1]-12,'GC 풍부',{size:10,w:800,c:'#7b0a3a'}),1-f*2);}
+  const ro=cl((f-.5)/.5);if(ro>0){let r='';for(let k=3;k<STEM;k+=5){const r1=rpt(a+k,p),r2=rpt(a+2*STEM+LP-k,p);r+=`<line x1="${r1[0].toFixed(1)}" y1="${r1[1].toFixed(1)}" x2="${r2[0].toFixed(1)}" y2="${r2[1].toFixed(1)}" stroke="#2b2b2b" stroke-width="1.6"/>`;}
+   const R=rpt(a+STEM*.5,p);r+=T(R[0]-26,R[1]-20,'G≡C 염기쌍',{size:11,w:800,c:'#7b0a3a',a:'end'});g+=op(r,ro);}
+  o+=op(g,p.hp);}
+ if(p.u4)o+=op(`<path d="M34,8 C26,11 18,12 8,12" stroke="#ff9f1c" stroke-width="5" fill="none" stroke-linecap="round"/>`+T(70,30,'UUUU',{size:11,w:800,c:'#c25e00',a:'start'})+T(70,44,'⋯ 주형 AAAA (약한 A–U)',{size:10,w:700,c:C.tpl,a:'start'}),p.u4);
+ if(p.sig!=null&&len-p.sig>=0){const q=rpt(len-p.sig,p);o+=`<rect x="${(q[0]-27).toFixed(1)}" y="${(q[1]-23).toFixed(1)}" width="54" height="14" rx="3" fill="#ffd6d6" stroke="#e5989b"/>`+T(q[0],q[1]-12,'AAUAAA',{size:9.5,w:800,c:'#a4161a'});}
+ if(p.rut!=null&&len-p.rut>=0){const r5=p.rut;o+=segP(Math.max(0,len-r5-12),Math.max(0,len-r5+12),p,'#3fbf5a',6);const q=rpt(len-r5,p);o+=T(q[0],q[1]-12,'rut',{size:11,w:800,c:'#2e7d32'});}
+ if(p.rho!=null&&p.rhoO>0){const q=rpt(Math.max(0,len-p.rho),p);o+=`<g transform="translate(${q[0].toFixed(1)},${q[1].toFixed(1)})" opacity="${p.rhoO.toFixed(2)}">`+[0,1,2,3,4,5].map(i=>`<circle cx="${(13*Math.cos(i*Math.PI/3+.3)).toFixed(1)}" cy="${(13*Math.sin(i*Math.PI/3+.3)).toFixed(1)}" r="7.5" fill="${gid('#97bfe6')}" stroke="#3b6fa0"/>`).join('')+T(0,-24,'ρ',{size:15,w:800,c:'#1d3557'})+'</g>';}
+ if(p.pac>0)o+=`<g transform="translate(${(e[0]-12).toFixed(1)},${e[1].toFixed(1)})" opacity="${p.pac.toFixed(2)}">${PAC}</g>`;
+ if(!(p.pac>.5)&&len>0)o+=T(e[0]-12,e[1]+4,"5′",{size:11,c:C.rna});
+ return o;}
+const RN=(len,x={})=>({k:'rna',p:Object.assign({len},x),f:rnaSvg});
+/* cleaved pre-mRNA piece: s0..s1 of same geometry, with growing poly-A tail */
+function preSvg(p){let d='';for(let s=p.s0;s<=p.s1;s+=3){const q=rpt(s,{});d+=(d?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1);}
+ let o=rstroke(d);const e=rpt(p.s1,{}),b=rpt(p.s0,{});o+=T(e[0]-12,e[1]+4,"5′",{size:11,c:C.rna});
+ const q=rpt(p.s1-p.sig,{});o+=`<rect x="${(q[0]-27).toFixed(1)}" y="${(q[1]-23).toFixed(1)}" width="54" height="14" rx="3" fill="#ffd6d6" stroke="#e5989b"/>`+T(q[0],q[1]-12,'AAUAAA',{size:9.5,w:800,c:'#a4161a'});
+ const w=p.n*120;if(w>1){o+=`<rect x="${b[0].toFixed(1)}" y="${(b[1]-6).toFixed(1)}" width="${w.toFixed(1)}" height="12" rx="6" fill="${lid('#f6d58b')}" stroke="#b08800"/>`;let A='';for(let x=6;x<w-4;x+=8)A+=T(b[0]+x,b[1]+4,'A',{size:8.5,w:800,c:'#6b5200'});o+=A+T(b[0]+w/2,b[1]+22,'poly-A tail',{size:11,w:700,c:'#8a6d00'});}
+ if(p.pap>0)o+=`<g transform="translate(${(b[0]+w+14).toFixed(1)},${b[1].toFixed(1)})" opacity="${p.pap.toFixed(2)}">${blob(16,12,'#9ad1d4','#3f8f94','PAP',9)}</g>`+op(T(b[0]+w+14,b[1]-18,'poly-A polymerase',{size:10,w:700,c:'#2f7f84'}),p.pap);
+ return o;}
+const PRE=(x)=>({k:'pre',p:Object.assign({s0:0,s1:0,sig:0,n:0,pap:0},x),f:preSvg});
+const nt=(b,c)=>`<circle r="8" fill="${gid(c)}" stroke="${dk(c,.3)}"/>`+T(0,4,b,{size:9,w:800,c:'#222'})+`<circle cx="11" cy="-6" r="3" fill="#f4d35e" stroke="#b08800" stroke-width=".6"/><circle cx="16" cy="-10" r="3" fill="#f4d35e" stroke="#b08800" stroke-width=".6"/><circle cx="21" cy="-14" r="3" fill="#f4d35e" stroke="#b08800" stroke-width=".6"/>`;
+const NC={A:'#f08a8a',U:'#f7c46c',G:'#7fc8a9',C:'#8fb8e0'};
+const LB=(s,c='#1d3557',sz=13)=>T(0,0,s,{size:sz,w:700,c});
+const sigma=blob(26,20,'#f1cf6a','#a7841f','σ',16);
+const DP=(svg,x)=>O('dna',svg||dna(700),60,DY);
+
+/* 원핵 개시 */
+const prom=`<rect x="150" y="-6" width="40" height="30" rx="4" fill="#ffe08a" opacity=".6"/><rect x="230" y="-6" width="40" height="30" rx="4" fill="#ffe08a" opacity=".6"/>`+T(170,-12,'−35',{size:12,w:700,c:'#8a6d00'})+T(250,-12,'−10 (TATAAT)',{size:12,w:700,c:'#8a6d00'})+`<line x1="300" y1="-16" x2="300" y2="34" stroke="#c1121f" stroke-dasharray="3 3"/>`+T(300,50,'start point (+1)',{size:11,c:'#c1121f'});
+const PR=O('prom',prom,60,DY);
+M.prokInit={kp:'원핵: <b>σ factor + core enzyme = holoenzyme</b> → σ가 promoter의 <b>−35, −10(TATAAT)</b>을 인식해 <b>직접</b> 결합(closed complex) → DNA를 풀어 <b>open complex</b> → <b>primer 없이</b> 합성 시작 → σ는 <b>elongation 단계에서 이탈</b>.',steps:[
+{c:'RNA polymerase <b>core enzyme</b>과 <b>σ factor</b>(시그마 인자)가 따로 떠 있다.',o:[DP(),PR,O('core',PV('core enzyme',0),470,95),O('sig',sigma,240,95)]},
+{c:'σ factor가 core enzyme에 결합 → <b>holoenzyme</b>.',o:[DP(),PR,O('core',PV('holoenzyme',0),430,100),O('sig',sigma,372,128)]},
+{c:'σ가 promoter의 <b>−35, −10</b> 서열을 인식 → holoenzyme이 promoter에 <b>직접</b> 결합 (<b>closed complex</b>: DNA는 아직 이중나선).',o:[DP(),PR,O('core',PV('holoenzyme',0),340,DY+8),O('sig',sigma,282,DY+34)]},
+{c:'RNA polymerase가 −10 부근의 DNA를 <b>풀어</b> 주형 가닥을 노출 (<b>open complex</b>, 자체 helicase 활성).',o:[DP(),PR,O('core',PV('holoenzyme',1),340,DY+8),O('sig',sigma,282,DY+34),O('t',LB('unwinding','#1f4e8c'),340,DY-62)]},
+{c:'+1부터 주형(3′→5′)에 상보적인 <b>NTP</b>가 들어와 RNA 합성 시작 — <b>primer 불필요</b>.',o:[DP(),PR,O('core',PV('holoenzyme',1),340,DY+8),O('sig',sigma,282,DY+34),O('rna',RN(2),340,DY+8,{z:2}),O('n1',nt('A',NC.A),372,DY+18,{from:[430,90],o:0}),O('n2',nt('U',NC.U),372,DY+18,{from:[500,140],o:0}),O('n3',nt('G',NC.G),372,DY+18,{from:[560,70],o:0})]},
+{c:'RNA가 조금 길어지면(약 10 nt) <b>σ factor가 떨어져 나가고</b> core enzyme만 하류로 <b>elongation</b>.',o:[DP(),PR,O('core',PV('core enzyme',1),570,DY+8),O('rna',RN(190),570,DY+8,{z:2}),O('sig',sigma,300,80,{o:.55}),O('t',LB('σ 이탈','#a7841f'),300,50)]}]};
+
+/* 진핵 개시 */
+const tata=`<rect x="160" y="-6" width="60" height="30" rx="4" fill="#ffe08a" opacity=".7"/>`+T(190,48,'TATA box',{size:12,w:700,c:'#8a6d00'})+`<line x1="270" y1="-16" x2="270" y2="34" stroke="#c1121f" stroke-dasharray="3 3"/>`+T(270,-22,'start point',{size:11,c:'#c1121f'})+T(110,-22,'promoter',{size:12,c:'#555'});
+const TA=O('tata',tata,60,DY);
+const tbp=blob(34,20,'#a8d48f','#4d7e3a','TBP',12),tfa=blob(22,17,'#f1cf6a','#a7841f','TF',11),tfb=blob(22,17,'#97bfe6','#3b6fa0','TF',11),tfc=blob(20,15,'#f4a6a6','#a04040','TF',10);
+M.eukInit={kp:'진핵: RNA pol Ⅱ는 promoter에 직접 결합 X → <b>transcription factor(TBP)</b>가 먼저 <b>TATA box</b>(약 −25)에 결합 → 다른 전사인자 + RNA pol Ⅱ = <b>transcription initiation complex</b> → DNA 풀림 → 전사 시작. TATA box 서열은 <b>비주형 가닥 기준</b>.',steps:[
+{c:'진핵 promoter: start point 상류 약 25 nt에 <b>TATA box</b>(TATAAAA, 비주형 가닥 기준).',o:[DP(),TA]},
+{c:'<b>TATA-binding protein(TBP)</b>을 포함한 <b>transcription factor</b>가 먼저 TATA box에 결합한다.',o:[DP(),TA,O('tf1',tbp,250,DY-6,{from:[250,50]})]},
+{c:'다른 <b>transcription factor</b>들이 차례로 결합한다.',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22,{from:[120,50]}),O('tf3',tfb,300,DY-24,{from:[380,50]})]},
+{c:'<b>RNA polymerase Ⅱ</b>와 나머지 전사인자가 결합 → <b>transcription initiation complex</b> 완성.',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22),O('tf3',tfb,300,DY-24),O('p2',PV('RNA polymerase Ⅱ',0),370,DY+8,{from:[600,80]}),O('tf4',tfc,330,DY+36,{from:[300,360]}),O('t1',LB('transcription initiation complex','#5a3f10'),320,340)]},
+{c:'전사인자(helicase 활성)가 DNA를 풀어 주형 가닥 노출.',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22),O('tf3',tfb,300,DY-24),O('p2',PV('RNA polymerase Ⅱ',1),370,DY+8),O('tf4',tfc,330,DY+36),O('t1',LB('unwinding','#1f4e8c'),370,DY-66)]},
+{c:'RNA pol Ⅱ가 주형을 따라 RNA를 5′→3′로 합성하며 promoter를 떠난다 (TF 일부는 남음).',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22),O('tf3',tfb,300,DY-24),O('p2',PV('RNA polymerase Ⅱ',1),540,DY+8),O('rna',RN(130),540,DY+8,{z:2}),O('tf4',tfc,330,DY+36,{o:.5})]}]};
+
+/* 신장 */
+const dirA=O('dir',arrow(0,0,110,0)+T(55,-8,'direction of transcription',{size:11}),600,DY+80);
+M.elong={kp:'한 번에 DNA <b>10~20 nt</b>를 풀어 전사 거품 → 주형에 상보적인 NTP가 RNA <b>3′ end</b>에 결합(주형 A ↔ <b>U</b>) → RNA는 <b>5′→3′</b>, 주형은 <b>3′→5′</b>로 읽음 → 지나간 DNA는 다시 감김(rewound). 한 gene을 <b>여러 RNA polymerase</b>가 동시에 전사 가능.',steps:[
+{c:'RNA polymerase가 DNA를 풀어 <b>전사 거품</b>을 만들고, <b>template strand</b>(진한 파랑)를 3′→5′ 방향으로 읽는다.',o:[DP(),O('p',PV('RNA polymerase'),220,DY+8),O('rna',RN(30),220,DY+8,{z:2}),dirA]},
+{c:'세포 안의 <b>ribonucleoside triphosphate(NTP)</b>들이 주변을 떠다닌다.',o:[DP(),O('p',PV('RNA polymerase'),220,DY+8),O('rna',RN(30),220,DY+8,{z:2}),dirA,O('n1',nt('U',NC.U),330,110,{from:[380,40]}),O('n2',nt('G',NC.G),420,150,{from:[470,60]}),O('n3',nt('C',NC.C),500,95,{from:[560,30]}),O('n4',nt('A',NC.A),600,140,{from:[660,60]})]},
+{c:'주형 염기와 <b>상보적인 NTP</b>만 RNA의 <b>3′ end</b>에 결합 (주형 A 맞은편 = U). polymerase가 앞으로 이동하며 RNA가 길어진다.',o:[DP(),O('p',PV('RNA polymerase'),330,DY+8),O('rna',RN(140),330,DY+8,{z:2}),dirA,O('n1',nt('U',NC.U),362,DY+16,{o:0}),O('n2',nt('G',NC.G),362,DY+16,{o:0}),O('n3',nt('C',NC.C),362,DY+16,{o:0}),O('n4',nt('A',NC.A),362,DY+16,{o:0})]},
+{c:'polymerase가 지나간 뒤 DNA는 <b>다시 감긴다(rewound)</b>. RNA는 뒤쪽으로 빠져나온다.',o:[DP(),O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(370),560,DY+8,{z:2}),dirA,O('tl',T(0,0,'rewound DNA',{size:12,w:700,c:'#555'}),330,DY+52)]},
+{c:'같은 gene을 <b>여러 RNA polymerase</b>가 줄지어 동시에 전사 → 짧은 시간에 많은 RNA.',o:[DP(),O('p',PV('RNA polymerase'),620,DY+8),O('rna',RN(430),620,DY+8,{z:2}),O('p0',PV('RNA polymerase',1),330,DY+8,{from:[100,DY+8]}),O('rna0',RN(110),330,DY+8,{from:[100,DY+8],z:2})]}]};
+
+/* ρ 비의존성 */
+const term=`<rect x="420" y="-6" width="110" height="30" rx="4" fill="#ffd6d6" opacity=".7"/>`+T(475,68,'terminator',{size:12,w:700,c:'#a4161a'});
+const TM=O('term',term,60,DY);
+M.rhoIndep={kp:'<b>ρ 비의존성</b>: terminator 전사 → RNA에 서로 상보적인 <b>GC 풍부 서열</b> 2곳 + 바로 뒤 <b>UUUU</b> → GC끼리 결합해 <b>머리핀(hairpin)</b> → RNA pol <b>진행 방해(멈춤)</b> → UUUU와 주형 AAAA의 <b>약한 A–U 결합</b>이 끊어져 RNA 분리.',steps:[
+{c:'RNA polymerase가 전사 중이다. 하류에 <b>terminator</b> 서열이 있다.',o:[DP(),TM,O('p',PV('RNA polymerase'),300,DY+8),O('rna',RN(120,{a:34,hp:0,fold:0,u4:0}),300,DY+8,{z:2})]},
+{c:'terminator가 전사되면 RNA에 <b>서로 상보적인 GC 풍부 서열 두 곳</b>(진한 부분)과 3′ 끝 <b>UUUU</b>가 생긴다. UUUU는 주형의 AAAA와 짝지어 있다.',o:[DP(),TM,O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(380,{a:34,hp:1,fold:0,u4:1}),560,DY+8,{z:2})]},
+{c:'RNA 밖으로 나온 두 GC 서열이 <b>서로 접혀 G≡C 염기쌍</b>을 이루며 <b>머리핀(hairpin)</b>이 만들어진다.',o:[DP(),TM,O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(380,{a:34,hp:1,fold:1,u4:1}),560,DY+8,{z:2})]},
+{c:'hairpin이 RNA polymerase를 <b>멈추게(pause)</b> 하고, 남은 <b>UUUU–AAAA</b>는 수소결합이 약한 <b>A–U 쌍</b>뿐이다.',o:[DP(),TM,O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(380,{a:34,hp:1,fold:1,u4:1}),560,DY+8,{z:2}),O('st',LB('⏸ pause','#c1121f',14),640,DY-56)]},
+{c:'약한 A–U 결합이 끊어져 <b>RNA transcript가 떨어지고</b>, polymerase도 DNA에서 분리 → <b>termination</b>. DNA는 다시 감긴다.',o:[DP(),TM,O('p',PV('RNA polymerase',0),720,105,{o:.55}),O('rna',RN(380,{a:34,hp:1,fold:1,u4:0}),540,DY-95,{z:2}),O('st',LB('completed RNA transcript',C.rna,13),300,60)]}]};
+
+/* ρ 의존성 */
+M.rhoDep={kp:'<b>ρ 의존성</b>: ① RNA의 <b>rut 부위</b>(C 풍부) 노출 ② <b>ρ factor</b>(고리형 6량체)가 rut에 결합 ③ ρ가 <b>ATP</b>를 쓰며 RNA를 따라 3′ 쪽(polymerase 쪽)으로 이동 ④ 멈춘 RNA pol에 도달 → <b>helicase 활성</b>으로 RNA–DNA를 풀어 RNA 방출.',steps:[
+{c:'① 전사된 RNA에 <b>rut 부위</b>(rho utilization site)가 노출된다.',o:[DP(),O('p',PV('RNA polymerase'),380,DY+8),O('rna',RN(160,{rut:90,rho:90,rhoO:0}),380,DY+8,{z:2})]},
+{c:'② <b>ρ factor</b>(6개 단위체 고리)가 RNA를 감싸며 <b>rut 부위에 결합</b>한다. 그동안 전사는 계속된다.',o:[DP(),O('p',PV('RNA polymerase'),500,DY+8),O('rna',RN(280,{rut:90,rho:90,rhoO:1}),500,DY+8,{z:2})]},
+{c:'③ RNA pol이 종결 부위에서 <b>멈추고(pause)</b>, ρ는 <b>ATP</b>를 쓰며 RNA를 따라 polymerase 쪽으로 이동한다.',o:[DP(),O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(340,{rut:90,rho:230,rhoO:1}),560,DY+8,{z:2}),O('atp',gtp('ATP → ADP'),380,90),O('st',LB('⏸ pause','#c1121f',14),640,DY-56)]},
+{c:'④ ρ가 polymerase에 도달 → <b>helicase 활성</b>으로 RNA–DNA 결합을 풀어낸다.',o:[DP(),O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(340,{rut:90,rho:334,rhoO:1}),560,DY+8,{z:2}),O('atp',gtp('ATP → ADP'),380,90)]},
+{c:'RNA와 polymerase가 떨어져 나간다 → <b>termination</b>.',o:[DP(),O('p',PV('RNA polymerase',0),720,105,{o:.55}),O('rna',RN(340,{rut:90,rho:334,rhoO:1}),540,DY-95,{z:2})]}]};
+
+/* 진핵 종결 */
+const scis=`<path d="M-8,-10 L8,10 M8,-10 L-8,10" stroke="#c1121f" stroke-width="3"/>`+T(0,-16,'절단',{size:11,w:700,c:'#c1121f'});
+const at=(px,len,s)=>{const q=rpt(len-s,{});return [px+q[0],DY+8+q[1]];};
+const cf=blob(18,13,'#c9a2d8','#7d5590','',9);
+M.eukTerm={kp:'진핵: Pol Ⅱ가 <b>polyadenylation signal</b>을 전사 → pre-mRNA의 <b>AAUAAA</b>를 단백질이 인식 → <b>10~35 nt 하류</b>에서 절단 → 떨어진 pre-mRNA에 <b>poly-A tail</b> → Pol Ⅱ에 남은 RNA를 <b>exonuclease</b>가 5′부터 분해(팩맨) → Pol Ⅱ를 따라잡으면 Pol Ⅱ가 떨어짐.',steps:[
+{c:'RNA pol Ⅱ가 <b>polyadenylation signal</b>을 전사 → pre-mRNA에 <b>AAUAAA</b>가 생긴다.',o:[DP(),O('p',PV('RNA pol Ⅱ'),400,DY+8),O('rna',RN(300,{sig:240,pac:0}),400,DY+8,{z:2})]},
+{c:'Pol Ⅱ는 계속 전사하고, 절단 단백질들이 <b>AAUAAA를 인식</b>해 결합한다.',o:[DP(),O('p',PV('RNA pol Ⅱ'),520,DY+8),O('rna',RN(420,{sig:240,pac:0}),520,DY+8,{z:2}),O('c1',cf,...at(520,420,240).map((v,i)=>v+(i?-30:0)),{from:[200,60]}),O('c2',cf,...at(520,420,265).map((v,i)=>v+(i?-26:0)),{from:[480,50]})]},
+{c:'AAUAAA의 <b>10~35 nt 하류</b>에서 pre-mRNA가 <b>잘린다</b>.',o:[DP(),O('p',PV('RNA pol Ⅱ'),520,DY+8),O('rna',RN(420,{sig:240,pac:0}),520,DY+8,{z:2}),O('c1',cf,...at(520,420,240).map((v,i)=>v+(i?-30:0))),O('c2',cf,...at(520,420,265).map((v,i)=>v+(i?-26:0))),O('sc',scis,...at(520,420,268).map((v,i)=>v+(i?-2:0)))]},
+{c:'잘린 pre-mRNA는 떨어져 나가 3′ 끝에 <b>poly-A polymerase</b>가 A를 하나씩 붙인다. Pol Ⅱ 쪽 남은 RNA의 5′ 끝에는 <b>exonuclease</b>가 붙는다.',o:[DP(),O('p',PV('RNA pol Ⅱ'),560,DY+8),O('rna',RN(192,{pac:1}),560,DY+8,{z:2}),O('pre',PRE({s0:152,s1:420,sig:240,n:0,pap:1}),480,DY-100,{from:[520,DY+8],z:3}),O('c1',cf,330,90,{o:0}),O('c2',cf,380,90,{o:0})]},
+{c:'poly-A tail이 길어지는 동안, <b>exonuclease</b>는 남은 RNA를 5′ 끝부터 <b>팩맨처럼 먹어 들어간다</b>. Pol Ⅱ는 계속 전사.',o:[DP(),O('p',PV('RNA pol Ⅱ'),640,DY+8),O('rna',RN(40,{pac:1}),640,DY+8,{z:2}),O('pre',PRE({s0:152,s1:420,sig:240,n:1,pap:1}),480,DY-100,{z:3})]},
+{c:'exonuclease가 Pol Ⅱ를 <b>따라잡으면</b> Pol Ⅱ가 DNA에서 떨어진다 → 전사 종결.',o:[DP(),O('p',PV('RNA pol Ⅱ',0),730,110,{o:.5}),O('rna',RN(0,{pac:0}),680,DY+8,{z:2,o:0}),O('pre',PRE({s0:152,s1:420,sig:240,n:1,pap:0}),480,DY-100,{z:3})]}]};
+
+/* 5′ cap / poly-A tail */
+const seg=(w,f,t)=>`<rect x="0" y="-9" width="${w}" height="18" fill="${f}" stroke="#a04060" stroke-width=".6"/>`+T(w/2,4,t,{size:11,w:700,c:'#fff'});
+const premRNA=`<rect x="0" y="-9" width="70" height="18" fill="#f3c1d4"/>`+T(35,24,"5′ UTR",{size:11})+`<rect x="70" y="-9" width="300" height="18" fill="${C.rna}"/>`+T(220,4,'protein-coding segment',{size:11,w:700,c:'#fff'})+T(80,40,'start codon',{size:10})+T(360,40,'stop codon',{size:10})+`<rect x="370" y="-9" width="120" height="18" fill="#f3c1d4"/>`+T(430,24,"3′ UTR",{size:11})+`<rect x="440" y="-9" width="44" height="18" fill="#ffd6d6"/>`+T(462,3,'AAUAAA',{size:8.5,w:800,c:'#a4161a'})+`<rect x="490" y="-9" width="60" height="18" fill="#f3c1d4" opacity=".7"/>`+T(-12,4,"5′",{size:11,c:C.rna});
+const cap=`<rect x="0" y="-11" width="46" height="22" rx="5" fill="#d9c3a5" stroke="#8a6d2d"/>`+T(23,4,'G-P-P-P',{size:10,w:800,c:'#4a3510'})+T(23,-18,'5′ cap',{size:12,w:800,c:'#8a6d2d'});
+const tailA=`<rect x="0" y="-9" width="110" height="18" rx="3" fill="#f6d58b" stroke="#b08800"/>`+T(55,4,'AAA……AAA',{size:11,w:800,c:'#5a4500'})+T(55,-16,'poly-A tail (A 50~250개)',{size:11,w:700,c:'#8a6d00'});
+const TAp=n=>({k:'ta',p:{n},f:q=>{const w=8+q.n*102;let s=`<rect x="0" y="-9" width="${w.toFixed(1)}" height="18" rx="5" fill="${lid('#f6d58b')}" stroke="#b08800"/>`;for(let x=7;x<w-3;x+=8)s+=T(x,4,'A',{size:9,w:800,c:'#5a4500'});return s+op(T(55,-16,'poly-A tail (A 50~250개)',{size:11,w:700,c:'#8a6d00'}),cl(q.n*2))+op(`<g transform="translate(${(w+16).toFixed(1)},0)">${blob(16,12,'#9ad1d4','#3f8f94','PAP',9)}</g>`,q.n<.98?1:0);}});
+const preC=premRNA.replace(`<rect x="490" y="-9" width="60" height="18" fill="#f3c1d4" opacity=".7"/>`,'');
+M.capTail={kp:'5′ cap(<b>변형된 G</b>, G-PPP, 5′-5′ 결합) + poly-A tail(A 50~250) → 기능 3가지: ① <b>세포질로 이동</b> 촉진 ② <b>hydrolytic enzyme으로부터 보호</b> ③ <b>ribosome이 5′ end에 부착</b>하도록 도움. UTR도 exon.',steps:[
+{c:'RNA pol Ⅱ가 <b>20~40 nt</b>를 전사하자마자 5′ 끝에 <b>변형된 구아닌(G-PPP)</b>이 붙는다 = <b>5′ cap</b>.',o:[O('pre',seg(90,C.rna,'5′ 20~40 nt'),160,200),O('cap',cap,114,200,{from:[114,60]})]},
+{c:'전사가 계속되어 pre-mRNA 완성: 5′ UTR – coding segment – 3′ UTR(<b>AAUAAA</b> 포함).',o:[O('pre',premRNA,160,200),O('cap',cap,114,200)]},
+{c:'<b>AAUAAA</b>의 10~35 nt 하류에서 pre-mRNA가 <b>절단</b>된다.',o:[O('pre',premRNA,160,200),O('cap',cap,114,200),O('sc',scis,650,180)]},
+{c:'잘린 조각은 분해되고, <b>poly-A polymerase(PAP)</b>가 3′ 끝에 결합한다.',o:[O('pre',preC,160,200),O('cap',cap,114,200),O('cut',`<rect x="0" y="-9" width="60" height="18" fill="#f3c1d4" opacity=".7"/>`,720,330,{from:[650,200],o:0}),O('tail',TAp(0),650,200,{from:[760,110]})]},
+{c:'PAP가 <b>A를 50~250개</b> 하나씩 붙여 <b>poly-A tail</b>을 만든다.',o:[O('pre',preC,160,200),O('cap',cap,114,200),O('tail',TAp(1),650,200)]},
+{c:'완성된 mRNA → ① <b>세포질로 이동</b> ② <b>분해 방지</b> ③ <b>ribosome 부착</b> 도움.',o:[O('pre',preC,60,200),O('cap',cap,14,200),O('tail',TAp(1),550,200),O('f',T(0,0,'① cytoplasm으로 이동   ② hydrolytic enzyme으로부터 보호   ③ ribosome 부착',{size:14,w:700,c:'#1d3557'}),410,300)]}]};
+
+/* splicing */
+const ex=(w,t,f=C.rna)=>`<rect x="0" y="-11" width="${w}" height="22" rx="8" fill="${lid(f)}" stroke="${dk(f,.3)}"/>`+T(w/2,5,t,{size:12,w:800,c:'#fff'});
+function ipt(s,p){const sp=p.span??200;const ax=x=>[x*sp/200,-(p.bend||0)*80*Math.sin(Math.PI*x/200)];const b=ax(s);if(!p.lar||s>150)return b;
+ const A=ax(150),r=150/(2*Math.PI),ph=2*Math.PI*(150-s)/150;const F=[A[0]+r*Math.sin(ph)*-1,A[1]-r+r*Math.cos(ph)];return [lp(b[0],F[0],p.lar),lp(b[1],F[1],p.lar)];}
+function intronSvg(p){let d='';for(let s=0;s<=200;s+=2.5){const q=ipt(s,p);d+=(d?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1);}
+ let o=`<path d="${d}" stroke="#d6d6d6" stroke-width="15" stroke-dasharray="1.6 3.4" fill="none"/><path d="${d}" stroke="#7d7d7d" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" stroke="#bdbdbd" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+ const g=ipt(5,p),a=ipt(150,p),ag=ipt(194,p),m=ipt(100,p);
+ o+=T(g[0]+(p.lar>.5?-14:4),g[1]-12,'GU',{size:12,w:800,c:'#c1121f'})+`<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="5" fill="#c1121f"/>`+T(a[0]+(p.lar>.5?16:0),a[1]+(p.lar>.5?4:-12),'A',{size:12,w:800,c:'#c1121f'})+T(ag[0],ag[1]-12,'AG',{size:12,w:800,c:'#c1121f'});
+ o+=T(m[0],m[1]+(p.lar>.5?-30:26),p.lar>.5?'lariat (올가미)':'intron',{size:12,w:700,c:'#555'});return o;}
+const IN=(x)=>({k:'in',p:Object.assign({span:200,bend:0,lar:0},x),f:intronSvg});
+const sn=(l)=>blob(22,15,'#c9a2d8','#7d5590',l,10,'#3a1e47');
+const sCase=`<ellipse rx="150" ry="78" fill="#c9a2d8" opacity=".25" stroke="#7d5590" stroke-dasharray="5 4"/>`+T(0,-86,'spliceosome',{size:13,w:800,c:'#5e3a70'});
+M.splice={kp:'<b>snRNA + 단백질 = snRNP</b> → snRNP가 <b>5′ splice site(GU)</b>와 <b>branch point(A)</b>에 결합 → 여러 snRNP + 단백질 = <b>spliceosome</b> → ① 5′ splice site 절단, intron 5′ 끝이 A에 붙어 <b>올가미(lariat)</b> ② 3′ splice site(AG) 절단 + <b>exon 연결</b>. <b>snRNA가 촉매 = ribozyme</b>.',steps:[
+{c:'pre-mRNA: <b>exon</b>(남아서 발현) 사이에 <b>intron</b>(잘려 나가는 noncoding). intron은 <b>5′-GU … A … AG-3′</b>.',o:[O('e1',ex(160,'Exon 1'),100,220),O('in',IN({}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),460,220)]},
+{c:'snRNA가 상보 결합으로 위치를 찾아 <b>snRNP</b>가 <b>5′ splice site(GU)</b>와 <b>branch point(A)</b>에 결합한다.',o:[O('e1',ex(160,'Exon 1'),100,220),O('in',IN({}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),460,220),O('u1',sn('U1'),268,190,{from:[268,40],z:3}),O('u2',sn('U2'),410,190,{from:[410,40],z:3})]},
+{c:'다른 snRNP와 단백질이 모여 <b>spliceosome</b>이 되고, intron이 휘어 <b>두 exon 끝이 가까워진다</b>.',o:[O('sp',sCase,320,186,{z:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),380,220),O('u1',sn('U1'),262,196,{z:3}),O('u2',sn('U2'),350,150,{z:3}),O('u5',sn('U5'),318,240,{from:[318,370],z:3}),O('u6',sn('U4/U6'),296,146,{from:[200,40],z:3})]},
+{c:'① <b>5′ splice site가 잘리고</b>, intron의 5′ 끝(G)이 <b>branch point A</b>에 붙어 <b>올가미(lariat)</b> 모양이 된다.',o:[O('sp',sCase,320,186,{z:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1,lar:1}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),380,220),O('u1',sn('U1'),245,180,{z:3,o:.6}),O('u2',sn('U2'),370,130,{z:3}),O('u5',sn('U5'),318,240,{z:3}),O('u6',sn('U4/U6'),290,140,{z:3}),O('sc',scis,262,206,{z:4})]},
+{c:'② <b>3′ splice site(AG)가 잘리고</b> 두 <b>exon이 연결</b>된다 (snRNA = <b>ribozyme</b>). lariat과 snRNP는 떨어져 나간다.',o:[O('sp',sCase,320,186,{o:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1,lar:1}),430,150,{z:1}),O('e2',ex(160,'Exon 2'),260,220),O('u1',sn('U1'),180,90,{o:0}),O('u2',sn('U2'),520,80,{z:3,o:0}),O('u5',sn('U5'),330,340,{o:0}),O('u6',sn('U4/U6'),300,40,{o:0})]},
+{c:'완성된 <b>mRNA</b>: exon만 이어진 연속된 coding sequence. 잘린 intron(lariat)은 <b>분해</b>된다.',o:[O('e1',ex(160,'Exon 1'),240,220),O('e2',ex(160,'Exon 2'),400,220),O('in',IN({span:120,bend:1,lar:1}),560,140,{s:.5,o:0}),O('m',T(0,0,'mRNA',{size:15,w:800,c:C.rna}),400,180)]}]};
+
+const E=(t,f)=>ex(56,t,f);const I=`<rect x="0" y="-5" width="40" height="10" fill="#bdbdbd"/>`;
+const preAlt=E('E1','#e0457b')+`<g transform="translate(56,0)">${I}</g><g transform="translate(96,0)">${E('E2','#f08a4b')}</g><g transform="translate(152,0)">${I}</g><g transform="translate(192,0)">${E('E3','#8d6ec7')}</g>`;
+M.alt={kp:'<b>alternative RNA splicing</b>: 같은 pre-mRNA에서 exon 조합을 다르게 → 1 gene에서 여러 polypeptide (사람 다중 exon 유전자 ~95%). <b>exon shuffling</b>: intron에서 교차가 일어나 exon(=domain)이 새로 조합 → 새 단백질 진화.',steps:[
+{c:'하나의 pre-mRNA: E1 – intron – E2 – intron – E3.',o:[O('pa',preAlt,290,80)]},
+{c:'어떤 부분을 exon으로 남기느냐에 따라 서로 다른 mRNA가 만들어진다 (<b>alternative RNA splicing</b>).',o:[O('pa',preAlt,290,80),O('a1',E('E1','#e0457b')+`<g transform="translate(56,0)">${E('E2','#f08a4b')}</g>`,170,200,{from:[290,80]}),O('a2',E('E1','#e0457b')+`<g transform="translate(56,0)">${E('E3','#8d6ec7')}</g>`,520,200,{from:[480,80]}),O('ar',arrow(400,96,250,180)+arrow(430,96,580,180),0,0)]},
+{c:'→ 같은 gene에서 <b>서로 다른 단백질</b> A, B. (유전자 수보다 단백질 종류가 많은 이유)',o:[O('pa',preAlt,290,80),O('a1',E('E1','#e0457b')+`<g transform="translate(56,0)">${E('E2','#f08a4b')}</g>`,170,200),O('a2',E('E1','#e0457b')+`<g transform="translate(56,0)">${E('E3','#8d6ec7')}</g>`,520,200),O('ar',arrow(400,96,250,180)+arrow(430,96,580,180),0,0),O('pA',blob(40,24,'#f7b0c8','#a04060','단백질 A',12),225,300),O('pB',blob(40,24,'#c7b4ea','#5e3a70','단백질 B',12),575,300)]},
+{c:'<b>exon shuffling</b>: 두 유전자(각 exon = 단백질의 한 domain)가 있다.',o:[O('g1',T(-14,5,'유전자 1',{size:12,a:'end',w:700})+E('E1','#e0457b')+`<g transform="translate(56,0)">${I}</g><g transform="translate(96,0)">${E('E1′','#e0457b')}</g>`,300,110),O('g2',T(-14,5,'유전자 2',{size:12,a:'end',w:700})+E('E2','#5b95cf')+`<g transform="translate(56,0)">${I}</g><g transform="translate(96,0)">${E('E2′','#5b95cf')}</g>`,300,190)]},
+{c:'<b>intron 부위에서 교차</b>가 일어난다 → exon은 깨지지 않는다.',o:[O('g1',T(-14,5,'유전자 1',{size:12,a:'end',w:700})+E('E1','#e0457b')+`<g transform="translate(56,0)">${I}</g><g transform="translate(96,0)">${E('E1′','#e0457b')}</g>`,300,110),O('g2',T(-14,5,'유전자 2',{size:12,a:'end',w:700})+E('E2','#5b95cf')+`<g transform="translate(56,0)">${I}</g><g transform="translate(96,0)">${E('E2′','#5b95cf')}</g>`,300,190),O('x',`<path d="M0,0 C10,30 -10,50 0,80" stroke="#c1121f" stroke-width="3" fill="none"/>`+T(14,44,'교차',{size:13,w:800,c:'#c1121f',a:'start'}),376,112)]},
+{c:'새 exon 조합 → 새 domain 조합 → <b>새로운 단백질</b>이 진화할 수 있다.',o:[O('g1',null,300,110,{o:.3}),O('g2',null,300,190,{o:.3}),O('n',T(-14,5,'새 유전자',{size:12,a:'end',w:700,c:'#c1121f'})+E('E1','#e0457b')+`<g transform="translate(56,0)">${I}</g><g transform="translate(96,0)">${E('E2′','#5b95cf')}</g>`,300,290,{from:[300,190]}),O('np',blob(46,24,'#e7d4f5','#5e3a70','새 단백질',12),560,290)]}]};
+
+/* translation initiation prok */
+
+/* 번역 개시 */
+const codI=['AUG','GCC','UUU','GGC'];
+const IF=(l,c)=>blob(16,12,c,dk(c,.3),l,9);
+M.tlInitP={kp:'원핵 개시: <b>small subunit</b>(+initiation factor)의 <b>16S rRNA</b>가 mRNA의 <b>Shine-Dalgarno 서열</b>과 상보 결합 → <b>initiator tRNA</b>(anticodon 3′-UAC-5′, <b>fMet</b>)가 AUG에 결합 → <b>large subunit</b> 결합(<b>GTP</b> 사용), initiation factor 방출 = translation initiation complex. initiator tRNA는 <b>P site</b>, A site는 비어 있음.',steps:[
+{c:'mRNA: start codon <b>AUG</b> 앞(5′ 쪽)에 <b>Shine-Dalgarno 서열</b>이 있다.',o:[O('m',mrna(codI,{lead:150,sd:1}),235,260,{z:1})]},
+{c:'<b>initiation factor</b>가 붙은 <b>small subunit</b>이 결합: <b>16S rRNA</b>가 Shine-Dalgarno 서열과 상보 결합 → AUG가 P site 자리에 온다.',o:[O('S',riboS(),410,260,{from:[410,430],z:0}),O('if1',IF('IF',' #f4a6a6'.trim()),470,312,{from:[470,430],z:2}),O('if3',IF('IF','#9ad1d4'),350,314,{from:[350,430],z:2}),O('m',null,235,260,{z:1}),O('l16',T(0,0,'16S rRNA ↔ Shine-Dalgarno',{size:12,w:700,c:'#5e4a7f'}),330,350)]},
+{c:'<b>initiator tRNA</b>(anticodon 3′-UAC-5′)가 <b>fMet</b>을 달고 AUG에 결합 (IF·<b>GTP</b>가 도움).',o:[O('S',riboS(),410,260,{z:0}),O('if1',IF('IF','#f4a6a6'),470,312,{z:2}),O('if3',IF('IF','#9ad1d4'),350,314,{z:2}),O('m',null,235,260,{z:1}),O('t',trna('UAC','fMet'),410,253,{from:[410,40],z:3}),O('g',gtp('GTP'),560,120)]},
+{c:'<b>large subunit</b>이 결합하고 <b>GTP → GDP</b>, initiation factor 방출 → <b>translation initiation complex</b>. initiator tRNA는 <b>P site</b>, <b>A site</b>는 비어 있다.',o:[O('S',riboS(),410,260,{z:0}),O('m',null,235,260,{z:1}),O('L',riboL(),410,260,{from:[410,-130],z:2}),O('t',trna('UAC','fMet'),410,253,{z:3}),O('if1',IF('IF','#f4a6a6'),640,340,{o:0}),O('if3',IF('IF','#9ad1d4'),170,340,{o:0}),O('g',gtp(),640,90)]}]};
+M.tlInitE={kp:'진핵 개시: initiator tRNA(<b>Met</b>)와 initiation factor가 붙은 small subunit이 <b>5′ cap</b>에 결합 → mRNA를 따라 <b>AUG까지 스캔</b> → large subunit 결합(GTP).',steps:[
+{c:'진핵 mRNA: 5′ 끝에 <b>5′ cap</b>이 있다.',o:[O('m',mrna(codI,{lead:150,cap:1}),235,260,{z:1})]},
+{c:'<b>initiator tRNA(Met)</b>와 initiation factor가 붙은 <b>small subunit</b>이 <b>5′ cap</b>을 인식해 결합한다.',o:[O('S',riboS(),290,260,{from:[290,430],z:0}),O('t',trna('UAC','Met'),290,253,{from:[290,430],z:3}),O('if',IF('eIF','#9ad1d4'),226,248,{from:[226,430],z:3}),O('m',null,235,260,{z:1})]},
+{c:'small subunit이 mRNA를 따라 <b>5′→3′로 스캔</b>하다가 <b>start codon AUG</b>를 찾는다 (anticodon UAC ↔ AUG).',o:[O('S',riboS(),410,260,{z:0}),O('t',trna('UAC','Met'),410,253,{z:3}),O('if',IF('eIF','#9ad1d4'),346,248,{z:3}),O('m',null,235,260,{z:1}),O('sc',arrow(0,0,100,0,'#5e4a7f')+T(50,-8,'scanning',{size:12,w:700,c:'#5e4a7f'}),300,350)]},
+{c:'<b>large subunit</b>이 결합(GTP 사용), eIF 방출 → initiator tRNA는 <b>P site</b>.',o:[O('S',riboS(),410,260,{z:0}),O('m',null,235,260,{z:1}),O('L',riboL(),410,260,{from:[410,-130],z:2}),O('t',trna('UAC','Met'),410,253,{z:3}),O('if',IF('eIF','#9ad1d4'),180,330,{o:0}),O('g',gtp(),640,90)]}]};
+
+/* 번역 신장 */
+const cE=['AUG','GCC','UUU','GGC','UCA','UGG'];const mE=(dx)=>O('m',mrna(cE,{lead:100}),285+dx,260,{z:1});
+const RB=[O('S',riboS(),410,260,{z:0}),O('L',riboL(),410,260,{z:2})];
+const TP=(id,a,aa,x,e={})=>O(id,trna(a,aa),x,253,Object.assign({z:3},e));
+const CH=(l,x,e={})=>O('ch',chain(l),x+40,163,Object.assign({z:4},e));
+const EFT=blob(22,15,'#9ad1d4','#3f8f94','EF-Tu',9),EFG=blob(22,15,'#f4c27a','#b07a20','EF-G',9);
+M.tlElong={kp:'<b>elongation</b> 3단계 반복: ① <b>codon recognition</b>(aminoacyl tRNA가 elongation factor와 함께 A site로, GTP) ② <b>peptide bond formation</b>(large subunit의 <b>rRNA</b>가 촉매, P의 polypeptide → A의 아미노산으로) ③ <b>translocation</b>(codon 1개 이동: A→P, P→E, GTP) → E에서 빈 tRNA 방출. 아미노산 1개당 <b>GTP 2</b>. 아미노산은 사슬의 <b>C-terminus</b>에 추가, mRNA는 <b>5′→3′</b>.',steps:[
+{c:'개시 직후: Met-tRNA가 <b>P site</b>, <b>A site</b>는 다음 codon(GCC)을 비워 둔 상태.',o:[...RB,mE(0),TP('t1','UAC','',410),CH(['Met'],410)]},
+{c:'① <b>codon recognition</b>: <b>elongation factor</b>(EF-Tu·GTP)가 GCC에 맞는 <b>Ala-tRNA</b>(anticodon CGG)를 A site로 데려온다.',o:[...RB,mE(0),TP('t1','UAC','',410),CH(['Met'],410),TP('t2','CGG','Ala',460,{from:[690,60]}),O('ef',EFT,500,190,{from:[730,40],z:5})]},
+{c:'anticodon–codon이 맞으면 <b>GTP → GDP</b>, elongation factor가 떨어진다.',o:[...RB,mE(0),TP('t1','UAC','',410),CH(['Met'],410),TP('t2','CGG','Ala',460),O('ef',EFT,700,60,{o:0,z:5}),O('g',gtp(),660,110)]},
+{c:'② <b>peptide bond formation</b>: large subunit의 <b>rRNA</b>가 촉매 → P site의 Met이 A site tRNA의 Ala와 결합(사슬이 A site tRNA로 넘어감).',o:[...RB,mE(0),TP('t1','UAC','',410),TP('t2','CGG','',460),CH(['Met','Ala'],460),O('pb',T(0,0,'peptide bond (rRNA = ribozyme)',{size:12,w:700,c:'#c1121f'}),620,110)]},
+{c:'③ <b>translocation</b>: EF-G·<b>GTP</b>의 도움으로 ribosome이 <b>codon 1개(3′ 쪽)</b> 이동 → A의 tRNA는 <b>P</b>로, 빈 tRNA는 <b>E</b>로.',o:[...RB,mE(-50),TP('t1','UAC','',360),TP('t2','CGG','',410),CH(['Met','Ala'],410),O('efg',EFG,520,195,{from:[730,40],z:5}),O('g',gtp(),660,110)]},
+{c:'빈 tRNA가 <b>E site에서 방출</b>되고, A site에는 다음 codon(UUU)이 놓인다.',o:[...RB,mE(-50),TP('t1','UAC','',240,{y:110,o:0}),TP('t2','CGG','',410),CH(['Met','Ala'],410),O('efg',EFG,720,60,{o:0,z:5})]},
+{c:'다시 ① <b>Phe-tRNA</b>(anticodon AAA)가 elongation factor와 함께 A site로 들어온다.',o:[...RB,mE(-50),TP('t2','CGG','',410),CH(['Met','Ala'],410),TP('t3','AAA','Phe',460,{from:[690,60]}),O('ef',EFT,500,190,{from:[730,40],z:5})]},
+{c:'② peptide bond → 사슬이 A site tRNA로. 이렇게 <b>N말단 → C말단</b> 방향으로 길어진다.',o:[...RB,mE(-50),TP('t2','CGG','',410),TP('t3','AAA','',460),CH(['Met','Ala','Phe'],460),O('ef',EFT,700,60,{o:0,z:5})]},
+{c:'③ translocation → 반복. ribosome은 mRNA를 <b>5′ → 3′</b> 방향으로 읽는다.',o:[...RB,mE(-100),TP('t2','CGG','',360),TP('t3','AAA','',410),CH(['Met','Ala','Phe'],410),O('efg',EFG,520,195,{from:[730,40],z:5})]}]};
+
+/* 번역 종결 */
+const cT=['AUG','AAG','UUU','GGC','UAG'];const mT=O('m',mrna(cT,{lead:100,hi:[4]}),135,260,{z:1});
+M.tlTerm={kp:'<b>termination</b>: stop codon(UAA·UAG·UGA)이 A site → 맞는 tRNA 없음 → <b>release factor</b> 결합 → <b>물(H₂O)</b>을 첨가해 P site tRNA와 polypeptide 사이 결합 <b>가수분해</b> → polypeptide 방출 → ribosome subunit·mRNA·tRNA 분리(<b>GTP 2</b>).',steps:[
+{c:'ribosome이 mRNA의 <b>stop codon(UAG)</b>에 도달 → A site에 stop codon.',o:[...RB,mT,TP('t1','CCG','',410),CH(['Met','Lys','Phe','Gly'],410)]},
+{c:'stop codon에 맞는 tRNA는 없다 → <b>release factor</b>가 A site에 결합한다.',o:[...RB,mT,TP('t1','CCG','',410),CH(['Met','Lys','Phe','Gly'],410),O('rf',RF(),460,253,{from:[680,60],z:3})]},
+{c:'release factor가 <b>물 분자(H₂O)</b>를 P site의 tRNA–polypeptide 결합으로 가져온다.',o:[...RB,mT,TP('t1','CCG','',410),CH(['Met','Lys','Phe','Gly'],410),O('rf',RF(),460,253,{z:3}),O('w',`<circle r="9" fill="${gid('#e63946')}"/><circle cx="-9" cy="7" r="5" fill="${gid('#f1f1f1')}" stroke="#aaa"/><circle cx="9" cy="7" r="5" fill="${gid('#f1f1f1')}" stroke="#aaa"/>`+T(0,-14,'H₂O',{size:12,w:800,c:'#1565c0'}),470,175,{from:[640,90],z:5})]},
+{c:'결합이 <b>가수분해</b>되어 <b>free polypeptide</b>가 ribosome에서 빠져나간다.',o:[...RB,mT,TP('t1','CCG','',410),O('rf',RF(),460,253,{z:3}),CH(['Met','Lys','Phe','Gly'],300,{y:70}),O('w',`<circle r="9" fill="${gid('#e63946')}"/>`,470,175,{o:0,z:5}),O('fp',LB('free polypeptide','#5e3a70',12),300,40)]},
+{c:'ribosome subunit, mRNA, tRNA, release factor가 <b>분리</b>된다 (<b>GTP 2</b>개 사용).',o:[O('S',riboS(),470,310,{z:0}),O('L',riboL(),470,190,{z:2}),mT,TP('t1','CCG','',300,{y:120,o:.5}),O('rf',RF(),680,230,{o:.5,z:3}),CH(['Met','Lys','Phe','Gly'],220,{y:60}),O('g',gtp('2 GTP → 2 GDP'),700,345)]}]};
+
+const mini=`<ellipse cx="0" cy="-26" rx="44" ry="28" fill="${gid(C.L)}" stroke="${C.ribS}"/><ellipse cx="0" cy="10" rx="40" ry="14" fill="${gid(C.S)}" stroke="${C.ribS}"/>`+bumps(40,24,C.L,8).replace(/cy="([-\d.]+)"/g,(m,b)=>`cy="${(+b-26).toFixed(1)}"`)+`<line x1="-80" y1="0" x2="80" y2="0" stroke="${C.rna}" stroke-width="4"/>`+T(84,4,'mRNA',{size:10,c:C.rna,a:'start'});
+const sigP=`<path d="M0,0 q-8,-10 0,-20 q8,-10 0,-20" stroke="#e63946" stroke-width="5" fill="none"/>`+T(-8,-46,'signal peptide',{size:11,w:700,c:'#e63946',a:'end'});
+const mem=(()=>{let m='';for(let x=4;x<820;x+=9){m+=`<path d="M${x-1.5},4 q2,5 0,9 M${x+1.5},4 q-2,5 0,9 M${x-1.5},22 q2,-5 0,-9 M${x+1.5},22 q-2,-5 0,-9" stroke="#d6a07a" stroke-width="1" fill="none"/><circle cx="${x}" cy="2" r="4.2" fill="${gid('#f0b48a')}"/><circle cx="${x}" cy="24" r="4.2" fill="${gid('#f0b48a')}"/>`;}return m;})()+T(14,-10,'CYTOSOL',{size:12,w:700,c:'#555',a:'start'})+T(14,52,'ER LUMEN',{size:12,w:700,c:'#8a4a20',a:'start'})+T(800,52,'ER membrane',{size:11,c:'#8a4a20',a:'end'});
+const srp=blob(20,15,'#f1cf6a','#a7841f','SRP',10);
+M.srp={kp:'Polypeptide 합성은 <b>cytosol에서 시작</b>, 특별한 신호가 없으면 <b>cytosol에서 종료</b>. ER로 갈 polypeptide는 <b>signal peptide</b>로 표시 → <b>SRP</b> 결합 → <b>SRP receptor protein</b> → <b>translocation complex</b> → <b>signal-cleaving enzyme</b>이 절단. (번역 3단계와 별개인 <b>targeting</b>)',steps:[
+{c:'① <b>free ribosome</b>에서 polypeptide 합성 시작 → N말단에 <b>signal peptide</b>가 나온다.',o:[O('mem',mem,0,270),O('r',mini,200,130),O('sig',sigP,190,100)]},
+{c:'② <b>SRP</b>(signal-recognition particle)가 signal peptide에 결합 → 번역 <b>일시 정지</b>.',o:[O('mem',mem,0,270),O('r',mini,200,130),O('sig',sigP,190,100),O('srp',srp,190,52,{from:[60,40]})]},
+{c:'③ SRP가 ribosome을 ER 막의 <b>SRP receptor protein</b>으로 데려간다.',o:[O('mem',mem,0,270),O('rcp',blob(18,12,'#97bfe6','#3b6fa0','',9),380,276),O('tc',`<rect x="-12" y="0" width="24" height="26" fill="#9aa5b1" stroke="#5b6470"/>`+T(0,-6,'',{size:9}),450,270),O('r',mini,450,220),O('sig',sigP,440,190),O('srp',srp,392,250)]},
+{c:'④ SRP가 떨어지고 번역 재개 → polypeptide가 <b>translocation complex</b>를 통해 <b>ER lumen</b>으로 들어간다.',o:[O('mem',mem,0,270),O('rcp',blob(18,12,'#97bfe6','#3b6fa0','',9),380,276),O('tc',`<rect x="-12" y="0" width="24" height="26" fill="#9aa5b1" stroke="#5b6470"/>`+T(50,60,'translocation complex',{size:11,w:700,c:'#5b6470'}),450,270),O('r',mini,450,240),O('sig',`<path d="M0,0 L0,40 q8,8 0,16 q-8,8 0,16" stroke="#e63946" stroke-width="5" fill="none"/>`,450,256),O('srp',srp,250,120,{o:0})]},
+{c:'⑤ <b>signal-cleaving enzyme</b>이 signal peptide를 잘라낸다.',o:[O('mem',mem,0,270),O('tc',`<rect x="-12" y="0" width="24" height="26" fill="#9aa5b1" stroke="#5b6470"/>`,450,270),O('r',mini,450,240),O('sig',`<path d="M0,0 q8,-6 16,0" stroke="#e63946" stroke-width="5" fill="none"/>`,485,282),O('ce',blob(16,11,'#c9a2d8','#7d5590','',9)+T(0,30,'signal-cleaving enzyme',{size:11,w:700,c:'#5e3a70'}),510,283),O('pp',`<path d="M0,0 L0,30 q10,8 0,16 q-10,8 0,16 q10,8 0,16" stroke="${C.prot}" stroke-width="5" fill="none"/>`,450,296)]},
+{c:'⑥ 완성된 polypeptide가 ER lumen에서 <b>최종 구조로 접힌다</b>. ribosome은 떨어져 나간다.',o:[O('mem',mem,0,270),O('tc',`<rect x="-12" y="0" width="24" height="26" fill="#9aa5b1" stroke="#5b6470"/>`,450,270),O('r',mini,620,110,{o:.4}),O('pp',blob(34,18,'#b7a3d9','#5e3a70','protein',11),450,340)]}]};
+
+/* mutations */
+function seqSvg(p){const m=MU[p.i],cw=22,x0=230,r=p.r;let s=T(410,30,m[0],{size:16,w:800,c:'#1d3557'});
+ const row=(y,lb,str,hi,f,tc)=>{let o=T(x0-12,y+15,lb,{size:12,w:700,a:'end'});[...str].forEach((ch,i)=>{o+=`<rect x="${x0+i*cw}" y="${y}" width="${cw-2}" height="22" rx="3" fill="${hi.includes(i)?'#ffd166':f}" stroke="${hi.includes(i)?'#e09f00':'#b9c2cc'}" stroke-width="${hi.includes(i)?1.6:.5}"/>`+T(x0+i*cw+10,y+16,ch,{size:12,w:700,c:tc});});return o;};
+ s+=row(62,"template 3′",m[1],m[4],'#dce8f5','#1f4e8c')+T(x0+m[1].length*cw+6,77,"5′",{size:11,a:'start'})+row(118,"mRNA 5′",m[2],m[5],'#fbd3e2','#7a1f3d')+T(x0+m[2].length*cw+6,133,"3′",{size:11,a:'start'});
+ const nC=Math.floor(m[2].length/3);for(let k=0;k<nC;k++)s+=`<path d="M${x0+k*3*cw+2},146 l0,6 l${3*cw-6},0 l0,-6" stroke="#7a1f3d" stroke-width="1.2" fill="none" opacity=".6"/>`;
+ m[3].forEach((pp,k)=>{const x=x0+k*3*cw,a=cl(r-k);if(a<=0)return;s+=op(`<rect x="${x}" y="196" width="${3*cw-4}" height="26" rx="13" fill="${pp==='Stop'?'#333':gid(AA[pp]||'#cccccc')}"/>`+T(x+3*cw/2-2,214,pp,{size:12,w:800,c:pp==='Stop'?'#fff':'#111'}),a);});
+ s+=T(x0-12,213,'Protein',{size:12,w:700,a:'end'});
+ if(r<m[3].length+.01){const rx=x0+Math.min(r,m[3].length-.5)*3*cw+3*cw/2-2;s+=op(`<ellipse cx="${rx.toFixed(1)}" cy="122" rx="40" ry="22" fill="${C.L}" opacity=".55" stroke="${C.ribS}"/><ellipse cx="${rx.toFixed(1)}" cy="146" rx="36" ry="10" fill="${C.S}" opacity=".6" stroke="${C.ribS}"/>`+T(rx,98,'ribosome',{size:10,w:700,c:'#5e4a7f'}),r<m[3].length-.02?1:cl((m[3].length-r)*20+0));}
+ return s;}
+const MU=[['Wild type (정상)','TACTTCAAACCGATT','AUGAAGUUUGGCUAA',['Met','Lys','Phe','Gly','Stop'],[],[],'기준 서열: Met-Lys-Phe-Gly-Stop.'],
+['Silent (침묵)','TACTTCAAACCAATT','AUGAAGUUUGGUUAA',['Met','Lys','Phe','Gly','Stop'],[11],[11],'<b>silent</b>: 주형 G→A 치환(mRNA C→U) → GGU도 <b>Gly</b> → 유전암호의 <b>중복성</b> 때문에 아미노산 변화 없음.'],
+['Missense (과오)','TACTTCAAATCGATT','AUGAAGUUUAGCUAA',['Met','Lys','Phe','Ser','Stop'],[9],[9],'<b>missense</b>: 주형 C→T 치환 → GGC가 AGC → <b>Gly → Ser</b>, 다른 아미노산.'],
+['Nonsense (정지)','TACATCAAACCGATT','AUGUAGUUUGGCUAA',['Met','Stop'],[3],[3],'<b>nonsense</b>: 주형 T→A 치환 → AAG가 <b>UAG(stop)</b> → 번역이 일찍 끝남 → 대부분 기능 없는 단백질.'],
+['Frameshift: 1 nt insertion','TACATTCAAACCGATT','AUGUAAGUUUGGCUAA',['Met','Stop'],[3],[3],'<b>insertion</b>: 염기 하나 추가 → 뒤 <b>reading frame</b>(괄호)이 모두 밀림 → 여기선 바로 UAA(stop).'],
+['Frameshift: 1 nt deletion','TACTTCAACCGATT','AUGAAGUUGGCUAA',['Met','Lys','Leu','Ala'],[],[],'<b>deletion</b>: 염기 하나 빠짐 → 세 번째 codon부터 UUG(Leu), GCU(Ala)… 뒤 아미노산이 전부 바뀜 → <b>치환보다 치명적</b>.'],
+['3 nt deletion (틀 유지)','TACAAACCGATT','AUGUUUGGCUAA',['Met','Phe','Gly','Stop'],[],[],'<b>3 nt deletion</b>: reading frame은 유지, <b>아미노산 1개(Lys)만 빠짐</b>.']];
+const SQ=(i,r)=>({k:'mu'+i,p:{i,r},f:seqSvg});
+M.mut={kp:'점돌연변이 = gene 내 nucleotide pair 하나의 변화. <b>substitution</b>: silent / missense / nonsense. <b>insertion·deletion</b>: 3의 배수가 아니면 <b>frameshift</b> → substitution보다 치명적. (ribosome이 codon 단위로 읽는 과정을 보면 차이가 보임)',steps:MU.flatMap((m,i)=>[{c:(i?'바뀐 염기(노란색) 확인 → ':'')+m[6].split(':')[0]+' — ribosome이 읽기 전',o:[O('sq',SQ(i,0),0,0)]},{c:m[6],o:[O('sq',SQ(i,m[3].length),0,0)]}])};
+
+/* CRISPR */
+const cas=blob(70,50,'#eba97c','#b05a24','Cas9',15,'#6b2f0c');
+const guide=`<path d="M-40,0 L40,0 L40,-30 q8,-14 16,0 L56,0" stroke="#f08a4b" stroke-width="5" fill="none"/>`+T(0,20,'guide RNA',{size:12,w:700,c:'#b05a24'});
+const nuc=`<path d="M-5,-20 Q-65,190 -5,400" stroke="#a48fc6" stroke-width="4" fill="none"/><path d="M5,-20 Q-55,190 5,400" stroke="#8b74b0" stroke-width="4" fill="none"/>`+[.2,.4,.6,.8].map(t=>{const x=-120*t*(1-t),y=(1-t)**2*-20+2*t*(1-t)*190+t*t*400;return `<rect x="${x-9}" y="${y-5}" width="18" height="10" rx="4" fill="#eef1f6"/><circle cx="${x-7}" cy="${y}" r="3.2" fill="#8b74b0"/><circle cx="${x+7}" cy="${y}" r="3.2" fill="#8b74b0"/>`;}).join('')+T(30,10,'NUCLEUS',{size:12,w:800,c:'#5b4687',a:'start'})+T(-40,10,'CYTOPLASM',{size:12,w:800,c:'#8a6d2d',a:'end'});
+function tdSvg(p){const g=p.gap,o=p.open;let s=dna(165,false)+`<g transform="translate(${(165+g).toFixed(1)},0)">${dna(165,false)}</g>`;
+ if(o>.01)s+=op(`<rect x="126" y="-6" width="78" height="30" fill="#eef2f7"/>`+`<path d="M126,0 Q165,${(-34*o).toFixed(1)} 204,0" stroke="${C.ntpl}" stroke-width="4" fill="none"/><path d="M126,17 Q165,${(17+22*o).toFixed(1)} 204,17" stroke="${C.tpl}" stroke-width="4" fill="none"/><path d="M134,${(17+10*o).toFixed(1)} Q165,${(17+12*o).toFixed(1)} 196,${(17+10*o).toFixed(1)}" stroke="#f08a4b" stroke-width="4" fill="none" stroke-dasharray="2 2"/>`,o);
+ if(p.fix>0){const c=p.fc?'#7ee08a':'#ffd166';s+=op(`<rect x="${158}" y="-6" width="${14+g}" height="30" rx="4" fill="${c}" opacity=".75"/>`,p.fix);}
+ s+=T(165+g/2,48,p.t,{size:12,w:700,c:'#555'});return s;}
+const TD=(x)=>({k:'td',p:Object.assign({gap:0,open:0,fix:0,fc:0,t:'target gene'},x),f:tdSvg});
+M.crispr={kp:'<b>CRISPR-Cas9</b>: <b>Cas9</b>(DNA 자르는 단백질) + <b>guide RNA</b>(표적과 상보적) → 핵 안 표적 DNA에서 guide RNA가 <b>상보 결합</b> → Cas9이 <b>두 가닥 모두 절단</b> → (a) 무작위 nucleotide 삽입으로 수선 → 유전자 <b>knock-out</b>(기능 연구) / (b) <b>정상 사본을 주형</b>으로 수선 → 돌연변이 교정.',steps:[
+{c:'<b>Cas9 protein</b>(DNA를 자르는 active site)과 표적 유전자에 상보적으로 설계한 <b>guide RNA</b>.',o:[O('nuc',nuc,470,0),O('cas',cas,140,150),O('g',guide,320,140)]},
+{c:'둘이 결합해 <b>Cas9–guide RNA complex</b>를 만든다.',o:[O('nuc',nuc,470,0),O('cas',cas,190,160),O('g',guide,190,178)]},
+{c:'complex가 <b>핵 안으로</b> 들어가 표적 유전자 근처로 간다.',o:[O('nuc',nuc,470,0),O('td',TD({}),450,250),O('cas',cas,615,150),O('g',guide,615,168)]},
+{c:'표적 부위의 DNA가 풀리고 <b>guide RNA가 상보적인 DNA 가닥과 결합</b>한다.',o:[O('nuc',nuc,470,0),O('td',TD({open:1}),450,250),O('cas',cas,615,232,{o:.85}),O('g',guide,615,250,{o:0})]},
+{c:'Cas9이 표적 DNA의 <b>두 가닥을 모두 자른다</b>.',o:[O('nuc',nuc,470,0),O('td',TD({gap:18,t:'double-strand break'}),441,250),O('cas',cas,640,130,{o:.25})]},
+{c:'(a) 잘린 자리를 세포가 이을 때 <b>무작위 nucleotide</b>가 끼어들어 유전자가 망가짐 → <b>knock-out</b> → 원래 기능 연구.',o:[O('nuc',nuc,470,0),O('td',TD({gap:0,fix:1,t:'random nucleotides → knock-out'}),450,250)]},
+{c:'(b) 같은 방식으로 자른 뒤, <b>정상(functional) 유전자 사본</b>을 함께 넣어 주면…',o:[O('nuc',nuc,470,0),O('td',TD({gap:18,t:'double-strand break'}),441,250),O('nm',dna(200,false)+T(100,-14,'normal gene (template)',{size:11,w:700,c:'#2e7d32'}),520,120,{from:[200,120]})]},
+{c:'수선 효소가 정상 사본을 <b>주형</b>으로 고쳐 돌연변이를 <b>교정</b>한다 (예: 겸형 적혈구 치료 연구).',o:[O('nuc',nuc,470,0),O('td',TD({gap:0,fix:1,fc:1,t:'정상 서열로 복구'}),450,250),O('nm',dna(200,false)+T(100,-14,'normal gene (template)',{size:11,w:700,c:'#2e7d32'}),515,170)]}]};
+
+/* ---------- tree ---------- */
+const TREE=[{t:'전사',e:'transcription',c:'#1f4e8c',k:[
+  {t:'개시',e:'initiation',k:[{t:'원핵',tag:'σ factor + core',m:'prokInit'},{t:'진핵',tag:'TATA box',m:'eukInit'}]},
+  {t:'신장',e:'elongation',m:'elong'},
+  {t:'종결',e:'termination',k:[{t:'ρ 의존성',tag:'rut 부위',m:'rhoDep'},{t:'ρ 비의존성',tag:'머리핀 구조',m:'rhoIndep'},{t:'진핵',tag:'AAUAAA',m:'eukTerm'}]}]},
+ {t:'가공',e:'RNA processing',c:'#c2185b',k:[{t:'5′ cap / poly-A tail',m:'capTail'},{t:'splicing',tag:'intron 제거',m:'splice'},{t:'alternative RNA splicing / exon shuffling',m:'alt'}]},
+ {t:'번역',e:'translation',c:'#6d5a8a',k:[
+  {t:'개시',e:'small subunit + initiator tRNA',k:[{t:'원핵',tag:'Shine-Dalgarno',m:'tlInitP'},{t:'진핵',tag:'5′ cap ~ AUG',m:'tlInitE'}]},
+  {t:'신장',tag:'A·P·E site',m:'tlElong'},{t:'종결',tag:'종결 코돈',m:'tlTerm'},{t:'Targeting',tag:'SRP 경로',m:'srp'}]},
+ {t:'돌연변이',e:'mutation',c:'#2a9d8f',k:[{t:'silent / missense / nonsense / frameshift',m:'mut'},{t:'CRISPR-Cas9',m:'crispr'}]}];
+function node(n,lv){if(n.m)return `<details class="leaf" data-m="${n.m}"><summary>${n.t}${n.e?` <span class="en">${n.e}</span>`:''}${n.tag?` <span class="tag">${n.tag}</span>`:''}</summary><div class="vh"></div></details>`;
+ return `<details class="${lv===1?'lv1':''}" ${lv===1?`style="--c:${n.c}"`:''} open><summary>${n.t} <span class="en">${n.e||''}</span></summary>${n.k.map(c=>node(c,lv+1)).join('')}</details>`;}
+const tree=document.getElementById('tree');
+{let d='<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="2.5" stdDeviation="2.4" flood-color="#1b2a44" flood-opacity=".22"/></filter>';
+ for(const id in GR)d+=mkG(id);
+ document.body.insertAdjacentHTML('afterbegin',d+'</defs></svg>');DEFS=document.querySelector('svg defs');}tree.innerHTML=`<details class="lv1" open style="--c:#16181c"><summary>핵심 기작</summary>${TREE.map(n=>node(n,1)).join('')}</details>`;
+
+/* ---------- viewer ---------- */
+let active=null;
+const ease=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2,L=(a,b,u)=>a+(b-a)*u;
+const MOVE=1.8,HOLD=1.6;
+const lerpP=(a,b,u)=>{if(typeof a==='number'&&typeof b==='number')return a+(b-a)*u;if(a&&b&&typeof a==='object'&&typeof b==='object'){const r={};for(const k of new Set([...Object.keys(a),...Object.keys(b)]))r[k]=lerpP(a[k],b[k],u);return r;}return u<.5&&a!==undefined?a:b;};
+function makeViewer(host,key){const mech=M[key];const steps=mech.steps;const n=steps.length;
+ const last={};steps.forEach(st=>st.o.forEach(o=>{if(o.svg==null)o.svg=last[o.id];else last[o.id]=o.svg;}));
+ const S=steps.map(st=>{const m={};st.o.forEach(o=>m[o.id]={x:o.x,y:o.y,s:o.s||1,o:o.o??1,svg:o.svg,from:o.from});return m;});
+ host.innerHTML=`<div class="viewer"><div class="stage"><svg viewBox="0 0 820 380"></svg></div><div class="ctl"><button class="play pri">❚❚ 멈춤</button><button class="reset">↺ 처음부터</button><input class="scrub" type="range" min="0" max="1000" value="0" aria-label="진행 위치"><select class="spd" aria-label="속도"><option value=".6">0.6×</option><option value="1" selected>1×</option><option value="1.6">1.6×</option></select></div><div class="ticks">${steps.map((_,i)=>`<i data-i="${i}">${i+1}</i>`).join('')}</div><div class="cap"></div><div class="kp">${mech.kp}</div></div>`;
+ const svg=host.querySelector('svg'),cap=host.querySelector('.cap'),ticks=[...host.querySelectorAll('.ticks i')],scr=host.querySelector('.scrub'),pb=host.querySelector('.play'),spd=host.querySelector('.spd');
+ const order=[],seen={};steps.forEach(st=>st.o.forEach(o=>{if(!seen[o.id]){seen[o.id]=1;order.push({id:o.id,z:o.z??0,j:order.length});}}));
+ order.sort((a,b)=>a.z-b.z||a.j-b.j);const G={};const NS='http://www.w3.org/2000/svg';
+ const FL=/^(sig|srp|s\d|nt|n\d|ce|pA|pB|np|g|w|atp|ef|efg|if\d?|c\d|u\d|cut)$/;
+ order.forEach(({id},ix)=>{const g=document.createElementNS(NS,'g');g._j=FL.test(id)?1:0;g._ph=ix*1.7;g.setAttribute('filter','url(#sh)');const a=document.createElementNS(NS,'g'),b=document.createElementNS(NS,'g');g.append(a,b);svg.appendChild(g);G[id]={g,l:[a,b],c:['','']};});
+ const str=(v,p)=>typeof v==='object'?v.f(p??v.p):v;
+ function lay(id,k,html,al){const R=G[id];if(R.c[k]!==html){R.l[k].innerHTML=html;R.c[k]=html;}R.l[k].setAttribute('opacity',al);}
+ let NOW=0;function put(id,x,y,s,o,A,B,u){const R=G[id];const j=R.g._j,ph=R.g._ph;const jx=j?1.6*Math.sin(NOW*1.9+ph)+0.8*Math.sin(NOW*3.7+ph*2):0,jy=j?1.4*Math.cos(NOW*2.3+ph)+0.6*Math.sin(NOW*4.1+ph):0,jr=j?2.2*Math.sin(NOW*1.3+ph):0;R.g.setAttribute('transform',`translate(${(x+jx).toFixed(2)} ${(y+jy).toFixed(2)}) rotate(${jr.toFixed(2)}) scale(${s})`);R.g.setAttribute('opacity',Math.max(0,o));
+  if(o<=0.001){return;}
+  if(B==null||A===B){lay(id,0,str(A),1);lay(id,1,'',0);return;}
+  if(typeof A==='object'&&typeof B==='object'&&A.k===B.k){lay(id,0,A.f(lerpP(A.p,B.p,u)),1);lay(id,1,'',0);return;}
+  lay(id,0,str(A),1-u);lay(id,1,str(B),u);}
+ /* timeline: hold0, (move,hold)*(n-1) */
+ const total=n*HOLD+(n-1)*MOVE;const startOf=k=>k===0?0:HOLD+(k-1)*(MOVE+HOLD)+MOVE;
+ let t=0,playing=true,lastTs=null,shown=-1,raf=null;
+ function frame(tt){let k,u;
+  if(tt<HOLD){k=0;u=1;}else{const r=tt-HOLD,seg=Math.floor(r/(MOVE+HOLD)),w=r-seg*(MOVE+HOLD);k=Math.min(n-1,seg+1);u=w>=MOVE||seg+1>n-1?1:ease(w/MOVE);}
+  const a=k>0?S[k-1]:{},b=S[k];
+  order.forEach(({id})=>{const p=a[id],q=b[id];
+   if(k===0||u===1){if(q)put(id,q.x,q.y,q.s,q.o,q.svg);else G[id].g.setAttribute('opacity',0);return;}
+   if(p&&q)put(id,L(p.x,q.x,u),L(p.y,q.y,u),L(p.s,q.s,u),L(p.o,q.o,u),p.svg,q.svg,u);
+   else if(q){const f=q.from||[q.x,q.y];put(id,L(f[0],q.x,u),L(f[1],q.y,u),q.s,q.o*u,q.svg);}
+   else if(p)put(id,p.x,p.y,p.s,p.o*(1-u),p.svg);
+   else G[id].g.setAttribute('opacity',0);});
+  if(k!==shown){shown=k;cap.innerHTML=`<span class="no">${k+1} / ${n}</span>${steps[k].c}`;ticks.forEach((d,j)=>d.classList.toggle('on',j<=k));}
+  scr.value=Math.round(tt/total*1000);}
+ let vis=true,open=true;function loop(ts){NOW=ts/1000;if(!vis||!open){raf=null;lastTs=null;return;}if(playing&&lastTs!=null)t+=(ts-lastTs)/1000*(+spd.value);lastTs=ts;
+  if(playing&&t>=total){t=total;setPlay(false);}frame(t);raf=requestAnimationFrame(loop);}
+ const kick=()=>{if(!raf&&vis&&open)raf=requestAnimationFrame(loop);};
+ function setPlay(v){playing=v;pb.textContent=v?'❚❚ 멈춤':'▶ 재생';lastTs=null;if(v&&t>=total)t=0;kick();}
+ new IntersectionObserver(es=>{vis=es[0].isIntersecting;kick();}).observe(svg);
+ pb.onclick=()=>setPlay(!playing);
+ host.querySelector('.reset').onclick=()=>{t=0;frame(0);setPlay(true);};
+ scr.oninput=()=>{setPlay(false);t=scr.value/1000*total;frame(t);};
+ ticks.forEach(d=>d.onclick=()=>{t=startOf(+d.dataset.i);frame(t);});
+ const jump=dk=>{const cur=shown;const k=Math.max(0,Math.min(n-1,cur+dk));t=startOf(k);frame(t);};
+ host._v={next:()=>jump(1),prev:()=>jump(-1),pause:()=>{open=false;},play:()=>{open=true;kick();}};
+ frame(0);setPlay(!matchMedia('(prefers-reduced-motion: reduce)').matches);}
+tree.querySelectorAll('details.leaf').forEach(d=>d.addEventListener('toggle',()=>{const h=d.querySelector('.vh');if(d.open){if(!h._v)makeViewer(h,d.dataset.m);else{h._v.play();}active=h;}else if(h._v)h._v.pause();}));
+document.addEventListener('keydown',e=>{if(!active||!active._v||!active.closest('details').open)return;if(e.key==='ArrowRight')active._v.next();if(e.key==='ArrowLeft')active._v.prev();});
+document.getElementById('openAll').onclick=()=>tree.querySelectorAll('details').forEach(d=>d.open=true);
+document.getElementById('closeAll').onclick=()=>tree.querySelectorAll('details.leaf').forEach(d=>d.open=false);
+}
+</script>
+<script>
+// ===== dshs42.app 공부 탭 안에서: 높이를 내용에 맞춰 부모의 iframe 을 늘립니다 (스크롤은 사이트 하나로) =====
+// 애니메이션이 매 프레임 SVG 를 바꾸므로 MutationObserver 는 쓰지 않고, 크기가 바뀔 때 · 펼치고 접을 때 · 1초마다 잽니다
+if (window.BIO_EMBED) {
+  const frame = window.frameElement;
+  const root = document.scrollingElement || document.documentElement;
+  const fit = () => {
+    if (!frame) return;
+    const b = document.body, r = b.getBoundingClientRect();
+    const h = Math.ceil(r.bottom + root.scrollTop + (parseFloat(getComputedStyle(b).marginBottom) || 0)) + 'px';
+    if (frame.style.height !== h) frame.style.height = h;
+    if (root.scrollTop) root.scrollTop = 0;
+  };
+  new ResizeObserver(fit).observe(document.body);
+  document.addEventListener('toggle', () => setTimeout(fit), true);
+  window.addEventListener('load', fit);
+  document.fonts?.ready.then(fit);
+  setInterval(fit, 1000);
+  fit();
+}
+</script>
+</body></html>
