@@ -1259,6 +1259,9 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-step span { font-size: 12px; color: var(--text-muted); word-break: keep-all; }
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-step.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-step.on b { color: var(--accent); }
+:is(#tab-memo, #tab-defmemo) .m-lock { display: flex; align-items: center; gap: 8px; margin: -4px 0 12px; font-size: 13.5px; color: var(--text-muted); cursor: pointer; user-select: none; word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo) .m-lock input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); flex: none; }
+:is(#tab-memo, #tab-defmemo) .m-lock.on { color: var(--accent); font-weight: 600; }
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-empty { color: var(--text-muted); font-size: 14px; }
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
@@ -4424,7 +4427,7 @@ const low = c => c.toLocaleLowerCase();
 // 대소문자·띄어쓰기·문장부호 무시: 글자와 숫자만 남김
 const norm = s => Array.from(String(s)).filter(isAl).map(low);
 const save = () => { try { localStorage.setItem(CONF.key, JSON.stringify(O.fixed
-  ? { cur: st.cur, step: st.step, best: Object.fromEntries(st.sents.filter(x => x.best).map(x => [x.id, x.best])) } : st)); } catch (e) {} };
+  ? { cur: st.cur, step: st.step, lock3: st.lock3, best: Object.fromEntries(st.sents.filter(x => x.best).map(x => [x.id, x.best])) } : st)); } catch (e) {} };
 
 function use(id) {
   if (subj === id) return; subj = id; CONF = O.sets[id] || Object.values(O.sets)[0];
@@ -4451,6 +4454,7 @@ function practiceHTML(s) {
   const steps = [1, 2, 3].map(k => `<button class="m-step ${+st.step === k ? 'on' : ''}" onclick="${G}.setStep(${k})"><b>${k}단계</b><span>${STEP_DESC[k]}</span></button>`).join('');
   return `
     <div class="m-steps">${steps}</div>
+    <label class="m-lock ${st.lock3 ? 'on' : ''}"><input type="checkbox" ${st.lock3 ? 'checked' : ''} onchange="${G}.setLock(this.checked)">3단계 고정 · 다음 ${O.fixed ? '단어' : '문장'}도 3단계(빈칸)로 시작</label>
     <div class="m-card">
       <div class="m-meta"><span>${O.fixed ? '단어' : '문장'} ${i + 1} / ${n}</span><span class="m-badge" id="m-best" ${s.best ? '' : 'hidden'}>${s.best ? `${s.best}단계까지 완료` : ''}</span>
         <span class="m-nav"><button class="m-tool" onclick="${G}.go(-1)" ${n > 1 ? '' : 'disabled'}>← 이전</button><button class="m-tool" onclick="${G}.go(1)" ${n > 1 ? '' : 'disabled'}>다음 →</button></span></div>
@@ -4552,9 +4556,12 @@ function focusInput() { const i = document.getElementById('m-input'); if (i) { i
 
 // ---------- 동작 ----------
 function setStep(k) { st.step = k; save(); typed = ''; render(); focusInput(); }
-// 다른 문장(단어)으로 옮기면 늘 1단계부터 (3단계를 끝내고 '다음'을 눌러도 새 문장은 전체 문장부터 보며 외움)
-function go(d) { const n = st.sents.length; if (!n) return; const i = st.sents.indexOf(curS()); st.cur = st.sents[(i + d + n) % n].id; st.step = 1; save(); typed = ''; render(); focusInput(); }
-function pick(id) { if (id !== st.cur) st.step = 1; st.cur = id; save(); typed = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); focusInput(); }
+// 다른 문장(단어)으로 옮기면 1단계부터 (3단계를 끝내고 '다음'을 눌러도 새 문장은 전체 문장부터 보며 외움).
+// '3단계 고정'(st.lock3)을 켜면 옮길 때 늘 3단계부터
+const firstStep = () => st.lock3 ? 3 : 1;
+function setLock(on) { st.lock3 = !!on; if (on) st.step = 3; save(); typed = ''; render(); focusInput(); }
+function go(d) { const n = st.sents.length; if (!n) return; const i = st.sents.indexOf(curS()); st.cur = st.sents[(i + d + n) % n].id; st.step = firstStep(); save(); typed = ''; render(); focusInput(); }
+function pick(id) { if (id !== st.cur) st.step = firstStep(); st.cur = id; save(); typed = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); focusInput(); }
 function reset() { typed = ''; render(); focusInput(); }
 function peek() {   // 잠깐 보기: 1.5초 동안 전체 문장
   const s = curS(); const el = document.getElementById('m-text'); if (!s || !el) return;
@@ -4614,7 +4621,7 @@ function start(id) {
   render();
   if (curS() && window.matchMedia('(hover: hover)').matches) focusInput();   // 휴대폰에선 자동으로 키보드를 띄우지 않음
 }
-return { start, setStep, go, pick, reset, peek, add, importAll, edit, cancelEdit, saveEdit, del, clearAll };
+return { start, setStep, setLock, go, pick, reset, peek, add, importAll, edit, cancelEdit, saveEdit, del, clearAll };
 }
 const MEMO = makeMemo({ root: 'tab-memo', name: 'MEMO', listTitle: '저장한 문장',
   title: '문장 암기', sub: '문장을 직접 추가하면 이 브라우저에 저장돼요 · 대소문자·띄어쓰기·문장부호는 무시하고 채점해요',
