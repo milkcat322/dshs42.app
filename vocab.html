@@ -4678,7 +4678,7 @@ const DEFM = makeMemo({ root: 'tab-defmemo', name: 'DEFM', fixed: true, bookmark
   sets: { atc: { key: 'atc-defmemo-v1', items: () => DATA_ATC.filter(hasDef).map(w => ({ id: w.en, word: w.en, en: defOf(w), ko: w.ko })) } } });
 
 // ===== 서술 모듈 (학술영어 세미나): 문제에 자유롭게 영어로 답을 쓰는 탭 =====
-// 쓰는 동안 이 기기에 저장(임시 저장)하고, 글자 수(띄어쓰기 제외)가 min 이상이어야 '다 썼어요'를 누를 수 있습니다.
+// 쓰는 동안 이 기기에 저장(임시 저장)하고, 영어 단어 수가 min 이상이어야 '다 썼어요'를 누를 수 있습니다.
 // 다 쓰면 스스로 확인할 항목(checks)과 예시 답안(sample)을 보여 줍니다. 문제를 바꾸거나 늘리려면 ESSAY_SETS 의 qs 를 고칩니다.
 const ESSAY_SETS = {
   atc: { key: 'atc-essay-v1', qs: [{
@@ -4693,8 +4693,8 @@ const ESSAY = (() => {
   let CONF = null, st = null;
   const R = () => document.getElementById('tab-essay');
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const chars = t => String(t).replace(/\s/g, '').length;   // 글자 수: 띄어쓰기 · 줄바꿈 제외
-  const words = t => (String(t).trim().match(/\S+/g) || []).length;
+  // 단어 수: 영어 단어(글자 · 숫자로 시작, don't · well-known 은 한 단어)만 셈 — 문장부호 · 한글은 세지 않음 (시험 탭과 같은 규칙)
+  const words = t => (String(t).match(/[A-Za-z0-9][A-Za-z0-9'’\-]*/g) || []).length;
   const save = () => { try { localStorage.setItem(CONF.key, JSON.stringify(st)); } catch (e) {} };
   const Q = () => CONF.qs[0];
   const A = () => (st.a[Q().id] ||= { text: '', done: false, checks: [] });
@@ -4710,7 +4710,7 @@ const ESSAY = (() => {
       <div class="m-head"><h1>서술</h1><span class="m-sub">영어로 자유롭게 답을 써요 · 쓰는 내용은 이 기기에 저장돼요</span></div>
       <div class="m-card">
         <div class="e-q">${esc(q.q)}</div>
-        <div class="e-need">${q.min}자 이상 (띄어쓰기 제외)</div>
+        <div class="e-need">영어 ${q.min}단어 이상</div>
         <textarea id="e-text" lang="en" spellcheck="true" autocapitalize="sentences" placeholder="여기에 영어로 답을 쓰세요" ${a.done ? 'readonly' : ''}>${esc(a.text)}</textarea>
         <div class="m-status" id="e-status"></div>
         <div class="m-actions" id="e-actions"></div>
@@ -4726,15 +4726,15 @@ const ESSAY = (() => {
     status();
   }
   function status() {
-    const q = Q(), a = A(), n = chars(a.text), ok = n >= q.min;
+    const q = Q(), a = A(), n = words(a.text), ok = n >= q.min;
     document.getElementById('e-status').innerHTML = a.done
-      ? `<span class="m-good">✓ 다 썼어요 · ${n}자 · ${words(a.text)}단어</span>`
-      : `<span>${n} / ${q.min}자 · ${words(a.text)}단어</span>${ok ? '<span class="m-good">충분히 썼어요</span>' : `<span class="m-badtxt">${q.min - n}자 더 써야 해요</span>`}`;
+      ? `<span class="m-good">✓ 다 썼어요 · ${n}단어</span>`
+      : `<span>${n} / ${q.min}단어</span>${ok ? '<span class="m-good">충분히 썼어요</span>' : `<span class="m-badtxt">${q.min - n}단어 더 써야 해요</span>`}`;
     document.getElementById('e-actions').innerHTML = a.done
       ? '<button class="btn ghost" onclick="ESSAY.edit()">다시 고치기</button><button class="btn ghost" onclick="ESSAY.clear(this)">지우고 새로 쓰기</button>'
       : `<button class="btn primary" onclick="ESSAY.submit()" ${ok ? '' : 'disabled'}>다 썼어요</button>`;
   }
-  function submit() { const q = Q(), a = A(); if (chars(a.text) < q.min) return; a.done = true; save(); render(); }
+  function submit() { const q = Q(), a = A(); if (words(a.text) < q.min) return; a.done = true; save(); render(); }
   function edit() { A().done = false; save(); render(); const ta = document.getElementById('e-text'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
   function clear(btn) { armedClick(btn, '지우고 새로 쓰기', () => { st.a[Q().id] = { text: '', done: false, checks: [] }; save(); render(); }); }
   return { start, submit, edit, clear };
