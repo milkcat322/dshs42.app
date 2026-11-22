@@ -1262,6 +1262,9 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 :is(#tab-memo, #tab-defmemo) .m-lock { display: flex; align-items: center; gap: 8px; margin: -4px 0 12px; font-size: 13.5px; color: var(--text-muted); cursor: pointer; user-select: none; word-break: keep-all; }
 :is(#tab-memo, #tab-defmemo) .m-lock input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); flex: none; }
 :is(#tab-memo, #tab-defmemo) .m-lock.on { color: var(--accent); font-weight: 600; }
+#tab-defmemo .m-wordrow { display: flex; align-items: center; gap: 8px; }
+#tab-defmemo .m-star { background: none; border: 0; padding: 2px 4px; font-size: 22px; line-height: 1; cursor: pointer; color: var(--text-muted); flex: none; }
+#tab-defmemo .m-row .m-star { font-size: 18px; }
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-empty { color: var(--text-muted); font-size: 14px; }
 :is(#tab-memo, #tab-defmemo, #tab-essay) .m-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
@@ -1347,6 +1350,11 @@ html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.sel
 #tab-essay .e-sample { margin-top: 10px; padding: 12px 14px; border-radius: 10px; background: var(--surface2); font-size: 14.5px; line-height: 1.7; white-space: pre-wrap; }
 #tab-essay details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 #tab-defmemo .m-word { font-family: 'Space Mono', monospace; font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 4px; word-break: keep-all; }
+#tab-defmemo .m-wordrow .m-word { min-width: 0; margin-bottom: 0; }
+#tab-defmemo .m-wordrow { margin-bottom: 4px; }
+#tab-defmemo .m-list .m-lock input { width: 17px; height: 17px; margin: 0; padding: 0; }
+#tab-defmemo .m-row { flex-direction: row; align-items: center; }   /* 폰에서도 별은 단어 오른쪽에 */
+#tab-defmemo .m-rowside { margin-left: 0; }
 </style>
 </head>
 <body>
@@ -2074,6 +2082,7 @@ function switchTab(tab) {
   ['study', 'quiz', 'grammar', 'blank', 'scramble', 'memo', 'defmemo', 'essay', 'test', 'bookmark'].forEach(id =>
     document.getElementById('tab-' + id).classList.toggle('hidden', tab !== id));
   if (tab === 'bookmark') renderBookmarkTable();
+  if (tab === 'study') renderTable();   // 다른 탭(영영풀이 등)에서 바꾼 북마크 별을 반영
   if (tab === 'grammar') GRAM.start();
   if (tab === 'blank') BLNK.start();
   if (tab === 'memo') MEMO.start(currentSubject);
@@ -4427,7 +4436,7 @@ const low = c => c.toLocaleLowerCase();
 // 대소문자·띄어쓰기·문장부호 무시: 글자와 숫자만 남김
 const norm = s => Array.from(String(s)).filter(isAl).map(low);
 const save = () => { try { localStorage.setItem(CONF.key, JSON.stringify(O.fixed
-  ? { cur: st.cur, step: st.step, lock3: st.lock3, best: Object.fromEntries(st.sents.filter(x => x.best).map(x => [x.id, x.best])) } : st)); } catch (e) {} };
+  ? { cur: st.cur, step: st.step, lock3: st.lock3, bmOnly: st.bmOnly, best: Object.fromEntries(st.sents.filter(x => x.best).map(x => [x.id, x.best])) } : st)); } catch (e) {} };
 
 function use(id) {
   if (subj === id) return; subj = id; CONF = O.sets[id] || Object.values(O.sets)[0];
@@ -4437,20 +4446,24 @@ function use(id) {
   if (![1, 2, 3].includes(+st.step)) st.step = 1;
   typed = ''; editId = null; formOpen = !st.sents.length;
 }
-const curS = () => st.sents.find(s => s.id === st.cur) || st.sents[0] || null;
+// O.bookmark: 단어장 북마크(bookmarks, 학습 · 북마크 탭과 같음)를 쓰고, '북마크한 단어만'(st.bmOnly)이면 그 단어만 돌며 외움
+const isBm = x => O.bookmark && bookmarks.has(x.id);
+const pool = () => O.bookmark && st.bmOnly ? st.sents.filter(isBm) : st.sents;
+const curS = () => { const L = pool(); return L.find(s => s.id === st.cur) || L[0] || null; };
+const starHTML = x => O.bookmark ? `<button class="m-star" data-bm="${esc(x.id)}" onclick="${G}.bm(${esc(JSON.stringify(x.id))}, this)" title="북마크" aria-label="북마크">${isBm(x) ? '⭐' : '☆'}</button>` : '';
 
 // ---------- 화면 ----------
 function render() {
   const s = curS(); if (s) st.cur = s.id;
   R().innerHTML = `
     <div class="m-head"><h1>${O.title}</h1><span class="m-sub">${O.sub}</span></div>
-    ${s ? practiceHTML(s) : `<div class="m-card m-empty">${O.fixed ? '영어 풀이가 있는 단어가 없어요.' : '아직 문장이 없어요. 아래에서 문장을 추가해 주세요.'}</div>`}
+    ${s ? practiceHTML(s) : `<div class="m-card m-empty">${O.bookmark && st.bmOnly ? '북마크한 단어가 없어요. 아래 목록에서 ☆ 를 누르거나 「북마크한 단어만」을 끄세요.' : O.fixed ? '영어 풀이가 있는 단어가 없어요.' : '아직 문장이 없어요. 아래에서 문장을 추가해 주세요.'}</div>`}
     ${listHTML()}`;
   bind();
   if (s) refreshPractice();
 }
 function practiceHTML(s) {
-  const i = st.sents.indexOf(s), n = st.sents.length;
+  const L = pool(), i = L.indexOf(s), n = L.length;
   const steps = [1, 2, 3].map(k => `<button class="m-step ${+st.step === k ? 'on' : ''}" onclick="${G}.setStep(${k})"><b>${k}단계</b><span>${STEP_DESC[k]}</span></button>`).join('');
   return `
     <div class="m-steps">${steps}</div>
@@ -4458,7 +4471,7 @@ function practiceHTML(s) {
     <div class="m-card">
       <div class="m-meta"><span>${O.fixed ? '단어' : '문장'} ${i + 1} / ${n}</span><span class="m-badge" id="m-best" ${s.best ? '' : 'hidden'}>${s.best ? `${s.best}단계까지 완료` : ''}</span>
         <span class="m-nav"><button class="m-tool" onclick="${G}.go(-1)" ${n > 1 ? '' : 'disabled'}>← 이전</button><button class="m-tool" onclick="${G}.go(1)" ${n > 1 ? '' : 'disabled'}>다음 →</button></span></div>
-      ${s.word ? `<div class="m-word">${esc(s.word)}</div>` : ''}${s.ko ? `<div class="m-ko">${esc(s.ko)}</div>` : ''}
+      ${s.word ? `<div class="m-wordrow"><div class="m-word">${esc(s.word)}</div>${starHTML(s)}</div>` : ''}${s.ko ? `<div class="m-ko">${esc(s.ko)}</div>` : ''}
       <div class="m-box" id="m-box">
         <div class="m-text" id="m-text"></div>
         <input id="m-input" class="m-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="문장 입력" value="${esc(typed)}">
@@ -4472,9 +4485,11 @@ function listHTML() {
   if (O.fixed) {   // 정해진 목록: 고르기만 (추가 · 수정 · 삭제 없음)
     const rows = st.sents.map((x, i) => `<div class="m-row ${x.id === st.cur ? 'cur' : ''}">
       <button class="m-rowmain" onclick="${G}.pick(${esc(JSON.stringify(x.id))})"><span class="m-no">${i + 1}</span><span class="m-en">${esc(x.word || x.en)}</span>${x.ko ? `<span class="m-ko2">${esc(x.ko)}</span>` : ''}</button>
-      <span class="m-rowside">${x.best ? `<span class="m-badge">${x.best}단계</span>` : ''}</span>
+      <span class="m-rowside">${x.best ? `<span class="m-badge">${x.best}단계</span>` : ''}${starHTML(x)}</span>
     </div>`).join('');
-    return n ? `<div class="m-card m-list"><div class="m-listhead"><b>${O.listTitle} ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= 3).length}개 3단계 완료</span></div>${rows}</div>` : '';
+    const nb = O.bookmark ? st.sents.filter(isBm).length : 0;
+    const bmBar = O.bookmark ? `<label class="m-lock ${st.bmOnly ? 'on' : ''}" style="margin:0 0 6px"><input type="checkbox" ${st.bmOnly ? 'checked' : ''} onchange="${G}.setBmOnly(this.checked)">⭐ 북마크한 단어만 외우기 (${nb}개)</label>` : '';
+    return n ? `<div class="m-card m-list">${bmBar}<div class="m-listhead"><b>${O.listTitle} ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= 3).length}개 3단계 완료</span></div>${rows}</div>` : '';
   }
   const imp = CONF.importFrom(), have = new Set(st.sents.map(x => norm(x.en).join('')));
   const fresh = imp.filter(d => !have.has(norm(d.en).join('')));
@@ -4559,8 +4574,14 @@ function setStep(k) { st.step = k; save(); typed = ''; render(); focusInput(); }
 // 다른 문장(단어)으로 옮기면 1단계부터 (3단계를 끝내고 '다음'을 눌러도 새 문장은 전체 문장부터 보며 외움).
 // '3단계 고정'(st.lock3)을 켜면 옮길 때 늘 3단계부터
 const firstStep = () => st.lock3 ? 3 : 1;
+function bm(id, btn) {   // 북마크 켜고 끄기: 연습 카드 · 목록의 별을 함께 바꿈 (입력 중인 글은 그대로)
+  toggleBookmark(id, btn);
+  R().querySelectorAll('.m-star').forEach(b => { if (b.dataset.bm === id && b !== btn) b.textContent = btn.textContent; });
+  const c = R().querySelector('.m-list .m-lock'); if (c) c.lastChild.textContent = `⭐ 북마크한 단어만 외우기 (${st.sents.filter(isBm).length}개)`;
+}
+function setBmOnly(on) { st.bmOnly = !!on; const s = curS(); if (s && s.id !== st.cur) { st.cur = s.id; st.step = firstStep(); } save(); typed = ''; render(); }
 function setLock(on) { st.lock3 = !!on; if (on) st.step = 3; save(); typed = ''; render(); focusInput(); }
-function go(d) { const n = st.sents.length; if (!n) return; const i = st.sents.indexOf(curS()); st.cur = st.sents[(i + d + n) % n].id; st.step = firstStep(); save(); typed = ''; render(); focusInput(); }
+function go(d) { const L = pool(), n = L.length; if (!n) return; const i = L.indexOf(curS()); st.cur = L[(i + d + n) % n].id; st.step = firstStep(); save(); typed = ''; render(); focusInput(); }
 function pick(id) { if (id !== st.cur) st.step = firstStep(); st.cur = id; save(); typed = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); focusInput(); }
 function reset() { typed = ''; render(); focusInput(); }
 function peek() {   // 잠깐 보기: 1.5초 동안 전체 문장
@@ -4621,7 +4642,7 @@ function start(id) {
   render();
   if (curS() && window.matchMedia('(hover: hover)').matches) focusInput();   // 휴대폰에선 자동으로 키보드를 띄우지 않음
 }
-return { start, setStep, setLock, go, pick, reset, peek, add, importAll, edit, cancelEdit, saveEdit, del, clearAll };
+return { start, setStep, setLock, bm, setBmOnly, go, pick, reset, peek, add, importAll, edit, cancelEdit, saveEdit, del, clearAll };
 }
 const MEMO = makeMemo({ root: 'tab-memo', name: 'MEMO', listTitle: '저장한 문장',
   title: '문장 암기', sub: '문장을 직접 추가하면 이 브라우저에 저장돼요 · 대소문자·띄어쓰기·문장부호는 무시하고 채점해요',
@@ -4631,7 +4652,7 @@ const MEMO = makeMemo({ root: 'tab-memo', name: 'MEMO', listTitle: '저장한 �
   } });
 // 영영풀이 탭 (SUBJECTS 의 defMemo): 단어를 보고 그 영어 풀이(note 의 ' · ' 앞 영어 문장, defOf)를 셀프 탭처럼 단계별로 외워 씀.
 // 단어 목록은 단어장 자료에서 그대로 만들고, 이 기기에는 단계 기록만 남깁니다
-const DEFM = makeMemo({ root: 'tab-defmemo', name: 'DEFM', fixed: true, listTitle: '단어',
+const DEFM = makeMemo({ root: 'tab-defmemo', name: 'DEFM', fixed: true, bookmark: true, listTitle: '단어',
   title: '영영풀이', sub: '단어를 보고 영어 풀이를 외워 써요 · 대소문자·띄어쓰기·문장부호는 무시하고 채점해요',
   sets: { atc: { key: 'atc-defmemo-v1', items: () => DATA_ATC.filter(hasDef).map(w => ({ id: w.en, word: w.en, en: defOf(w), ko: w.ko })) } } });
 
