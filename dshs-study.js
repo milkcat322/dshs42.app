@@ -306,10 +306,16 @@ function maybeConnect() {
     <button class="study-submit" id="cnOk">허락하고 ${esc(app.to)} 돌아가기</button>
     <button class="study-btn wide no" id="cnNo" style="margin-top:6px">취소</button>`);
   $("cnOk").onclick = async () => {
-    $("cnOk").disabled = true;
-    const { data, error } = await sb.rpc("create_api_key", { p_label: app.name });
+    const ok = $("cnOk"), label = ok.textContent;
+    ok.disabled = true; ok.textContent = "연결하는 중…";
+    $("authErr").textContent = "";
+    let data, error;
+    try {
+      if (!sb) await sbWait;   // 지난 화면에서 바로 누르면 서버 연결이 아직 준비되지 않았을 수 있습니다
+      ({ data, error } = await sb.rpc("create_api_key", { p_label: app.name }));
+    } catch (e) { error = e; }
     if (error || !data) {
-      $("cnOk").disabled = false;
+      ok.disabled = false; ok.textContent = label;
       $("authErr").textContent = error?.message?.includes("5개")
         ? "열쇠가 이미 5개예요. 설정 → '내 정보 가져오기' → '내 열쇠 모두 없애기'를 누른 뒤 다시 연결해 주세요"
         : "열쇠를 만들지 못했어요. 잠시 뒤에 다시 해 주세요";
