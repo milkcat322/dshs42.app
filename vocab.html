@@ -1246,72 +1246,72 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 
 
 /* ===== 문장 암기 탭 ===== */
-:is(#tab-memo, #tab-defmemo) { max-width: 780px; margin: 0 auto; --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#c62828; --bad-bg:#fbe9ea; }
-@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) :is(#tab-memo, #tab-defmemo) { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; } }
-:root[data-tone="dark"] :is(#tab-memo, #tab-defmemo) { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; }
-:is(#tab-memo, #tab-defmemo) button { -webkit-tap-highlight-color: transparent; }
-:is(#tab-memo, #tab-defmemo) .m-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-:is(#tab-memo, #tab-defmemo) .m-head h1 { font-family: 'Bricolage Grotesque', 'Noto Sans KR', sans-serif; font-size: 26px; letter-spacing: -0.02em; }
-:is(#tab-memo, #tab-defmemo) .m-sub { font-size: 13px; color: var(--text-muted); word-break: keep-all; }
-:is(#tab-memo, #tab-defmemo) .m-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-:is(#tab-memo, #tab-defmemo) .m-step { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 12px; padding: 10px 12px; font: inherit; cursor: pointer; }
-:is(#tab-memo, #tab-defmemo) .m-step b { font-size: 14px; }
-:is(#tab-memo, #tab-defmemo) .m-step span { font-size: 12px; color: var(--text-muted); word-break: keep-all; }
-:is(#tab-memo, #tab-defmemo) .m-step.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-:is(#tab-memo, #tab-defmemo) .m-step.on b { color: var(--accent); }
-:is(#tab-memo, #tab-defmemo) .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
-:is(#tab-memo, #tab-defmemo) .m-empty { color: var(--text-muted); font-size: 14px; }
-:is(#tab-memo, #tab-defmemo) .m-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
-:is(#tab-memo, #tab-defmemo) .m-nav { margin-left: auto; display: flex; gap: 6px; }
-:is(#tab-memo, #tab-defmemo) .m-badge[hidden] { display: none; }
-:is(#tab-memo, #tab-defmemo) .m-badge { font-size: 11.5px; font-weight: 600; color: var(--ok); background: var(--ok-bg); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
-:is(#tab-memo, #tab-defmemo) .m-ko { margin-top: 10px; font-size: 15.5px; line-height: 1.6; word-break: keep-all; }
-:is(#tab-memo, #tab-defmemo) .m-box { position: relative; margin-top: 12px; min-height: 120px; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); cursor: text; transition: border-color .15s; }
-:is(#tab-memo, #tab-defmemo) .m-box:focus-within { border-color: var(--accent); }
-:is(#tab-memo, #tab-defmemo) .m-box.done { border-color: var(--ok); background: var(--ok-bg); }
-:is(#tab-memo, #tab-defmemo) .m-text { font-size: 20px; line-height: 1.85; white-space: normal; word-break: normal; overflow-wrap: break-word; font-family: 'Noto Sans KR', -apple-system, 'Segoe UI', sans-serif; }
-:is(#tab-memo, #tab-defmemo) .m-text .ok { color: var(--text); font-weight: 600; }
-:is(#tab-memo, #tab-defmemo) .m-text .rest { color: var(--text-dim); opacity: .55; }
-:is(#tab-memo, #tab-defmemo) .m-text .w { white-space: nowrap; }
-:is(#tab-memo, #tab-defmemo) .m-text .gap { display: inline-block; width: .5em; height: 1em; margin: 0 1.5px; vertical-align: -0.12em; border-bottom: 2px solid var(--text-dim); opacity: .6; }
-:is(#tab-memo, #tab-defmemo) .m-text .bad { color: var(--bad); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
-:is(#tab-memo, #tab-defmemo) .m-text .peek { opacity: .8; }
-:is(#tab-memo, #tab-defmemo) .m-ph { color: var(--text-dim); font-size: 15px; }
-:is(#tab-memo, #tab-defmemo) .m-caret { display: inline-block; width: 2px; height: 1.15em; margin: 0 1px; vertical-align: -0.2em; background: var(--accent); animation: mcaret 1s steps(1) infinite; }
-:is(#tab-memo, #tab-defmemo) .m-box:not(:focus-within) .m-caret { opacity: 0; animation: none; }
-:is(#tab-memo, #tab-defmemo) .m-box.done .m-caret { display: none; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) { max-width: 780px; margin: 0 auto; --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#c62828; --bad-bg:#fbe9ea; }
+@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) :is(#tab-memo, #tab-defmemo, #tab-essay) { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; } }
+:root[data-tone="dark"] :is(#tab-memo, #tab-defmemo, #tab-essay) { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) button { -webkit-tap-highlight-color: transparent; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-head h1 { font-family: 'Bricolage Grotesque', 'Noto Sans KR', sans-serif; font-size: 26px; letter-spacing: -0.02em; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-sub { font-size: 13px; color: var(--text-muted); word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-step { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 12px; padding: 10px 12px; font: inherit; cursor: pointer; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-step b { font-size: 14px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-step span { font-size: 12px; color: var(--text-muted); word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-step.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-step.on b { color: var(--accent); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-empty { color: var(--text-muted); font-size: 14px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-nav { margin-left: auto; display: flex; gap: 6px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-badge[hidden] { display: none; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-badge { font-size: 11.5px; font-weight: 600; color: var(--ok); background: var(--ok-bg); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-ko { margin-top: 10px; font-size: 15.5px; line-height: 1.6; word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-box { position: relative; margin-top: 12px; min-height: 120px; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); cursor: text; transition: border-color .15s; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-box:focus-within { border-color: var(--accent); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-box.done { border-color: var(--ok); background: var(--ok-bg); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-text { font-size: 20px; line-height: 1.85; white-space: normal; word-break: normal; overflow-wrap: break-word; font-family: 'Noto Sans KR', -apple-system, 'Segoe UI', sans-serif; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-text .ok { color: var(--text); font-weight: 600; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-text .rest { color: var(--text-dim); opacity: .55; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-text .w { white-space: nowrap; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-text .gap { display: inline-block; width: .5em; height: 1em; margin: 0 1.5px; vertical-align: -0.12em; border-bottom: 2px solid var(--text-dim); opacity: .6; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-text .bad { color: var(--bad); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-text .peek { opacity: .8; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-ph { color: var(--text-dim); font-size: 15px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-caret { display: inline-block; width: 2px; height: 1.15em; margin: 0 1px; vertical-align: -0.2em; background: var(--accent); animation: mcaret 1s steps(1) infinite; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-box:not(:focus-within) .m-caret { opacity: 0; animation: none; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-box.done .m-caret { display: none; }
 @keyframes mcaret { 50% { opacity: 0; } }
-:is(#tab-memo, #tab-defmemo) .m-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; background: transparent; color: transparent; caret-color: transparent; font-size: 16px; cursor: text; }
-:is(#tab-memo, #tab-defmemo) .m-status { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
-:is(#tab-memo, #tab-defmemo) .m-good { color: var(--ok); font-weight: 700; font-size: 14px; }
-:is(#tab-memo, #tab-defmemo) .m-badtxt { color: var(--bad); font-weight: 600; }
-:is(#tab-memo, #tab-defmemo) .m-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-:is(#tab-memo, #tab-defmemo) .m-actions .btn { padding: 9px 18px; font-size: 14px; }
-:is(#tab-memo, #tab-defmemo) .m-actions .btn:disabled { opacity: .45; cursor: default; }
-:is(#tab-memo, #tab-defmemo) .m-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
-:is(#tab-memo, #tab-defmemo) .m-tool:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
-:is(#tab-memo, #tab-defmemo) .m-tool:disabled { opacity: .4; cursor: default; }
-:is(#tab-memo, #tab-defmemo) .m-tool.del:hover { border-color: var(--bad); color: var(--bad); }
-:is(#tab-memo, #tab-defmemo) .m-list summary { cursor: pointer; font-weight: 700; font-size: 15px; }
-:is(#tab-memo, #tab-defmemo) .m-list textarea, :is(#tab-memo, #tab-defmemo) .m-list input { width: 100%; margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: 15px; line-height: 1.6; padding: 10px 12px; }
-:is(#tab-memo, #tab-defmemo) .m-list textarea { resize: vertical; }
-:is(#tab-memo, #tab-defmemo) .m-msg { margin-top: 8px; font-size: 13px; color: var(--ok); min-height: 1em; }
-:is(#tab-memo, #tab-defmemo) .m-listhead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-:is(#tab-memo, #tab-defmemo) .m-listhead .m-tool { margin-left: auto; }
-:is(#tab-memo, #tab-defmemo) .m-dim { font-size: 12.5px; color: var(--text-muted); }
-:is(#tab-memo, #tab-defmemo) .m-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding: 8px 0; }
-:is(#tab-memo, #tab-defmemo) .m-row.cur .m-no { background: var(--accent); color: var(--bg); }
-:is(#tab-memo, #tab-defmemo) .m-rowmain { flex: 1; min-width: 0; display: grid; grid-template-columns: 26px 1fr; column-gap: 8px; text-align: left; background: none; border: 0; color: var(--text); font: inherit; cursor: pointer; padding: 2px 0; }
-:is(#tab-memo, #tab-defmemo) .m-no { grid-row: span 2; width: 24px; height: 24px; border-radius: 6px; background: var(--surface2); font-size: 12px; display: grid; place-items: center; color: var(--text-muted); }
-:is(#tab-memo, #tab-defmemo) .m-en { font-size: 14.5px; line-height: 1.5; }
-:is(#tab-memo, #tab-defmemo) .m-ko2 { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; word-break: keep-all; }
-:is(#tab-memo, #tab-defmemo) .m-rowside { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; background: transparent; color: transparent; caret-color: transparent; font-size: 16px; cursor: text; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-status { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-good { color: var(--ok); font-weight: 700; font-size: 14px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-badtxt { color: var(--bad); font-weight: 600; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-actions .btn { padding: 9px 18px; font-size: 14px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-actions .btn:disabled { opacity: .45; cursor: default; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-tool:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-tool:disabled { opacity: .4; cursor: default; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-tool.del:hover { border-color: var(--bad); color: var(--bad); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-list summary { cursor: pointer; font-weight: 700; font-size: 15px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-list textarea, :is(#tab-memo, #tab-defmemo, #tab-essay) .m-list input { width: 100%; margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: 15px; line-height: 1.6; padding: 10px 12px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-list textarea { resize: vertical; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-msg { margin-top: 8px; font-size: 13px; color: var(--ok); min-height: 1em; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-listhead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-listhead .m-tool { margin-left: auto; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-dim { font-size: 12.5px; color: var(--text-muted); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding: 8px 0; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-row.cur .m-no { background: var(--accent); color: var(--bg); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-rowmain { flex: 1; min-width: 0; display: grid; grid-template-columns: 26px 1fr; column-gap: 8px; text-align: left; background: none; border: 0; color: var(--text); font: inherit; cursor: pointer; padding: 2px 0; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-no { grid-row: span 2; width: 24px; height: 24px; border-radius: 6px; background: var(--surface2); font-size: 12px; display: grid; place-items: center; color: var(--text-muted); }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-en { font-size: 14.5px; line-height: 1.5; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-ko2 { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo, #tab-essay) .m-rowside { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 @media (max-width: 640px) {
-  :is(#tab-memo, #tab-defmemo) .m-card { padding: 16px 14px; }
-  :is(#tab-memo, #tab-defmemo) .m-text { font-size: 18px; }
-  :is(#tab-memo, #tab-defmemo) .m-step { padding: 8px 10px; }
-  :is(#tab-memo, #tab-defmemo) .m-row { flex-direction: column; align-items: stretch; gap: 6px; }
-  :is(#tab-memo, #tab-defmemo) .m-rowside { margin-left: 34px; }
+  :is(#tab-memo, #tab-defmemo, #tab-essay) .m-card { padding: 16px 14px; }
+  :is(#tab-memo, #tab-defmemo, #tab-essay) .m-text { font-size: 18px; }
+  :is(#tab-memo, #tab-defmemo, #tab-essay) .m-step { padding: 8px 10px; }
+  :is(#tab-memo, #tab-defmemo, #tab-essay) .m-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  :is(#tab-memo, #tab-defmemo, #tab-essay) .m-rowside { margin-left: 34px; }
 }
 
 /* ===== dshs42.app 공부 탭 안 (html.embed) ===== */
@@ -1334,6 +1334,15 @@ html.embed .main { padding: 18px 0 24px; max-width: none; }
 html.embed .btn.primary, html.embed .btn.primary:hover, html.embed .btn.danger, html.embed .btn.success-btn,
 html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.selected { color: var(--bg); }
 
+#tab-essay .e-q { font-size: 17px; font-weight: 600; line-height: 1.6; color: var(--text); word-break: normal; overflow-wrap: anywhere; }
+#tab-essay .e-need { margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+#tab-essay textarea { display: block; box-sizing: border-box; width: 100%; min-height: 220px; margin-top: 12px; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface2); color: var(--text); font: inherit; font-size: 15.5px; line-height: 1.65; resize: vertical; }
+#tab-essay textarea:focus { outline: none; border-color: var(--accent); }
+#tab-essay .e-checks { display: grid; gap: 8px; margin-top: 4px; }
+#tab-essay .e-checks label { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; line-height: 1.5; cursor: pointer; word-break: keep-all; }
+#tab-essay .e-checks input { width: 17px; height: 17px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+#tab-essay .e-sample { margin-top: 10px; padding: 12px 14px; border-radius: 10px; background: var(--surface2); font-size: 14.5px; line-height: 1.7; white-space: pre-wrap; }
+#tab-essay details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 #tab-defmemo .m-word { font-family: 'Space Mono', monospace; font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 4px; word-break: keep-all; }
 </style>
 </head>
@@ -1348,6 +1357,7 @@ html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.sel
     <div class="nav-tab active" data-tab="study" onclick="switchTab('study')">📚 학습</div>
     <div class="nav-tab" data-tab="quiz" onclick="switchTab('quiz')">✏️ 퀴즈</div>
     <div class="nav-tab hidden" data-tab="defmemo" id="nav-defmemo" onclick="switchTab('defmemo')">📖 영영풀이</div>
+    <div class="nav-tab hidden" data-tab="essay" id="nav-essay" onclick="switchTab('essay')">🖊️ 서술</div>
     <div class="nav-tab hidden" data-tab="grammar" id="nav-grammar" onclick="switchTab('grammar')">✍️ 문법</div>
     <div class="nav-tab hidden" data-tab="blank" id="nav-blank" onclick="switchTab('blank')">✍️ 빈칸</div>
     <div class="nav-tab hidden" data-tab="scramble" id="nav-scramble" onclick="switchTab('scramble')">🧩 배열</div>
@@ -1503,6 +1513,7 @@ html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.sel
   <!-- ===== 문장 암기 탭 ===== -->
   <div id="tab-memo" class="hidden"></div>
   <div id="tab-defmemo" class="hidden"></div>
+  <div id="tab-essay" class="hidden"></div>
 
   <!-- ===== 퀴즈 탭 ===== -->
   <div id="tab-quiz" class="hidden">
@@ -1911,7 +1922,7 @@ const DATA_CRIT = [
 
 const SUBJECTS = {
   atc:  { name: '학술영어 세미나', sub: 'The Art of Thinking Clearly Ch.4 Social Proof 어휘', emoji: '🧠', data: DATA_ATC,
-          cats: ['Ch4 Social Proof'], typoMin: 4, store: 'atcvocab_', defQuiz: true, defMemo: true },   // defQuiz: 퀴즈에 영영풀이 쓰기 · defMemo: 영영풀이 탭(DEFM)
+          cats: ['Ch4 Social Proof'], typoMin: 4, store: 'atcvocab_', defQuiz: true, defMemo: true, essay: true },   // defQuiz: 퀴즈에 영영풀이 쓰기 · defMemo: 영영풀이 탭(DEFM) · essay: 서술 탭(ESSAY_SETS)
   // 지문 빈칸 탭(blank: true)은 껐습니다. 코드(BLNK)는 남아 있어 다시 켤 수 있습니다.
   crit: { name: '비판적 영어 읽기와 토론', sub: '필수동사 150개, 필수형용사 100개', emoji: '⚖️', data: DATA_CRIT,
           cats: ['필수동사', '필수형용사'], typoMin: 4, store: 'critvocab_', synToggle: true },
@@ -2055,15 +2066,16 @@ function renderBookmarkTable() {
 
 // ===== 탭 전환 =====
 function switchTab(tab) {
-  if ((tab === 'grammar' && !SUBJECTS[currentSubject]?.grammar) || (tab === 'test' && !SUBJECTS[currentSubject]?.test) || (tab === 'scramble' && !SUBJECTS[currentSubject]?.scramble) || (tab === 'blank' && !SUBJECTS[currentSubject]?.blank) || (tab === 'memo' && !SUBJECTS[currentSubject]?.memo) || (tab === 'defmemo' && !SUBJECTS[currentSubject]?.defMemo)) tab = 'study';
+  if ((tab === 'grammar' && !SUBJECTS[currentSubject]?.grammar) || (tab === 'test' && !SUBJECTS[currentSubject]?.test) || (tab === 'scramble' && !SUBJECTS[currentSubject]?.scramble) || (tab === 'blank' && !SUBJECTS[currentSubject]?.blank) || (tab === 'memo' && !SUBJECTS[currentSubject]?.memo) || (tab === 'defmemo' && !SUBJECTS[currentSubject]?.defMemo) || (tab === 'essay' && !SUBJECTS[currentSubject]?.essay)) tab = 'study';
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['study', 'quiz', 'grammar', 'blank', 'scramble', 'memo', 'defmemo', 'test', 'bookmark'].forEach(id =>
+  ['study', 'quiz', 'grammar', 'blank', 'scramble', 'memo', 'defmemo', 'essay', 'test', 'bookmark'].forEach(id =>
     document.getElementById('tab-' + id).classList.toggle('hidden', tab !== id));
   if (tab === 'bookmark') renderBookmarkTable();
   if (tab === 'grammar') GRAM.start();
   if (tab === 'blank') BLNK.start();
   if (tab === 'memo') MEMO.start(currentSubject);
   if (tab === 'defmemo') DEFM.start(currentSubject);
+  if (tab === 'essay') ESSAY.start(currentSubject);
   if (tab === 'test') TESTM.start();
   if (tab === 'scramble') SCR.start(currentSubject);
 }
@@ -4616,6 +4628,69 @@ const DEFM = makeMemo({ root: 'tab-defmemo', name: 'DEFM', fixed: true, listTitl
   title: '영영풀이', sub: '단어를 보고 영어 풀이를 외워 써요 · 대소문자·띄어쓰기·문장부호는 무시하고 채점해요',
   sets: { atc: { key: 'atc-defmemo-v1', items: () => DATA_ATC.filter(hasDef).map(w => ({ id: w.en, word: w.en, en: defOf(w), ko: w.ko })) } } });
 
+// ===== 서술 모듈 (학술영어 세미나): 문제에 자유롭게 영어로 답을 쓰는 탭 =====
+// 쓰는 동안 이 기기에 저장(임시 저장)하고, 글자 수(띄어쓰기 제외)가 min 이상이어야 '다 썼어요'를 누를 수 있습니다.
+// 다 쓰면 스스로 확인할 항목(checks)과 예시 답안(sample)을 보여 줍니다. 문제를 바꾸거나 늘리려면 ESSAY_SETS 의 qs 를 고칩니다.
+const ESSAY_SETS = {
+  atc: { key: 'atc-essay-v1', qs: [{
+    id: 'social-media',
+    q: 'In the age of social media, what is social proof? Explain one positive and one negative example, and how we can avoid being misled by it.',
+    min: 80,
+    checks: ['social proof 가 무엇인지 설명했어요 (많은 사람이 하면 옳다고 믿는 경향)', '좋은 예시를 하나 들었어요', '나쁜 예시를 하나 들었어요', '휘둘리지 않는 방법을 썼어요'],
+    sample: 'Social proof is the tendency to believe that an action or opinion is correct because many other people do it. On social media, we see it through likes, views, followers and comments.\n\nA positive example is a fundraising post for disaster victims. When we see that thousands of people have already donated, we feel encouraged to help as well.\n\nA negative example is fake news or a "meme stock" that goes viral. People may believe the post or buy the stock only because it has many likes, not because it is true or valuable.\n\nTo avoid being misled, we should check the original source, look for evidence from reliable experts, and ask ourselves whether we would still believe it if nobody else did.',
+  }] },
+};
+const ESSAY = (() => {
+  let CONF = null, st = null;
+  const R = () => document.getElementById('tab-essay');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const chars = t => String(t).replace(/\s/g, '').length;   // 글자 수: 띄어쓰기 · 줄바꿈 제외
+  const words = t => (String(t).trim().match(/\S+/g) || []).length;
+  const save = () => { try { localStorage.setItem(CONF.key, JSON.stringify(st)); } catch (e) {} };
+  const Q = () => CONF.qs[0];
+  const A = () => (st.a[Q().id] ||= { text: '', done: false, checks: [] });
+  function start(id) {
+    CONF = ESSAY_SETS[id] || ESSAY_SETS.atc;
+    st = { a: {} };
+    try { Object.assign(st, JSON.parse(localStorage.getItem(CONF.key) || '{}')); } catch (e) {}
+    render();
+  }
+  function render() {
+    const q = Q(), a = A();
+    R().innerHTML = `
+      <div class="m-head"><h1>서술</h1><span class="m-sub">영어로 자유롭게 답을 써요 · 쓰는 내용은 이 기기에 저장돼요</span></div>
+      <div class="m-card">
+        <div class="e-q">${esc(q.q)}</div>
+        <div class="e-need">${q.min}자 이상 (띄어쓰기 제외)</div>
+        <textarea id="e-text" lang="en" spellcheck="true" autocapitalize="sentences" placeholder="여기에 영어로 답을 쓰세요" ${a.done ? 'readonly' : ''}>${esc(a.text)}</textarea>
+        <div class="m-status" id="e-status"></div>
+        <div class="m-actions" id="e-actions"></div>
+      </div>
+      ${a.done ? `<div class="m-card">
+        <b>스스로 확인하기</b>
+        <div class="e-checks">${q.checks.map((c, i) => `<label><input type="checkbox" data-ci="${i}" ${a.checks[i] ? 'checked' : ''}>${esc(c)}</label>`).join('')}</div>
+        <details style="margin-top:14px"><summary>예시 답안 보기</summary><div class="e-sample">${esc(q.sample)}</div></details>
+      </div>` : ''}`;
+    const ta = document.getElementById('e-text');
+    ta.addEventListener('input', () => { a.text = ta.value; save(); status(); });
+    R().querySelectorAll('[data-ci]').forEach(cb => cb.onchange = () => { a.checks[+cb.dataset.ci] = cb.checked; save(); });
+    status();
+  }
+  function status() {
+    const q = Q(), a = A(), n = chars(a.text), ok = n >= q.min;
+    document.getElementById('e-status').innerHTML = a.done
+      ? `<span class="m-good">✓ 다 썼어요 · ${n}자 · ${words(a.text)}단어</span>`
+      : `<span>${n} / ${q.min}자 · ${words(a.text)}단어</span>${ok ? '<span class="m-good">충분히 썼어요</span>' : `<span class="m-badtxt">${q.min - n}자 더 써야 해요</span>`}`;
+    document.getElementById('e-actions').innerHTML = a.done
+      ? '<button class="btn ghost" onclick="ESSAY.edit()">다시 고치기</button><button class="btn ghost" onclick="ESSAY.clear(this)">지우고 새로 쓰기</button>'
+      : `<button class="btn primary" onclick="ESSAY.submit()" ${ok ? '' : 'disabled'}>다 썼어요</button>`;
+  }
+  function submit() { const q = Q(), a = A(); if (chars(a.text) < q.min) return; a.done = true; save(); render(); }
+  function edit() { A().done = false; save(); render(); const ta = document.getElementById('e-text'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
+  function clear(btn) { armedClick(btn, '지우고 새로 쓰기', () => { st.a[Q().id] = { text: '', done: false, checks: [] }; save(); render(); }); }
+  return { start, submit, edit, clear };
+})();
+
 
 // ===== 과목 선택 / 화면 전환 =====
 function bookmarkCount(id) {
@@ -4706,6 +4781,7 @@ function selectSubject(id) {
   document.getElementById('nav-blank').classList.toggle('hidden', !s.blank);
   document.getElementById('nav-memo').classList.toggle('hidden', !s.memo);
   document.getElementById('nav-defmemo').classList.toggle('hidden', !s.defMemo);
+  document.getElementById('nav-essay').classList.toggle('hidden', !s.essay);
   document.getElementById('subject-label').textContent = s.name;
   document.title = `${s.name} · dshs.vocab`;
 
