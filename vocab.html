@@ -4540,8 +4540,9 @@ function focusInput() { const i = document.getElementById('m-input'); if (i) { i
 
 // ---------- 동작 ----------
 function setStep(k) { st.step = k; save(); typed = ''; render(); focusInput(); }
-function go(d) { const n = st.sents.length; if (!n) return; const i = st.sents.indexOf(curS()); st.cur = st.sents[(i + d + n) % n].id; save(); typed = ''; render(); focusInput(); }
-function pick(id) { st.cur = id; save(); typed = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); focusInput(); }
+// 다른 문장(단어)으로 옮기면 늘 1단계부터 (3단계를 끝내고 '다음'을 눌러도 새 문장은 전체 문장부터 보며 외움)
+function go(d) { const n = st.sents.length; if (!n) return; const i = st.sents.indexOf(curS()); st.cur = st.sents[(i + d + n) % n].id; st.step = 1; save(); typed = ''; render(); focusInput(); }
+function pick(id) { if (id !== st.cur) st.step = 1; st.cur = id; save(); typed = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); focusInput(); }
 function reset() { typed = ''; render(); focusInput(); }
 function peek() {   // 잠깐 보기: 1.5초 동안 전체 문장
   const s = curS(); const el = document.getElementById('m-text'); if (!s || !el) return;
