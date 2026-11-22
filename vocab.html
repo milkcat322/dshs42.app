@@ -1246,72 +1246,72 @@ if (window.VOCAB_EMBED) { document.documentElement.classList.add('embed'); windo
 
 
 /* ===== 문장 암기 탭 ===== */
-#tab-memo { max-width: 780px; margin: 0 auto; --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#c62828; --bad-bg:#fbe9ea; }
-@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) #tab-memo { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; } }
-:root[data-tone="dark"] #tab-memo { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; }
-#tab-memo button { -webkit-tap-highlight-color: transparent; }
-#tab-memo .m-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-#tab-memo .m-head h1 { font-family: 'Bricolage Grotesque', 'Noto Sans KR', sans-serif; font-size: 26px; letter-spacing: -0.02em; }
-#tab-memo .m-sub { font-size: 13px; color: var(--text-muted); word-break: keep-all; }
-#tab-memo .m-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-#tab-memo .m-step { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 12px; padding: 10px 12px; font: inherit; cursor: pointer; }
-#tab-memo .m-step b { font-size: 14px; }
-#tab-memo .m-step span { font-size: 12px; color: var(--text-muted); word-break: keep-all; }
-#tab-memo .m-step.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-#tab-memo .m-step.on b { color: var(--accent); }
-#tab-memo .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
-#tab-memo .m-empty { color: var(--text-muted); font-size: 14px; }
-#tab-memo .m-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
-#tab-memo .m-nav { margin-left: auto; display: flex; gap: 6px; }
-#tab-memo .m-badge[hidden] { display: none; }
-#tab-memo .m-badge { font-size: 11.5px; font-weight: 600; color: var(--ok); background: var(--ok-bg); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
-#tab-memo .m-ko { margin-top: 10px; font-size: 15.5px; line-height: 1.6; word-break: keep-all; }
-#tab-memo .m-box { position: relative; margin-top: 12px; min-height: 120px; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); cursor: text; transition: border-color .15s; }
-#tab-memo .m-box:focus-within { border-color: var(--accent); }
-#tab-memo .m-box.done { border-color: var(--ok); background: var(--ok-bg); }
-#tab-memo .m-text { font-size: 20px; line-height: 1.85; white-space: normal; word-break: normal; overflow-wrap: break-word; font-family: 'Noto Sans KR', -apple-system, 'Segoe UI', sans-serif; }
-#tab-memo .m-text .ok { color: var(--text); font-weight: 600; }
-#tab-memo .m-text .rest { color: var(--text-dim); opacity: .55; }
-#tab-memo .m-text .w { white-space: nowrap; }
-#tab-memo .m-text .gap { display: inline-block; width: .5em; height: 1em; margin: 0 1.5px; vertical-align: -0.12em; border-bottom: 2px solid var(--text-dim); opacity: .6; }
-#tab-memo .m-text .bad { color: var(--bad); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
-#tab-memo .m-text .peek { opacity: .8; }
-#tab-memo .m-ph { color: var(--text-dim); font-size: 15px; }
-#tab-memo .m-caret { display: inline-block; width: 2px; height: 1.15em; margin: 0 1px; vertical-align: -0.2em; background: var(--accent); animation: mcaret 1s steps(1) infinite; }
-#tab-memo .m-box:not(:focus-within) .m-caret { opacity: 0; animation: none; }
-#tab-memo .m-box.done .m-caret { display: none; }
+:is(#tab-memo, #tab-defmemo) { max-width: 780px; margin: 0 auto; --ok:#1f7a4d; --ok-bg:#e6f4ec; --bad:#c62828; --bad-bg:#fbe9ea; }
+@media (prefers-color-scheme: dark) { :root:not([data-tone="light"]) :is(#tab-memo, #tab-defmemo) { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; } }
+:root[data-tone="dark"] :is(#tab-memo, #tab-defmemo) { --ok:#5fcf95; --ok-bg:#16322a; --bad:#ff6b6b; --bad-bg:#3a1d20; }
+:is(#tab-memo, #tab-defmemo) button { -webkit-tap-highlight-color: transparent; }
+:is(#tab-memo, #tab-defmemo) .m-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+:is(#tab-memo, #tab-defmemo) .m-head h1 { font-family: 'Bricolage Grotesque', 'Noto Sans KR', sans-serif; font-size: 26px; letter-spacing: -0.02em; }
+:is(#tab-memo, #tab-defmemo) .m-sub { font-size: 13px; color: var(--text-muted); word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo) .m-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+:is(#tab-memo, #tab-defmemo) .m-step { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 12px; padding: 10px 12px; font: inherit; cursor: pointer; }
+:is(#tab-memo, #tab-defmemo) .m-step b { font-size: 14px; }
+:is(#tab-memo, #tab-defmemo) .m-step span { font-size: 12px; color: var(--text-muted); word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo) .m-step.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+:is(#tab-memo, #tab-defmemo) .m-step.on b { color: var(--accent); }
+:is(#tab-memo, #tab-defmemo) .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
+:is(#tab-memo, #tab-defmemo) .m-empty { color: var(--text-muted); font-size: 14px; }
+:is(#tab-memo, #tab-defmemo) .m-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
+:is(#tab-memo, #tab-defmemo) .m-nav { margin-left: auto; display: flex; gap: 6px; }
+:is(#tab-memo, #tab-defmemo) .m-badge[hidden] { display: none; }
+:is(#tab-memo, #tab-defmemo) .m-badge { font-size: 11.5px; font-weight: 600; color: var(--ok); background: var(--ok-bg); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+:is(#tab-memo, #tab-defmemo) .m-ko { margin-top: 10px; font-size: 15.5px; line-height: 1.6; word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo) .m-box { position: relative; margin-top: 12px; min-height: 120px; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); cursor: text; transition: border-color .15s; }
+:is(#tab-memo, #tab-defmemo) .m-box:focus-within { border-color: var(--accent); }
+:is(#tab-memo, #tab-defmemo) .m-box.done { border-color: var(--ok); background: var(--ok-bg); }
+:is(#tab-memo, #tab-defmemo) .m-text { font-size: 20px; line-height: 1.85; white-space: normal; word-break: normal; overflow-wrap: break-word; font-family: 'Noto Sans KR', -apple-system, 'Segoe UI', sans-serif; }
+:is(#tab-memo, #tab-defmemo) .m-text .ok { color: var(--text); font-weight: 600; }
+:is(#tab-memo, #tab-defmemo) .m-text .rest { color: var(--text-dim); opacity: .55; }
+:is(#tab-memo, #tab-defmemo) .m-text .w { white-space: nowrap; }
+:is(#tab-memo, #tab-defmemo) .m-text .gap { display: inline-block; width: .5em; height: 1em; margin: 0 1.5px; vertical-align: -0.12em; border-bottom: 2px solid var(--text-dim); opacity: .6; }
+:is(#tab-memo, #tab-defmemo) .m-text .bad { color: var(--bad); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+:is(#tab-memo, #tab-defmemo) .m-text .peek { opacity: .8; }
+:is(#tab-memo, #tab-defmemo) .m-ph { color: var(--text-dim); font-size: 15px; }
+:is(#tab-memo, #tab-defmemo) .m-caret { display: inline-block; width: 2px; height: 1.15em; margin: 0 1px; vertical-align: -0.2em; background: var(--accent); animation: mcaret 1s steps(1) infinite; }
+:is(#tab-memo, #tab-defmemo) .m-box:not(:focus-within) .m-caret { opacity: 0; animation: none; }
+:is(#tab-memo, #tab-defmemo) .m-box.done .m-caret { display: none; }
 @keyframes mcaret { 50% { opacity: 0; } }
-#tab-memo .m-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; background: transparent; color: transparent; caret-color: transparent; font-size: 16px; cursor: text; }
-#tab-memo .m-status { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
-#tab-memo .m-good { color: var(--ok); font-weight: 700; font-size: 14px; }
-#tab-memo .m-badtxt { color: var(--bad); font-weight: 600; }
-#tab-memo .m-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-#tab-memo .m-actions .btn { padding: 9px 18px; font-size: 14px; }
-#tab-memo .m-actions .btn:disabled { opacity: .45; cursor: default; }
-#tab-memo .m-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
-#tab-memo .m-tool:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
-#tab-memo .m-tool:disabled { opacity: .4; cursor: default; }
-#tab-memo .m-tool.del:hover { border-color: var(--bad); color: var(--bad); }
-#tab-memo .m-list summary { cursor: pointer; font-weight: 700; font-size: 15px; }
-#tab-memo .m-list textarea, #tab-memo .m-list input { width: 100%; margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: 15px; line-height: 1.6; padding: 10px 12px; }
-#tab-memo .m-list textarea { resize: vertical; }
-#tab-memo .m-msg { margin-top: 8px; font-size: 13px; color: var(--ok); min-height: 1em; }
-#tab-memo .m-listhead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-#tab-memo .m-listhead .m-tool { margin-left: auto; }
-#tab-memo .m-dim { font-size: 12.5px; color: var(--text-muted); }
-#tab-memo .m-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding: 8px 0; }
-#tab-memo .m-row.cur .m-no { background: var(--accent); color: var(--bg); }
-#tab-memo .m-rowmain { flex: 1; min-width: 0; display: grid; grid-template-columns: 26px 1fr; column-gap: 8px; text-align: left; background: none; border: 0; color: var(--text); font: inherit; cursor: pointer; padding: 2px 0; }
-#tab-memo .m-no { grid-row: span 2; width: 24px; height: 24px; border-radius: 6px; background: var(--surface2); font-size: 12px; display: grid; place-items: center; color: var(--text-muted); }
-#tab-memo .m-en { font-size: 14.5px; line-height: 1.5; }
-#tab-memo .m-ko2 { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; word-break: keep-all; }
-#tab-memo .m-rowside { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+:is(#tab-memo, #tab-defmemo) .m-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; background: transparent; color: transparent; caret-color: transparent; font-size: 16px; cursor: text; }
+:is(#tab-memo, #tab-defmemo) .m-status { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+:is(#tab-memo, #tab-defmemo) .m-good { color: var(--ok); font-weight: 700; font-size: 14px; }
+:is(#tab-memo, #tab-defmemo) .m-badtxt { color: var(--bad); font-weight: 600; }
+:is(#tab-memo, #tab-defmemo) .m-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+:is(#tab-memo, #tab-defmemo) .m-actions .btn { padding: 9px 18px; font-size: 14px; }
+:is(#tab-memo, #tab-defmemo) .m-actions .btn:disabled { opacity: .45; cursor: default; }
+:is(#tab-memo, #tab-defmemo) .m-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+:is(#tab-memo, #tab-defmemo) .m-tool:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+:is(#tab-memo, #tab-defmemo) .m-tool:disabled { opacity: .4; cursor: default; }
+:is(#tab-memo, #tab-defmemo) .m-tool.del:hover { border-color: var(--bad); color: var(--bad); }
+:is(#tab-memo, #tab-defmemo) .m-list summary { cursor: pointer; font-weight: 700; font-size: 15px; }
+:is(#tab-memo, #tab-defmemo) .m-list textarea, :is(#tab-memo, #tab-defmemo) .m-list input { width: 100%; margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: 15px; line-height: 1.6; padding: 10px 12px; }
+:is(#tab-memo, #tab-defmemo) .m-list textarea { resize: vertical; }
+:is(#tab-memo, #tab-defmemo) .m-msg { margin-top: 8px; font-size: 13px; color: var(--ok); min-height: 1em; }
+:is(#tab-memo, #tab-defmemo) .m-listhead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+:is(#tab-memo, #tab-defmemo) .m-listhead .m-tool { margin-left: auto; }
+:is(#tab-memo, #tab-defmemo) .m-dim { font-size: 12.5px; color: var(--text-muted); }
+:is(#tab-memo, #tab-defmemo) .m-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding: 8px 0; }
+:is(#tab-memo, #tab-defmemo) .m-row.cur .m-no { background: var(--accent); color: var(--bg); }
+:is(#tab-memo, #tab-defmemo) .m-rowmain { flex: 1; min-width: 0; display: grid; grid-template-columns: 26px 1fr; column-gap: 8px; text-align: left; background: none; border: 0; color: var(--text); font: inherit; cursor: pointer; padding: 2px 0; }
+:is(#tab-memo, #tab-defmemo) .m-no { grid-row: span 2; width: 24px; height: 24px; border-radius: 6px; background: var(--surface2); font-size: 12px; display: grid; place-items: center; color: var(--text-muted); }
+:is(#tab-memo, #tab-defmemo) .m-en { font-size: 14.5px; line-height: 1.5; }
+:is(#tab-memo, #tab-defmemo) .m-ko2 { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; word-break: keep-all; }
+:is(#tab-memo, #tab-defmemo) .m-rowside { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 @media (max-width: 640px) {
-  #tab-memo .m-card { padding: 16px 14px; }
-  #tab-memo .m-text { font-size: 18px; }
-  #tab-memo .m-step { padding: 8px 10px; }
-  #tab-memo .m-row { flex-direction: column; align-items: stretch; gap: 6px; }
-  #tab-memo .m-rowside { margin-left: 34px; }
+  :is(#tab-memo, #tab-defmemo) .m-card { padding: 16px 14px; }
+  :is(#tab-memo, #tab-defmemo) .m-text { font-size: 18px; }
+  :is(#tab-memo, #tab-defmemo) .m-step { padding: 8px 10px; }
+  :is(#tab-memo, #tab-defmemo) .m-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  :is(#tab-memo, #tab-defmemo) .m-rowside { margin-left: 34px; }
 }
 
 /* ===== dshs42.app 공부 탭 안 (html.embed) ===== */
@@ -1334,6 +1334,7 @@ html.embed .main { padding: 18px 0 24px; max-width: none; }
 html.embed .btn.primary, html.embed .btn.primary:hover, html.embed .btn.danger, html.embed .btn.success-btn,
 html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.selected { color: var(--bg); }
 
+#tab-defmemo .m-word { font-family: 'Space Mono', monospace; font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 4px; word-break: keep-all; }
 </style>
 </head>
 <body>
@@ -1346,6 +1347,7 @@ html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.sel
   <nav class="nav-tabs hidden" id="nav-tabs">
     <div class="nav-tab active" data-tab="study" onclick="switchTab('study')">📚 학습</div>
     <div class="nav-tab" data-tab="quiz" onclick="switchTab('quiz')">✏️ 퀴즈</div>
+    <div class="nav-tab hidden" data-tab="defmemo" id="nav-defmemo" onclick="switchTab('defmemo')">📖 영영풀이</div>
     <div class="nav-tab hidden" data-tab="grammar" id="nav-grammar" onclick="switchTab('grammar')">✍️ 문법</div>
     <div class="nav-tab hidden" data-tab="blank" id="nav-blank" onclick="switchTab('blank')">✍️ 빈칸</div>
     <div class="nav-tab hidden" data-tab="scramble" id="nav-scramble" onclick="switchTab('scramble')">🧩 배열</div>
@@ -1500,6 +1502,7 @@ html.embed .pill.active, html.embed .sub-pill.active, html.embed .cat-toggle.sel
 
   <!-- ===== 문장 암기 탭 ===== -->
   <div id="tab-memo" class="hidden"></div>
+  <div id="tab-defmemo" class="hidden"></div>
 
   <!-- ===== 퀴즈 탭 ===== -->
   <div id="tab-quiz" class="hidden">
@@ -1908,7 +1911,7 @@ const DATA_CRIT = [
 
 const SUBJECTS = {
   atc:  { name: '학술영어 세미나', sub: 'The Art of Thinking Clearly Ch.4 Social Proof 어휘', emoji: '🧠', data: DATA_ATC,
-          cats: ['Ch4 Social Proof'], typoMin: 4, store: 'atcvocab_', defQuiz: true },   // defQuiz: 퀴즈에 영영풀이(note 의 영어 풀이) 문제
+          cats: ['Ch4 Social Proof'], typoMin: 4, store: 'atcvocab_', defQuiz: true, defMemo: true },   // defQuiz: 퀴즈에 영영풀이 쓰기 · defMemo: 영영풀이 탭(DEFM)
   // 지문 빈칸 탭(blank: true)은 껐습니다. 코드(BLNK)는 남아 있어 다시 켤 수 있습니다.
   crit: { name: '비판적 영어 읽기와 토론', sub: '필수동사 150개, 필수형용사 100개', emoji: '⚖️', data: DATA_CRIT,
           cats: ['필수동사', '필수형용사'], typoMin: 4, store: 'critvocab_', synToggle: true },
@@ -2052,14 +2055,15 @@ function renderBookmarkTable() {
 
 // ===== 탭 전환 =====
 function switchTab(tab) {
-  if ((tab === 'grammar' && !SUBJECTS[currentSubject]?.grammar) || (tab === 'test' && !SUBJECTS[currentSubject]?.test) || (tab === 'scramble' && !SUBJECTS[currentSubject]?.scramble) || (tab === 'blank' && !SUBJECTS[currentSubject]?.blank) || (tab === 'memo' && !SUBJECTS[currentSubject]?.memo)) tab = 'study';
+  if ((tab === 'grammar' && !SUBJECTS[currentSubject]?.grammar) || (tab === 'test' && !SUBJECTS[currentSubject]?.test) || (tab === 'scramble' && !SUBJECTS[currentSubject]?.scramble) || (tab === 'blank' && !SUBJECTS[currentSubject]?.blank) || (tab === 'memo' && !SUBJECTS[currentSubject]?.memo) || (tab === 'defmemo' && !SUBJECTS[currentSubject]?.defMemo)) tab = 'study';
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['study', 'quiz', 'grammar', 'blank', 'scramble', 'memo', 'test', 'bookmark'].forEach(id =>
+  ['study', 'quiz', 'grammar', 'blank', 'scramble', 'memo', 'defmemo', 'test', 'bookmark'].forEach(id =>
     document.getElementById('tab-' + id).classList.toggle('hidden', tab !== id));
   if (tab === 'bookmark') renderBookmarkTable();
   if (tab === 'grammar') GRAM.start();
   if (tab === 'blank') BLNK.start();
   if (tab === 'memo') MEMO.start(currentSubject);
+  if (tab === 'defmemo') DEFM.start(currentSubject);
   if (tab === 'test') TESTM.start();
   if (tab === 'scramble') SCR.start(currentSubject);
 }
@@ -4392,27 +4396,29 @@ function start() {
 return { start, setScope, setAutoBm, playWrong, clearBm, count: DATA.items.length };
 })();
 
-// ===== 문장 암기 모듈 (학술영어 세미나 · 비판적 영어 읽기와 토론) =====
-const MEMO = (() => {
-const SETS = {
-  atc:  { key: 'atc-memo-v1',  importFrom: () => (typeof SCR_DATA !== 'undefined' ? SCR_DATA : []) },
-  crit: { key: 'crit-memo-v1', importFrom: () => (typeof SCR_CRIT !== 'undefined' ? SCR_CRIT : []) },
-};
+// ===== 문장 암기 모듈 (셀프 탭 · 영영풀이 탭) =====
+// 1단계 전체 문장 → 2단계 글자 수만 → 3단계 빈칸, 글자마다 바로 채점 (대소문자 · 띄어쓰기 · 문장부호 무시).
+// makeMemo(O): O.root 화면 id · O.name 전역 이름(onclick 에 씀) · O.sets 과목별 { key 저장 이름, importFrom | items }
+//   O.fixed: 학생이 문장을 추가하지 않고 items() 목록만 외움 (영영풀이) · O.title · O.sub · O.listTitle
+function makeMemo(O) {
+const G = O.name;
 const STEP_DESC = { 1: '전체 문장이 보여요', 2: '글자 수만 보여요', 3: '완전히 빈칸이에요' };
 let subj = null, CONF = null, st = null;
 let typed = '', editId = null, formOpen = false;
-const R = () => document.getElementById('tab-memo');
+const R = () => document.getElementById(O.root);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const isAl = c => /[\p{L}\p{N}]/u.test(c);
 const low = c => c.toLocaleLowerCase();
 // 대소문자·띄어쓰기·문장부호 무시: 글자와 숫자만 남김
 const norm = s => Array.from(String(s)).filter(isAl).map(low);
-const save = () => { try { localStorage.setItem(CONF.key, JSON.stringify(st)); } catch (e) {} };
+const save = () => { try { localStorage.setItem(CONF.key, JSON.stringify(O.fixed
+  ? { cur: st.cur, step: st.step, best: Object.fromEntries(st.sents.filter(x => x.best).map(x => [x.id, x.best])) } : st)); } catch (e) {} };
 
 function use(id) {
-  if (subj === id) return; subj = id; CONF = SETS[id] || SETS.atc;
+  if (subj === id) return; subj = id; CONF = O.sets[id] || Object.values(O.sets)[0];
   st = { sents: [], cur: null, step: 1 };
   try { Object.assign(st, JSON.parse(localStorage.getItem(CONF.key) || '{}')); } catch (e) {}
+  if (O.fixed) { const best = st.best || {}; delete st.best; st.sents = CONF.items().map(x => ({ ...x, best: best[x.id] || 0 })); }
   if (![1, 2, 3].includes(+st.step)) st.step = 1;
   typed = ''; editId = null; formOpen = !st.sents.length;
 }
@@ -4422,21 +4428,21 @@ const curS = () => st.sents.find(s => s.id === st.cur) || st.sents[0] || null;
 function render() {
   const s = curS(); if (s) st.cur = s.id;
   R().innerHTML = `
-    <div class="m-head"><h1>문장 암기</h1><span class="m-sub">문장을 직접 추가하면 이 브라우저에 저장돼요 · 대소문자·띄어쓰기·문장부호는 무시하고 채점해요</span></div>
-    ${s ? practiceHTML(s) : `<div class="m-card m-empty">아직 문장이 없어요. 아래에서 문장을 추가해 주세요.</div>`}
+    <div class="m-head"><h1>${O.title}</h1><span class="m-sub">${O.sub}</span></div>
+    ${s ? practiceHTML(s) : `<div class="m-card m-empty">${O.fixed ? '영어 풀이가 있는 단어가 없어요.' : '아직 문장이 없어요. 아래에서 문장을 추가해 주세요.'}</div>`}
     ${listHTML()}`;
   bind();
   if (s) refreshPractice();
 }
 function practiceHTML(s) {
   const i = st.sents.indexOf(s), n = st.sents.length;
-  const steps = [1, 2, 3].map(k => `<button class="m-step ${+st.step === k ? 'on' : ''}" onclick="MEMO.setStep(${k})"><b>${k}단계</b><span>${STEP_DESC[k]}</span></button>`).join('');
+  const steps = [1, 2, 3].map(k => `<button class="m-step ${+st.step === k ? 'on' : ''}" onclick="${G}.setStep(${k})"><b>${k}단계</b><span>${STEP_DESC[k]}</span></button>`).join('');
   return `
     <div class="m-steps">${steps}</div>
     <div class="m-card">
-      <div class="m-meta"><span>문장 ${i + 1} / ${n}</span><span class="m-badge" id="m-best" ${s.best ? '' : 'hidden'}>${s.best ? `${s.best}단계까지 완료` : ''}</span>
-        <span class="m-nav"><button class="m-tool" onclick="MEMO.go(-1)" ${n > 1 ? '' : 'disabled'}>← 이전</button><button class="m-tool" onclick="MEMO.go(1)" ${n > 1 ? '' : 'disabled'}>다음 →</button></span></div>
-      ${s.ko ? `<div class="m-ko">${esc(s.ko)}</div>` : ''}
+      <div class="m-meta"><span>${O.fixed ? '단어' : '문장'} ${i + 1} / ${n}</span><span class="m-badge" id="m-best" ${s.best ? '' : 'hidden'}>${s.best ? `${s.best}단계까지 완료` : ''}</span>
+        <span class="m-nav"><button class="m-tool" onclick="${G}.go(-1)" ${n > 1 ? '' : 'disabled'}>← 이전</button><button class="m-tool" onclick="${G}.go(1)" ${n > 1 ? '' : 'disabled'}>다음 →</button></span></div>
+      ${s.word ? `<div class="m-word">${esc(s.word)}</div>` : ''}${s.ko ? `<div class="m-ko">${esc(s.ko)}</div>` : ''}
       <div class="m-box" id="m-box">
         <div class="m-text" id="m-text"></div>
         <input id="m-input" class="m-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="문장 입력" value="${esc(typed)}">
@@ -4447,12 +4453,19 @@ function practiceHTML(s) {
 }
 function listHTML() {
   const n = st.sents.length;
+  if (O.fixed) {   // 정해진 목록: 고르기만 (추가 · 수정 · 삭제 없음)
+    const rows = st.sents.map((x, i) => `<div class="m-row ${x.id === st.cur ? 'cur' : ''}">
+      <button class="m-rowmain" onclick="${G}.pick(${esc(JSON.stringify(x.id))})"><span class="m-no">${i + 1}</span><span class="m-en">${esc(x.word || x.en)}</span>${x.ko ? `<span class="m-ko2">${esc(x.ko)}</span>` : ''}</button>
+      <span class="m-rowside">${x.best ? `<span class="m-badge">${x.best}단계</span>` : ''}</span>
+    </div>`).join('');
+    return n ? `<div class="m-card m-list"><div class="m-listhead"><b>${O.listTitle} ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= 3).length}개 3단계 완료</span></div>${rows}</div>` : '';
+  }
   const imp = CONF.importFrom(), have = new Set(st.sents.map(x => norm(x.en).join('')));
   const fresh = imp.filter(d => !have.has(norm(d.en).join('')));
   const edit = editId ? st.sents.find(x => x.id === editId) : null;
   const rows = st.sents.map((x, i) => `<div class="m-row ${x.id === st.cur ? 'cur' : ''}">
-      <button class="m-rowmain" onclick="MEMO.pick('${x.id}')"><span class="m-no">${i + 1}</span><span class="m-en">${esc(x.en)}</span>${x.ko ? `<span class="m-ko2">${esc(x.ko)}</span>` : ''}</button>
-      <span class="m-rowside">${x.best ? `<span class="m-badge">${x.best}단계</span>` : ''}<button class="m-tool" onclick="MEMO.edit('${x.id}')">수정</button><button class="m-tool del" onclick="MEMO.del('${x.id}', this)">삭제</button></span>
+      <button class="m-rowmain" onclick="${G}.pick('${x.id}')"><span class="m-no">${i + 1}</span><span class="m-en">${esc(x.en)}</span>${x.ko ? `<span class="m-ko2">${esc(x.ko)}</span>` : ''}</button>
+      <span class="m-rowside">${x.best ? `<span class="m-badge">${x.best}단계</span>` : ''}<button class="m-tool" onclick="${G}.edit('${x.id}')">수정</button><button class="m-tool del" onclick="${G}.del('${x.id}', this)">삭제</button></span>
     </div>`).join('');
   return `
     <details class="m-card m-list" ${formOpen || editId ? 'open' : ''} id="m-formbox">
@@ -4460,11 +4473,11 @@ function listHTML() {
       <textarea id="m-en" rows="${edit ? 3 : 4}" placeholder="${edit ? '영어 문장' : '영어 문장을 입력하세요. 여러 문장은 한 줄에 하나씩.\n뜻을 함께 넣으려면:  영어 문장 | 한국어 뜻'}">${edit ? esc(edit.en) : ''}</textarea>
       ${edit ? `<input id="m-ko" type="text" placeholder="한국어 뜻 (선택)" value="${esc(edit.ko || '')}">` : `<input id="m-ko" type="text" placeholder="한국어 뜻 (선택 · 한 문장만 넣을 때)">`}
       <div class="m-actions">${edit
-        ? `<button class="btn primary" onclick="MEMO.saveEdit()">수정 저장</button><button class="btn ghost" onclick="MEMO.cancelEdit()">취소</button>`
-        : `<button class="btn primary" onclick="MEMO.add()">추가</button>${fresh.length ? `<button class="btn ghost" onclick="MEMO.importAll()">문장 배열 탭 문장 가져오기 (${fresh.length})</button>` : ''}`}</div>
+        ? `<button class="btn primary" onclick="${G}.saveEdit()">수정 저장</button><button class="btn ghost" onclick="${G}.cancelEdit()">취소</button>`
+        : `<button class="btn primary" onclick="${G}.add()">추가</button>${fresh.length ? `<button class="btn ghost" onclick="${G}.importAll()">문장 배열 탭 문장 가져오기 (${fresh.length})</button>` : ''}`}</div>
       <div class="m-msg" id="m-msg"></div>
     </details>
-    ${n ? `<div class="m-card m-list"><div class="m-listhead"><b>저장한 문장 ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= 3).length}개 3단계 완료</span><button class="m-tool del" onclick="MEMO.clearAll(this)">전체 삭제</button></div>${rows}</div>` : ''}`;
+    ${n ? `<div class="m-card m-list"><div class="m-listhead"><b>저장한 문장 ${n}개</b><span class="m-dim">${st.sents.filter(x => x.best >= 3).length}개 3단계 완료</span><button class="m-tool del" onclick="${G}.clearAll(this)">전체 삭제</button></div>${rows}</div>` : ''}`;
 }
 
 // ---------- 입력 표시 (덮어쓰기) ----------
@@ -4508,8 +4521,8 @@ function refreshPractice() {
     const bd = document.getElementById('m-best'); if (bd) { bd.textContent = `${step}단계까지 완료`; bd.hidden = false; }
   }
   document.getElementById('m-actions').innerHTML = done
-    ? `${step < 3 ? `<button class="btn primary" onclick="MEMO.setStep(${step + 1})">${step + 1}단계로 →</button>` : ''}<button class="btn ${step < 3 ? '' : 'primary'}" onclick="MEMO.go(1)">다음 문장</button><button class="btn ghost" onclick="MEMO.reset()">다시 쓰기</button>`
-    : `<button class="btn ghost" onclick="MEMO.reset()">처음부터</button><button class="btn ghost" onclick="MEMO.peek()" ${step === 1 ? 'disabled' : ''}>잠깐 보기</button>`;
+    ? `${step < 3 ? `<button class="btn primary" onclick="${G}.setStep(${step + 1})">${step + 1}단계로 →</button>` : ''}<button class="btn ${step < 3 ? '' : 'primary'}" onclick="${G}.go(1)">다음 문장</button><button class="btn ghost" onclick="${G}.reset()">다시 쓰기</button>`
+    : `<button class="btn ghost" onclick="${G}.reset()">처음부터</button><button class="btn ghost" onclick="${G}.peek()" ${step === 1 ? 'disabled' : ''}>잠깐 보기</button>`;
   return done;
 }
 function bind() {
@@ -4584,12 +4597,23 @@ function del(id, btn) {
 function clearAll(btn) { armedClick(btn, '전체 삭제', () => { st.sents = []; st.cur = null; typed = ''; editId = null; formOpen = true; save(); render(); }); }
 
 function start(id) {
-  use(id || 'atc');
+  use(id || Object.keys(O.sets)[0]);
   render();
   if (curS() && window.matchMedia('(hover: hover)').matches) focusInput();   // 휴대폰에선 자동으로 키보드를 띄우지 않음
 }
 return { start, setStep, go, pick, reset, peek, add, importAll, edit, cancelEdit, saveEdit, del, clearAll };
-})();
+}
+const MEMO = makeMemo({ root: 'tab-memo', name: 'MEMO', listTitle: '저장한 문장',
+  title: '문장 암기', sub: '문장을 직접 추가하면 이 브라우저에 저장돼요 · 대소문자·띄어쓰기·문장부호는 무시하고 채점해요',
+  sets: {
+    atc:  { key: 'atc-memo-v1',  importFrom: () => (typeof SCR_DATA !== 'undefined' ? SCR_DATA : []) },
+    crit: { key: 'crit-memo-v1', importFrom: () => (typeof SCR_CRIT !== 'undefined' ? SCR_CRIT : []) },
+  } });
+// 영영풀이 탭 (SUBJECTS 의 defMemo): 단어를 보고 그 영어 풀이(note 의 ' · ' 앞 영어 문장, defOf)를 셀프 탭처럼 단계별로 외워 씀.
+// 단어 목록은 단어장 자료에서 그대로 만들고, 이 기기에는 단계 기록만 남깁니다
+const DEFM = makeMemo({ root: 'tab-defmemo', name: 'DEFM', fixed: true, listTitle: '단어',
+  title: '영영풀이', sub: '단어를 보고 영어 풀이를 외워 써요 · 대소문자·띄어쓰기·문장부호는 무시하고 채점해요',
+  sets: { atc: { key: 'atc-defmemo-v1', items: () => DATA_ATC.filter(hasDef).map(w => ({ id: w.en, word: w.en, en: defOf(w), ko: w.ko })) } } });
 
 
 // ===== 과목 선택 / 화면 전환 =====
@@ -4680,6 +4704,7 @@ function selectSubject(id) {
   document.getElementById('nav-scramble').classList.toggle('hidden', !s.scramble);
   document.getElementById('nav-blank').classList.toggle('hidden', !s.blank);
   document.getElementById('nav-memo').classList.toggle('hidden', !s.memo);
+  document.getElementById('nav-defmemo').classList.toggle('hidden', !s.defMemo);
   document.getElementById('subject-label').textContent = s.name;
   document.title = `${s.name} · dshs.vocab`;
 
