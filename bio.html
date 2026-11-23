@@ -65,6 +65,11 @@ select{font:inherit;min-height:44px;border-radius:10px;border:1px solid var(--li
 .kp b{color:light-dark(#a4161a,#ff8a8a)}
 @media(max-width:600px){.lv1>summary{font-size:19px}.scrub{width:100%;flex-basis:100%}}
 
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--card);color:var(--sub)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--acc);color:#fff;font-weight:700}
+
 /* ===== dshs42.app 공부 탭 안 (html.embed): 사이트 배경이 비치고, 스크롤은 사이트 하나로 ===== */
 html.embed,html.embed body{background:transparent;overflow:hidden}
 html.embed body{display:flow-root}
@@ -79,7 +84,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <header>
 <h1>Ch 17 핵심 기작 <span class="en">손희창T</span></h1>
 <p class="lead">구조를 펼쳐 기작을 고르면 캠벨 그림 모양의 분자들이 시간 순서대로 이어서 움직입니다. 펼치면 애니메이션이 자동 재생되고, 슬라이더로 원하는 순간을 되감거나 숫자를 눌러 단계로 이동할 수 있습니다.</p>
-<div class="tools"><a class="home" id="bioHome" href="./" hidden>← dshs42.app</a><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
+<div class="tools"><a class="home" id="bioHome" href="./" hidden>← dshs42.app</a><span class="seg" role="group" aria-label="보는 방식"><button data-view="step">과정별</button><button data-view="org">원핵 / 진핵</button></span><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
 </header>
 <script>if (!window.BIO_EMBED) document.getElementById("bioHome").hidden = false;</script>
 <main id="tree"></main>
@@ -393,12 +398,22 @@ const TREE=[{t:'전사',e:'transcription',c:'#1f4e8c',k:[
   {t:'개시',e:'small subunit + initiator tRNA',k:[{t:'원핵',tag:'Shine-Dalgarno',m:'tlInitP'},{t:'진핵',tag:'5′ cap ~ AUG',m:'tlInitE'}]},
   {t:'신장',tag:'A·P·E site',m:'tlElong'},{t:'종결',tag:'종결 코돈',m:'tlTerm'},{t:'Targeting',tag:'SRP 경로',m:'srp'}]},
  {t:'돌연변이',e:'mutation',c:'#2a9d8f',k:[{t:'silent / missense / nonsense / frameshift',m:'mut'},{t:'CRISPR-Cas9',m:'crispr'}]}];
+/* 원핵 / 진핵으로 보기: 같은 기작을 생물 종류별로 묶음 (전사 · 번역 신장과 번역 종결은 두 쪽 공통이라 양쪽에 모두 둠) */
+const TREE_ORG=[{t:'원핵',e:'prokaryote',c:'#2a7f62',k:[
+  {t:'전사',e:'transcription',k:[{t:'개시',tag:'σ factor + core',m:'prokInit'},{t:'신장',tag:'공통',m:'elong'},
+    {t:'종결',e:'termination',k:[{t:'ρ 의존성',tag:'rut 부위',m:'rhoDep'},{t:'ρ 비의존성',tag:'머리핀 구조',m:'rhoIndep'}]}]},
+  {t:'번역',e:'translation',k:[{t:'개시',tag:'Shine-Dalgarno',m:'tlInitP'},{t:'신장',tag:'A·P·E site · 공통',m:'tlElong'},{t:'종결',tag:'종결 코돈 · 공통',m:'tlTerm'}]}]},
+ {t:'진핵',e:'eukaryote',c:'#b5651d',k:[
+  {t:'전사',e:'transcription',k:[{t:'개시',tag:'TATA box',m:'eukInit'},{t:'신장',tag:'공통',m:'elong'},{t:'종결',tag:'AAUAAA',m:'eukTerm'}]},
+  {t:'가공',e:'RNA processing',k:[{t:'5′ cap / poly-A tail',m:'capTail'},{t:'splicing',tag:'intron 제거',m:'splice'},{t:'alternative RNA splicing / exon shuffling',m:'alt'}]},
+  {t:'번역',e:'translation',k:[{t:'개시',tag:'5′ cap ~ AUG',m:'tlInitE'},{t:'신장',tag:'A·P·E site · 공통',m:'tlElong'},{t:'종결',tag:'종결 코돈 · 공통',m:'tlTerm'},{t:'Targeting',tag:'SRP 경로',m:'srp'}]}]},
+ {t:'돌연변이',e:'mutation',c:'#2a9d8f',k:[{t:'silent / missense / nonsense / frameshift',m:'mut'},{t:'CRISPR-Cas9',m:'crispr'}]}];
 function node(n,lv){if(n.m)return `<details class="leaf" data-m="${n.m}"><summary>${n.t}${n.e?` <span class="en">${n.e}</span>`:''}${n.tag?` <span class="tag">${n.tag}</span>`:''}</summary><div class="vh"></div></details>`;
  return `<details class="${lv===1?'lv1':''}" ${lv===1?`style="--c:${n.c}"`:''} open><summary>${n.t} <span class="en">${n.e||''}</span></summary>${n.k.map(c=>node(c,lv+1)).join('')}</details>`;}
 const tree=document.getElementById('tree');
 {let d='<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="2.5" stdDeviation="2.4" flood-color="#1b2a44" flood-opacity=".22"/></filter>';
  for(const id in GR)d+=mkG(id);
- document.body.insertAdjacentHTML('afterbegin',d+'</defs></svg>');DEFS=document.querySelector('svg defs');}tree.innerHTML=`<details class="lv1" open style="--c:#16181c"><summary>핵심 기작</summary>${TREE.map(n=>node(n,1)).join('')}</details>`;
+ document.body.insertAdjacentHTML('afterbegin',d+'</defs></svg>');DEFS=document.querySelector('svg defs');}
 
 /* ---------- viewer ---------- */
 let active=null;
@@ -447,7 +462,18 @@ function makeViewer(host,key){const mech=M[key];const steps=mech.steps;const n=s
  const jump=dk=>{const cur=shown;const k=Math.max(0,Math.min(n-1,cur+dk));t=startOf(k);frame(t);};
  host._v={next:()=>jump(1),prev:()=>jump(-1),pause:()=>{open=false;},play:()=>{open=true;kick();}};
  frame(0);setPlay(!matchMedia('(prefers-reduced-motion: reduce)').matches);}
-tree.querySelectorAll('details.leaf').forEach(d=>d.addEventListener('toggle',()=>{const h=d.querySelector('.vh');if(d.open){if(!h._v)makeViewer(h,d.dataset.m);else{h._v.play();}active=h;}else if(h._v)h._v.pause();}));
+/* 보는 방식(과정별 · 원핵/진핵)을 바꾸면 트리를 새로 그림 (돌던 애니메이션은 멈춤). 고른 방식은 이 기기에 기억 */
+const VIEW_KEY='bio-view';
+function drawTree(view){
+ tree.querySelectorAll('.vh').forEach(h=>h._v&&h._v.pause());active=null;
+ const list=view==='org'?TREE_ORG:TREE;
+ tree.innerHTML=`<details class="lv1" open style="--c:#16181c"><summary>핵심 기작</summary>${list.map(n=>node(n,1)).join('')}</details>`;
+ tree.querySelectorAll('details.leaf').forEach(d=>d.addEventListener('toggle',()=>{const h=d.querySelector('.vh');if(d.open){if(!h._v)makeViewer(h,d.dataset.m);else{h._v.play();}active=h;}else if(h._v)h._v.pause();}));
+ document.querySelectorAll('.seg [data-view]').forEach(b=>{b.classList.toggle('on',b.dataset.view===view);b.setAttribute('aria-pressed',b.dataset.view===view);});
+}
+let curView='step';try{if(localStorage.getItem(VIEW_KEY)==='org')curView='org';}catch(e){}
+document.querySelectorAll('.seg [data-view]').forEach(b=>b.onclick=()=>{if(b.dataset.view===curView)return;curView=b.dataset.view;try{localStorage.setItem(VIEW_KEY,curView);}catch(e){}drawTree(curView);});
+drawTree(curView);
 document.addEventListener('keydown',e=>{if(!active||!active._v||!active.closest('details').open)return;if(e.key==='ArrowRight')active._v.next();if(e.key==='ArrowLeft')active._v.prev();});
 document.getElementById('openAll').onclick=()=>tree.querySelectorAll('details').forEach(d=>d.open=true);
 document.getElementById('closeAll').onclick=()=>tree.querySelectorAll('details.leaf').forEach(d=>d.open=false);
