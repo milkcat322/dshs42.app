@@ -662,13 +662,15 @@ function renderNav() {
   const open = $("studyView").style.display === "block";
   // 학생 계정은 맨 왼쪽에 "시간표" (내 시간표 · 검색). 관리자 계정은 관리자 사이트로 안내하는 버튼 하나만
   const tabs = me?.is_admin ? [["moved", "관리자 사이트로"]] : me?.student_id ? [["mytt", "시간표"], ...PAGES] : PAGES;
-  const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && page === k);
+  const on = (k) => (k === "mytt" ? !open && showingMyTimetable() : open && (k === "do" ? isDo(page) : page === k));
   nav.innerHTML = me
     ? tabs.map(([k, label]) => {
-      const n = k === "notice" && !me.is_admin ? asgSoonCount() : 0;
+      const n = k === "do" && !me.is_admin ? asgSoonCount() : 0;
       return `<button class="study-btn${on(k) ? " primary" : ""}" data-page="${k}">${label}${n ? `<span class="tab-count">${n}</span>` : ""}</button>`;
     }).join("")
     : "";
+  const seg = document.querySelector("#studyView .do-seg");   // '할 것' 안쪽 숫자도 함께 갱신
+  if (seg && me && isDo(page)) { seg.outerHTML = doSegHtml(); bindDoSeg(); }
   // 설정(알림 · 학교 일정 · 계정)은 업데이트 옆에 늘 보입니다 (로그인 전에는 관리자 로그인을 여는 곳)
   const set = $("btnSettings");
   set.style.display = "";
@@ -1386,13 +1388,26 @@ function showErr(msg) { const e = $("authErr"); e.textContent = msg; e.classList
 
 // ---------- 탭: 내 일정 · 수행평가 공지 · 할 일 ----------
 // 기말고사는 탭이 아니라 내 일정 안에 있습니다 (examEvents · examBanner). 예전 주소 ?view=exam 은 내 일정으로 열립니다
-const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"], ["meal", "급식"], ["learn", "공부"]];
+// 수행평가 · 할 일은 위쪽 탭 하나('할 것', do)로 묶고 그 안에서 고릅니다 (doSegHtml). 화면(page) 이름 · 주소(?view=notice|todo)는 그대로입니다
+const PAGES = [["cal", "내 일정"], ["do", "할 것"], ["meal", "급식"], ["learn", "공부"]];
+const DO_PAGES = [["notice", "수행평가"], ["todo", "할 일"]];
+const bindDoSeg = () => document.querySelectorAll("#studyView [data-do]").forEach((b) => b.onclick = () => { if (b.dataset.do !== page) openStudy(b.dataset.do); });
+const DO_KEY = "dshs-do-tab";   // '할 것' 탭에서 마지막으로 본 쪽 (이 기기)
+const isDo = (p) => DO_PAGES.some(([k]) => k === p);
+function lastDo() { try { const v = localStorage.getItem(DO_KEY); return isDo(v) ? v : "notice"; } catch { return "notice"; } }
+function doSegHtml() {
+  const n = asgSoonCount();
+  return `<div class="seg do-seg">${DO_PAGES.map(([k, label]) =>
+    `<button class="seg-btn${page === k ? " on" : ""}" data-do="${k}">${label}${k === "notice" && n ? `<span class="tab-count">${n}</span>` : ""}</button>`).join("")}</div>`;
+}
 const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", meal: "meal", learn: "learn" };
 
 // 내 일정: 수행평가(내 분반 공지 + 내가 올린 것)와 개인 일정을 한 달력에 모두 보여줍니다
 function openStudy(p) {
   if (me?.is_admin) return openAdminMoved();
+  if (p === "do") p = lastDo();
   page = PAGE_VIEW[p] ? p : "cal";
+  if (isDo(page)) { try { localStorage.setItem(DO_KEY, page); } catch {} }
   view = PAGE_VIEW[page];
   destroyCal();
   $("result").classList.remove("show");
@@ -1715,6 +1730,7 @@ function renderStudy() {
       </div>
       <button class="study-btn" onclick="closeStudyView()">✕ 닫기</button>
     </div>
+    ${isDo(page) ? doSegHtml() : ""}
     ${page === "cal" ? `<div class="study-row">
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
     </div>
@@ -1726,6 +1742,7 @@ function renderStudy() {
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
   if ($("examBar")) $("examBar").onclick = openExam;
+  bindDoSeg();
   paintDshs();
   if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
 }

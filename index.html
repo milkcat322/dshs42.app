@@ -841,6 +841,11 @@
   .fr-note { text-align: left; margin-top: 8px; }
   .shared-card { border-left: 3px solid var(--c); }
   .subj-name { line-height: 1.35; }   /* 시간표 칸의 과목 이름 줄 간격 */
+  /* '할 것' 탭 안에서 수행평가 · 할 일 고르기 */
+  .do-seg { display: flex; width: 100%; max-width: 340px; }
+  .do-seg .seg-btn { flex: 1; }
+  .do-seg .tab-count { position: static; }
+  @media (max-width: 640px) { .do-seg { max-width: none; } }
   /* 수행평가 탭 맨 아래 접힌 '지난 수행평가' */
   .asg-past { margin-top: 22px; }
   .asg-past summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text-dim); padding: 10px 2px; list-style: none; }
@@ -1051,7 +1056,7 @@
     .nav-icons { margin-bottom: 6px; }
     .icon-btn { width: 32px; height: 32px; font-size: 15px; }
     .study-nav { flex-wrap: nowrap; gap: 4px; margin: 0; }
-    /* 탭 6개(시간표 · 내 일정 · 수행평가 · 할 일 · 급식 · 공부)가 좁은 폰(360px)에서도 한 줄에 들어가게 글자 크기를 화면 폭에 맞춥니다 */
+    /* 탭 5개(시간표 · 내 일정 · 할 것 · 급식 · 공부)가 좁은 폰(360px)에서도 한 줄에 들어가게 글자 크기를 화면 폭에 맞춥니다 */
     .study-nav .study-btn { flex: 1 1 0; min-width: 0; padding: 10px 1px; font-size: clamp(10.5px, 2.95vw, 13.5px); letter-spacing: -0.02em; border-radius: 11px; white-space: nowrap; position: relative; overflow: visible; }
     /* 숫자 배지는 글자 옆이 아니라 탭 오른쪽 위 모서리에 (좁은 탭에서 잘리지 않게) */
     .study-nav .tab-count { position: absolute; top: -6px; right: -3px; margin: 0; min-width: 15px; height: 15px; line-height: 15px; padding: 0 4px; font-size: 10px; letter-spacing: 0; }
