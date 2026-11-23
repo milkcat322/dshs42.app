@@ -1385,9 +1385,9 @@ function openAdminLogin() {
 function showErr(msg) { const e = $("authErr"); e.textContent = msg; e.classList.add("show"); }
 
 // ---------- 탭: 내 일정 · 수행평가 공지 · 할 일 ----------
-// exam: 기말고사 일정 (index.html 의 buildExamPanel). 시험이 끝나면 이 탭을 뺍니다
-const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"], ["meal", "급식"], ["learn", "공부"], ["exam", "기말고사"]];
-const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", meal: "meal", learn: "learn", exam: "exam" };
+// 기말고사는 탭이 아니라 내 일정 안에 있습니다 (examEvents · examBanner). 예전 주소 ?view=exam 은 내 일정으로 열립니다
+const PAGES = [["cal", "내 일정"], ["notice", "수행평가"], ["todo", "할 일"], ["meal", "급식"], ["learn", "공부"]];
+const PAGE_VIEW = { cal: "feed", notice: "notice", todo: "todo", meal: "meal", learn: "learn" };
 
 // 내 일정: 수행평가(내 분반 공지 + 내가 올린 것)와 개인 일정을 한 달력에 모두 보여줍니다
 function openStudy(p) {
@@ -1402,7 +1402,6 @@ function openStudy(p) {
   document.body.classList.toggle("study-open", !!me?.student_id);
   if (page !== "cal") logFeature(page);   // 내 일정은 처음 열면 나오는 화면이라 세지 않습니다
   if (page === "learn") { renderLearn(); renderNav(); return; }   // 공부 탭은 서버 자료를 쓰지 않습니다
-  if (page === "exam") { renderExam(); renderNav(); return; }     // 기말고사 탭도 시간표(SCHOOL_DATA)만 씁니다
   if (page === "meal") { mealDay = null; renderMeal(); renderNav(); return; }   // 급식은 NEIS 에서 바로 받습니다 (열 때마다 다음 끼니 날로)
   renderStudy();
   renderNav();
@@ -1420,7 +1419,7 @@ function closeStudy() {
 }
 // 지금 view 에 맞춰 studyBody 를 다시 그립니다
 function rerender() {
-  if (view === "learn" || view === "meal" || view === "exam") return;   // 공부 · 급식 탭은 서버 자료를 쓰지 않습니다 (단어장 진행이 날아가지 않게)
+  if (view === "learn" || view === "meal") return;   // 공부 · 급식 탭은 서버 자료를 쓰지 않습니다 (단어장 진행이 날아가지 않게)
   if (view === "notice") renderNotice();
   else if (view === "todo") renderTodo();
   else renderList(view);
@@ -1477,22 +1476,45 @@ window.learnBookmarks = {
 // ---------- 공부 ----------
 // 과목을 고르면 그 과목 단어장(vocab.html)을 아래에 띄웁니다. 단어장 안의 탭(학습 · 퀴즈 · 빈칸 · 배열 · 셀프 · 북마크)은
 // vocab.html 이 그리고, 기록 · 북마크는 이 기기에만 남습니다(localStorage). 과목을 늘리려면 vocab.html 의 SUBJECTS 와 여기에 함께 넣습니다.
-// ---------- 기말고사 ----------
-// 내 시간표의 과목으로 기말고사 일정을 보여 줍니다. 일정 · 모양은 index.html 의 EXAM_SCHEDULE · buildExamPanel
-function renderExam() {
-  const nm = (window.ID_TO_NAME || {})[String(me?.student_id)];
-  const body = nm && typeof window.buildExamPanel === "function"
-    ? window.buildExamPanel(nm)
-    : '<div class="study-empty">시간표에 내 정보가 없어 기말고사 일정을 보여 줄 수 없어요.</div>';
-  $("studyView").innerHTML = `
-    <div class="study-head">
-      <div>
-        <h2>기말고사</h2>
-        <div class="study-sub">내가 보는 시험 과목과 날짜별 시간표</div>
-      </div>
-      <button class="study-btn" onclick="closeStudyView()">✕ 닫기</button>
-    </div>
-    ${body}`;
+// ---------- 기말고사 (내 일정 안) ----------
+// 내가 보는 시험 과목을 내 일정 달력 · 목록에 시험 시각대로 넣고, 위쪽 한 줄(examBanner)이나 시험을 누르면 전체 시간표 창을 엽니다.
+// 일정 · 모양은 index.html 의 EXAM_SCHEDULE · myExams · buildExamPanel (시험이 끝나면 함께 지웁니다)
+const examName = () => (window.ID_TO_NAME || {})[String(me?.student_id)];
+function examList() {
+  const nm = examName();
+  return nm && typeof window.myExams === "function" ? window.myExams(nm) : [];
+}
+function examEvents() {
+  return examList().map((x, i) => ({
+    id: `exam:${i}`, title: `📝 ${x.name}`, start: x.start, end: x.end, allDay: false, editable: false,
+    classNames: ["c-school"], extendedProps: { kind: "exam" },
+  }));
+}
+function examAgenda() {
+  return examList().map((x, i) => ({
+    kind: "exam", id: String(i), title: `📝 ${x.name}`, at: new Date(x.start), end: new Date(x.end), allDay: false, done: false, color: "school", tag: x.band,
+  }));
+}
+function examBanner() {
+  const list = examList();
+  if (!list.length || typeof window.examDDay !== "function") return "";
+  const dd = window.examDDay();
+  if (dd.label === "종료") return "";
+  const next = list.find((x) => new Date(x.end) > new Date());
+  return `<button class="exam-hero exam-bar" id="examBar">
+    <span class="exam-dday">${dd.label}</span>
+    <span class="exam-hero-tx">
+      <span class="exam-hero-title">기말고사 · 내 시험 ${list.length}과목</span>
+      <span class="exam-hero-sub">${next ? `다음 시험 ${esc(next.date)}(${next.dow}) ${esc(next.band)} ${esc(next.name)}` : esc(dd.sub)}</span>
+    </span>
+    <span class="exam-bar-go" aria-hidden="true">›</span>
+  </button>`;
+}
+function openExam() {
+  const nm = examName();
+  if (!nm || typeof window.buildExamPanel !== "function") return;
+  logFeature("exam");
+  openSheet("기말고사", window.buildExamPanel(nm));
 }
 
 const LEARN_SUBJECTS = [
@@ -1654,12 +1676,14 @@ function renderStudy() {
     ${page === "cal" ? `<div class="study-row">
       <button class="study-btn primary" id="btnEv">+ 일정 추가</button>
     </div>
+    ${examBanner()}
     <div id="dshsHint"></div>` : ""}
     ${page === "notice" ? `<div class="study-row">
       <button class="study-btn primary" id="btnNew">+ 수행평가 추가</button>
     </div>` : ""}
     <div id="studyBody"><div class="study-empty">불러오는 중…</div></div>`;
   if ($("btnEv")) $("btnEv").onclick = () => openEventForm(null);
+  if ($("examBar")) $("examBar").onclick = openExam;
   paintDshs();
   if ($("btnNew")) $("btnNew").onclick = () => openNewForm();   // 클릭 이벤트가 "고칠 공지" 로 넘어가지 않게
 }
@@ -1794,7 +1818,7 @@ function renderList(mode) {
           `<button class="seg-btn${tab === k ? " on" : ""}" data-seg="${k}">${label}</button>`).join("")}</div>
       </div>
     </div>${legendHtml()}` +
-    (tab === "list" ? listHtml([...agenda(), ...acadAgenda()].sort(byAgenda)) : `<div class="fc-host" id="calHost"><div class="study-empty">달력 불러오는 중…</div></div>`);
+    (tab === "list" ? listHtml([...agenda(), ...acadAgenda(), ...examAgenda()].sort(byAgenda)) : `<div class="fc-host" id="calHost"><div class="study-empty">달력 불러오는 중…</div></div>`);
   body.querySelectorAll("[data-seg]").forEach((b) => b.onclick = () => switchTab(b.dataset.seg));
   body.querySelectorAll("[data-nav]").forEach((b) => b.onclick = () => fc && fc[b.dataset.nav]());
   bindRows(body);
@@ -1813,6 +1837,7 @@ function openItem(kind, id) {
   if (kind === "asg") openAsgDetail(findAsg(id));
   else if (kind === "sch") openSchoolDetail(cache.school.find((x) => x.id === id));
   else if (kind === "tt") return;
+  else if (kind === "exam") openExam();
   else if (kind === "acad") openAcadDetail(acadList.find((e) => e.id === id));
   else if (kind === "dshs") openDshsDetail(dshs.items.find((r) => r.uid === id));
   else if (kind === "todo") { const t = findTodo(id); if (t) t.shared ? openSharedTodo(t) : openTodoForm(t); }
@@ -1894,7 +1919,7 @@ async function mountCal() {
       : { html: `<span class="fcx-wd">${arg.date.toLocaleDateString("ko-KR", { weekday: "short" })}</span><span class="fcx-daynum">${arg.date.getDate()}</span>` },
     // 월 보기 칸의 "29일" → "29". 주·3일 보기의 종일 칸에는 날짜를 다시 쓰지 않습니다
     dayCellContent: (arg) => arg.view.type === "dayGridMonth" ? String(arg.date.getDate()) : "",
-    events: (info, ok) => ok([...ttEvents(info.start, info.end), ...acadEvents(info.start, info.end), ...fcEvents()]),
+    events: (info, ok) => ok([...ttEvents(info.start, info.end), ...acadEvents(info.start, info.end), ...examEvents(), ...fcEvents()]),
     eventContent: fcContent,
     datesSet: (arg) => { fcDate = arg.view.currentStart; const t = $("calTitle"); if (t) t.textContent = arg.view.title; },
     dateClick: (arg) => {
@@ -1996,7 +2021,7 @@ async function moveEvent(arg) {
     });
   }
   // 학교 일정 · 학사일정은 학생이 옮길 수 없습니다 (관리자 사이트에서 고침)
-  if (kind === "acad" || kind === "sch") { arg.revert(); return; }
+  if (kind === "acad" || kind === "sch" || kind === "exam") { arg.revert(); return; }
   // 지난 일정을 미래로 옮기면 완료를 취소합니다 (함께하는 친구 체크는 DB 트리거가 풉니다).
   // 미래 일정끼리 옮기는 건 완료 여부를 건드리지 않습니다.
   const ev = cache.events.find((x) => x.id === id);
@@ -2117,7 +2142,7 @@ function timeLabel(it) {
 }
 
 // 일정 종류 이름. 모든 일정은 같은 모양이고 색으로만 구분합니다 (범례 · 목록의 회색 글씨)
-const KIND_LABEL = { asg: "수행평가", todo: "할 일", todoTogether: "함께하는 할 일", ev: "내 일정", sch: "학교 일정", acad: "학교 일정", dshs: "dshs.app 신청" };
+const KIND_LABEL = { asg: "수행평가", todo: "할 일", todoTogether: "함께하는 할 일", ev: "내 일정", sch: "학교 일정", acad: "학교 일정", exam: "기말고사", dshs: "dshs.app 신청" };
 function legendHtml() {
   const kinds = [["asg", "c-asg"], ["todo", "c-mint"], ["todoTogether", "c-blue"], ["ev", "c-violet"], ["sch", "c-school"], ["dshs", "c-dshs"]];
   return `<div class="kind-legend">${kinds.map(([k, c]) => `<span class="kl ${c}"><i></i>${KIND_LABEL[k]}</span>`).join("")}</div>`;
@@ -2126,7 +2151,7 @@ function legendHtml() {
 function row(it) {
   const d = it.kind === "asg" && !it.done ? dueInfo(it.at) : null;
   return `<div class="ev-row c-${it.color}${it.done ? " done" : ""}">
-    ${it.kind === "sch" || it.kind === "acad" || it.kind === "dshs" ? `<span class="ev-dot" aria-hidden="true"></span>`
+    ${it.kind === "sch" || it.kind === "acad" || it.kind === "exam" || it.kind === "dshs" ? `<span class="ev-dot" aria-hidden="true"></span>`
       : `<button class="ev-check" data-chk="${it.kind}:${it.id}" aria-label="완료 표시"${it.auto
       ? ' disabled title="지난 일정은 자동으로 완료돼요"' : ""}>${it.done ? "✓" : ""}</button>`}
     <button class="ev-main" data-open="${it.kind}:${it.id}">

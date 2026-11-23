@@ -35,7 +35,7 @@ Supabase 프로젝트 id 는 `jsanpwlleufzgglqkrkv` 이고 DB 는 `mcp__supabase
      **같은 제안이나 버린(rejected) 제안을 다시 내지 않는다.** 버린 것과 수정 요청 메모(note)는 관리자 취향으로 보고 다음 제안에 반영한다.
      아직 draft 가 3개 이상 쌓여 있으면 새 제안은 1개만 낸다 (관리자가 볼 여유가 없으니 가장 효과 큰 것 하나).
    - `select public.feature_use_totals()` — 서버에 자료가 남지 않는 화면 기능을 연 학생 수(users) · 기기 수(devices) · 최근 7일 기기 수(devices_7d). since 부터 기록.
-     exam=기말고사 탭, meal=급식 탭, learn=공부 탭, notice=수행평가 탭, todo=할 일 탭, tt_gpa=시간표 학점 계산, tt_classes=분반 목록,
+     exam=기말고사 시간표 창(2026-11-23 부터 탭이 아니라 내 일정 맨 위 D-day 줄 · 달력의 시험을 눌러 엶), meal=급식 탭, learn=공부 탭, notice=수행평가 탭, todo=할 일 탭, tt_gpa=시간표 학점 계산, tt_classes=분반 목록,
      tt_overlap=겹치는 수업, tt_compare=시간표 비교, tt_wallpaper=배경화면. 목록에 없는 기능은 아직 아무도 안 연 것이다.
      기록을 시작한 지 7일이 안 됐으면 없앨지 단정하지 말고 watch 에 넣는다. 시험 기간 · 학기 초처럼 때를 타는 기능(기말고사 · 학점 계산)은 그 시기를 감안한다.
    - 최근 14일 피드백: `select kind, body, created_at from public.feedback where created_at > now() - interval '14 days' order by created_at`
