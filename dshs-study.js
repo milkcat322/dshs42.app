@@ -3890,11 +3890,15 @@ function renderTodo() {
       <input class="study-input" id="tdTitle" maxlength="200" placeholder="할 일을 적고 Enter">
       <button class="study-btn primary" id="tdAdd">추가</button>
     </div>
-    ${todayList.length || open.length ? `<div class="td-todaybox">
+    <div class="td-todaybox">
       <div class="study-section td-head">오늘 할 일 ${todayList.length}개</div>
       ${todayList.length ? todayList.map((t) => todoRow(t)).join("")
-        : `<div class="td-today-empty">할 일 옆 '오늘'을 누르면 여기에 모여요</div>`}
-    </div>` : ""}
+        : `<div class="td-today-empty">아래에 바로 적거나, 할 일 옆 '오늘'을 누르면 여기에 모여요</div>`}
+      <div class="todo-add td-today-add">
+        <input class="study-input" id="tdTodayTitle" maxlength="200" placeholder="오늘 할 일을 적고 Enter">
+        <button class="study-btn" id="tdTodayAdd">추가</button>
+      </div>
+    </div>
     ${together.length ? `<div class="td-togetherbox">
       <div class="study-section td-head">함께하는 할 일 ${together.length}개</div>
       ${together.map((t) => todoRow(t)).join("")}
@@ -3918,19 +3922,25 @@ function renderTodo() {
   });
   body.querySelectorAll("[data-tgedit]").forEach((b) => b.onclick = () => openGroupForm(groups.find((g) => g.id === b.dataset.tgedit)));
   body.querySelectorAll("[data-tgrip]").forEach((h) => h.onpointerdown = (e) => startTodoDrag(e, h));
-  const add = async () => {
-    const title = $("tdTitle").value.trim();
-    if (!title) return $("tdTitle").focus();
-    $("tdAdd").disabled = true;
-    const { data, error } = await sb.from("todos").insert({ title }).select().single();
-    $("tdAdd").disabled = false;
-    if (error) return toast("추가하지 못했어요", true);
-    cache.todos.push(data);
-    renderTodo();
-    $("tdTitle").focus();
+  // 위 칸은 그냥 할 일, '오늘 할 일' 칸의 입력은 오늘(today_on)로 정해 바로 넣습니다
+  const bindAdd = (inp, btn, today) => {
+    const add = async () => {
+      const title = $(inp).value.trim();
+      if (!title) return $(inp).focus();
+      $(btn).disabled = true;
+      const row = today ? { title, today_on: dayKey(new Date()) } : { title };
+      const { data, error } = await sb.from("todos").insert(row).select().single();
+      $(btn).disabled = false;
+      if (error) return toast("추가하지 못했어요", true);
+      cache.todos.push(data);
+      renderTodo();
+      $(inp).focus();
+    };
+    $(btn).onclick = add;
+    $(inp).onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) add(); };
   };
-  $("tdAdd").onclick = add;
-  $("tdTitle").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) add(); };
+  bindAdd("tdTitle", "tdAdd", false);
+  bindAdd("tdTodayTitle", "tdTodayAdd", true);
   body.querySelectorAll("[data-tchk]").forEach((b) => b.onclick = () => toggleTodo(b.dataset.tchk));
   body.querySelectorAll("[data-tedit]").forEach((b) => b.onclick = () => {
     const t = findTodo(b.dataset.tedit);
