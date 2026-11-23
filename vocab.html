@@ -4579,6 +4579,14 @@ function refreshPractice() {
 }
 function bind() {
   const inp = document.getElementById('m-input'); if (!inp) return;
+  // 입력 칸은 보이지 않게 글 위에 덮여 있어, 칸을 누르면(잠깐 보기 뒤 다시 쓰려고 누를 때 등) 누른 자리에 따라 커서가 글 중간에 놓여
+  // 새 글자가 중간에 끼어든다 → 커서를 늘 맨 끝에 둔다 (한글 조합 중에는 건드리지 않음)
+  const toEnd = e => {
+    if (e && e.isComposing) return;
+    const n = inp.value.length;
+    if (inp.selectionStart !== n || inp.selectionEnd !== n) { try { inp.setSelectionRange(n, n); } catch (err) {} }
+  };
+  ['focus', 'click', 'mouseup', 'touchend', 'keydown', 'keyup', 'select', 'selectionchange', 'beforeinput'].forEach(ev => inp.addEventListener(ev, toEnd));
   inp.addEventListener('input', () => { typed = inp.value; refreshPractice(); });
   inp.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.isComposing) {
