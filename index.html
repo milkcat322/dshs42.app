@@ -424,6 +424,21 @@
   .pick-item:hover { border-color: var(--accent1); }
   .pick-meta { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; font-weight: 400; }
   .exam-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--accent2) 16%, transparent), color-mix(in srgb, var(--accent1) 14%, transparent)); border: 1px solid color-mix(in srgb, var(--accent2) 35%, transparent); border-radius: 16px; padding: 16px 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
+  .exam-grid { display: none; }
+  @media (min-width: 900px) {
+    .study-sheet.exam-wide { max-width: 1120px; padding: 24px 28px; }
+    .exam-wide .exam-days { display: none; }
+    .exam-wide .exam-grid { display: grid; grid-template-columns: 52px repeat(5, minmax(0, 1fr)); grid-template-rows: auto repeat(4, minmax(64px, auto)); gap: 8px; }
+    .exam-wide .eg-head { display: flex; align-items: baseline; justify-content: center; gap: 7px; padding: 4px 0 6px; }
+    .exam-wide .eg-head.none { opacity: 0.45; }
+    .exam-wide .eg-row { grid-column: 1; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; color: var(--text-dim); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+    .exam-wide .eg-cell { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 9px; display: flex; flex-direction: column; gap: 6px; justify-content: center; min-width: 0; }
+    .exam-wide .eg-cell .tm { font-size: 10px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
+    .exam-wide .eg-cell .exam-item { font-size: 12.5px; padding: 7px 9px; }
+    .exam-wide .exam-mylist { display: flex; flex-wrap: wrap; gap: 6px; }
+    .exam-wide .exam-mylist .exam-item { margin-bottom: 0 !important; }
+    .exam-wide .exam-mylist .ban { margin-left: 10px; }
+  }
   .exam-bar { width: 100%; text-align: left; font-family: inherit; color: var(--text); cursor: pointer; padding: 11px 14px; margin-bottom: 14px; }
   .exam-bar .exam-dday { font-size: 19px; }
   .exam-bar .exam-hero-tx > span { display: block; }
@@ -448,7 +463,7 @@
   .exam-item { border-radius: 9px; padding: 8px 11px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
   .exam-item.mine { background: color-mix(in srgb, var(--accent3) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent3) 45%, transparent); color: var(--accent3); }
   .exam-item.other { background: color-mix(in srgb, var(--text) 3%, transparent); border: 1px solid var(--border); color: var(--text-muted); font-weight: 400; }
-  .exam-item .ban { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; opacity: 0.85; }
+  .exam-item .ban { white-space: nowrap; margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; opacity: 0.85; }
   .exam-item .chk { font-size: 11px; }
   .exam-foot { font-size: 11.5px; color: var(--text-muted); line-height: 1.7; margin-top: 12px; padding: 11px 13px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
   .exam-line { font-size: 12px; color: var(--accent2); margin-top: 6px; font-weight: 600; }
@@ -2214,6 +2229,25 @@ function buildExamPanel(name) {
       </div>${slots}</div>`;
   }).join('');
 
+  // 노트북처럼 넓은 화면: 요일이 가로 · 교시가 세로인 시험 시간표 (3·4교시 시험은 두 칸을 차지)
+  const grid = `<div class="exam-grid">
+    <div></div>${EXAM_SCHEDULE.map(d => {
+      const has = d.slots.some(sl => sl.items.some(it => student.classes[it.key]));
+      return `<div class="eg-head${has ? '' : ' none'}"><span class="exam-date">${d.date}</span><span class="exam-dow" style="background:${EXAM_DOW_COLOR[d.dow]}22;color:${EXAM_DOW_COLOR[d.dow]}">${d.dow}</span></div>`;
+    }).join('')}
+    ${[1, 2, 3, 4].map(r => `<div class="eg-row" style="grid-row:${r + 1}">${r}교시</div>`).join('')}
+    ${EXAM_SCHEDULE.map((d, c) => d.slots.map(sl => {
+      const n = sl.band.match(/\d/g);
+      const items = sl.items.map(it => {
+        const ban = student.classes[it.key];
+        return ban
+          ? `<div class="exam-item mine"><span class="chk">✔</span>${it.name}<span class="ban">${ban}</span></div>`
+          : `<div class="exam-item other">${it.name}</div>`;
+      }).join('');
+      return `<div class="eg-cell" style="grid-column:${c + 2};grid-row:${+n[0] + 1} / span ${n.length}"><div class="tm">${sl.time.replace('<br>', ' ')}</div>${items}</div>`;
+    }).join('')).join('')}
+  </div>`;
+
   const myList = mine.length
     ? mine.map(m => `<div class="exam-item mine" style="margin-bottom:6px"><span class="chk">✔</span>${m.name}<span class="ban">${m.date}(${m.dow}) ${m.band}</span></div>`).join('')
     : '<div style="color:var(--text-dim);font-size:0.83rem">이번 기말고사에 보는 과목이 없어요.</div>';
@@ -2231,9 +2265,10 @@ function buildExamPanel(name) {
       <div class="stat-chip"><span class="stat-num">${new Set(mine.map(m => m.date)).size}</span><span class="stat-label">시험 보는 날</span></div>
     </div>
     <div class="section-title">내 시험 과목</div>
-    <div style="margin-bottom:22px">${myList}</div>
+    <div class="exam-mylist" style="margin-bottom:22px">${myList}</div>
     <div class="section-title">날짜별 시간표 <span style="font-size:11px;color:var(--text-muted);font-weight:400">— 강조된 것이 내 시험</span></div>
-    ${days}
+    <div class="exam-days">${days}</div>
+    ${grid}
     <div class="exam-foot">
       80분 시험(수학 · 화학 · 생물 · 물리)은 10:50에 시작합니다.<br>
       실기·수행평가는 이 표에 없으며, 최종 일정은 학교 공지를 확인하세요.

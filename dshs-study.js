@@ -1515,6 +1515,7 @@ function openExam() {
   if (!nm || typeof window.buildExamPanel !== "function") return;
   logFeature("exam");
   openSheet("기말고사", window.buildExamPanel(nm));
+  $("studyModal").querySelector(".study-sheet").classList.add("exam-wide");   // 넓은 화면에서는 가로로 긴 시험 시간표 (index.html 의 .exam-grid)
 }
 
 const LEARN_SUBJECTS = [
