@@ -186,6 +186,15 @@ html.embed,html.embed body{background:transparent}
 /* 공부 탭 안에서는 파트 줄 · 새 창 버튼을 사이트(renderLearn)가 그립니다. 페이지 안의 것은 따로 열었을 때만 */
 html.embed .parts{display:none}
 html.embed #home{padding-top:22px}
+/* 틀 없이(html.fit, 일반생물학처럼 높이를 내용에 맞춤): 사이트 너비에 그대로 맞추고, 화면 기준이던 것들을 보이는 부분(--vt · --vh)에 붙임 */
+html.fit,html.fit body{overflow:hidden}
+html.fit .wrap{padding:0 0 30px}
+html.fit .bar{position:relative;top:auto;border-radius:12px;border:1px solid var(--line);will-change:transform}
+html.fit .bar .in{padding:6px 12px}
+html.fit #home{padding-top:8px}
+html.fit .drawer{top:var(--vt,0px);bottom:auto;height:var(--vh,100vh)}
+html.fit .backbtn{bottom:auto;top:calc(var(--vt,0px) + var(--vh,100vh) - 62px)}
+html.fit .pop{max-height:min(540px,calc(var(--vh,100vh) - 24px))}
 /* Netlify 무료 요금제 배지가 틀 안에도 하나 더 생기는 것을 숨김 (바깥 사이트의 배지는 그대로) */
 html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </style>`;
@@ -312,6 +321,39 @@ function extras(body) {
 const HOMENOTE = (ext) => `<p class="homenote">박스를 누르면 그 내용이 있는 노트가 열린다. 노트 안의 점선 버튼(▸)은 눌러서 펼친다.${EXTRA_PILLS}<br>색: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 ${ext}</span>, <span style="background:var(--ex-bg);padding:0 6px">노랑 예시</span>.</p>`;
 const FOOT = '수업 내용을 바탕으로 정리.';
 
+// 공부 탭 안에서 일반생물학처럼 '틀 없이' 보일 때(높이를 내용에 맞추고 스크롤은 사이트가 함):
+// 이 노트의 위에 붙는 줄 · 서랍 · 돌아가기 버튼은 화면 기준이라, 사이트 스크롤에 맞춰 '지금 보이는 부분'(--vt 위쪽 · --vh 높이)에 붙여 줍니다.
+// 사이트가 fill 틀(.learn-frame.fill)로 띄우면 아무것도 하지 않습니다(그때는 틀 안에서 스크롤).
+const FIT_JS = `<script>
+(function () {
+  if (!window.CALC_EMBED) return;
+  var fe = null; try { fe = window.frameElement; } catch (e) {}
+  if (!fe || fe.classList.contains('fill')) return;
+  var P = window.parent, root = document.documentElement, bar = document.getElementById('bar');
+  root.classList.add('fit');
+  // 사이트의 위에 붙는 탭 줄(폰)이 가리는 높이
+  function sticky() {
+    try { var nb = P.document.querySelector('.nav-bar'); if (nb && P.getComputedStyle(nb).position === 'sticky') { var r = nb.getBoundingClientRect(); if (r.top <= 1) return Math.max(0, r.bottom); } } catch (e) {}
+    return 0;
+  }
+  function pin() {
+    var r = fe.getBoundingClientRect(), H = fe.offsetHeight, st = sticky();
+    var vt = Math.min(Math.max(0, st - r.top), H), vb = Math.max(vt, Math.min(H, P.innerHeight - r.top));
+    root.style.setProperty('--vt', vt + 'px'); root.style.setProperty('--vh', (vb - vt) + 'px');
+    if (bar) bar.style.transform = 'translateY(' + Math.max(0, Math.min(vt - bar.offsetTop, H - bar.offsetTop - bar.offsetHeight)) + 'px)';
+  }
+  // 높이는 내용만큼. 서랍 · 팝업이 설 자리가 있게 화면의 80% 는 넘깁니다
+  function size() { fe.style.height = Math.max(document.body.offsetHeight, Math.round(P.innerHeight * 0.8)) + 'px'; pin(); }
+  // 단원을 바꾸면 원본이 맨 위로 올리는데(window.scrollTo(0,0)), 틀이 화면 위로 넘어가 있을 때만 사이트를 틀의 처음으로 올립니다
+  window.scrollTo = function () { var r = fe.getBoundingClientRect(), st = sticky(); if (r.top < st) P.scrollBy(0, r.top - st - 8); };
+  P.addEventListener('scroll', pin, { passive: true }); P.addEventListener('resize', size);
+  window.addEventListener('pagehide', function () { P.removeEventListener('scroll', pin); P.removeEventListener('resize', size); });
+  if (window.ResizeObserver) new ResizeObserver(size).observe(document.body);
+  window.addEventListener('load', size);
+  size();
+})();
+</script>`;
+
 let fonts = null;
 for (const p of PARTS) {
   let html = readFileSync(p.src, 'utf8');
@@ -338,6 +380,7 @@ for (const p of PARTS) {
   if (!/<button type="button" class="home" data-view="home">[^<]*<\/button>/.test(body)) throw new Error(p.src + ': 위쪽 줄의 처음으로 버튼을 못 찾음');
   body = body.replace(/(<button type="button" class="home" data-view="home")>([^<]*)<\/button>/, '$1 title="$2 · 첫 화면">← 개념의 흐름</button>');
   body = recolor(body).replace(/<body[^>]*>/, (b) => b + '\n' + partsNav(p.n));
+  { const i = body.lastIndexOf('</body>'); if (i < 0) throw new Error(p.src + ': </body> 없음'); body = body.slice(0, i) + FIT_JS + '\n' + body.slice(i); }
 
   const out = `<!DOCTYPE html>
 <html lang="ko">

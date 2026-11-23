@@ -1537,7 +1537,7 @@ function openExam() {
 // 과목 · 파트를 늘리려면 여기에 한 줄 더합니다 (예: 일반생물학에 다른 선생님 = parts 에 { id, name: "○○○T", sub, page: "bio2.html" }).
 //   page: 띄울 페이지 (?embed=1 로 엶 · 테마(vocabTheme)는 그 페이지가 함). 없으면 단어장 vocab.html#<파트 id>
 //   wide: 넓은 화면용 노트 → '공부' 제목 아래 한 줄에 'PC · 아이패드 권장'을 띄움 (learnHint)
-//   fill: 높이를 내용에 맞추지 않고 화면 높이의 틀 안에서 스크롤 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준인 페이지)
+//   fill: 높이를 내용에 맞추지 않고 화면 높이의 테두리 틀 안에서 스크롤 (지금 쓰는 과목 없음. 미적분학Ⅱ 도 틀 없이 보이게 바꿈 — calc 페이지의 FIT_JS)
 // 파트 id 는 기기에 기억되므로(dshs-learn-subject) 바꾸지 않습니다. 새 페이지는 sw.js 의 PAGES 에도 넣습니다.
 const LEARN_SUBJECTS = [
   { id: "eng", name: "영어", emoji: "🔤", parts: [
@@ -1547,7 +1547,7 @@ const LEARN_SUBJECTS = [
   { id: "bio", name: "일반생물학", emoji: "🧬", parts: [
     { id: "bio", name: "손희창T", sub: "Ch17 전사 · 가공 · 번역 · 돌연변이 핵심 기작 애니메이션", page: "bio.html" },
   ] },
-  { id: "calc", name: "미적분학Ⅱ", emoji: "📐", fill: true, wide: true, parts: [
+  { id: "calc", name: "미적분학Ⅱ", emoji: "📐", wide: true, parts: [
     { id: "calc", name: "문세현T", sub: "미분에서 야코비안까지 · 개념의 흐름 노트", page: "calc.html" },
     { id: "calc2", name: "전경아T", sub: "벡터장 미적분학 · 개념의 흐름 노트", page: "calc2.html" },
   ] },
