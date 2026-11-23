@@ -34,6 +34,8 @@ h1{font-size:clamp(30px,4.4vw,46px);line-height:1.08;margin:0 0 8px;font-weight:
 .tools{display:flex;gap:8px;flex-wrap:wrap}
 button{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
 button:focus-visible,summary:focus-visible{outline:3px solid #5b95cf;outline-offset:2px}
+/* 따로 열었을 때만: 사이트로 돌아가기 (아이폰 홈 화면 앱은 새 창에 뒤로 · 닫기 버튼이 없음) */
+a.home{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:10px;background:var(--acc);color:#fff;font-size:15px;font-weight:600;text-decoration:none}a.home[hidden]{display:none}
 button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
 main{max-width:1240px;margin:auto;padding:8px max(5vw,16px) 64px}
 details{border-left:2px solid var(--line);margin:6px 0 6px 6px;padding-left:14px}
@@ -77,8 +79,9 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <header>
 <h1>Ch 17 핵심 기작 <span class="en">손희창T</span></h1>
 <p class="lead">구조를 펼쳐 기작을 고르면 캠벨 그림 모양의 분자들이 시간 순서대로 이어서 움직입니다. 펼치면 애니메이션이 자동 재생되고, 슬라이더로 원하는 순간을 되감거나 숫자를 눌러 단계로 이동할 수 있습니다.</p>
-<div class="tools"><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
+<div class="tools"><a class="home" id="bioHome" href="./" hidden>← dshs42.app</a><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
 </header>
+<script>if (!window.BIO_EMBED) document.getElementById("bioHome").hidden = false;</script>
 <main id="tree"></main>
 <script>
 {
