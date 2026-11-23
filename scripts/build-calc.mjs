@@ -228,6 +228,8 @@ html.fit .pop{max-height:min(540px,calc(var(--vh,100vh) - 24px))}
 html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </style>`;
 
+// 공부 페이지 사용 기록 (learnuse.sql · learn-track.js): 본 시간 · 단원을 남김
+const TRACK_TAG = '<!-- 공부 페이지 사용 기록 (learnuse.sql) -->\n<script src="learn-track.js" defer></script>';
 const partsNav = (n) => `<nav class="parts" id="parts" aria-label="미적분학Ⅱ 파트">
 ${PARTS.map((p) => `  <a data-file="${p.file}" data-part="${p.n}"${p.n === n ? ' class="on" aria-current="page"' : ''}>${p.who} <small>${p.title}</small></a>`).join('\n')}
   <a class="side" id="partOut" target="_blank" rel="noopener" hidden>↗ 새 창에서 크게 보기</a>
@@ -431,7 +433,7 @@ for (const p of PARTS) {
   if (!/<button type="button" class="home" data-view="home">[^<]*<\/button>/.test(body)) throw new Error(p.src + ': 위쪽 줄의 처음으로 버튼을 못 찾음');
   body = body.replace(/(<button type="button" class="home" data-view="home")>([^<]*)<\/button>/, '$1 title="$2 · 첫 화면">← 개념의 흐름</button>');
   body = recolor(body).replace(/<body[^>]*>/, (b) => b + '\n' + partsNav(p.n));
-  { const i = body.lastIndexOf('</body>'); if (i < 0) throw new Error(p.src + ': </body> 없음'); body = body.slice(0, i) + MLIST_JS + '\n' + FIT_JS + '\n' + body.slice(i); }
+  { const i = body.lastIndexOf('</body>'); if (i < 0) throw new Error(p.src + ': </body> 없음'); body = body.slice(0, i) + MLIST_JS + '\n' + FIT_JS + '\n' + TRACK_TAG + '\n' + body.slice(i); }
 
   const out = `<!DOCTYPE html>
 <html lang="ko">
