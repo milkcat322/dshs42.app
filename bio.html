@@ -66,6 +66,9 @@ select{font:inherit;min-height:44px;border-radius:10px;border:1px solid var(--li
 /* ===== dshs42.app 공부 탭 안 (html.embed): 사이트 배경이 비치고, 스크롤은 사이트 하나로 ===== */
 html.embed,html.embed body{background:transparent;overflow:hidden}
 html.embed body{display:flow-root}
+.outlink{display:inline-block;margin-top:8px;padding:5px 12px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--sub);font-size:12.5px;font-weight:600;text-decoration:none}
+.outlink:hover{border-color:var(--acc);color:var(--ink)}
+.outlink[hidden]{display:none}
 html.embed header{padding:4px 0 6px}
 html.embed h1{font-size:clamp(22px,3.4vw,30px)}
 html.embed .lead{font-size:14px}
@@ -77,6 +80,11 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <header>
 <h1>Ch 17 핵심 기작 <span class="en">손희창T</span></h1>
 <p class="lead">구조를 펼쳐 기작을 고르면 캠벨 그림 모양의 분자들이 시간 순서대로 이어서 움직입니다. 펼치면 애니메이션이 자동 재생되고, 슬라이더로 원하는 순간을 되감거나 숫자를 눌러 단계로 이동할 수 있습니다.</p>
+<a id="bioOut" class="outlink" target="_blank" rel="noopener" hidden>↗ 새 창에서 크게 보기</a>
+<script>
+// 공부 탭 안에서만: 이 페이지를 새 창에 따로 엽니다 (href 를 HTML 에 직접 쓰면 Netlify 가 주소를 바꿔 놓음)
+if (window.BIO_EMBED) { var bo = document.getElementById('bioOut'); bo.href = 'bio.html'; bo.hidden = false; }
+</script>
 <div class="tools"><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
 </header>
 <main id="tree"></main>

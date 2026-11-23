@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EXTRA_TOOLS, EXTRA_PILLS, EXTRA_HTML } from './calc-extras.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const [, , srcA, srcB] = process.argv;
@@ -111,6 +112,24 @@ body{-webkit-text-size-adjust:100%}
 .chain .n .nn{display:block;margin-bottom:3px}
 .steps button .nn{margin-right:6px}
 .board>.why{margin-top:14px}
+.flowmap{display:block;width:100%;min-width:860px;height:auto}
+.flowmap .nd{cursor:pointer}
+.flowmap .nd rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.6;rx:8px}
+.flowmap .nd text{font-size:13.5px;fill:var(--ink);font-weight:600;font-family:var(--font)}
+.flowmap .nn{font-family:var(--mono);font-size:12px;font-weight:500;fill:var(--muted)}
+.flowmap .nd:hover rect{stroke:var(--accent);stroke-width:2.4}
+.flowmap .ar path{fill:none;stroke:var(--ink);stroke-width:1.4}
+.flowmap .fmh{fill:var(--ink)} .flowmap .fmw{fill:var(--proof)}
+.flowmap .xl{font-size:11.5px;fill:var(--muted);font-family:var(--font)} .flowmap .pl{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;fill:var(--muted)}
+.flowmap .stv{fill:var(--cond)}
+/* 눌러서 '왜 넘어가는지'를 보는 화살표 (전경아T) */
+.flowmap .a{cursor:pointer}
+.flowmap .a .fat{fill:none;stroke:transparent;stroke-width:18}
+.flowmap .a .v{fill:none;stroke:var(--proof);stroke-width:1.6}
+.flowmap .a circle{fill:var(--surface);stroke:var(--proof);stroke-width:1.4}
+.flowmap .a text{font-family:var(--mono);font-size:11.5px;font-weight:500;fill:var(--proof)}
+.flowmap .a:hover .v,.flowmap .a.on .v{stroke-width:2.8}
+.flowmap .a.on circle{fill:var(--proof)} .flowmap .a.on text{fill:var(--surface)}
 .chain .n{border:1px solid var(--line);border-radius:12px}
 .chain .n:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 20%,transparent)}
 .why{border-radius:0 10px 10px 0}
@@ -208,19 +227,75 @@ function unify(body) {
     const items = [...ol.matchAll(/<li><b>\d+<\/b>([\s\S]*?)<\/li>/g)].map((x) => x[1].trim());
     return `<h1>${h1}</h1>\n  <p class="lead">${items.join(' → ')} &nbsp;${btn}</p>`;
   });
-  // 흐름 상자 줄을 판 안에 넣고 번호를 붙임
-  let k = 0;
-  must(/<div class="chain" id="chain">[\s\S]*?<\/div>\s*<p class="why"[^>]*><\/p>/, (m) =>
-    '<div class="board">' + m.replace(/(<button type="button" class="n"[^>]*><span>)/g, (x, a) => `${a}<i class="nn">${++k}</i>`) + '</div>');
-  if (k !== 6) throw new Error('전경아T 흐름 상자가 6개가 아님: ' + k);
+  // 한 줄짜리 흐름 상자 → 문세현T 와 같은 '개념의 흐름' 도식(FLOW2). 상자는 그 내용이 있는 자리로, 주황 화살표는 '왜 넘어가는지'(why-0~4)
+  must(/<div class="chain" id="chain">[\s\S]*?<\/div>\s*(<p class="why"[^>]*><\/p>)/, (m, why) => `<div class="board">${FLOW2}\n  ${why}</div>`);
+  must(/<p class="homenote">박스를 누르면[\s\S]*?나타난다\./, '<p class="homenote">박스를 누르면 그 내용이 있는 노트로 간다. 주황 화살표(?)를 누르면 왜 다음 개념으로 넘어가는지가 나타난다.');
   must(/(<p class="homenote">[\s\S]*?)<\/p>/, '$1<br>색: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 공간 확장</span>, <span style="background:var(--ex-bg);padding:0 6px">노랑 예시</span>.</p>');
-  // 위쪽 줄 · 단원 제목에도 같은 번호
-  k = 0;
+  let k = 0;
+  // 위쪽 줄 · 단원 제목에 번호 (도식의 1.1 · 2.1 … 의 앞 숫자)
   must(/<nav class="steps"[^>]*>[\s\S]*?<\/nav>/, (m) => m.replace(/(<button type="button" data-view="[^"]+">)/g, (x, a) => `${a}<b class="nn">${++k}</b>`));
   k = 0;
   body = body.replace(/(<section class="view" id="v-[^"]+"[^>]*>\s*<h2>)/g, (x, a) => `${a}${++k} · `);
   if (k !== 6) throw new Error('전경아T 단원이 6개가 아님: ' + k);
   return body;
+}
+
+// 전경아T 첫 화면의 '개념의 흐름' 도식. 번호 = 단원(1~6).소단원, 상자의 href 는 노트 안의 그 자리(id).
+// 왼쪽 PART A = 벡터장 · 선적분(단원 1~3), 오른쪽 PART B = 판정 · 정리(단원 4~6). 좌표는 viewBox 1080 × 500 기준.
+const FLOW2 = (() => {
+  const H = 40;
+  const N = [ // [번호, 이름, 갈 곳, x, y, w, h?, ★?]
+    ['1.1', '벡터장 정의', '#vf', 150, 20, 220],
+    ['2.1', '그레디언트 벡터장', '#grad', 20, 110, 200],
+    ['2.2', '보존 벡터장', '#cons', 20, 200, 200],
+    ['3.1', '선적분 정의', '#li-ds', 270, 110, 230],
+    ['3.2', 'C.M 구하기', '#li-cm', 310, 180, 190],
+    ['3.3', 'x, y에 대한 선적분', '#li-xy', 310, 240, 190],
+    ['3.4', '공간에서 선적분', '#li-space', 310, 300, 190],
+    ['3.5', '일 · 벡터장의 선적분', '#li-work', 310, 360, 190],
+    ['4.1', '선적분의 FTC', '#ftc', 700, 20, 240],
+    ['4.2', '보존장 판정 도식', 'v-test', 680, 110, 280, 52, true],
+    ['5.1', 'curl', '#curl', 580, 230, 150],
+    ['5.2', 'div', '#div', 580, 310, 150],
+    ['6.1', '그린 정리', '#green', 800, 230, 240],
+    ['6.2', '넓이 구하기', '#green-area', 840, 300, 200],
+    ['6.3', '영역의 확장', '#green-ext', 840, 360, 200],
+    ['6.4', '그린 정리의 벡터형', '#green-vec', 840, 420, 200],
+  ];
+  const AR = [ // 그냥 흐름
+    'M120 150V198',                                   // 2.1 → 2.2
+    'M290 150V200H308', 'M290 200V260H308', 'M290 260V320H308', 'M290 320V380H308',   // 3.1 → 3.2 · 3.3 · 3.4 · 3.5
+    'M120 240V440C120 468 140 480 180 480H505C535 480 548 466 548 436V78C548 50 562 34 600 34H698',   // 2.2 → 4.1
+    'M820 60V108',                                    // 4.1 → 4.2
+    'M655 270V308',                                   // 5.1 → 5.2
+    'M820 270V320H838', 'M820 320V380H838', 'M820 380V440H838',   // 6.1 → 6.2 · 6.3 · 6.4
+    'M655 350C655 492 900 500 940 462',               // curl · div → 벡터형
+  ];
+  const WHY = [ // 눌러서 '왜'를 보는 화살표: [why 번호, 길, 물음표 자리]
+    [0, 'M200 60C160 72 120 84 120 108', 150, 78],            // 1.1 → 2.1
+    [1, 'M320 60C360 72 385 84 385 108', 362, 78],            // 1.1 → 3.1
+    [2, 'M500 380C520 380 528 372 528 352V84C528 62 544 48 584 48H698', 528, 215],   // 3.5 → 4.1
+    [3, 'M740 162C700 184 655 200 655 228', 690, 192],        // 4.2 → 5.1
+    [4, 'M880 162C900 184 920 200 920 228', 912, 192],        // 4.2 → 6.1
+  ];
+  const mk = (id, cls) => `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 5L0 10z" class="${cls}"/></marker>`;
+  return `<svg class="flowmap" id="chain" viewBox="0 0 1080 500" role="img" aria-label="개념의 흐름 도식">
+<defs>${mk('fm2', 'fmh')}${mk('fm2w', 'fmw')}</defs>
+<g class="ar">${AR.map((d) => `<path d="${d}" marker-end="url(#fm2)"/>`).join('')}</g>
+${WHY.map(([n, d, x, y]) => `<g class="a" data-why="${n}" role="button" tabindex="0" aria-label="왜 다음 개념으로 가는가"><path class="fat" d="${d}"/><path class="v" d="${d}" marker-end="url(#fm2w)"/><circle cx="${x}" cy="${y}" r="9"/><text x="${x}" y="${y + 4}" text-anchor="middle">?</text></g>`).join('\n')}
+<text class="xl" x="700" y="486" text-anchor="middle">curl형 · div형</text><text class="pl" x="20" y="34">PART A</text><text class="pl" x="20" y="52">벡터장 · 선적분</text><text class="pl" x="1060" y="34" text-anchor="end">PART B</text><text class="pl" x="1060" y="52" text-anchor="end">판정 · 정리</text>
+${N.map(([no, name, to, x, y, w, h = H, star]) => `<a ${to[0] === '#' ? `href="${to}"` : `href="#${to}" data-view="${to}"`} class="nd"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/><text x="${x + 14}" y="${y + h / 2 + 5}"><tspan class="nn">${no}</tspan><tspan dx="9">${name}</tspan>${star ? '<tspan dx="8" class="stv">★</tspan>' : ''}</text></a>`).join('\n')}
+</svg>`;
+})();
+
+// 문세현T 파트에 전경아T 파트와 같은 '용어 표' · '예제 ↔ 개념' 서랍을 덧붙임 (내용은 calc-extras.mjs)
+function extras(body) {
+  const must = (re, to) => { if (!re.test(body)) throw new Error('문세현T 서랍 붙이기: 못 찾음 ' + re); body = body.replace(re, to); };
+  must(/(<header class="bar" id="bar"[\s\S]*?<\/nav>)\s*(<\/div><\/header>)/, (m, a, b) => `${a}\n  ${EXTRA_TOOLS}\n${b}`);
+  must(/(<p class="homenote">[\s\S]*?펼친다\.)/, (m, a) => a + EXTRA_PILLS);
+  const i = body.lastIndexOf('</body>');
+  if (i < 0) throw new Error('문세현T: </body> 없음');
+  return body.slice(0, i) + EXTRA_HTML + '\n' + body.slice(i);
 }
 
 let fonts = null;
@@ -244,6 +319,7 @@ for (const p of PARTS) {
   const cut = style.indexOf('*{box-sizing');
   const styleOut = style.slice(0, cut) + recolor(style.slice(cut));
   if (p.n === 2) body = unify(body);
+  if (p.n === 1) body = extras(body);
   body = recolor(body).replace(/<body[^>]*>/, (b) => b + '\n' + partsNav(p.n));
 
   const out = `<!DOCTYPE html>

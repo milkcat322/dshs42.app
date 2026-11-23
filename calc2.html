@@ -395,6 +395,24 @@ body{-webkit-text-size-adjust:100%}
 .chain .n .nn{display:block;margin-bottom:3px}
 .steps button .nn{margin-right:6px}
 .board>.why{margin-top:14px}
+.flowmap{display:block;width:100%;min-width:860px;height:auto}
+.flowmap .nd{cursor:pointer}
+.flowmap .nd rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.6;rx:8px}
+.flowmap .nd text{font-size:13.5px;fill:var(--ink);font-weight:600;font-family:var(--font)}
+.flowmap .nn{font-family:var(--mono);font-size:12px;font-weight:500;fill:var(--muted)}
+.flowmap .nd:hover rect{stroke:var(--accent);stroke-width:2.4}
+.flowmap .ar path{fill:none;stroke:var(--ink);stroke-width:1.4}
+.flowmap .fmh{fill:var(--ink)} .flowmap .fmw{fill:var(--proof)}
+.flowmap .xl{font-size:11.5px;fill:var(--muted);font-family:var(--font)} .flowmap .pl{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;fill:var(--muted)}
+.flowmap .stv{fill:var(--cond)}
+/* 눌러서 '왜 넘어가는지'를 보는 화살표 (전경아T) */
+.flowmap .a{cursor:pointer}
+.flowmap .a .fat{fill:none;stroke:transparent;stroke-width:18}
+.flowmap .a .v{fill:none;stroke:var(--proof);stroke-width:1.6}
+.flowmap .a circle{fill:var(--surface);stroke:var(--proof);stroke-width:1.4}
+.flowmap .a text{font-family:var(--mono);font-size:11.5px;font-weight:500;fill:var(--proof)}
+.flowmap .a:hover .v,.flowmap .a.on .v{stroke-width:2.8}
+.flowmap .a.on circle{fill:var(--proof)} .flowmap .a.on text{fill:var(--surface)}
 .chain .n{border:1px solid var(--line);border-radius:12px}
 .chain .n:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 20%,transparent)}
 .why{border-radius:0 10px 10px 0}
@@ -499,21 +517,34 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
   <h1>벡터장 미적분학</h1>
   <p class="lead">벡터장 → 선적분 → 면적분 → 그린 / 스토크스 / 발산 정리 &nbsp;<button type="button" class="ftcx" data-pop="n-ftcx">⊕ FTC의 확장</button></p>
   <div class="home-h">개념의 흐름</div>
-  <div class="board"><div class="chain" id="chain">
-    <button type="button" class="n" data-view="v-vf"><span><i class="nn">1</i>Vector field<small>벡터장</small></span></button>
-    <button type="button" class="a" data-why="0" aria-label="왜 다음 개념으로 가는가"><svg viewBox="0 0 54 20"><path d="M4,10 L48,10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M50,10 L40,4 L40,16 Z" fill="currentColor"/></svg></button>
-    <button type="button" class="n" data-view="v-grad"><span><i class="nn">2</i>Gradient fields<small>그래디언트 · 보존 벡터장</small></span></button>
-    <button type="button" class="a" data-why="1" aria-label="왜 다음 개념으로 가는가"><svg viewBox="0 0 54 20"><path d="M4,10 L48,10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M50,10 L40,4 L40,16 Z" fill="currentColor"/></svg></button>
-    <button type="button" class="n" data-view="v-li"><span><i class="nn">3</i>Line integrals<small>선적분</small></span></button>
-    <button type="button" class="a" data-why="2" aria-label="왜 다음 개념으로 가는가"><svg viewBox="0 0 54 20"><path d="M4,10 L48,10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M50,10 L40,4 L40,16 Z" fill="currentColor"/></svg></button>
-    <button type="button" class="n" data-view="v-test"><span><i class="nn">4</i>보존장 판정 도식<small>선적분의 FTC · 경로 독립</small></span></button>
-    <button type="button" class="a" data-why="3" aria-label="왜 다음 개념으로 가는가"><svg viewBox="0 0 54 20"><path d="M4,10 L48,10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M50,10 L40,4 L40,16 Z" fill="currentColor"/></svg></button>
-    <button type="button" class="n" data-view="v-cd"><span><i class="nn">5</i>Curl &amp; divergence<small>회전과 발산</small></span></button>
-    <button type="button" class="a" data-why="4" aria-label="왜 다음 개념으로 가는가"><svg viewBox="0 0 54 20"><path d="M4,10 L48,10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M50,10 L40,4 L40,16 Z" fill="currentColor"/></svg></button>
-    <button type="button" class="n" data-view="v-green"><span><i class="nn">6</i>Green's Theorem<small>그린 정리</small></span></button>
-  </div>
+  <div class="board"><svg class="flowmap" id="chain" viewBox="0 0 1080 500" role="img" aria-label="개념의 흐름 도식">
+<defs><marker id="fm2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 5L0 10z" class="fmh"/></marker><marker id="fm2w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 5L0 10z" class="fmw"/></marker></defs>
+<g class="ar"><path d="M120 150V198" marker-end="url(#fm2)"/><path d="M290 150V200H308" marker-end="url(#fm2)"/><path d="M290 200V260H308" marker-end="url(#fm2)"/><path d="M290 260V320H308" marker-end="url(#fm2)"/><path d="M290 320V380H308" marker-end="url(#fm2)"/><path d="M120 240V440C120 468 140 480 180 480H505C535 480 548 466 548 436V78C548 50 562 34 600 34H698" marker-end="url(#fm2)"/><path d="M820 60V108" marker-end="url(#fm2)"/><path d="M655 270V308" marker-end="url(#fm2)"/><path d="M820 270V320H838" marker-end="url(#fm2)"/><path d="M820 320V380H838" marker-end="url(#fm2)"/><path d="M820 380V440H838" marker-end="url(#fm2)"/><path d="M655 350C655 492 900 500 940 462" marker-end="url(#fm2)"/></g>
+<g class="a" data-why="0" role="button" tabindex="0" aria-label="왜 다음 개념으로 가는가"><path class="fat" d="M200 60C160 72 120 84 120 108"/><path class="v" d="M200 60C160 72 120 84 120 108" marker-end="url(#fm2w)"/><circle cx="150" cy="78" r="9"/><text x="150" y="82" text-anchor="middle">?</text></g>
+<g class="a" data-why="1" role="button" tabindex="0" aria-label="왜 다음 개념으로 가는가"><path class="fat" d="M320 60C360 72 385 84 385 108"/><path class="v" d="M320 60C360 72 385 84 385 108" marker-end="url(#fm2w)"/><circle cx="362" cy="78" r="9"/><text x="362" y="82" text-anchor="middle">?</text></g>
+<g class="a" data-why="2" role="button" tabindex="0" aria-label="왜 다음 개념으로 가는가"><path class="fat" d="M500 380C520 380 528 372 528 352V84C528 62 544 48 584 48H698"/><path class="v" d="M500 380C520 380 528 372 528 352V84C528 62 544 48 584 48H698" marker-end="url(#fm2w)"/><circle cx="528" cy="215" r="9"/><text x="528" y="219" text-anchor="middle">?</text></g>
+<g class="a" data-why="3" role="button" tabindex="0" aria-label="왜 다음 개념으로 가는가"><path class="fat" d="M740 162C700 184 655 200 655 228"/><path class="v" d="M740 162C700 184 655 200 655 228" marker-end="url(#fm2w)"/><circle cx="690" cy="192" r="9"/><text x="690" y="196" text-anchor="middle">?</text></g>
+<g class="a" data-why="4" role="button" tabindex="0" aria-label="왜 다음 개념으로 가는가"><path class="fat" d="M880 162C900 184 920 200 920 228"/><path class="v" d="M880 162C900 184 920 200 920 228" marker-end="url(#fm2w)"/><circle cx="912" cy="192" r="9"/><text x="912" y="196" text-anchor="middle">?</text></g>
+<text class="xl" x="700" y="486" text-anchor="middle">curl형 · div형</text><text class="pl" x="20" y="34">PART A</text><text class="pl" x="20" y="52">벡터장 · 선적분</text><text class="pl" x="1060" y="34" text-anchor="end">PART B</text><text class="pl" x="1060" y="52" text-anchor="end">판정 · 정리</text>
+<a href="#vf" class="nd"><rect x="150" y="20" width="220" height="40" rx="4"/><text x="164" y="45"><tspan class="nn">1.1</tspan><tspan dx="9">벡터장 정의</tspan></text></a>
+<a href="#grad" class="nd"><rect x="20" y="110" width="200" height="40" rx="4"/><text x="34" y="135"><tspan class="nn">2.1</tspan><tspan dx="9">그레디언트 벡터장</tspan></text></a>
+<a href="#cons" class="nd"><rect x="20" y="200" width="200" height="40" rx="4"/><text x="34" y="225"><tspan class="nn">2.2</tspan><tspan dx="9">보존 벡터장</tspan></text></a>
+<a href="#li-ds" class="nd"><rect x="270" y="110" width="230" height="40" rx="4"/><text x="284" y="135"><tspan class="nn">3.1</tspan><tspan dx="9">선적분 정의</tspan></text></a>
+<a href="#li-cm" class="nd"><rect x="310" y="180" width="190" height="40" rx="4"/><text x="324" y="205"><tspan class="nn">3.2</tspan><tspan dx="9">C.M 구하기</tspan></text></a>
+<a href="#li-xy" class="nd"><rect x="310" y="240" width="190" height="40" rx="4"/><text x="324" y="265"><tspan class="nn">3.3</tspan><tspan dx="9">x, y에 대한 선적분</tspan></text></a>
+<a href="#li-space" class="nd"><rect x="310" y="300" width="190" height="40" rx="4"/><text x="324" y="325"><tspan class="nn">3.4</tspan><tspan dx="9">공간에서 선적분</tspan></text></a>
+<a href="#li-work" class="nd"><rect x="310" y="360" width="190" height="40" rx="4"/><text x="324" y="385"><tspan class="nn">3.5</tspan><tspan dx="9">일 · 벡터장의 선적분</tspan></text></a>
+<a href="#ftc" class="nd"><rect x="700" y="20" width="240" height="40" rx="4"/><text x="714" y="45"><tspan class="nn">4.1</tspan><tspan dx="9">선적분의 FTC</tspan></text></a>
+<a href="#v-test" data-view="v-test" class="nd"><rect x="680" y="110" width="280" height="52" rx="4"/><text x="694" y="141"><tspan class="nn">4.2</tspan><tspan dx="9">보존장 판정 도식</tspan><tspan dx="8" class="stv">★</tspan></text></a>
+<a href="#curl" class="nd"><rect x="580" y="230" width="150" height="40" rx="4"/><text x="594" y="255"><tspan class="nn">5.1</tspan><tspan dx="9">curl</tspan></text></a>
+<a href="#div" class="nd"><rect x="580" y="310" width="150" height="40" rx="4"/><text x="594" y="335"><tspan class="nn">5.2</tspan><tspan dx="9">div</tspan></text></a>
+<a href="#green" class="nd"><rect x="800" y="230" width="240" height="40" rx="4"/><text x="814" y="255"><tspan class="nn">6.1</tspan><tspan dx="9">그린 정리</tspan></text></a>
+<a href="#green-area" class="nd"><rect x="840" y="300" width="200" height="40" rx="4"/><text x="854" y="325"><tspan class="nn">6.2</tspan><tspan dx="9">넓이 구하기</tspan></text></a>
+<a href="#green-ext" class="nd"><rect x="840" y="360" width="200" height="40" rx="4"/><text x="854" y="385"><tspan class="nn">6.3</tspan><tspan dx="9">영역의 확장</tspan></text></a>
+<a href="#green-vec" class="nd"><rect x="840" y="420" width="200" height="40" rx="4"/><text x="854" y="445"><tspan class="nn">6.4</tspan><tspan dx="9">그린 정리의 벡터형</tspan></text></a>
+</svg>
   <p class="why" id="why" hidden aria-live="polite"></p></div>
-  <p class="homenote">박스를 누르면 그 단원의 노트 한 장이 열린다. 화살표를 누르면 왜 다음 개념으로 넘어가는지가 나타난다. &nbsp;<button type="button" class="pill" data-open="terms">용어 표</button> <button type="button" class="pill" data-open="exmap">예제 ↔ 개념</button><br>색: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 공간 확장</span>, <span style="background:var(--ex-bg);padding:0 6px">노랑 예시</span>.</p>
+  <p class="homenote">박스를 누르면 그 내용이 있는 노트로 간다. 주황 화살표(?)를 누르면 왜 다음 개념으로 넘어가는지가 나타난다. &nbsp;<button type="button" class="pill" data-open="terms">용어 표</button> <button type="button" class="pill" data-open="exmap">예제 ↔ 개념</button><br>색: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 공간 확장</span>, <span style="background:var(--ex-bg);padding:0 6px">노랑 예시</span>.</p>
 </section>
 
 <!-- ═════════ Vector field ═════════ -->
