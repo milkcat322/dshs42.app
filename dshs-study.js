@@ -1533,71 +1533,68 @@ function openExam() {
   $("studyModal").querySelector(".study-sheet").classList.add("exam-wide");   // 넓은 화면에서는 가로로 긴 시험 시간표 (index.html 의 .exam-grid)
 }
 
+// 공부 탭은 모든 과목이 같은 틀을 씁니다: ① 과목 줄 → ② 파트 줄(선생님 · 교재, 하나뿐이어도 보임) + 새 창에서 크게 보기 → ③ 파트 한 줄 소개 → ④ 내용(iframe).
+// 과목 · 파트를 늘리려면 여기에 한 줄 더합니다 (예: 일반생물학에 다른 선생님 = parts 에 { id, name: "○○○T", sub, page: "bio2.html" }).
+//   page: 띄울 페이지 (?embed=1 로 엶 · 테마(vocabTheme)는 그 페이지가 함). 없으면 단어장 vocab.html#<파트 id>
+//   fill: 높이를 내용에 맞추지 않고 화면 높이의 틀 안에서 스크롤 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준인 페이지)
+// 파트 id 는 기기에 기억되므로(dshs-learn-subject) 바꾸지 않습니다. 새 페이지는 sw.js 의 PAGES 에도 넣습니다.
 const LEARN_SUBJECTS = [
-  // group: 위쪽 줄에서는 묶음(LEARN_GROUPS) 버튼 하나로 보이고, 그 묶음을 고르면 아래 줄에서 과목을 고름
-  { id: "atc", name: "학술영어 세미나", sub: "The Art of Thinking Clearly 어휘 · 문장 배열 · 문장 암기", emoji: "🧠", group: "eng" },
-  { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 150개 · 필수형용사 100개", emoji: "⚖️", group: "eng" },
-  // page: 단어장(vocab.html)이 아닌 따로 된 페이지 (같은 iframe 에 ?embed=1 로 띄움 · 높이 맞추기 · 테마(vocabTheme)는 그 페이지가 함)
-  { id: "bio", name: "일반생물학", sub: "Ch17 전사 · 가공 · 번역 · 돌연변이 핵심 기작 애니메이션", emoji: "🧬", page: "bio.html" },
-  // fill: 높이를 내용에 맞추지 않고 화면 높이의 틀 안에서 스크롤 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준인 페이지). 파트는 그 페이지 안에서 고름(calc.html ↔ calc2.html)
-  { id: "calc", name: "미적분학Ⅱ", sub: "문세현T 미분 → 야코비안 · 전경아T 벡터장 미적분학 흐름 노트", emoji: "📐", page: "calc.html", fill: true },
+  { id: "eng", name: "영어", emoji: "🔤", parts: [
+    { id: "atc", name: "학술영어 세미나", sub: "The Art of Thinking Clearly 어휘 · 문장 배열 · 문장 암기" },
+    { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 150개 · 필수형용사 100개" },
+  ] },
+  { id: "bio", name: "일반생물학", emoji: "🧬", parts: [
+    { id: "bio", name: "손희창T", sub: "Ch17 전사 · 가공 · 번역 · 돌연변이 핵심 기작 애니메이션", page: "bio.html" },
+  ] },
+  { id: "calc", name: "미적분학Ⅱ", emoji: "📐", fill: true, parts: [
+    { id: "calc", name: "문세현T", sub: "미분에서 야코비안까지 · 개념의 흐름 노트", page: "calc.html" },
+    { id: "calc2", name: "전경아T", sub: "벡터장 미적분학 · 개념의 흐름 노트", page: "calc2.html" },
+  ] },
 ];
-const LEARN_GROUPS = { eng: { name: "영어", emoji: "🔤" } };
-const learnSrc = (id) => { const s = LEARN_SUBJECTS.find((x) => x.id === id); return s?.page ? `${s.page}?embed=1` : `vocab.html?embed=1#${id}`; };
-const LEARN_KEY = "dshs-learn-subject";
+const LEARN_KEY = "dshs-learn-subject";   // 마지막으로 본 파트 id. 과목마다 마지막 파트는 dshs-learn-subject-<과목 id>
+const learnFind = (partId) => { for (const s of LEARN_SUBJECTS) { const p = s.parts.find((x) => x.id === partId); if (p) return { s, p }; } return null; };
+const learnSrc = (p, embed = true) => p.page ? p.page + (embed ? "?embed=1" : "") : `vocab.html${embed ? "?embed=1" : ""}#${p.id}`;
 function learnSubject() {
   let id = null;
   try { id = localStorage.getItem(LEARN_KEY); } catch {}
-  return LEARN_SUBJECTS.some((s) => s.id === id) ? id : null;
+  return learnFind(id) ? id : null;
 }
-// 위쪽 줄에 보일 것: 묶음은 하나로 (id 는 "g:묶음"), 나머지는 과목 그대로
-function learnTops() {
-  const out = [];
-  for (const s of LEARN_SUBJECTS) {
-    if (!s.group) { out.push({ id: s.id, name: s.name, emoji: s.emoji, sub: s.sub, on: (cur) => cur === s.id }); continue; }
-    if (out.some((t) => t.id === "g:" + s.group)) continue;
-    const g = LEARN_GROUPS[s.group], subs = LEARN_SUBJECTS.filter((x) => x.group === s.group);
-    out.push({ id: "g:" + s.group, name: g.name, emoji: g.emoji, sub: subs.map((x) => x.name).join(" · "), on: (cur) => subs.some((x) => x.id === cur) });
-  }
-  return out;
-}
-// 과목 고르는 줄: 위쪽(묶음 · 과목) + 묶음 안에 있으면 그 묶음의 과목 줄
+// 과목 줄 · 파트 줄 · 소개 (모든 과목 공통)
 function learnRowsHtml(cur) {
-  const group = LEARN_SUBJECTS.find((x) => x.id === cur)?.group;
+  const at = learnFind(cur);
   return `
     <div class="study-row learn-subjects">
-      ${learnTops().map((t) => `<button class="study-btn${t.on(cur) ? " primary" : ""}" data-learn="${t.id}">${t.emoji} ${esc(t.name)}</button>`).join("")}
+      ${LEARN_SUBJECTS.map((s) => `<button class="study-btn${at?.s === s ? " primary" : ""}" data-learn="s:${s.id}">${s.emoji} ${esc(s.name)}</button>`).join("")}
     </div>
-    ${group ? `<div class="study-row learn-subjects learn-parts">
-      ${LEARN_SUBJECTS.filter((x) => x.group === group).map((s) => `<button class="study-btn${s.id === cur ? " on" : ""}" data-learn="${s.id}">${s.emoji} ${esc(s.name)}</button>`).join("")}
-    </div>` : ""}`;
+    ${at ? `<div class="study-row learn-subjects learn-parts">
+      ${at.s.parts.map((p) => `<button class="study-btn${p === at.p ? " on" : ""}" data-learn="${p.id}">${esc(p.name)}</button>`).join("")}
+      <a class="study-btn learn-out" href="${learnSrc(at.p, false)}" target="_blank" rel="noopener">↗ 새 창<span>에서 크게 보기</span></a>
+    </div>
+    <div class="study-sub learn-desc">${at.s.emoji} ${esc(at.s.name)} · ${esc(at.p.name)} — ${esc(at.p.sub)}</div>` : ""}`;
 }
 function renderLearn(pick) {
-  // 묶음(영어)을 고르면 그 묶음에서 마지막으로 보던 과목을, 처음이면 첫 과목을 엽니다
-  if (pick?.startsWith("g:")) {
-    const subs = LEARN_SUBJECTS.filter((x) => x.group === pick.slice(2));
+  // 과목을 고르면 그 과목에서 마지막으로 보던 파트를, 처음이면 첫 파트를 엽니다
+  if (pick?.startsWith("s:")) {
+    const s = LEARN_SUBJECTS.find((x) => x.id === pick.slice(2));
     let last = null;
-    try { last = localStorage.getItem(LEARN_KEY + "-" + pick.slice(2)); } catch {}
-    pick = (subs.find((x) => x.id === last) || subs[0])?.id;
+    try { last = localStorage.getItem(LEARN_KEY + "-" + s?.id); } catch {}
+    pick = (s?.parts.find((x) => x.id === last) || s?.parts[0])?.id;
   }
-  if (pick) {
-    try {
-      localStorage.setItem(LEARN_KEY, pick);
-      const g = LEARN_SUBJECTS.find((x) => x.id === pick)?.group;
-      if (g) localStorage.setItem(LEARN_KEY + "-" + g, pick);
-    } catch {}
+  if (pick && learnFind(pick)) {
+    try { localStorage.setItem(LEARN_KEY, pick); localStorage.setItem(LEARN_KEY + "-" + learnFind(pick).s.id, pick); } catch {}
   }
   const cur = learnSubject();
+  const at = learnFind(cur);
   const frame = $("learnFrame");
-  const bind = () => $("studyView").querySelectorAll("[data-learn]").forEach((b) => b.onclick = () => renderLearn(b.dataset.learn));
-  // 이미 단어장이 떠 있으면 다시 만들지 않고 과목만 바꿉니다 (푸는 중이던 화면 유지)
+  const bind = () => $("studyView").querySelectorAll("button[data-learn]").forEach((b) => b.onclick = () => renderLearn(b.dataset.learn));
+  // 이미 떠 있으면 다시 만들지 않고 줄과 내용만 바꿉니다 (단어장은 푸는 중이던 화면 유지)
   // 스크롤 방식(fill)이 다른 과목으로 바꾸면 틀을 새로 만듭니다
-  const fill = !!LEARN_SUBJECTS.find((x) => x.id === cur)?.fill;
-  if (cur && frame && frame.classList.contains("fill") === fill && $("learnRows")) {
+  const fill = !!at?.s.fill;
+  if (at && frame && frame.classList.contains("fill") === fill && $("learnRows")) {
     $("learnRows").innerHTML = learnRowsHtml(cur);
     bind();
-    // 단어장 ↔ 따로 된 페이지(일반생물학)로 바뀌면 주소를 새로, 단어장 과목끼리는 화면을 유지한 채 과목만
-    const src = learnSrc(cur), samePage = src.split(/[?#]/)[0] === (frame.getAttribute("src") || "").split(/[?#]/)[0];
+    // 다른 페이지로 바뀌면 주소를 새로, 단어장 과목끼리는 화면을 유지한 채 과목만
+    const src = learnSrc(at.p), samePage = src.split(/[?#]/)[0] === (frame.getAttribute("src") || "").split(/[?#]/)[0];
     if (!samePage) frame.src = src;
     else if (src.startsWith("vocab.html")) { try { frame.contentWindow.vocabSubject(cur); } catch { frame.src = src; } }
     return;
@@ -1606,17 +1603,17 @@ function renderLearn(pick) {
     <div class="study-head">
       <div>
         <h2>공부</h2>
-        <div class="study-sub">${cur ? "과목을 바꾸려면 위에서 골라요" : "공부할 과목을 골라요"}</div>
+        <div class="study-sub">${at ? "과목과 파트를 위에서 골라요" : "공부할 과목을 골라요"}</div>
       </div>
       <button class="study-btn" onclick="closeStudyView()">✕ 닫기</button>
     </div>
     <div id="learnRows">${learnRowsHtml(cur)}</div>
-    ${cur
-      ? `<iframe id="learnFrame" class="learn-frame${fill ? " fill" : ""}" src="${learnSrc(cur)}" title="공부"${fill ? "" : ' scrolling="no"'}></iframe>`
-      : `<div class="learn-pick">${learnTops().map((t) => `
-          <button class="asg-card learn-card" data-learn="${t.id}">
-            <span class="learn-emoji">${t.emoji}</span>
-            <span><span class="asg-title">${esc(t.name)}</span><span class="study-sub">${esc(t.sub)}</span></span>
+    ${at
+      ? `<iframe id="learnFrame" class="learn-frame${fill ? " fill" : ""}" src="${learnSrc(at.p)}" title="공부"${fill ? "" : ' scrolling="no"'}></iframe>`
+      : `<div class="learn-pick">${LEARN_SUBJECTS.map((s) => `
+          <button class="asg-card learn-card" data-learn="s:${s.id}">
+            <span class="learn-emoji">${s.emoji}</span>
+            <span><span class="asg-title">${esc(s.name)}</span><span class="study-sub">${esc(s.parts.map((p) => p.name).join(" · "))}</span></span>
           </button>`).join("")}</div>`}
     <div class="study-foot">북마크는 계정에 저장돼 다른 기기에서도 보여요. 퀴즈 기록은 이 기기에만 남아요</div>`;
   bind();

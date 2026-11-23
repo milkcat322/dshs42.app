@@ -582,6 +582,10 @@
   .learn-subjects .study-btn { flex: 1 1 auto; }
   .learn-parts { margin-top: -10px; }   /* 묶음(영어) 안의 과목 줄: 위쪽 줄 바로 아래 */
   .learn-parts .study-btn { padding: 7px 12px; font-size: 12.5px; }
+  .learn-parts { flex-wrap: wrap !important; }
+  .learn-parts .learn-out { flex: 0 0 auto; margin-left: auto; text-decoration: none; }
+  .learn-desc { margin: -10px 0 10px; }
+  @media (max-width: 640px) { .learn-out span { display: none; } .learn-desc { margin-top: -6px; } }
   /* 데모 화면 표시 (?demo) */
   .demo-badge { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 90; pointer-events: none; font-size: 12px; font-weight: 600; color: #fff; background: rgba(20,20,30,0.78); border-radius: 999px; padding: 6px 14px; white-space: nowrap; }
   /* 급식 */

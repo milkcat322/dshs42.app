@@ -62,8 +62,6 @@ window.CALC_EMBED = new URLSearchParams(location.search).has('embed') && window.
   };
   if (window.CALC_EMBED) {
     document.documentElement.classList.add('embed');
-    // 마지막으로 보던 파트로 엽니다 (공부 탭은 늘 calc.html 을 엶)
-    try { if (window.CALC_PART === 1 && !location.hash && localStorage.getItem('dshs-calc-part') === '2') location.replace('calc2.html' + location.search); } catch (e) {}
   }
   window.vocabTheme();
 })();
@@ -108,9 +106,10 @@ body{-webkit-text-size-adjust:100%}
 #home .lead .ftcx:hover{border-color:var(--accent)}
 .home-h{font-weight:500;margin:34px 0 14px!important}
 .board{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;overflow-x:auto}
-.chain .n .nn,.steps button .nn{font-family:var(--mono);font-style:normal;font-size:12px;font-weight:500;color:var(--muted)}
-.chain .n .nn{display:block;margin-bottom:3px}
-.steps button .nn{margin-right:6px}
+/* 위쪽 줄: 두 파트 모두 번호만 (이름은 title) */
+.steps .sep{margin:0 8px;color:var(--muted)}
+.steps button{font-family:var(--mono);font-size:13px;padding:5px 5px}
+.steps button.star::after{content:"★";color:var(--cond);font-size:11px;margin-left:2px;vertical-align:top}
 .board>.why{margin-top:14px}
 .flowmap{display:block;width:100%;min-width:860px;height:auto}
 .flowmap .nd{cursor:pointer}
@@ -182,7 +181,9 @@ footer{font-size:12px}
 
 /* dshs42.app 공부 탭 안 (html.embed): 사이트 배경이 비치게. 스크롤은 이 틀 안에서 합니다 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준이라) */
 html.embed,html.embed body{background:transparent}
-html.embed .parts{padding-top:12px}
+/* 공부 탭 안에서는 파트 줄 · 새 창 버튼을 사이트(renderLearn)가 그립니다. 페이지 안의 것은 따로 열었을 때만 */
+html.embed .parts{display:none}
+html.embed #home{padding-top:22px}
 /* Netlify 무료 요금제 배지가 틀 안에도 하나 더 생기는 것을 숨김 (바깥 사이트의 배지는 그대로) */
 html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </style>`;
@@ -231,9 +232,17 @@ function unify(body) {
   must(/<div class="chain" id="chain">[\s\S]*?<\/div>\s*(<p class="why"[^>]*><\/p>)/, (m, why) => `<div class="board">${FLOW2}\n  ${why}</div>`);
   must(/<p class="homenote">박스를 누르면[\s\S]*?나타난다\./, '<p class="homenote">박스를 누르면 그 내용이 있는 노트로 간다. 주황 화살표(?)를 누르면 왜 다음 개념으로 넘어가는지가 나타난다.');
   must(/(<p class="homenote">[\s\S]*?)<\/p>/, '$1<br>색: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 공간 확장</span>, <span style="background:var(--ex-bg);padding:0 6px">노랑 예시</span>.</p>');
+  // 맨 아래 글: 색 안내는 첫 화면에 있으므로 빼고 출처만 (문세현T 와 같은 틀)
+  must(/(<footer>선생님 필기를 바탕으로 정리\.)[\s\S]*?보라 공간 확장<\/span>\.\s*/, '$1 ');
   let k = 0;
   // 위쪽 줄 · 단원 제목에 번호 (도식의 1.1 · 2.1 … 의 앞 숫자)
-  must(/<nav class="steps"[^>]*>[\s\S]*?<\/nav>/, (m) => m.replace(/(<button type="button" data-view="[^"]+">)/g, (x, a) => `${a}<b class="nn">${++k}</b>`));
+  // 위쪽 줄도 문세현T 와 같은 틀: 번호만 보이고(이름은 올려 두면 나옴) PART A | PART B 로 나눔, 핵심 단원에 ★
+  must(/<nav class="steps"[^>]*>[\s\S]*?<\/nav>/, (m) => {
+    const bs = [...m.matchAll(/<button type="button" data-view="([^"]+)">([\s\S]*?)<\/button>/g)];
+    if (bs.length !== 6) throw new Error('전경아T 위쪽 줄 단원이 6개가 아님: ' + bs.length);
+    return '<nav class="steps" aria-label="개념의 흐름">' + bs.map((b, i) =>
+      (i === 3 ? '<i class="sep">|</i>' : i ? '<i>→</i>' : '') + `<button type="button" data-view="${b[1]}" title="${b[2].trim()}"${b[1] === 'v-test' ? ' class="star"' : ''}>${++k}</button>`).join('') + '</nav>';
+  });
   k = 0;
   body = body.replace(/(<section class="view" id="v-[^"]+"[^>]*>\s*<h2>)/g, (x, a) => `${a}${++k} · `);
   if (k !== 6) throw new Error('전경아T 단원이 6개가 아님: ' + k);
@@ -292,7 +301,8 @@ ${N.map(([no, name, to, x, y, w, h = H, star]) => `<a ${to[0] === '#' ? `href="$
 function extras(body) {
   const must = (re, to) => { if (!re.test(body)) throw new Error('문세현T 서랍 붙이기: 못 찾음 ' + re); body = body.replace(re, to); };
   must(/(<header class="bar" id="bar"[\s\S]*?<\/nav>)\s*(<\/div><\/header>)/, (m, a, b) => `${a}\n  ${EXTRA_TOOLS}\n${b}`);
-  must(/(<p class="homenote">[\s\S]*?펼친다\.)/, (m, a) => a + EXTRA_PILLS);
+  // 첫 화면 안내 글의 틀을 두 파트가 같게: 첫 줄 = 쓰는 법 + 버튼, 둘째 줄 = 색
+  must(/(<p class="homenote">[\s\S]*?펼친다\.)\s*색:/, (m, a) => a + EXTRA_PILLS + '<br>색:');
   const i = body.lastIndexOf('</body>');
   if (i < 0) throw new Error('문세현T: </body> 없음');
   return body.slice(0, i) + EXTRA_HTML + '\n' + body.slice(i);

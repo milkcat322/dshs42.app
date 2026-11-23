@@ -46,8 +46,6 @@ window.CALC_EMBED = new URLSearchParams(location.search).has('embed') && window.
   };
   if (window.CALC_EMBED) {
     document.documentElement.classList.add('embed');
-    // 마지막으로 보던 파트로 엽니다 (공부 탭은 늘 calc.html 을 엶)
-    try { if (window.CALC_PART === 1 && !location.hash && localStorage.getItem('dshs-calc-part') === '2') location.replace('calc2.html' + location.search); } catch (e) {}
   }
   window.vocabTheme();
 })();
@@ -391,9 +389,10 @@ body{-webkit-text-size-adjust:100%}
 #home .lead .ftcx:hover{border-color:var(--accent)}
 .home-h{font-weight:500;margin:34px 0 14px!important}
 .board{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;overflow-x:auto}
-.chain .n .nn,.steps button .nn{font-family:var(--mono);font-style:normal;font-size:12px;font-weight:500;color:var(--muted)}
-.chain .n .nn{display:block;margin-bottom:3px}
-.steps button .nn{margin-right:6px}
+/* 위쪽 줄: 두 파트 모두 번호만 (이름은 title) */
+.steps .sep{margin:0 8px;color:var(--muted)}
+.steps button{font-family:var(--mono);font-size:13px;padding:5px 5px}
+.steps button.star::after{content:"★";color:var(--cond);font-size:11px;margin-left:2px;vertical-align:top}
 .board>.why{margin-top:14px}
 .flowmap{display:block;width:100%;min-width:860px;height:auto}
 .flowmap .nd{cursor:pointer}
@@ -465,7 +464,9 @@ footer{font-size:12px}
 
 /* dshs42.app 공부 탭 안 (html.embed): 사이트 배경이 비치게. 스크롤은 이 틀 안에서 합니다 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준이라) */
 html.embed,html.embed body{background:transparent}
-html.embed .parts{padding-top:12px}
+/* 공부 탭 안에서는 파트 줄 · 새 창 버튼을 사이트(renderLearn)가 그립니다. 페이지 안의 것은 따로 열었을 때만 */
+html.embed .parts{display:none}
+html.embed #home{padding-top:22px}
 /* Netlify 무료 요금제 배지가 틀 안에도 하나 더 생기는 것을 숨김 (바깥 사이트의 배지는 그대로) */
 html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </style>
@@ -500,14 +501,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 
 <header class="bar" id="bar" hidden><div class="in">
   <button type="button" class="home" data-view="home">벡터장 미적분학</button>
-  <nav class="steps" aria-label="개념의 흐름">
-    <button type="button" data-view="v-vf"><b class="nn">1</b>Vector field</button><i>→</i>
-    <button type="button" data-view="v-grad"><b class="nn">2</b>Gradient fields</button><i>→</i>
-    <button type="button" data-view="v-li"><b class="nn">3</b>Line integrals</button><i>→</i>
-    <button type="button" data-view="v-test"><b class="nn">4</b>보존장 판정 도식</button><i>→</i>
-    <button type="button" data-view="v-cd"><b class="nn">5</b>Curl &amp; divergence</button><i>→</i>
-    <button type="button" data-view="v-green"><b class="nn">6</b>Green's Theorem</button>
-  </nav>
+  <nav class="steps" aria-label="개념의 흐름"><button type="button" data-view="v-vf" title="Vector field">1</button><i>→</i><button type="button" data-view="v-grad" title="Gradient fields">2</button><i>→</i><button type="button" data-view="v-li" title="Line integrals">3</button><i class="sep">|</i><button type="button" data-view="v-test" title="보존장 판정 도식" class="star">4</button><i>→</i><button type="button" data-view="v-cd" title="Curl &amp; divergence">5</button><i>→</i><button type="button" data-view="v-green" title="Green's Theorem">6</button></nav>
   <div class="tools"><button type="button" id="expall" aria-pressed="false">설명 모두 펼치기</button><button type="button" data-open="terms">용어 표</button><button type="button" data-open="exmap">예제 ↔ 개념</button></div>
 </div></header>
 
@@ -1522,7 +1516,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </div>
 </section>
 
-<footer>선생님 필기를 바탕으로 정리. 박스 배치와 색은 필기를 따랐다: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 공간 확장</span>. 그림은 필기의 그림과 같은 내용을 다시 그린 것이고, 「해설」은 필기에 없는 덧붙임이다.</footer>
+<footer>선생님 필기를 바탕으로 정리. 그림은 필기의 그림과 같은 내용을 다시 그린 것이고, 「해설」은 필기에 없는 덧붙임이다.</footer>
 </div>
 
 <!-- ═════════ 서랍: 용어 표 / 예제-개념 ═════════ -->
