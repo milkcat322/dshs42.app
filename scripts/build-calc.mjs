@@ -169,7 +169,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </style>`;
 
 const partsNav = (n) => `<nav class="parts" id="parts" aria-label="미적분학Ⅱ 파트">
-${PARTS.map((p) => `  <a href="${p.file}" data-part="${p.n}"${p.n === n ? ' class="on" aria-current="page"' : ''}>${p.who} <small>${p.title}</small></a>`).join('\n')}
+${PARTS.map((p) => `  <a data-file="${p.file}" data-part="${p.n}"${p.n === n ? ' class="on" aria-current="page"' : ''}>${p.who} <small>${p.title}</small></a>`).join('\n')}
   <a class="side" id="partOut" target="_blank" rel="noopener" hidden>↗ 새 창에서 크게 보기</a>
   <a class="side" id="partHome" href="./" hidden>← dshs42.app</a>
 </nav>
@@ -178,7 +178,7 @@ ${PARTS.map((p) => `  <a href="${p.file}" data-part="${p.n}"${p.n === n ? ' clas
   // 공부 탭 안에서는 파트를 바꿔도 ?embed=1 을 지키고, 고른 파트를 기억합니다
   var q = window.CALC_EMBED ? '?embed=1' : '';
   document.querySelectorAll('#parts a[data-part]').forEach(function (a) {
-    a.href = a.getAttribute('href') + q;
+    a.href = a.dataset.file + q;   // href 를 HTML 에 직접 쓰면 Netlify 가 'calc2.html' → '/calc2' 로 바꿔 서비스 워커가 못 알아봄
     a.addEventListener('click', function () { try { localStorage.setItem('dshs-calc-part', a.dataset.part); } catch (e) {} });
   });
   try { localStorage.setItem('dshs-calc-part', String(window.CALC_PART)); } catch (e) {}
