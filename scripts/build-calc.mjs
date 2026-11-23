@@ -233,8 +233,7 @@ function unify(body) {
   // 한 줄짜리 흐름 상자 → 문세현T 와 같은 '개념의 흐름' 도식(FLOW2). 상자는 그 내용이 있는 자리로, 주황 화살표는 '왜 넘어가는지'(why-0~4)
   must(/<div class="chain" id="chain">[\s\S]*?<\/div>\s*(<p class="why"[^>]*><\/p>)/, (m, why) => `<div class="board">${FLOW2}\n  <p class="dghint">주황 화살표(?)를 누르면 왜 다음 개념으로 넘어가는지가 나타난다.</p>\n  ${why}</div>`);
   must(/<p class="homenote">[\s\S]*?<\/p>/, HOMENOTE('공간 확장'));
-  // 맨 아래 글: 첫 문장은 두 파트가 같고, 이 노트에만 해당하는 말(그림 · 해설)은 뒤에 둠
-  must(/<footer>[\s\S]*?(그림은 필기의[\s\S]*?)<\/footer>/, (m, rest) => `<footer>${FOOT} ${rest}</footer>`);
+  must(/<footer>[\s\S]*?<\/footer>/, `<footer>${FOOT}</footer>`);
   let k = 0;
   // 위쪽 줄 · 단원 제목에 번호 (도식의 1.1 · 2.1 … 의 앞 숫자)
   // 위쪽 줄도 문세현T 와 같은 틀: 번호만 보이고(이름은 올려 두면 나옴) PART A | PART B 로 나눔, 핵심 단원에 ★
