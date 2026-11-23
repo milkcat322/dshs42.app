@@ -583,10 +583,15 @@
   .learn-parts { margin-top: -10px; margin-bottom: 12px; }   /* 묶음(영어) 안의 과목 줄: 위쪽 줄 바로 아래 */
   .learn-parts .study-btn { padding: 7px 12px; font-size: 12.5px; }
   .learn-parts { flex-wrap: wrap !important; }
-  .learn-parts .learn-out { flex: 0 0 auto; margin-left: auto; text-decoration: none; font-weight: 700; box-shadow: 0 4px 14px var(--glow); }
+  .learn-parts .learn-out { flex: 0 0 auto !important; margin-left: auto; text-decoration: none; font-weight: 700; box-shadow: 0 4px 14px var(--glow); }
   .learn-parts .learn-out:hover { color: #fff; filter: brightness(1.08); }
   .learn-wide { display: inline-block; margin-right: 6px; padding: 2px 9px; border-radius: 8px; font-weight: 700; color: var(--accent1); background: color-mix(in srgb, var(--accent1) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent1) 45%, transparent); }
-  @media (max-width: 640px) { .learn-out span { display: none; } }
+  .learn-hint-m { display: none; }
+  @media (max-width: 640px) {
+    .learn-out span { display: none; }
+    .learn-parts .learn-out { flex: 0 0 auto !important; text-align: center; padding: 7px 14px; }
+    .learn-hint-m { display: block; margin: -4px 0 10px; font-size: 11.5px; line-height: 1.9; color: var(--text-dim); }
+  }
   /* 데모 화면 표시 (?demo) */
   .demo-badge { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 90; pointer-events: none; font-size: 12px; font-weight: 600; color: #fff; background: rgba(20,20,30,0.78); border-radius: 999px; padding: 6px 14px; white-space: nowrap; }
   /* 급식 */

@@ -455,13 +455,42 @@ footer{font-size:12px}
 [fill="#b06200"]{fill:var(--proof)} [stroke="#b06200"]{stroke:var(--proof)}
 [fill="#fdf1f0"]{fill:var(--t-cond)} [fill="#eef3fb"]{fill:var(--t-def)} [fill="#fdf4e8"]{fill:var(--t-proof)} [fill="#f6f8fc"]{fill:var(--t-ink)}
 
-/* 좁은 화면 */
+/* 폰(좁은 화면) */
+.mlist{display:none}
 @media (max-width:640px){
   .parts{padding:12px 14px 0}
   .wrap{padding:0 14px 60px}
-  .bar .in{padding:6px 14px}
-  #home h1{font-size:25px}
-  .pbody{padding:0 14px 16px 18px}
+  #home h1{font-size:24px}
+  .pbody{padding:0 12px 14px 14px}
+  /* 위쪽 줄: 첫 줄 = 처음으로 + 도구, 둘째 줄 = 단원 번호(옆으로 밀기) */
+  .bar .in{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 8px;padding:6px 10px;align-items:center}
+  .bar .home{grid-row:1;grid-column:1;padding:4px 10px;font-size:12px}
+  .tools{grid-row:1;grid-column:2;justify-self:end;max-width:100%;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .tools button{padding:4px 9px;font-size:12px;flex:0 0 auto}
+  .steps{grid-row:2;grid-column:1 / -1;flex:none;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-width:0}
+  .steps::-webkit-scrollbar,.tools::-webkit-scrollbar{display:none}
+  .steps button{padding:4px 7px;font-size:13px}
+  .steps i{flex:0 0 auto}
+  /* 첫 화면: 단원 목록을 먼저, 도식은 그 아래에서 옆으로 밀어 봄 */
+  .mlist{display:grid;gap:6px;margin:0 0 14px}
+  .mlist h4{margin:8px 0 2px;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;color:var(--muted)}
+  .mlist button{display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:10px 13px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer}
+  .mlist button i{font-family:var(--mono);font-style:normal;font-size:12px;font-weight:500;color:var(--muted);flex:0 0 30px}
+  .mlist button.sub{padding:8px 13px 8px 22px;font-size:13.5px;font-weight:500}
+  .mlist .star{color:var(--cond);margin-left:4px}
+  .board{padding:12px}
+  .board::before{content:"↔ 옆으로 밀어서 전체 흐름 보기";display:block;font-size:11.5px;color:var(--muted);margin-bottom:8px}
+  /* 노트 한 장: 필기 배치(상자 자리 · 화살표)가 넓은 화면 기준이라 폰에서도 그대로 두고 옆으로 밀어 봄 */
+  .view>h2{font-size:18px;margin:18px 0 12px}
+  .sheetw{-webkit-overflow-scrolling:touch}
+  /* 보존장 판정 도식: 화면에 맞춰 줄이면 글자가 안 보여서, 원래 크기로 두고 옆으로 밀어 봄 */
+  .cvw{overflow-x:auto!important;height:1060px!important;-webkit-overflow-scrolling:touch}
+  .cv{transform:none!important}
+  .view:not(#home) .sheetw::before{content:"↔ 옆으로 밀어서 보기";display:block;position:sticky;left:0;font-size:11.5px;color:var(--muted);margin-bottom:6px}
+  .drawer section{padding:14px 14px 50px}
+  .dbar{padding:8px 14px}
+  .mdet li{grid-template-columns:1fr}
+  .backbtn{right:12px}
 }
 
 /* dshs42.app 공부 탭 안 (html.embed): 사이트 배경이 비치게. 스크롤은 이 틀 안에서 합니다 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준이라) */
@@ -2066,6 +2095,26 @@ M1001 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
   window.addEventListener('scroll', function () { if (!pop.hidden && Math.abs(window.scrollY - popY) > 60) closePop(); }, { passive: true });
 })();
 
+</script>
+<script>
+(function () {
+  var map = document.querySelector('#home .flowmap'), board = map && map.closest('.board'); if (!board) return;
+  var list = document.createElement('div'); list.className = 'mlist';
+  var nodes = [].slice.call(map.querySelectorAll('a.nd')), lastGroup = null;
+  nodes.forEach(function (a) {
+    var ts = a.querySelectorAll('tspan'), no = ts[0] ? ts[0].textContent : '', name = ts[1] ? ts[1].textContent : a.textContent;
+    // 묶음 제목: A1 · B1 은 글자(PART A · B), 1.1 · 4.1 은 앞 숫자 1~3 · 4~6
+    var g = /^[A-Z]/.test(no) ? no.charAt(0) : (+no.split('.')[0] <= 3 ? 'A' : 'B');
+    if (g !== lastGroup) { lastGroup = g; var h = document.createElement('h4'); var pl = map.querySelectorAll('.pl'); h.textContent = 'PART ' + g + ' · ' + (g === 'A' ? (pl[1] || {}).textContent : (pl[3] || {}).textContent); list.appendChild(h); }
+    var b = document.createElement('button'); b.type = 'button';
+    if (/\.[2-9]$/.test(no)) b.className = 'sub';
+    b.innerHTML = '<i></i><span></span>'; b.firstChild.textContent = no; b.lastChild.textContent = name;
+    if (a.querySelector('.stv')) { var st = document.createElement('span'); st.className = 'star'; st.textContent = '★'; b.lastChild.appendChild(st); }
+    b.addEventListener('click', function () { a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); });
+    list.appendChild(b);
+  });
+  board.parentNode.insertBefore(list, board);
+})();
 </script>
 <script>
 (function () {

@@ -1570,10 +1570,11 @@ function learnRowsHtml(cur) {
     ${at ? `<div class="study-row learn-subjects learn-parts">
       ${at.s.parts.map((p) => `<button class="study-btn${p === at.p ? " on" : ""}" data-learn="${p.id}" title="${esc(p.sub)}">${esc(p.name)}</button>`).join("")}
       ${at.p.page ? `<a class="study-btn primary learn-out" href="${learnSrc(at.p, false)}" target="_blank" rel="noopener">↗ 새 창<span>에서 크게 보기</span></a>` : ""}
-    </div>` : ""}`;
+    </div>
+    ${at.s.wide ? `<div class="learn-hint-m">${learnHint(at)}</div>` : ""}` : ""}`;
 }
-// '공부' 제목 아래 한 줄: 넓은 화면용 노트(wide)면 PC · 아이패드 권장을 강조
-const learnHint = (at) => !at ? "공부할 과목을 골라요" : at.s.wide ? `<b class="learn-wide">💻 PC · 아이패드 권장</b> 노트가 넓어서 큰 화면에서 보기 좋아요` : "과목과 파트를 위에서 골라요";
+// '공부' 제목 아래 한 줄: 넓은 화면용 노트(wide)면 PC · 아이패드 권장을 강조 (폰은 제목 줄이 숨겨져 있어 파트 줄 아래 .learn-hint-m 에 한 번 더)
+function learnHint(at) { return !at ? "공부할 과목을 골라요" : at.s.wide ? `<b class="learn-wide">💻 PC · 아이패드 권장</b> 노트가 넓어서 큰 화면에서 보기 좋아요` : "과목과 파트를 위에서 골라요"; }
 function renderLearn(pick) {
   // 과목을 고르면 그 과목에서 마지막으로 보던 파트를, 처음이면 첫 파트를 엽니다
   if (pick?.startsWith("s:")) {
