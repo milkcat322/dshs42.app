@@ -1533,7 +1533,7 @@ function openExam() {
   $("studyModal").querySelector(".study-sheet").classList.add("exam-wide");   // 넓은 화면에서는 가로로 긴 시험 시간표 (index.html 의 .exam-grid)
 }
 
-// 공부 탭은 모든 과목이 같은 틀을 씁니다: ① 과목 줄 → ② 파트 줄(선생님 · 교재, 하나뿐이어도 보임) + 새 창에서 크게 보기 → ③ 내용(iframe). sub 는 파트 버튼에 올려 두면 나오는 설명.
+// 공부 탭은 모든 과목이 같은 틀을 씁니다: ① 과목 줄 → ② 파트 줄(선생님 · 교재, 하나뿐이어도 보임) + 새 창에서 크게 보기(page 가 있는 파트만. 단어장인 영어는 없음) → ③ 내용(iframe). sub 는 파트 버튼에 올려 두면 나오는 설명.
 // 과목 · 파트를 늘리려면 여기에 한 줄 더합니다 (예: 일반생물학에 다른 선생님 = parts 에 { id, name: "○○○T", sub, page: "bio2.html" }).
 //   page: 띄울 페이지 (?embed=1 로 엶 · 테마(vocabTheme)는 그 페이지가 함). 없으면 단어장 vocab.html#<파트 id>
 //   wide: 넓은 화면용 노트 → '공부' 제목 아래 한 줄에 'PC · 아이패드 권장'을 띄움 (learnHint)
@@ -1569,7 +1569,7 @@ function learnRowsHtml(cur) {
     </div>
     ${at ? `<div class="study-row learn-subjects learn-parts">
       ${at.s.parts.map((p) => `<button class="study-btn${p === at.p ? " on" : ""}" data-learn="${p.id}" title="${esc(p.sub)}">${esc(p.name)}</button>`).join("")}
-      <a class="study-btn primary learn-out" href="${learnSrc(at.p, false)}" target="_blank" rel="noopener">↗ 새 창<span>에서 크게 보기</span></a>
+      ${at.p.page ? `<a class="study-btn primary learn-out" href="${learnSrc(at.p, false)}" target="_blank" rel="noopener">↗ 새 창<span>에서 크게 보기</span></a>` : ""}
     </div>` : ""}`;
 }
 // '공부' 제목 아래 한 줄: 넓은 화면용 노트(wide)면 PC · 아이패드 권장을 강조
