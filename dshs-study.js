@@ -1533,7 +1533,7 @@ function openExam() {
   $("studyModal").querySelector(".study-sheet").classList.add("exam-wide");   // 넓은 화면에서는 가로로 긴 시험 시간표 (index.html 의 .exam-grid)
 }
 
-// 공부 탭은 모든 과목이 같은 틀을 씁니다: ① 과목 줄 → ② 파트 줄(선생님 · 교재, 하나뿐이어도 보임) + 새 창에서 크게 보기 → ③ 파트 한 줄 소개 → ④ 내용(iframe).
+// 공부 탭은 모든 과목이 같은 틀을 씁니다: ① 과목 줄 → ② 파트 줄(선생님 · 교재, 하나뿐이어도 보임) + 새 창에서 크게 보기 → ③ 내용(iframe). sub 는 파트 버튼에 올려 두면 나오는 설명.
 // 과목 · 파트를 늘리려면 여기에 한 줄 더합니다 (예: 일반생물학에 다른 선생님 = parts 에 { id, name: "○○○T", sub, page: "bio2.html" }).
 //   page: 띄울 페이지 (?embed=1 로 엶 · 테마(vocabTheme)는 그 페이지가 함). 없으면 단어장 vocab.html#<파트 id>
 //   fill: 높이를 내용에 맞추지 않고 화면 높이의 틀 안에서 스크롤 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준인 페이지)
@@ -1559,7 +1559,7 @@ function learnSubject() {
   try { id = localStorage.getItem(LEARN_KEY); } catch {}
   return learnFind(id) ? id : null;
 }
-// 과목 줄 · 파트 줄 · 소개 (모든 과목 공통)
+// 과목 줄 · 파트 줄 (모든 과목 공통)
 function learnRowsHtml(cur) {
   const at = learnFind(cur);
   return `
@@ -1567,10 +1567,9 @@ function learnRowsHtml(cur) {
       ${LEARN_SUBJECTS.map((s) => `<button class="study-btn${at?.s === s ? " primary" : ""}" data-learn="s:${s.id}">${s.emoji} ${esc(s.name)}</button>`).join("")}
     </div>
     ${at ? `<div class="study-row learn-subjects learn-parts">
-      ${at.s.parts.map((p) => `<button class="study-btn${p === at.p ? " on" : ""}" data-learn="${p.id}">${esc(p.name)}</button>`).join("")}
+      ${at.s.parts.map((p) => `<button class="study-btn${p === at.p ? " on" : ""}" data-learn="${p.id}" title="${esc(p.sub)}">${esc(p.name)}</button>`).join("")}
       <a class="study-btn learn-out" href="${learnSrc(at.p, false)}" target="_blank" rel="noopener">↗ 새 창<span>에서 크게 보기</span></a>
-    </div>
-    <div class="study-sub learn-desc">${at.s.emoji} ${esc(at.s.name)} · ${esc(at.p.name)} — ${esc(at.p.sub)}</div>` : ""}`;
+    </div>` : ""}`;
 }
 function renderLearn(pick) {
   // 과목을 고르면 그 과목에서 마지막으로 보던 파트를, 처음이면 첫 파트를 엽니다
