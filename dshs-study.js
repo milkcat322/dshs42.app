@@ -1536,7 +1536,7 @@ function openExam() {
 // 공부 탭은 모든 과목이 같은 틀을 씁니다: ① 과목 줄 → ② 파트 줄(선생님 · 교재, 하나뿐이어도 보임) + 새 창에서 크게 보기 → ③ 내용(iframe). sub 는 파트 버튼에 올려 두면 나오는 설명.
 // 과목 · 파트를 늘리려면 여기에 한 줄 더합니다 (예: 일반생물학에 다른 선생님 = parts 에 { id, name: "○○○T", sub, page: "bio2.html" }).
 //   page: 띄울 페이지 (?embed=1 로 엶 · 테마(vocabTheme)는 그 페이지가 함). 없으면 단어장 vocab.html#<파트 id>
-//   wide: 넓은 화면용 노트 → 파트 줄 아래에 'PC · 아이패드 권장' 안내를 띄움
+//   wide: 넓은 화면용 노트 → '공부' 제목 아래 한 줄에 'PC · 아이패드 권장'을 띄움 (learnHint)
 //   fill: 높이를 내용에 맞추지 않고 화면 높이의 틀 안에서 스크롤 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준인 페이지)
 // 파트 id 는 기기에 기억되므로(dshs-learn-subject) 바꾸지 않습니다. 새 페이지는 sw.js 의 PAGES 에도 넣습니다.
 const LEARN_SUBJECTS = [
@@ -1570,9 +1570,10 @@ function learnRowsHtml(cur) {
     ${at ? `<div class="study-row learn-subjects learn-parts">
       ${at.s.parts.map((p) => `<button class="study-btn${p === at.p ? " on" : ""}" data-learn="${p.id}" title="${esc(p.sub)}">${esc(p.name)}</button>`).join("")}
       <a class="study-btn primary learn-out" href="${learnSrc(at.p, false)}" target="_blank" rel="noopener">↗ 새 창<span>에서 크게 보기</span></a>
-    </div>
-    ${at.s.wide ? `<div class="learn-wide"><b>💻 PC · 아이패드 권장</b> 노트가 넓어서 큰 화면에서 보기 좋아요. <b>새 창에서 크게 보기</b>로 열면 화면 가득 볼 수 있어요</div>` : ""}` : ""}`;
+    </div>` : ""}`;
 }
+// '공부' 제목 아래 한 줄: 넓은 화면용 노트(wide)면 PC · 아이패드 권장을 강조
+const learnHint = (at) => !at ? "공부할 과목을 골라요" : at.s.wide ? `<b class="learn-wide">💻 PC · 아이패드 권장</b> 노트가 넓어서 큰 화면에서 보기 좋아요` : "과목과 파트를 위에서 골라요";
 function renderLearn(pick) {
   // 과목을 고르면 그 과목에서 마지막으로 보던 파트를, 처음이면 첫 파트를 엽니다
   if (pick?.startsWith("s:")) {
@@ -1593,6 +1594,7 @@ function renderLearn(pick) {
   const fill = !!at?.s.fill;
   if (at && frame && frame.classList.contains("fill") === fill && $("learnRows")) {
     $("learnRows").innerHTML = learnRowsHtml(cur);
+    if ($("learnHint")) $("learnHint").innerHTML = learnHint(at);
     bind();
     // 다른 페이지로 바뀌면 주소를 새로, 단어장 과목끼리는 화면을 유지한 채 과목만
     const src = learnSrc(at.p), samePage = src.split(/[?#]/)[0] === (frame.getAttribute("src") || "").split(/[?#]/)[0];
@@ -1604,7 +1606,7 @@ function renderLearn(pick) {
     <div class="study-head">
       <div>
         <h2>공부</h2>
-        <div class="study-sub">${at ? "과목과 파트를 위에서 골라요" : "공부할 과목을 골라요"}</div>
+        <div class="study-sub" id="learnHint">${learnHint(at)}</div>
       </div>
       <button class="study-btn" onclick="closeStudyView()">✕ 닫기</button>
     </div>
