@@ -1,0 +1,268 @@
+// 미적분학Ⅱ 노트(공부 탭) 만들기: 원본 HTML 두 개 → calc.html(문세현T) · calc2.html(전경아T) · calc-fonts.css
+//   node scripts/build-calc.mjs <문세현T내용.html> <전경아T내용.html>
+// 원본은 저장소 밖에 있다(혼자 열어 보는 필기 노트). 여기서 하는 일:
+//   · 수식 글꼴(KaTeX, base64 37만 자)을 calc-fonts.css 한 파일로 빼 두 파트가 함께 씀
+//   · 색 · 글꼴 · 모서리를 dshs42.app 에 맞춤 (CALC_CSS), 사이트 테마는 calc 페이지가 직접 읽음 (HEAD_JS)
+//   · 문세현T 원본에 직접 박힌 색(#1a2233 등)을 색 변수로 바꿔 어두운 테마에서도 보이게 함
+//   · 맨 위에 파트 고르기(.parts)를 넣음
+// 노트 내용을 고칠 때는 원본을 고쳐 다시 돌리거나, 작은 수정이면 calc*.html 을 바로 고친다.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const [, , srcA, srcB] = process.argv;
+if (!srcA || !srcB) { console.error('쓰는 법: node scripts/build-calc.mjs <문세현T내용.html> <전경아T내용.html>'); process.exit(1); }
+
+const PARTS = [
+  { n: 1, file: 'calc.html', src: srcA, who: '문세현T', title: '미분에서 야코비안까지' },
+  { n: 2, file: 'calc2.html', src: srcB, who: '전경아T', title: '벡터장 미적분학' },
+];
+
+// 화면을 그리기 전에: 공부 탭 안(?embed=1)이면 사이트 색을 그대로 읽어 오고, 따로 열면 마지막에 읽어 둔 색을 씁니다.
+const HEAD_JS = (n) => `<script>
+// dshs42.app '공부' 탭의 미적분학Ⅱ (calc.html = 문세현T · calc2.html = 전경아T). scripts/build-calc.mjs 가 만듭니다.
+// 공부 탭 안(?embed=1)에서는 사이트의 색 변수(--bg · --text …)를 그대로 읽어 테마를 따르고, 사이트가 테마를 바꾸면 vocabTheme() 을 부릅니다.
+// 따로 열면 마지막으로 읽어 둔 색(dshs-calc-pal)을, 없으면 사이트 기본 밝은 · 어두운 색을 씁니다.
+window.CALC_PART = ${n};
+window.CALC_EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+(function () {
+  var BASE = {
+    light: { tone: 'light', bg: '#f5f5fa', surface: '#ffffff', card: '#eeeef5', border: '#d9d9e6', accent: '#6a5cd6', text: '#1b1b28', dim: '#5a5a76' },
+    dark: { tone: 'dark', bg: '#0a0a0f', surface: '#12121a', card: '#1a1a26', border: '#2a2a3d', accent: '#7c6fe0', text: '#e8e8f0', dim: '#8888aa' }
+  };
+  var TONE = { dark: 'dark', light: 'light', ocean: 'dark', forest: 'dark', coco: 'light', sakura: 'light' };
+  function siteTheme() {
+    var t = null;
+    try { t = localStorage.getItem('dshs-theme'); } catch (e) {}
+    return TONE[t] ? t : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  }
+  window.vocabTheme = function () {
+    var r = document.documentElement, pal = null;
+    if (window.CALC_EMBED) {
+      try {
+        var p = window.parent.document.documentElement, cs = window.parent.getComputedStyle(p);
+        var v = function (k) { return cs.getPropertyValue(k).trim(); };
+        pal = { theme: p.dataset.theme, tone: p.dataset.tone === 'light' ? 'light' : 'dark', bg: v('--bg'), surface: v('--surface'), card: v('--card'), border: v('--border'), accent: v('--accent1'), text: v('--text'), dim: v('--text-dim') };
+        if (!pal.bg || !pal.text) pal = null;
+        else { try { localStorage.setItem('dshs-calc-pal', JSON.stringify(pal)); } catch (e) {} }
+      } catch (e) {}
+    }
+    if (!pal) {
+      var th = siteTheme();
+      try { var s = JSON.parse(localStorage.getItem('dshs-calc-pal')); if (s && s.theme === th && s.bg) pal = s; } catch (e) {}
+      if (!pal) pal = BASE[TONE[th]];
+    }
+    r.dataset.theme = pal.tone; r.style.colorScheme = pal.tone;
+    var set = { '--paper': pal.bg, '--surface': pal.surface, '--card': pal.card, '--line': pal.border, '--accent': pal.accent, '--ink': pal.text, '--muted': pal.dim };
+    for (var k in set) if (set[k]) r.style.setProperty(k, set[k]);
+    // 문서와 iframe 의 색 모드가 다르면 브라우저가 iframe 뒤에 흰(검은) 바탕을 깔아 사이트 배경이 가려집니다
+    try { if (window.CALC_EMBED && window.frameElement) window.frameElement.style.colorScheme = pal.tone; } catch (e) {}
+  };
+  if (window.CALC_EMBED) {
+    document.documentElement.classList.add('embed');
+    // 마지막으로 보던 파트로 엽니다 (공부 탭은 늘 calc.html 을 엶)
+    try { if (window.CALC_PART === 1 && !location.hash && localStorage.getItem('dshs-calc-part') === '2') location.replace('calc2.html' + location.search); } catch (e) {}
+  }
+  window.vocabTheme();
+})();
+</script>`;
+
+// 사이트(dshs42.app) 모양에 맞추는 스타일. 원본 스타일 뒤에 붙어 덮어씁니다.
+const CALC_CSS = `<style>
+/* ===== dshs42.app 에 맞춤 (scripts/build-calc.mjs 의 CALC_CSS) =====
+   바탕 · 글자 · 선 색(--paper --surface --ink --muted --line --accent --card)은 머리의 vocabTheme() 이 사이트 테마에서 읽어 넣습니다.
+   필기 펜 색(파랑 정의 · 빨강 조건 · 주황 증명 · 보라 확장 · 노랑 예시)은 뜻이 있어 그대로 두고 밝기만 따릅니다. */
+:root{--font:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;--accent:#6a5cd6;--card:#eeeef5;
+  --t-cond:color-mix(in srgb,var(--cond) 9%,var(--surface));--t-def:color-mix(in srgb,var(--def) 9%,var(--surface));
+  --t-proof:color-mix(in srgb,var(--proof) 11%,var(--surface));--t-ext:color-mix(in srgb,var(--ext) 11%,var(--surface));
+  --t-ink:color-mix(in srgb,var(--ink) 4%,var(--surface))}
+:root[data-theme="dark"]{--accent:#7c6fe0;--card:#1a1a26}
+body{-webkit-text-size-adjust:100%}
+:is(a,button,[tabindex]):focus-visible{outline-color:var(--accent)}
+
+/* 파트 고르기 (문세현T · 전경아T) */
+.parts{max-width:1260px;margin:0 auto;padding:16px 24px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+.parts a{flex:1 1 230px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:9px 14px;font-size:13.5px;font-weight:700;color:var(--muted);text-decoration:none;text-align:center;line-height:1.4;transition:border-color .2s,color .2s}
+.parts a small{font-size:12px;font-weight:400}
+.parts a:hover{border-color:var(--accent);color:var(--ink)}
+.parts a.on{background:var(--accent);border-color:transparent;color:#fff}
+.parts a.side{flex:0 0 auto;font-weight:600;font-size:12.5px}
+.parts a[hidden]{display:none}
+
+/* 위에 붙는 흐름 줄 */
+.bar{background:color-mix(in srgb,var(--paper) 90%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.bar .home{font-weight:700}
+.steps button{font-weight:500}
+.steps button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tools button,.pill{border-radius:11px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.tools button:hover,.pill:hover{border-color:var(--accent);color:var(--ink)}
+.tools button.on{border-color:var(--accent);color:var(--accent)}
+
+/* 첫 화면: 두 파트가 같은 틀 (제목 · 한 줄 소개 · '개념의 흐름' 판) */
+#home{padding-top:34px}
+#home h1{font-size:32px;line-height:1.3;margin:0 0 6px;font-weight:900;letter-spacing:-.01em}
+#home .lead{font-size:15px;margin:0 0 6px}
+#home .lead .ftcx{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px 11px;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer}
+#home .lead .ftcx:hover{border-color:var(--accent)}
+.home-h{font-weight:500;margin:34px 0 14px!important}
+.board{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;overflow-x:auto}
+.chain .n .nn,.steps button .nn{font-family:var(--mono);font-style:normal;font-size:12px;font-weight:500;color:var(--muted)}
+.chain .n .nn{display:block;margin-bottom:3px}
+.steps button .nn{margin-right:6px}
+.board>.why{margin-top:14px}
+.chain .n{border:1px solid var(--line);border-radius:12px}
+.chain .n:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 20%,transparent)}
+.why{border-radius:0 10px 10px 0}
+
+/* 노트 한 장 */
+.view>h2{font-weight:700}
+.nb{border:1px solid var(--line);border-radius:12px}
+.nb.sm{border-width:1px}
+.nb.pf{border-width:1.2px}
+.slot.hide>.cap{border-radius:10px;border-width:1px}
+.inbox{border-radius:8px}
+.core{border-radius:6px}
+.plot{border-radius:8px}
+.hx{border-radius:7px}
+.player button{border-radius:10px;font-weight:600}
+.player button.main{background:var(--accent);border-color:transparent;color:#fff}
+.player .prog i{background:var(--accent)}
+.tw,.mdet,.board,.exv,.keybox{border-radius:12px}
+.mnode{border-radius:10px}
+.mnode.sel{outline-color:var(--accent)}
+details.prob{border:1px solid var(--line);border-radius:12px}
+details.prob[open]{border-color:var(--accent)}
+details.sub>summary{border-radius:9px}
+.sbody{border-radius:0 10px 10px 0}
+.pop{border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.28)}
+.pop.note{border-color:var(--line)}
+.pop .x,.dbar button{border-radius:9px;color:var(--muted)}
+.drawer{background:var(--paper)}
+.backbtn{background:var(--accent);color:#fff;font-weight:600}
+footer{font-size:12px}
+
+/* 원본에 직접 박힌 색(속성)을 색 변수로: 어두운 테마에서도 보이게 */
+[fill="#1a2233"],[fill="#1d2129"]{fill:var(--ink)}
+[stroke="#1a2233"],[stroke="#1d2129"]{stroke:var(--ink)}
+[fill="#5b6370"]{fill:var(--muted)} [stroke="#8a909c"]{stroke:var(--muted)}
+[fill="#c23a2b"]{fill:var(--cond)} [stroke="#c23a2b"]{stroke:var(--cond)}
+[fill="#1d5fc2"],[fill="#2f5d9a"]{fill:var(--def)} [stroke="#1d5fc2"],[stroke="#2f5d9a"]{stroke:var(--def)}
+[fill="#7440c0"]{fill:var(--ext)} [stroke="#7440c0"]{stroke:var(--ext)}
+[fill="#b06200"]{fill:var(--proof)} [stroke="#b06200"]{stroke:var(--proof)}
+[fill="#fdf1f0"]{fill:var(--t-cond)} [fill="#eef3fb"]{fill:var(--t-def)} [fill="#fdf4e8"]{fill:var(--t-proof)} [fill="#f6f8fc"]{fill:var(--t-ink)}
+
+/* 좁은 화면 */
+@media (max-width:640px){
+  .parts{padding:12px 14px 0}
+  .wrap{padding:0 14px 60px}
+  .bar .in{padding:6px 14px}
+  #home h1{font-size:25px}
+  .pbody{padding:0 14px 16px 18px}
+}
+
+/* dshs42.app 공부 탭 안 (html.embed): 사이트 배경이 비치게. 스크롤은 이 틀 안에서 합니다 (위에 붙는 줄 · 팝업 · 서랍이 화면 기준이라) */
+html.embed,html.embed body{background:transparent}
+html.embed .parts{padding-top:12px}
+/* Netlify 무료 요금제 배지가 틀 안에도 하나 더 생기는 것을 숨김 (바깥 사이트의 배지는 그대로) */
+html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
+</style>`;
+
+const partsNav = (n) => `<nav class="parts" id="parts" aria-label="미적분학Ⅱ 파트">
+${PARTS.map((p) => `  <a href="${p.file}" data-part="${p.n}"${p.n === n ? ' class="on" aria-current="page"' : ''}>${p.who} <small>${p.title}</small></a>`).join('\n')}
+  <a class="side" id="partOut" target="_blank" rel="noopener" hidden>↗ 새 창에서 크게 보기</a>
+  <a class="side" id="partHome" href="./" hidden>← dshs42.app</a>
+</nav>
+<script>
+(function () {
+  // 공부 탭 안에서는 파트를 바꿔도 ?embed=1 을 지키고, 고른 파트를 기억합니다
+  var q = window.CALC_EMBED ? '?embed=1' : '';
+  document.querySelectorAll('#parts a[data-part]').forEach(function (a) {
+    a.href = a.getAttribute('href') + q;
+    a.addEventListener('click', function () { try { localStorage.setItem('dshs-calc-part', a.dataset.part); } catch (e) {} });
+  });
+  try { localStorage.setItem('dshs-calc-part', String(window.CALC_PART)); } catch (e) {}
+  var out = document.getElementById('partOut'), home = document.getElementById('partHome');
+  if (window.CALC_EMBED) { out.href = location.pathname.split('/').pop(); out.hidden = false; } else home.hidden = false;
+})();
+</script>`;
+
+// 문세현T 원본에 직접 박힌 색 → 색 변수 (style 안에서만. 속성 fill="#…" 은 CALC_CSS 의 속성 선택자가 맡음)
+const HEX = {
+  '1a2233': 'var(--ink)', '1d2129': 'var(--ink)', '5b6370': 'var(--muted)',
+  'c23a2b': 'var(--cond)', '1d5fc2': 'var(--def)', '2f5d9a': 'var(--def)', '7440c0': 'var(--ext)', 'b06200': 'var(--proof)',
+  'fdf1f0': 'var(--t-cond)', 'fbe3df': 'var(--t-cond)', 'eef3fb': 'var(--t-def)', 'e3ecfa': 'var(--t-def)',
+  'fdf4e8': 'var(--t-proof)', 'fbead3': 'var(--t-proof)', 'efe6fb': 'var(--t-ext)', 'f6f8fc': 'var(--t-ink)',
+};
+function recolor(html) {
+  // 앞 글자가 따옴표(속성 값 · 스크립트 문자열)면 그대로 둡니다: var() 는 속성에서 듣지 않음
+  return html.replace(/(.)#([0-9a-f]{6})\b/g, (m, pre, hex) => (pre === '"' || pre === "'" || !HEX[hex]) ? m : pre + HEX[hex])
+    .replace(/color:#fff\b/g, 'color:var(--surface)');
+}
+
+// 전경아T 파트의 전체 구조를 문세현T 파트와 같게: 첫 화면 = 제목 + 한 줄 소개 + '개념의 흐름' 판(.board) + 색 안내, 단원마다 번호(1~6)
+function unify(body) {
+  const must = (re, to) => { if (!re.test(body)) throw new Error('전경아T 구조 맞추기: 못 찾음 ' + re); body = body.replace(re, to); };
+  // 로드맵(제목 · 1~4 목록 · 중괄호 · FTC 버튼) → 제목 + 한 줄
+  must(/<div class="road">[\s\S]*?<h1>([\s\S]*?)<\/h1>\s*<ol>([\s\S]*?)<\/ol>[\s\S]*?(<button type="button" class="ftcx"[\s\S]*?<\/button>)\s*<\/div>/, (m, h1, ol, btn) => {
+    const items = [...ol.matchAll(/<li><b>\d+<\/b>([\s\S]*?)<\/li>/g)].map((x) => x[1].trim());
+    return `<h1>${h1}</h1>\n  <p class="lead">${items.join(' → ')} &nbsp;${btn}</p>`;
+  });
+  // 흐름 상자 줄을 판 안에 넣고 번호를 붙임
+  let k = 0;
+  must(/<div class="chain" id="chain">[\s\S]*?<\/div>\s*<p class="why"[^>]*><\/p>/, (m) =>
+    '<div class="board">' + m.replace(/(<button type="button" class="n"[^>]*><span>)/g, (x, a) => `${a}<i class="nn">${++k}</i>`) + '</div>');
+  if (k !== 6) throw new Error('전경아T 흐름 상자가 6개가 아님: ' + k);
+  must(/(<p class="homenote">[\s\S]*?)<\/p>/, '$1<br>색: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 공간 확장</span>, <span style="background:var(--ex-bg);padding:0 6px">노랑 예시</span>.</p>');
+  // 위쪽 줄 · 단원 제목에도 같은 번호
+  k = 0;
+  must(/<nav class="steps"[^>]*>[\s\S]*?<\/nav>/, (m) => m.replace(/(<button type="button" data-view="[^"]+">)/g, (x, a) => `${a}<b class="nn">${++k}</b>`));
+  k = 0;
+  body = body.replace(/(<section class="view" id="v-[^"]+"[^>]*>\s*<h2>)/g, (x, a) => `${a}${++k} · `);
+  if (k !== 6) throw new Error('전경아T 단원이 6개가 아님: ' + k);
+  return body;
+}
+
+let fonts = null;
+for (const p of PARTS) {
+  let html = readFileSync(p.src, 'utf8');
+  // 1) 수식 글꼴 블록(<style> 한 덩어리)을 빼서 calc-fonts.css 로
+  const m = html.match(/<style>\s*(@font-face\{[^\n]*)\s*<\/style>\s*/);
+  if (!m) throw new Error(p.src + ': 글꼴 블록을 못 찾음');
+  // 글꼴(@font-face 들)은 두 파일이 같고, 그 뒤의 KaTeX 배치 스타일은 버전이 달라(0.19 · 0.16) 파일마다 그대로 둡니다
+  const all = m[1].replace(/font-display:block;/g, '').trim();
+  const end = all.indexOf('}', all.lastIndexOf('@font-face')) + 1;
+  const css = all.slice(0, end), katex = all.slice(end);
+  if (fonts === null) fonts = css; else if (fonts !== css) throw new Error('두 파일의 수식 글꼴이 다름: 따로 두어야 함');
+  html = html.replace(m[0], '');
+
+  // 2) 머리: 제목 · 테마 스크립트 · 사이트 글꼴 · 글꼴 파일
+  const head = html.slice(0, html.indexOf('</head>'));
+  const style = head.slice(head.indexOf('<style>'));
+  let body = html.slice(html.indexOf('</head>') + 7);
+  // 원본의 :root 색 정의 줄(밝은 · 어두운 펜 색)은 그대로 두고 그 밖의 박힌 색만 바꿉니다
+  const cut = style.indexOf('*{box-sizing');
+  const styleOut = style.slice(0, cut) + recolor(style.slice(cut));
+  if (p.n === 2) body = unify(body);
+  body = recolor(body).replace(/<body[^>]*>/, (b) => b + '\n' + partsNav(p.n));
+
+  const out = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미적분학Ⅱ · ${p.who} ${p.title}</title>
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+${HEAD_JS(p.n)}
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="calc-fonts.css">
+<style>${katex}</style>
+${styleOut.trimEnd()}
+${CALC_CSS}
+</head>${body}`;
+  writeFileSync(join(ROOT, p.file), out);
+  console.log(p.file, (out.length / 1024).toFixed(0) + ' KB');
+}
+writeFileSync(join(ROOT, 'calc-fonts.css'), '/* 미적분학Ⅱ 노트(calc.html · calc2.html)의 수식 글꼴 (KaTeX). scripts/build-calc.mjs 가 원본에서 빼 둠 */\n' + fonts + '\n');
+console.log('calc-fonts.css', (fonts.length / 1024).toFixed(0) + ' KB');

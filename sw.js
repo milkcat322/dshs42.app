@@ -106,6 +106,9 @@ self.addEventListener('fetch', e => {
     // 공부 탭 단어장은 따로 된 페이지라 index.html 대신 그 파일을 줍니다 (주소의 ?embed=1 은 빼고 찾음)
     if (url.pathname.endsWith('/vocab.html')) { e.respondWith(cacheFirst(req, './vocab.html')); return; }
     if (url.pathname.endsWith('/bio.html')) { e.respondWith(cacheFirst(req, './bio.html')); return; }
+    // 미적분학Ⅱ 노트(파일이 커서 SHELL 에 넣지 않고, 처음 열 때 받아 둡니다)
+    if (url.pathname.endsWith('/calc.html')) { e.respondWith(cacheFirst(req, './calc.html')); return; }
+    if (url.pathname.endsWith('/calc2.html')) { e.respondWith(cacheFirst(req, './calc2.html')); return; }
     e.respondWith(cacheFirst(req, './index.html'));
     return;
   }

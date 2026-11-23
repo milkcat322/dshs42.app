@@ -584,6 +584,9 @@
   .meal-alg { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); opacity: 0.8; margin-left: 2px; }
   .meal-legend { font-size: 10.5px; line-height: 1.6; }
   .learn-frame { display: block; width: 100%; min-height: 420px; border: 0; background: transparent; margin-top: 6px; }
+  /* 미적분학Ⅱ 노트처럼 틀 안에서 스크롤하는 페이지: 화면 높이만큼의 틀 */
+  .learn-frame.fill { height: calc(100vh - 28px); height: calc(100dvh - 28px); min-height: 460px; border: 1px solid var(--border); border-radius: 14px; scroll-margin-top: 14px; }
+  @media (max-width: 640px) { .learn-frame.fill { height: calc(100vh - 92px); height: calc(100dvh - 92px); border-radius: 12px; scroll-margin-top: 78px; } }   /* 위에 붙는 탭 줄만큼 뺌 */
   .learn-pick { display: grid; gap: 10px; }
   .learn-card { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer; font: inherit; color: inherit; }
   .learn-card .study-sub { display: block; margin-top: 2px; }
