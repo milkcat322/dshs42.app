@@ -111,6 +111,7 @@ body{-webkit-text-size-adjust:100%}
 .steps button{font-family:var(--mono);font-size:13px;padding:5px 5px}
 .steps button.star::after{content:"★";color:var(--cond);font-size:11px;margin-left:2px;vertical-align:top}
 .board>.why{margin-top:14px}
+.dghint{text-align:center;font-size:12.5px;color:var(--muted);margin:10px 0 0}
 .flowmap{display:block;width:100%;min-width:860px;height:auto}
 .flowmap .nd{cursor:pointer}
 .flowmap .nd rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.6;rx:8px}
@@ -229,11 +230,10 @@ function unify(body) {
     return `<h1>${h1}</h1>\n  <p class="lead">${items.join(' → ')} &nbsp;${btn}</p>`;
   });
   // 한 줄짜리 흐름 상자 → 문세현T 와 같은 '개념의 흐름' 도식(FLOW2). 상자는 그 내용이 있는 자리로, 주황 화살표는 '왜 넘어가는지'(why-0~4)
-  must(/<div class="chain" id="chain">[\s\S]*?<\/div>\s*(<p class="why"[^>]*><\/p>)/, (m, why) => `<div class="board">${FLOW2}\n  ${why}</div>`);
-  must(/<p class="homenote">박스를 누르면[\s\S]*?나타난다\./, '<p class="homenote">박스를 누르면 그 내용이 있는 노트로 간다. 주황 화살표(?)를 누르면 왜 다음 개념으로 넘어가는지가 나타난다.');
-  must(/(<p class="homenote">[\s\S]*?)<\/p>/, '$1<br>색: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 공간 확장</span>, <span style="background:var(--ex-bg);padding:0 6px">노랑 예시</span>.</p>');
-  // 맨 아래 글: 색 안내는 첫 화면에 있으므로 빼고 출처만 (문세현T 와 같은 틀)
-  must(/(<footer>선생님 필기를 바탕으로 정리\.)[\s\S]*?보라 공간 확장<\/span>\.\s*/, '$1 ');
+  must(/<div class="chain" id="chain">[\s\S]*?<\/div>\s*(<p class="why"[^>]*><\/p>)/, (m, why) => `<div class="board">${FLOW2}\n  <p class="dghint">주황 화살표(?)를 누르면 왜 다음 개념으로 넘어가는지가 나타난다.</p>\n  ${why}</div>`);
+  must(/<p class="homenote">[\s\S]*?<\/p>/, HOMENOTE('공간 확장'));
+  // 맨 아래 글: 첫 문장은 두 파트가 같고, 이 노트에만 해당하는 말(그림 · 해설)은 뒤에 둠
+  must(/<footer>[\s\S]*?(그림은 필기의[\s\S]*?)<\/footer>/, (m, rest) => `<footer>${FOOT} ${rest}</footer>`);
   let k = 0;
   // 위쪽 줄 · 단원 제목에 번호 (도식의 1.1 · 2.1 … 의 앞 숫자)
   // 위쪽 줄도 문세현T 와 같은 틀: 번호만 보이고(이름은 올려 두면 나옴) PART A | PART B 로 나눔, 핵심 단원에 ★
@@ -301,12 +301,16 @@ ${N.map(([no, name, to, x, y, w, h = H, star]) => `<a ${to[0] === '#' ? `href="$
 function extras(body) {
   const must = (re, to) => { if (!re.test(body)) throw new Error('문세현T 서랍 붙이기: 못 찾음 ' + re); body = body.replace(re, to); };
   must(/(<header class="bar" id="bar"[\s\S]*?<\/nav>)\s*(<\/div><\/header>)/, (m, a, b) => `${a}\n  ${EXTRA_TOOLS}\n${b}`);
-  // 첫 화면 안내 글의 틀을 두 파트가 같게: 첫 줄 = 쓰는 법 + 버튼, 둘째 줄 = 색
-  must(/(<p class="homenote">[\s\S]*?펼친다\.)\s*색:/, (m, a) => a + EXTRA_PILLS + '<br>색:');
+  must(/<p class="homenote">[\s\S]*?<\/p>/, HOMENOTE('선형근사'));
+  must(/<footer>[\s\S]*?<\/footer>/, `<footer>${FOOT}</footer>`);
   const i = body.lastIndexOf('</body>');
   if (i < 0) throw new Error('문세현T: </body> 없음');
   return body.slice(0, i) + EXTRA_HTML + '\n' + body.slice(i);
 }
+
+// 첫 화면 안내 글 · 맨 아래 글: 두 파트가 같은 문장을 씁니다 (보라색 뜻만 노트마다 다름)
+const HOMENOTE = (ext) => `<p class="homenote">박스를 누르면 그 내용이 있는 노트가 열린다. 노트 안의 점선 버튼(▸)은 눌러서 펼친다.${EXTRA_PILLS}<br>색: <span class="c-def">파랑 정의</span>, <span class="c-cond">빨강 조건</span>, <span class="c-proof">주황 증명</span>, <span class="c-ext">보라 ${ext}</span>, <span style="background:var(--ex-bg);padding:0 6px">노랑 예시</span>.</p>`;
+const FOOT = '수업 내용을 바탕으로 정리.';
 
 let fonts = null;
 for (const p of PARTS) {
