@@ -1540,14 +1540,14 @@ function openExam() {
 //   fill: 높이를 내용에 맞추지 않고 화면 높이의 테두리 틀 안에서 스크롤 (지금 쓰는 과목 없음. 미적분학Ⅱ 도 틀 없이 보이게 바꿈 — calc 페이지의 FIT_JS)
 // 파트 id 는 기기에 기억되므로(dshs-learn-subject) 바꾸지 않습니다. 새 페이지는 sw.js 의 PAGES 에도 넣습니다.
 const LEARN_SUBJECTS = [
-  { id: "eng", name: "영어", emoji: "🔤", parts: [
+  { id: "eng", name: "영어", parts: [
     { id: "atc", name: "학술영어 세미나", sub: "The Art of Thinking Clearly 어휘 · 문장 배열 · 문장 암기" },
     { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 150개 · 필수형용사 100개" },
   ] },
-  { id: "bio", name: "일반생물학", emoji: "🧬", parts: [
+  { id: "bio", name: "일반생물학", parts: [
     { id: "bio", name: "손희창T", sub: "Ch17 전사 · 가공 · 번역 · 돌연변이 핵심 기작 애니메이션", page: "bio.html" },
   ] },
-  { id: "calc", name: "미적분학Ⅱ", emoji: "📐", wide: true, parts: [
+  { id: "calc", name: "미적분학Ⅱ", wide: true, parts: [
     { id: "calc", name: "문세현T", sub: "미분에서 야코비안까지 · 개념의 흐름 노트", page: "calc.html" },
     { id: "calc2", name: "전경아T", sub: "벡터장 미적분학 · 개념의 흐름 노트", page: "calc2.html" },
   ] },
@@ -1565,7 +1565,7 @@ function learnRowsHtml(cur) {
   const at = learnFind(cur);
   return `
     <div class="study-row learn-subjects">
-      ${LEARN_SUBJECTS.map((s) => `<button class="study-btn${at?.s === s ? " primary" : ""}" data-learn="s:${s.id}">${s.emoji} ${esc(s.name)}</button>`).join("")}
+      ${LEARN_SUBJECTS.map((s) => `<button class="study-btn${at?.s === s ? " primary" : ""}" data-learn="s:${s.id}">${esc(s.name)}</button>`).join("")}
     </div>
     ${at ? `<div class="study-row learn-subjects learn-parts">
       ${at.s.parts.map((p) => `<button class="study-btn${p === at.p ? " on" : ""}" data-learn="${p.id}" title="${esc(p.sub)}">${esc(p.name)}</button>`).join("")}
@@ -1616,7 +1616,6 @@ function renderLearn(pick) {
       ? `<iframe id="learnFrame" class="learn-frame${fill ? " fill" : ""}" src="${learnSrc(at.p)}" title="공부"${fill ? "" : ' scrolling="no"'}></iframe>`
       : `<div class="learn-pick">${LEARN_SUBJECTS.map((s) => `
           <button class="asg-card learn-card" data-learn="s:${s.id}">
-            <span class="learn-emoji">${s.emoji}</span>
             <span><span class="asg-title">${esc(s.name)}</span><span class="study-sub">${esc(s.parts.map((p) => p.name).join(" · "))}</span></span>
           </button>`).join("")}</div>`}
     <div class="study-foot">북마크는 계정에 저장돼 다른 기기에서도 보여요. 퀴즈 기록은 이 기기에만 남아요</div>`;
