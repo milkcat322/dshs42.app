@@ -69,6 +69,15 @@ select{font:inherit;min-height:44px;border-radius:10px;border:1px solid var(--li
 .seg button{border:0;border-radius:0;background:var(--card);color:var(--sub)}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button.on{background:var(--acc);color:#fff;font-weight:700}
+/* 가로 배치: 넓은 화면(720px 이상)에서 한 줄(.cols)에 큰 갈래를 나란히 두고, 고른 기작의 그림은 그 줄 바로 아래(.vpanel)에 넓게 */
+.cols{display:grid;gap:0 22px;align-items:start}
+@media(min-width:720px){
+ .cols.n2{grid-template-columns:repeat(2,minmax(0,1fr))}.cols.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .cols:is(.n2,.n3)>details.lv1{margin:10px 0}
+ .cols:is(.n2,.n3) details.leaf[open]>summary{color:var(--pink)}
+}
+.vpanel:empty{display:none}
+.vpanel .vt{font-weight:800;font-size:17px;margin:8px 0 0}
 
 /* ===== dshs42.app 공부 탭 안 (html.embed): 사이트 배경이 비치고, 스크롤은 사이트 하나로 ===== */
 html.embed,html.embed body{background:transparent;overflow:hidden}
@@ -408,8 +417,8 @@ const TREE_ORG=[{t:'원핵',e:'prokaryote',c:'#2a7f62',k:[
   {t:'가공',e:'RNA processing',k:[{t:'5′ cap / poly-A tail',m:'capTail'},{t:'splicing',tag:'intron 제거',m:'splice'},{t:'alternative RNA splicing / exon shuffling',m:'alt'}]},
   {t:'번역',e:'translation',k:[{t:'개시',tag:'5′ cap ~ AUG',m:'tlInitE'},{t:'신장',tag:'A·P·E site · 공통',m:'tlElong'},{t:'종결',tag:'종결 코돈 · 공통',m:'tlTerm'},{t:'Targeting',tag:'SRP 경로',m:'srp'}]}]},
  {t:'돌연변이',e:'mutation',c:'#2a9d8f',k:[{t:'silent / missense / nonsense / frameshift',m:'mut'},{t:'CRISPR-Cas9',m:'crispr'}]}];
-function node(n,lv){if(n.m)return `<details class="leaf" data-m="${n.m}"><summary>${n.t}${n.e?` <span class="en">${n.e}</span>`:''}${n.tag?` <span class="tag">${n.tag}</span>`:''}</summary><div class="vh"></div></details>`;
- return `<details class="${lv===1?'lv1':''}" ${lv===1?`style="--c:${n.c}"`:''} open><summary>${n.t} <span class="en">${n.e||''}</span></summary>${n.k.map(c=>node(c,lv+1)).join('')}</details>`;}
+function node(n,lv,path=''){const pt=path?path+' › '+n.t:n.t;if(n.m)return `<details class="leaf" data-m="${n.m}" data-path="${pt}"><summary>${n.t}${n.e?` <span class="en">${n.e}</span>`:''}${n.tag?` <span class="tag">${n.tag}</span>`:''}</summary><div class="vh"></div></details>`;
+ return `<details class="${lv===1?'lv1':''}" ${lv===1?`style="--c:${n.c}"`:''} open><summary>${n.t} <span class="en">${n.e||''}</span></summary>${n.k.map(c=>node(c,lv+1,pt)).join('')}</details>`;}
 const tree=document.getElementById('tree');
 {let d='<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="2.5" stdDeviation="2.4" flood-color="#1b2a44" flood-opacity=".22"/></filter>';
  for(const id in GR)d+=mkG(id);
@@ -464,18 +473,34 @@ function makeViewer(host,key){const mech=M[key];const steps=mech.steps;const n=s
  frame(0);setPlay(!matchMedia('(prefers-reduced-motion: reduce)').matches);}
 /* 보는 방식(과정별 · 원핵/진핵)을 바꾸면 트리를 새로 그림 (돌던 애니메이션은 멈춤). 고른 방식은 이 기기에 기억 */
 const VIEW_KEY='bio-view';
+const wide=matchMedia('(min-width:720px)');
+// 맨 아래 갈래(돌연변이)는 따로 한 줄, 나머지(전사 · 가공 · 번역 / 원핵 · 진핵)는 한 줄에 나란히
 function drawTree(view){
  tree.querySelectorAll('.vh').forEach(h=>h._v&&h._v.pause());active=null;
- const list=view==='org'?TREE_ORG:TREE;
- tree.innerHTML=`<details class="lv1" open style="--c:#16181c"><summary>핵심 기작</summary>${list.map(n=>node(n,1)).join('')}</details>`;
- tree.querySelectorAll('details.leaf').forEach(d=>d.addEventListener('toggle',()=>{const h=d.querySelector('.vh');if(d.open){if(!h._v)makeViewer(h,d.dataset.m);else{h._v.play();}active=h;}else if(h._v)h._v.pause();}));
+ const list=view==='org'?TREE_ORG:TREE,rows=[list.slice(0,-1),list.slice(-1)];
+ tree.innerHTML=`<details class="lv1" open style="--c:#16181c"><summary>핵심 기작</summary>${rows.map(r=>`<div class="cols n${r.length}">${r.map(n=>node(n,1)).join('')}</div><div class="vpanel"></div>`).join('')}</details>`;
+ tree.querySelectorAll('details.leaf').forEach(d=>{const h=d.querySelector('.vh');h._leaf=d;d.addEventListener('toggle',()=>{
+  if(d.open){
+   const row=d.closest('.cols');
+   if(wide.matches&&row.children.length>1){   // 넓은 화면: 같은 줄의 다른 기작은 닫고, 그림을 줄 아래 칸으로
+    row.querySelectorAll('details.leaf[open]').forEach(o=>{if(o!==d)o.open=false;});
+    const t=document.createElement('div');t.className='vt';t.textContent=d.dataset.path;
+    row.nextElementSibling.replaceChildren(t,h);
+   }else if(h.parentNode!==d)d.appendChild(h);
+   if(!h._v)makeViewer(h,d.dataset.m);else h._v.play();active=h;
+  }else{
+   if(h._v)h._v.pause();
+   if(h.parentNode!==d){const pn=h.parentNode;d.appendChild(h);if(pn&&pn.classList.contains('vpanel'))pn.replaceChildren();}
+  }});});
  document.querySelectorAll('.seg [data-view]').forEach(b=>{b.classList.toggle('on',b.dataset.view===view);b.setAttribute('aria-pressed',b.dataset.view===view);});
 }
 let curView='step';try{if(localStorage.getItem(VIEW_KEY)==='org')curView='org';}catch(e){}
 document.querySelectorAll('.seg [data-view]').forEach(b=>b.onclick=()=>{if(b.dataset.view===curView)return;curView=b.dataset.view;try{localStorage.setItem(VIEW_KEY,curView);}catch(e){}drawTree(curView);});
+wide.addEventListener('change',()=>drawTree(curView));   // 가로 ↔ 세로 배치가 바뀌면 새로 그림
 drawTree(curView);
-document.addEventListener('keydown',e=>{if(!active||!active._v||!active.closest('details').open)return;if(e.key==='ArrowRight')active._v.next();if(e.key==='ArrowLeft')active._v.prev();});
-document.getElementById('openAll').onclick=()=>tree.querySelectorAll('details').forEach(d=>d.open=true);
+document.addEventListener('keydown',e=>{if(!active||!active._v||!active._leaf.open)return;if(e.key==='ArrowRight')active._v.next();if(e.key==='ArrowLeft')active._v.prev();});
+// 넓은 화면에서는 줄마다 그림을 하나만 띄우므로 '모두 펼치기'는 갈래만 펼침
+document.getElementById('openAll').onclick=()=>tree.querySelectorAll(wide.matches?'details:not(.leaf)':'details').forEach(d=>d.open=true);
 document.getElementById('closeAll').onclick=()=>tree.querySelectorAll('details.leaf').forEach(d=>d.open=false);
 }
 </script>
