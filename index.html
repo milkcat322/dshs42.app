@@ -840,19 +840,14 @@
   .fr-empty { padding: 10px 13px; font-size: 12.5px; color: var(--text-muted); }
   .fr-note { text-align: left; margin-top: 8px; }
   .shared-card { border-left: 3px solid var(--c); }
-  /* 과목별 공지: 블록을 누르면 아래에 그 과목 공지 */
-  .subj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-  .subj-box { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 88px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 13px; font-family: 'Noto Sans KR', sans-serif; color: var(--text); cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s; }
-  .subj-box:hover { border-color: var(--text-muted); }
-  .subj-box.on { border-color: var(--accent1); }
-  .subj-name { font-size: 13.5px; font-weight: 700; line-height: 1.35; }
-  .subj-ban { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); }
-  .subj-meta { margin-top: auto; padding-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
-  .subj-hint { margin-top: 12px; text-align: center; font-size: 12.5px; color: var(--text-muted); padding: 14px; }
-  .subj-detail { margin-top: 16px; animation: fadeUp 0.25s ease; }
-  @media (max-width: 640px) {
-    .subj-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
+  .subj-name { line-height: 1.35; }   /* 시간표 칸의 과목 이름 줄 간격 */
+  /* 수행평가 탭 맨 아래 접힌 '지난 수행평가' */
+  .asg-past { margin-top: 22px; }
+  .asg-past summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text-dim); padding: 10px 2px; list-style: none; }
+  .asg-past summary::-webkit-details-marker { display: none; }
+  .asg-past summary::before { content: "▸ "; }
+  .asg-past[open] summary::before { content: "▾ "; }
+  .asg-past summary small { font-weight: 400; color: var(--text-muted); margin-left: 4px; }
   .own-tag { font-size: 11px; color: var(--text-muted); }
   .asg-card.done { opacity: 0.5; }
   .asg-card.done .asg-title { text-decoration: line-through; }

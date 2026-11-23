@@ -3705,7 +3705,7 @@ function openSchoolDetail(e) {
 // 분반에 공지된 것 + 내가 올렸지만 아직 승인 안 된(또는 반려된) 것. 내 것은 승인과 상관없이 나에게 보입니다.
 const noticeItems = () => [...cache.items, ...(cache.mine || []).filter((a) => a.status !== "approved")].sort(byDue);
 // 위: 다가오는 수행평가 전체를 한 줄씩 (많아도 한눈에). 아래: 과목 블록을 누르면 그 아래에 그 과목 공지.
-let openSubj = null;    // 고른 과목 이름
+let pastOpen = false;  // 지난 수행평가 칸을 펼쳤는지 (다시 그려도 유지)
 const ASG_SORT_KEY = "dshs-asg-sort";
 let asgSort = (() => { try { return localStorage.getItem(ASG_SORT_KEY) === "subject" ? "subject" : "due"; } catch { return "due"; } })();
 
@@ -3744,18 +3744,13 @@ function renderNotice() {
   view = "notice";
   const body = $("studyBody");
   const now = new Date();
-  const subjects = noticeSubjects(now);
-  const picked = subjects.find((sj) => sj.name === openSubj);
+  // 과목 카드 묶음은 없앴습니다 (위 목록의 '과목별' 정렬과 같은 내용). 지난 수행평가만 접힌 칸으로 남깁니다
+  const past = noticeItems().filter((a) => dueMs(a) < +now).reverse().slice(0, 10);
   body.innerHTML =
     allAsgHtml(now) +
-    `<div class="study-section">과목별 수행평가</div>` +
-    `<div class="subj-grid">${subjects.map(subjBlock).join("")}</div>` +
-    `<div id="subjDetail">${picked ? subjDetail(picked) : `<div class="subj-hint">과목을 누르면 그 과목 수행평가가 여기에 보여요</div>`}</div>`;
-  body.querySelectorAll("[data-subj]").forEach((b) => b.onclick = () => {
-    openSubj = openSubj === b.dataset.subj ? null : b.dataset.subj;
-    renderNotice();
-    if (openSubj) $("subjDetail").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  });
+    (past.length ? `<details class="asg-past"${pastOpen ? " open" : ""}><summary>지난 수행평가 <small>최근 ${past.length}건</small></summary>${past.map((a) => card(a, { check: true })).join("")}</details>` : "");
+  const pd = body.querySelector(".asg-past");
+  if (pd) pd.ontoggle = () => { pastOpen = pd.open; };
   body.querySelectorAll("[data-adone]").forEach((b) => b.onclick = () => toggleDone("asg", b.dataset.adone));
   body.querySelectorAll("[data-asort]").forEach((b) => b.onclick = () => {
     asgSort = b.dataset.asort;
@@ -3763,44 +3758,6 @@ function renderNotice() {
     renderNotice();
   });
   bindRows(body);
-}
-
-// 내 과목(관리자는 전체 과목)마다 공지를 묶습니다. 남은 공지가 있는 과목을 마감 가까운 순으로 위에.
-function noticeSubjects(now) {
-  return asgSubjects().map((name) => {
-    const items = noticeItems().filter((a) => a.subject === name);
-    const up = items.filter((a) => dueMs(a) >= +now);   // 마감 일시 없는 공지는 끝나지 않은 것으로
-    const left = up.filter((a) => !cache.done.has(a.id));
-    const bans = [...new Set(myClasses.filter((c) => c.subject === name).map((c) => c.ban))];
-    return {
-      name, up, left,
-      past: items.filter((a) => dueMs(a) < +now).reverse().slice(0, 5),
-      ban: me.student_id ? bans.join(", ") : `${bans.length}개 분반`,
-    };
-  }).sort((x, y) =>
-    (!x.left.length - !y.left.length) ||
-    (x.left.length ? byDue(x.left[0], y.left[0]) : 0) ||
-    x.name.localeCompare(y.name, "ko"));
-}
-
-function subjBlock(sj) {
-  const next = sj.left[0] ? asgDue(sj.left[0]) : null;
-  return `<button class="subj-box${sj.left.length ? " has" : ""}${openSubj === sj.name ? " on" : ""}" data-subj="${esc(sj.name)}" aria-pressed="${openSubj === sj.name}">
-    <span class="subj-name">${esc(sj.name)}</span>
-    <span class="subj-ban">${esc(sj.ban)}</span>
-    <span class="subj-meta">${next
-      ? `<span class="due-badge ${next.tone}">${next.label}</span>${sj.left.length}건`
-      : sj.up.length ? "모두 완료" : "없음"}</span>
-  </button>`;
-}
-
-function subjDetail(sj) {
-  return `<div class="subj-detail">
-    <div class="study-section">${esc(sj.name)} · ${esc(sj.ban)} 수행평가</div>
-    ${sj.up.length ? sj.up.map((a) => card(a, { check: true })).join("")
-      : `<div class="study-empty">다가오는 수행평가가 없어요.</div>`}
-    ${sj.past.length ? `<div class="study-section">지난 수행평가</div>` + sj.past.map((a) => card(a, { check: true })).join("") : ""}
-  </div>`;
 }
 
 // ---------- 할 일 탭 ----------
