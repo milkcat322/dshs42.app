@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v215';
+const CACHE = 'dshs-study-v216';
 
 const SHELL = [
   './',
@@ -24,7 +24,7 @@ const SHELL = [
 ];
 
 // index.html 이 아닌 따로 된 페이지 (navigate 요청에 그 파일을 줌)
-const PAGES = ['vocab', 'bio', 'calc', 'calc2'];
+const PAGES = ['vocab', 'bio', 'calc', 'calc2', 'phys', 'phys2'];
 
 // 캐시해도 되는 외부 정적 파일 서버 (버전이 URL 에 박혀 있어 내용이 바뀌지 않음)
 const STATIC_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net', 'esm.sh'];
@@ -108,7 +108,7 @@ self.addEventListener('fetch', e => {
   // 그래서 프론트 파일을 고치면 CACHE 버전을 꼭 올려야 합니다.
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
     // 공부 탭의 따로 된 페이지(단어장 · 일반생물학 · 미적분학Ⅱ)는 index.html 대신 그 파일을 줍니다 (주소의 ?embed=1 은 빼고 찾음).
-    // Netlify 가 링크를 확장자 없는 주소(/calc2)로 바꾸기도 해서 둘 다 알아봅니다. 미적분학Ⅱ 는 파일이 커서 SHELL 에 넣지 않고 처음 열 때 받아 둡니다.
+    // Netlify 가 링크를 확장자 없는 주소(/calc2)로 바꾸기도 해서 둘 다 알아봅니다. 미적분학Ⅱ · 일반물리학Ⅱ 는 파일이 커서 SHELL 에 넣지 않고 처음 열 때 받아 둡니다.
     const page = PAGES.find(p => url.pathname.endsWith('/' + p + '.html') || url.pathname.endsWith('/' + p));
     if (page) { e.respondWith(cacheFirst(req, './' + page + '.html')); return; }
     e.respondWith(cacheFirst(req, './index.html'));

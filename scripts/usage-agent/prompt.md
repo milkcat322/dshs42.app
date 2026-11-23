@@ -37,7 +37,7 @@ Supabase 프로젝트 id 는 `jsanpwlleufzgglqkrkv` 이고 DB 는 `mcp__supabase
    - `select public.feature_use_totals()` — 서버에 자료가 남지 않는 화면 기능을 연 학생 수(users) · 기기 수(devices) · 최근 7일 기기 수(devices_7d). since 부터 기록.
      exam=기말고사 시간표 창(2026-11-23 부터 탭이 아니라 내 일정 맨 위 D-day 줄 · 달력의 시험을 눌러 엶), meal=급식 탭, learn=공부 탭, notice=수행평가 탭, todo=할 일 탭, tt_gpa=시간표 학점 계산, tt_classes=분반 목록,
      tt_overlap=겹치는 수업, tt_compare=시간표 비교, tt_wallpaper=배경화면. 목록에 없는 기능은 아직 아무도 안 연 것이다.
-   - `select public.learn_use_stats(42, 14)` — 공부 탭 페이지(파트: atc · crit = 영어 단어장, bio = 일반생물학, calc · calc2 = 미적분학Ⅱ)별 본 사람 수(people) · 본 시간(secs, 초) · 한 사람 평균 / 중앙값(avg_secs · median_secs) · 이틀 넘게 본 사람(back) · 안쪽 화면별 시간(sections: 단어장 탭 · 미적분 단원 · 생물 기작) · 시(時)별 시간(hours) · 기기 종류(kinds) · 새 창으로 본 시간(secs_win). 2026-11-23 부터 기록. 이 함수의 합계만 쓰고 `learn_uses` 표를 학생별로 묶어 읽지 않는다.
+   - `select public.learn_use_stats(42, 14)` — 공부 탭 페이지(파트: atc · crit = 영어 단어장, bio = 일반생물학, calc · calc2 = 미적분학Ⅱ, phys · phys2 = 일반물리학Ⅱ)별 본 사람 수(people) · 본 시간(secs, 초) · 한 사람 평균 / 중앙값(avg_secs · median_secs) · 이틀 넘게 본 사람(back) · 안쪽 화면별 시간(sections: 단어장 탭 · 미적분 단원 · 생물 기작) · 시(時)별 시간(hours) · 기기 종류(kinds) · 새 창으로 본 시간(secs_win). 2026-11-23 부터 기록. 이 함수의 합계만 쓰고 `learn_uses` 표를 학생별로 묶어 읽지 않는다.
      기록을 시작한 지 7일이 안 됐으면 없앨지 단정하지 말고 watch 에 넣는다. 시험 기간 · 학기 초처럼 때를 타는 기능(기말고사 · 학점 계산)은 그 시기를 감안한다.
    - 최근 14일 피드백: `select kind, body, created_at from public.feedback where created_at > now() - interval '14 days' order by created_at`
    - 더 궁금한 게 있으면 집계 쿼리(count · group by)를 더 돌려도 된다. 단 **select 만**, 그리고 이름 · 학번 · 아이디 · 할 일 / 일정 제목 같은 개인 내용은 조회하지도 보고서에 쓰지도 않는다.

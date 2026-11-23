@@ -1551,6 +1551,10 @@ const LEARN_SUBJECTS = [
     { id: "calc", name: "문세현T", sub: "미분에서 야코비안까지 · 개념의 흐름 노트", page: "calc.html" },
     { id: "calc2", name: "전경아T", sub: "벡터장 미적분학 · 개념의 흐름 노트", page: "calc2.html" },
   ] },
+  { id: "phys", name: "일반물리학Ⅱ", wide: true, parts: [
+    { id: "phys", name: "권진영T", sub: "맥스웰 방정식 · 전자기파 · 빛과 전자의 이중성 노트", page: "phys.html" },
+    { id: "phys2", name: "윤석민T", sub: "기하광학 · 파동광학 노트", page: "phys2.html" },
+  ] },
 ];
 const LEARN_KEY = "dshs-learn-subject";   // 마지막으로 본 파트 id. 과목마다 마지막 파트는 dshs-learn-subject-<과목 id>
 const learnFind = (partId) => { for (const s of LEARN_SUBJECTS) { const p = s.parts.find((x) => x.id === partId); if (p) return { s, p }; } return null; };

@@ -1,7 +1,7 @@
 -- 공부 페이지 사용 기록 (어느 과목 · 파트를 몇 명이, 얼마나 오래 보는지)
 -- 공부 탭의 각 페이지(단어장 vocab.html · 일반생물학 bio.html · 미적분학Ⅱ calc.html · calc2.html)가 learn-track.js 로
 -- 화면이 실제로 보이고 조작이 있는 동안의 시간만 세어, 기기 · 날짜 · 시(時) · 파트 · 안쪽 화면(section)마다 한 줄에 더합니다.
---   part     LEARN_SUBJECTS 의 파트 id (atc · crit · bio · calc · calc2)
+--   part     LEARN_SUBJECTS 의 파트 id (atc · crit · bio · calc · calc2 · phys · phys2)
 --   section  파트 안 어디: 단어장 = 탭(study · quiz · memo …), 미적분학Ⅱ = 단원(home · a1 … · vf …), 일반생물학 = 펼친 기작(home · elong …)
 --   secs     본 시간(초). secs_win 은 그중 '새 창에서 크게 보기'로 본 시간
 --   opens    연 횟수 (페이지를 열 때 · 5분 넘게 쉬었다 다시 볼 때 1)
