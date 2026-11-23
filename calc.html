@@ -721,7 +721,8 @@ body{-webkit-text-size-adjust:100%}
 
 /* 위에 붙는 흐름 줄 */
 .bar{background:color-mix(in srgb,var(--paper) 90%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-.bar .home{font-weight:700}
+.bar .home{font-weight:600;font-size:12.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:5px 12px}
+.bar .home:hover{border-color:var(--accent);color:var(--ink)}
 .steps button{font-weight:500}
 .steps button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .tools button,.pill{border-radius:11px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--muted)}
@@ -840,7 +841,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 })();
 </script>
 <header class="bar" id="bar" hidden><div class="in">
-  <button type="button" class="home" data-view="home">미분에서 야코비안까지</button>
+  <button type="button" class="home" data-view="home" title="미분에서 야코비안까지 · 첫 화면">← 개념의 흐름</button>
   <nav class="steps" aria-label="개념의 흐름"><button type="button" data-view="v-a1" title="선형사상이 보장하는 것">A1</button><i>→</i><button type="button" data-view="v-a2" title="Chain rule 증명">A2</button><i>→</i><button type="button" data-view="v-a3" title="Chain rule의 적용 · tree diagram">A3</button><i>→</i><button type="button" data-view="v-a4" title="Implicit Function 정리">A4</button><i>→</i><button type="button" data-view="v-a5" title="Directional derivative → gradient">A5</button><i>→</i><button type="button" data-view="v-a6" title="접평면과 level surface">A6</button><i>→</i><button type="button" data-view="v-a7" title="Second Derivatives test">A7</button><i>→</i><button type="button" data-view="v-a8" title="최대·최소: 경계까지 고려">A8</button><i>→</i><button type="button" data-view="v-a9" title="라그랑주 승수법">A9</button><i class="sep">|</i><button type="button" data-view="v-b1" title="적분가능 조건과 리만 합">B1</button><i>→</i><button type="button" data-view="v-b2" title="문제 제기: 넓이를 보정하는 배율">B2</button><i>→</i><button type="button" class="star" data-view="v-b3" title="★ 팽창률: 정의 · 국소 선형 · 정리">B3</button><i>→</i><button type="button" data-view="v-b4" title="선형함수는 팽창률이 일정">B4</button><i>→</i><button type="button" data-view="v-b5" title="팽창률 예제">B5</button><i>→</i><button type="button" data-view="v-b6" title="변수변환 공식 완성">B6</button><i>→</i><button type="button" data-view="v-b7" title="적분 예제">B7</button></nav>
   <div class="tools"><button type="button" data-open="terms">용어 표</button><button type="button" data-open="exmap">예제 ↔ 개념</button></div>
 </div></header>

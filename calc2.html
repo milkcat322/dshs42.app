@@ -374,7 +374,8 @@ body{-webkit-text-size-adjust:100%}
 
 /* 위에 붙는 흐름 줄 */
 .bar{background:color-mix(in srgb,var(--paper) 90%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-.bar .home{font-weight:700}
+.bar .home{font-weight:600;font-size:12.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:5px 12px}
+.bar .home:hover{border-color:var(--accent);color:var(--ink)}
 .steps button{font-weight:500}
 .steps button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .tools button,.pill{border-radius:11px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--muted)}
@@ -501,7 +502,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </defs></svg>
 
 <header class="bar" id="bar" hidden><div class="in">
-  <button type="button" class="home" data-view="home">벡터장 미적분학</button>
+  <button type="button" class="home" data-view="home" title="벡터장 미적분학 · 첫 화면">← 개념의 흐름</button>
   <nav class="steps" aria-label="개념의 흐름"><button type="button" data-view="v-vf" title="Vector field">1</button><i>→</i><button type="button" data-view="v-grad" title="Gradient fields">2</button><i>→</i><button type="button" data-view="v-li" title="Line integrals">3</button><i class="sep">|</i><button type="button" data-view="v-test" title="보존장 판정 도식" class="star">4</button><i>→</i><button type="button" data-view="v-cd" title="Curl &amp; divergence">5</button><i>→</i><button type="button" data-view="v-green" title="Green's Theorem">6</button></nav>
   <div class="tools"><button type="button" id="expall" aria-pressed="false">설명 모두 펼치기</button><button type="button" data-open="terms">용어 표</button><button type="button" data-open="exmap">예제 ↔ 개념</button></div>
 </div></header>

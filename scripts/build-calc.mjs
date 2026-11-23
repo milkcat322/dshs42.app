@@ -91,7 +91,8 @@ body{-webkit-text-size-adjust:100%}
 
 /* 위에 붙는 흐름 줄 */
 .bar{background:color-mix(in srgb,var(--paper) 90%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-.bar .home{font-weight:700}
+.bar .home{font-weight:600;font-size:12.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:5px 12px}
+.bar .home:hover{border-color:var(--accent);color:var(--ink)}
 .steps button{font-weight:500}
 .steps button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .tools button,.pill{border-radius:11px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--muted)}
@@ -334,6 +335,9 @@ for (const p of PARTS) {
   const styleOut = style.slice(0, cut) + recolor(style.slice(cut));
   if (p.n === 2) body = unify(body);
   if (p.n === 1) body = extras(body);
+  // 위쪽 줄 맨 앞 버튼: 노트 제목만 있으면 누르면 어디로 가는지 알 수 없어 '← 개념의 흐름'(첫 화면의 도식)으로 적음
+  if (!/<button type="button" class="home" data-view="home">[^<]*<\/button>/.test(body)) throw new Error(p.src + ': 위쪽 줄의 처음으로 버튼을 못 찾음');
+  body = body.replace(/(<button type="button" class="home" data-view="home")>([^<]*)<\/button>/, '$1 title="$2 · 첫 화면">← 개념의 흐름</button>');
   body = recolor(body).replace(/<body[^>]*>/, (b) => b + '\n' + partsNav(p.n));
 
   const out = `<!DOCTYPE html>
