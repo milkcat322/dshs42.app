@@ -1560,7 +1560,7 @@ const LEARN_SUBJECTS = [
   { id: "algo", name: "자료구조와 알고리즘", wide: true, parts: [
     { id: "algo", name: "코드 빈칸", sub: "기말 프린트 코드를 빈칸으로 · 직접 쓰고 컴파일 채점", page: "algo.html", fill: true },
     { id: "algograph", name: "그래프", sub: "박지훈T 범위: 힙 · Union-Find · 트리 · MST · 위상정렬 · 최단거리를 한 단계씩", page: "algograph.html" },
-    { id: "algonotion", name: "노션", sub: "자구알 기말고사 대비 노션", page: "algonotion.html", href: "https://app.notion.com/p/410ec8e2a70a80bf931cc721f0b8fffe" },
+    { id: "algonotion", name: "노션", sub: "자구알 기말고사 대비 노션", page: "algonotion.html", fill: true, href: "https://dandy-quiet-71f.notion.site/410ec8e2a70a80bf931cc721f0b8fffe" },
   ] },
 ];
 const LEARN_KEY = "dshs-learn-subject";   // 마지막으로 본 파트 id. 과목마다 마지막 파트는 dshs-learn-subject-<과목 id>

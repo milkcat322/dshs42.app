@@ -4,9 +4,9 @@
 <script>
 // dshs42.app '공부' 탭 → 자료구조와 알고리즘 → 노션 (algonotion.html?embed=1).
 // app.notion.com · notion.so 주소는 다른 사이트 안(iframe)에 보이는 것을 막아 두어서(x-frame-options) 새 창으로 엽니다.
-// 노션에서 '웹에 게시'한 notion.site 주소를 EMBED_URL 에 넣으면 이 칸 안에 바로 보여 줍니다.
-window.NOTION_URL = 'https://app.notion.com/p/410ec8e2a70a80bf931cc721f0b8fffe';
-window.EMBED_URL = '';
+// 노션에서 '웹에 게시'한 notion.site 주소의 /ebd/ (임베드용, frame-ancestors 허용)를 EMBED_URL 에 넣어 칸 안에 보여 줍니다. 일반 notion.site 주소는 iframe 이 막혀 있습니다.
+window.NOTION_URL = 'https://dandy-quiet-71f.notion.site/410ec8e2a70a80bf931cc721f0b8fffe';
+window.EMBED_URL = 'https://dandy-quiet-71f.notion.site/ebd/410ec8e2a70a80bf931cc721f0b8fffe';   // 노션 임베드 주소(/ebd/): 다른 사이트 안에 띄우는 것을 허락함
 window.AN_EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
 window.vocabTheme = function () {
   if (!window.AN_EMBED) return;
@@ -38,9 +38,19 @@ p{margin:0 0 12px;color:var(--muted)}
 .toc li{margin:2px 0}
 .toc li b{color:var(--acc)}
 .note{font-size:13px;color:var(--muted)}
-iframe.nt{display:block;width:100%;height:80vh;border:1px solid var(--line);border-radius:14px;background:#fff}
+/* 노션을 칸 안에 띄울 때(EMBED_URL): 위에 얇은 줄 + 아래 노션이 화면 높이를 꽉 채움 (공부 탭에서는 fill 틀이라 스크롤은 노션 안에서) */
+html.nt,html.nt body{height:100%}
+html.nt body{padding:0;display:flex;flex-direction:column}
+html.nt .wrap{max-width:none;flex:1;display:flex;flex-direction:column;min-height:0;width:100%}
+html.nt .bar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--card)}
+html.nt .bar b{font-size:15px;margin-right:auto}
+html.nt .bar .open{padding:6px 14px;font-size:14px;border-radius:9px}
+html.nt .card,html.nt #toc{display:none}
+.bar{display:none}
+iframe.nt{display:block;width:100%;flex:1;min-height:0;border:0;background:#fff}
 html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </style></head><body><div class="wrap">
+<div class="bar"><b>📒 자구알 기말고사 대비 노션</b><a class="open" id="open2" target="_blank" rel="noopener">노션에서 크게 ↗</a></div>
 <div class="card">
   <h1>📒 자구알 기말고사 대비 노션</h1>
   <p>박지훈T · 이가연T 수업 필기와 프린트 코드, 문제 풀이를 정리한 노션이에요.</p>
@@ -48,7 +58,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
   <p class="note" id="why" style="margin:12px 0 0">노션은 다른 사이트 안에 페이지를 띄우는 것을 막아 두어서 새 창(노션 앱 · 브라우저)으로 열려요.</p>
 </div>
 <div id="embed"></div>
-<div class="card">
+<div class="card" id="toc">
   <div class="toc">
     <div><h2>박지훈T</h2><ul>
       <li>이진트리 (포화 · 완전)</li><li>최대힙 · 최소힙 (삽입 · 제거, 프린트 코드)</li><li>Union-Find (경로 압축)</li><li>트리 순회 (전위 · 중위 · 후위)</li>
@@ -62,18 +72,11 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </div>
 </div>
 <script>
-document.getElementById('open').href = window.NOTION_URL;
+// 공부 탭에서는 LEARN_SUBJECTS 의 fill 틀(화면 높이)에 들어가므로 높이를 맞추지 않습니다
+document.getElementById('open').href = document.getElementById('open2').href = window.NOTION_URL;
 if (window.EMBED_URL) {
-  document.getElementById('embed').innerHTML = '<iframe class="nt" title="노션" src="' + window.EMBED_URL + '"></iframe>';
-  document.getElementById('why').textContent = '아래에서 바로 볼 수 있고, 크게 보려면 새 창으로 열어요.';
-}
-if (window.AN_EMBED) {
-  const frame = window.frameElement;
-  const fit = () => { if (!frame) return; const h = Math.ceil(document.body.getBoundingClientRect().bottom + (document.scrollingElement || document.documentElement).scrollTop) + 'px'; if (frame.style.height !== h) frame.style.height = h; };
-  new ResizeObserver(fit).observe(document.body);
-  window.addEventListener('load', fit);
-  setInterval(fit, 1000);
-  fit();
+  document.documentElement.classList.add('nt');
+  document.getElementById('embed').outerHTML = '<iframe class="nt" title="자구알 기말고사 대비 노션" src="' + window.EMBED_URL + '"></iframe>';
 }
 </script>
 <!-- 공부 페이지 사용 기록 (learnuse.sql) -->
