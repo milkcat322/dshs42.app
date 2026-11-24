@@ -1,4 +1,4 @@
-// 공부 페이지 사용 기록 (learnuse.sql 의 log_learn). vocab.html · bio.html · calc.html · calc2.html 이 함께 씁니다.
+// 공부 페이지 사용 기록 (learnuse.sql 의 log_learn). 공부 탭의 페이지들(vocab · bio · calc · phys · algo …)이 함께 씁니다.
 // 화면이 실제로 보이고(탭이 가려지거나 공부 탭을 떠나면 멈춤) 최근 2분 안에 조작이 있던 동안만 시간을 세어,
 // 30초쯤마다 · 화면을 떠날 때 파트 · 안쪽 화면(section)별로 서버에 더합니다. 학생 화면에는 아무것도 보이지 않습니다.
 // 퀴즈 정답 · 쓴 답 같은 내용은 보내지 않습니다. 사이트(dshs-study.js)와 같은 주소라 로그인 기록 · 기기 ID 를 localStorage 에서 읽습니다.
@@ -7,7 +7,7 @@
   'use strict';
   var file = (location.pathname.split('/').pop() || '').replace(/\.html$/, '');
   var EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
-  var PART = { bio: 'bio', calc: 'calc', calc2: 'calc2', phys: 'phys', phys2: 'phys2' };   // 파일 → LEARN_SUBJECTS 의 파트 id (단어장은 주소의 #과목)
+  var PART = { bio: 'bio', calc: 'calc', calc2: 'calc2', phys: 'phys', phys2: 'phys2', algo: 'algo', algograph: 'algograph', algonotion: 'algonotion' };   // 파일 → LEARN_SUBJECTS 의 파트 id (단어장은 주소의 #과목)
   var NAME = /^[a-z][a-z0-9_]{0,23}$/;
   var IDLE = 120000, TICK = 5000, SEND = 30000, REOPEN = 300000;
   var top = window;
@@ -24,6 +24,7 @@
     try {
       if (file === 'vocab') { e = document.querySelector('.nav-tab.active'); if (e) s = e.dataset.tab; }
       else if (file === 'bio') { if (bioLeaf && bioLeaf.open) s = bioLeaf.dataset.m; }
+      else if (file === 'algo') { s = document.documentElement.dataset.p || 'home'; }   // 코드 빈칸: 푸는 문제 id
       else { e = document.querySelector('section.view:not([hidden])'); if (e) s = e.id.replace(/^v-/, ''); }
     } catch (x) {}
     s = String(s || 'home').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24);

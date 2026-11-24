@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>자료구조와 알고리즘 · 그래프 정리</title>
+<script>
+// dshs42.app '공부' 탭 → 자료구조와 알고리즘 → 그래프 (algograph.html?embed=1). 박지훈T 기말 범위를 프린트 예제로 한 단계씩 넘겨 본다.
+// 공부 탭 안에서는 사이트 밝기(data-tone)를 따르고 높이를 내용에 맞춘다 (bio.html 과 같은 방식). 따로 열면 기기 설정을 따른다.
+window.AG_EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+window.vocabTheme = function () {
+  if (!window.AG_EMBED) return;
+  try {
+    const tone = window.parent.document.documentElement.dataset.tone === 'light' ? 'light' : 'dark';
+    const r = document.documentElement;
+    r.dataset.theme = tone; r.style.colorScheme = tone;
+    if (window.frameElement) window.frameElement.style.colorScheme = tone;
+  } catch (e) {}
+};
+if (window.AG_EMBED) { document.documentElement.classList.add('embed'); window.vocabTheme(); }
+</script>
+<style>
+:root{--bg:#f6f6f9;--ink:#1d1f27;--muted:#646a7d;--line:rgba(20,24,40,.13);--card:#fff;--soft:rgba(20,24,40,.045);
+  --acc:#7c5cf0;--acc-bg:rgba(124,92,240,.14);--ok:#109266;--ok-bg:rgba(16,146,102,.14);--warn:#b7791f;--warn-bg:rgba(220,150,30,.16);
+  --bad:#d63c5a;--bad-bg:rgba(214,60,90,.12);--node:#fff;--node-line:#9aa0b4;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#14151b;--ink:#e9eaf0;--muted:#9ba1b4;--line:rgba(255,255,255,.13);--card:#1c1e26;--soft:rgba(255,255,255,.05);
+  --acc:#a78bfa;--acc-bg:rgba(167,139,250,.18);--ok:#4ade9c;--ok-bg:rgba(74,222,156,.16);--warn:#fbbf24;--warn-bg:rgba(251,191,36,.16);
+  --bad:#fb7185;--bad-bg:rgba(251,113,133,.15);--node:#242733;--node-line:#5d6478;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#14151b;--ink:#e9eaf0;--muted:#9ba1b4;--line:rgba(255,255,255,.13);--card:#1c1e26;--soft:rgba(255,255,255,.05);
+  --acc:#a78bfa;--acc-bg:rgba(167,139,250,.18);--ok:#4ade9c;--ok-bg:rgba(74,222,156,.16);--warn:#fbbf24;--warn-bg:rgba(251,191,36,.16);
+  --bad:#fb7185;--bad-bg:rgba(251,113,133,.15);--node:#242733;--node-line:#5d6478;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 "Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;padding:20px 16px 40px}
+html.embed body{background:transparent;padding:4px 0 16px}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:clamp(22px,3.4vw,28px);margin:0 0 4px;letter-spacing:-.3px}
+h1 small{font-size:14px;color:var(--muted);font-weight:600;margin-left:6px}
+.lead{color:var(--muted);margin:0 0 14px;font-size:14px}
+code,.mono{font-family:"JetBrains Mono","D2Coding",Menlo,Consolas,monospace;font-size:.92em}
+code{background:var(--soft);padding:1px 5px;border-radius:5px}
+button{font:inherit;color:inherit;cursor:pointer}
+.nav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px}
+.nav button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600}
+.nav button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+section.view>h2{font-size:20px;margin:6px 0 10px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.card h3{margin:0 0 8px;font-size:16px}
+.card ul{margin:0;padding-left:20px}
+.card li{margin:3px 0}
+.exam{border-color:var(--warn);background:linear-gradient(var(--warn-bg),var(--warn-bg)),var(--card)}
+.exam h3::before{content:"📝 "}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--acc-bg);color:var(--acc);margin-left:6px;vertical-align:2px}
+/* 단계 플레이어 */
+.player{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
+.player .top{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.player .top b{margin-right:auto;font-size:15px}
+.btn{border:1px solid var(--line);background:var(--soft);border-radius:9px;padding:5px 11px;font-size:13.5px;font-weight:600}
+.btn.on{background:var(--acc-bg);border-color:var(--acc);color:var(--acc)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.stage{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px;align-items:start}
+@media(max-width:720px){.stage{grid-template-columns:1fr}}
+svg.g{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.panel{font-size:13.5px;min-width:0}
+.msg{margin:10px 0 6px;padding:9px 12px;border-radius:10px;background:var(--acc-bg);font-size:14.5px;min-height:44px}
+.ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ctrl input[type=range]{flex:1;min-width:120px;accent-color:var(--acc)}
+.ctrl .cnt{font-size:12.5px;color:var(--muted);min-width:52px;text-align:right}
+.ops{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.ops input{width:70px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+/* 표 */
+table.t{border-collapse:collapse;font-size:13px;margin:4px 0 8px;max-width:100%}
+table.t th,table.t td{border:1px solid var(--line);padding:3px 8px;text-align:center}
+table.t th{background:var(--soft);font-weight:600;color:var(--muted)}
+table.t td.hi{background:var(--acc-bg);color:var(--acc);font-weight:700}
+table.t td.ok{background:var(--ok-bg);color:var(--ok);font-weight:700}
+table.t td.bad{background:var(--bad-bg);color:var(--bad)}
+table.t td.dim{color:var(--muted)}
+.tw{overflow-x:auto}
+.arr{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0 8px}
+.arr span{min-width:34px;text-align:center;border:1px solid var(--line);border-radius:6px;padding:2px 4px;font-family:"JetBrains Mono",Menlo,Consolas,monospace;font-size:13px;background:var(--card)}
+.arr span i{display:block;font-style:normal;font-size:10px;color:var(--muted)}
+.arr span.hi{border-color:var(--acc);background:var(--acc-bg);color:var(--acc);font-weight:700}
+.arr span.ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok);font-weight:700}
+.lab{font-size:12px;color:var(--muted);font-weight:700;margin-top:6px}
+.out{font-family:"JetBrains Mono",Menlo,Consolas,monospace;font-size:15px;letter-spacing:2px;padding:6px 10px;border-radius:8px;background:var(--soft);min-height:34px}
+.el{list-style:none;margin:4px 0;padding:0;font-size:13px}
+.el li{padding:2px 8px;border-radius:6px;display:flex;gap:8px}
+.el li.hi{background:var(--acc-bg);color:var(--acc);font-weight:700}
+.el li.ok{color:var(--ok)}
+.el li.bad{color:var(--bad);text-decoration:line-through}
+.el li .r{margin-left:auto;font-size:12px}
+/* 그래프 그림 */
+svg.g .e line,svg.g .e path{stroke:var(--node-line);stroke-width:2;fill:none}
+svg.g .e text{fill:var(--muted);font-size:13px;font-weight:600;paint-order:stroke;stroke:var(--card);stroke-width:4px}
+svg.g .e.pick line,svg.g .e.pick path{stroke:var(--ok);stroke-width:4.5}
+svg.g .e.pick text{fill:var(--ok)}
+svg.g .e.try line,svg.g .e.try path{stroke:var(--warn);stroke-width:4}
+svg.g .e.try text{fill:var(--warn)}
+svg.g .e.rej line,svg.g .e.rej path{stroke:var(--bad);stroke-dasharray:6 5;stroke-width:3}
+svg.g .e.rej text{fill:var(--bad)}
+svg.g .e.dim{opacity:.35}
+svg.g .n circle{fill:var(--node);stroke:var(--node-line);stroke-width:2}
+svg.g .n text{fill:var(--ink);font-size:15px;font-weight:700;text-anchor:middle;dominant-baseline:central}
+svg.g .n .sub{fill:var(--muted);font-size:11.5px;font-weight:600}
+svg.g .n.cur circle{fill:var(--acc);stroke:var(--acc)}
+svg.g .n.cur text.l{fill:#fff}
+svg.g .n.done circle{fill:var(--ok-bg);stroke:var(--ok);stroke-width:3}
+svg.g .n.seen circle{stroke:var(--warn);stroke-width:3;fill:var(--warn-bg)}
+svg.g .n.bad circle{stroke:var(--bad);stroke-width:3;fill:var(--bad-bg)}
+svg.g .n.dim{opacity:.4}
+svg.g marker path{fill:var(--node-line)}
+.quiz{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.quiz .q{border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center;background:var(--soft)}
+.quiz .q svg{width:100%;height:auto}
+.quiz .q .a{font-size:13px;margin-top:4px;min-height:40px}
+.cmp td,.cmp th{text-align:left!important;vertical-align:top}
+html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
+</style></head><body><div class="wrap">
+<h1>그래프 · 트리 정리 <small>박지훈T 기말 범위</small></h1>
+<p class="lead">프린트 예제를 그대로 넣었어요. ▶ 를 누르거나 슬라이더를 움직여 한 단계씩 넘겨 보세요. 직접 구현은 '코드 빈칸' 칸에서 해요.</p>
+<div class="nav" id="nav"></div>
+
+<!-- ───────── 힙 ───────── -->
+<section class="view" id="v-heap" hidden>
+  <h2>최대 힙 · 최소 힙</h2>
+  <div class="grid2">
+    <div class="card"><h3>핵심</h3><ul>
+      <li>최대 힙: <b>부모 ≥ 자식</b> (루트 = 최댓값) · 최소 힙: <b>부모 ≤ 자식</b></li>
+      <li>모양은 <b>완전이진트리</b> → 배열 <code>heap[1..hn]</code> 에 빈칸 없이 저장</li>
+      <li>부모 <code>i/2</code> · 왼쪽 자식 <code>i*2</code> · 오른쪽 자식 <code>i*2+1</code> (1번부터 써야 계산이 깔끔)</li>
+      <li><code>hn</code> = 원소 개수 = 마지막 위치의 인덱스</li>
+    </ul></div>
+    <div class="card"><h3>삽입 · 제거</h3><ul>
+      <li><b>삽입(push)</b>: 맨 마지막 칸(<code>heap[++hn]</code>)에 넣고 부모와 비교하며 위로 스왑 (부모가 더 크면 끝)</li>
+      <li><b>제거(pop)</b>: 루트를 꺼내고, 마지막 값을 루트로 올린 뒤(<code>heap[hn--]=0</code>) 자식과 비교하며 아래로 스왑</li>
+      <li>두 자식 모두 스왑 가능하면 <b>더 큰 자식</b>과 (최소 힙은 더 작은 자식)</li>
+      <li>둘 다 높이만큼만 움직이므로 <b>O(log n)</b></li>
+    </ul></div>
+  </div>
+  <div class="player" id="p-heap"></div>
+  <div class="card exam"><h3>시험 포인트</h3><ul>
+    <li>삽입 · 제거 뒤 배열 상태를 쓰는 문제 — 위 플레이어로 직접 넣고 빼며 연습</li>
+    <li><code>heap[++hn]=x</code> 와 <code>heap[hn++]=x</code> 의 차이, <code>heap[hn--]=0</code> 과 <code>heap[--hn]</code> 의 차이</li>
+    <li>pop 의 반복 조건 <code>i*2 &lt;= hn</code> = 왼쪽 자식이 있는 동안</li>
+  </ul></div>
+</section>
+
+<!-- ───────── Union-Find ───────── -->
+<section class="view" id="v-uf" hidden>
+  <h2>Union-Find (서로소 집합)</h2>
+  <div class="grid2">
+    <div class="card"><h3>핵심</h3><ul>
+      <li><code>parent[i]</code> = i 의 부모. 처음엔 모두 자기 자신 (<code>parent[i]==i</code> 면 루트)</li>
+      <li><b>Find(x)</b>: 루트를 찾음 · <b>Union(x,y)</b>: 두 루트를 찾아 y 쪽 루트를 x 쪽 루트 밑에 붙임</li>
+      <li>같은 집합인지 = <b>루트가 같은지</b></li>
+      <li>MST 의 크루스칼에서 <b>사이클 판별</b>에 씀</li>
+    </ul></div>
+    <div class="card"><h3>경로 압축 · 랭크</h3><ul>
+      <li>한 줄로 길게 이어지면 Find 가 끝까지 올라가야 해서 느림</li>
+      <li><code>return parent[x] = Find(parent[x]);</code> → 올라가며 지나간 노드를 모두 <b>루트에 바로</b> 붙임 (경로 압축)</li>
+      <li>크루스칼 코드의 <code>rnk</code>: 높이(랭크)가 낮은 쪽을 높은 쪽 밑에 붙이고, 같으면 붙인 쪽 랭크 +1</li>
+    </ul></div>
+  </div>
+  <div class="player" id="p-uf"></div>
+</section>
+
+<!-- ───────── 트리 ───────── -->
+<section class="view" id="v-tree" hidden>
+  <h2>이진트리 · 트리 순회</h2>
+  <div class="grid2">
+    <div class="card"><h3>포화 · 완전 이진트리</h3><ul>
+      <li><b>포화(Perfect)</b>: 리프가 아닌 노드는 모두 자식 2개, 모든 리프의 깊이가 같음 → 높이 h 면 노드 <b>2<sup>h</sup> − 1</b>개</li>
+      <li><b>완전(Complete)</b>: 마지막 레벨만 빌 수 있고, 비는 곳은 <b>오른쪽부터</b> (왼쪽부터 차례로 채움)</li>
+      <li>완전이진트리라서 힙을 배열에 빈칸 없이 넣을 수 있음 · 레벨 k 의 번호는 <code>k … 2k−1</code> (k = 1, 2, 4, …)</li>
+    </ul></div>
+    <div class="card"><h3>순회 (Root 를 언제 출력하나)</h3><ul>
+      <li><b>전위</b> Root → L → R</li>
+      <li><b>중위</b> L → Root → R</li>
+      <li><b>후위</b> L → R → Root</li>
+      <li>프린트 코드는 <code>a[x][0]</code> 왼쪽 · <code>a[x][1]</code> 오른쪽, 없으면 <code>-1</code> (또는 0) — 재귀로 그대로 따라감</li>
+    </ul></div>
+  </div>
+  <div class="card"><h3>포화일까 완전일까? <span class="tag">눌러서 확인</span></h3><div class="quiz" id="quiz"></div></div>
+  <div class="player" id="p-tree"></div>
+</section>
+
+<!-- ───────── MST ───────── -->
+<section class="view" id="v-mst" hidden>
+  <h2>최소 신장 트리 (MST)</h2>
+  <div class="grid2">
+    <div class="card"><h3>신장 트리</h3><ul>
+      <li>n 개 정점을 <b>n−1 개 간선</b>으로 모두 잇고 <b>사이클이 없는</b> 무방향 그래프</li>
+      <li>최소 신장 트리: 그중 간선 가중치 합이 가장 작은 것</li>
+    </ul></div>
+    <div class="card"><h3>크루스칼 vs 프림</h3><ul>
+      <li><b>크루스칼</b> (간선 중심): 가중치 오름차순 정렬 → 사이클이 안 생기면(Union-Find) 추가 → n−1 개면 끝 · O(E log E)</li>
+      <li><b>프림</b> (정점 중심): 시작 정점에서, 트리와 맞닿은 간선 중 가장 가벼운 것으로 정점을 하나씩 붙임 · 우선순위 큐에 <code>-가중치</code> 를 넣어 최소를 먼저 꺼냄</li>
+      <li>프린트: 크루스칼 O(n log n) · 프림 O(n²) (배열로 할 때)</li>
+    </ul></div>
+  </div>
+  <div class="player" id="p-mst"></div>
+  <div class="card exam"><h3>시험 포인트</h3><ul>
+    <li>크루스칼 코드는 직접 쓰기보다 <b>빈칸</b>(특히 Union-Find 부분 <code>find</code> · <code>unite</code>)으로 나올 듯 — 코드 빈칸 칸의 '크루스칼'</li>
+    <li>위 그래프에서 간선을 고르는 순서를 손으로 써 보기 (둘 다 합은 31)</li>
+  </ul></div>
+</section>
+
+<!-- ───────── 위상정렬 ───────── -->
+<section class="view" id="v-topo" hidden>
+  <h2>DAG 위상정렬</h2>
+  <div class="grid2">
+    <div class="card"><h3>핵심</h3><ul>
+      <li>DAG = <b>방향</b>이 있고 <b>사이클이 없는</b> 그래프 (사이클이 있으면 순서를 못 정함)</li>
+      <li><code>ind[y]</code> = 진입 차수 (y 보다 먼저 와야 하는 것의 수)</li>
+      <li>진입 차수 0 인 정점을 큐에 → 꺼낼 때마다 출력하고 다음 정점의 진입 차수 −1 → 0 이 되면 큐에</li>
+      <li>줄 세우기 = 큐 · 문제집 = <b>우선순위 큐</b>(<code>-번호</code> 를 넣어 작은 번호부터)</li>
+    </ul></div>
+    <div class="card exam"><h3>작업 (시험에 낸다고 하심)</h3><ul>
+      <li>작업마다 걸리는 시간 <code>work[i]</code>, 먼저 끝나야 하는 작업이 있음 · 동시에 여러 작업 가능</li>
+      <li><code>d[i]</code> = 작업 i 가 끝나는 가장 이른 시각 · 처음(진입 차수 0)은 <code>d[i] = work[i]</code></li>
+      <li>x 를 꺼낼 때 다음 작업 y 마다 <code>d[y] = max(d[y], d[x] + work[y])</code></li>
+      <li>답 = <code>d</code> 의 최댓값 (아래 예제: 23)</li>
+    </ul></div>
+  </div>
+  <div class="player" id="p-topo"></div>
+</section>
+
+<!-- ───────── 최단거리 ───────── -->
+<section class="view" id="v-sp" hidden>
+  <h2>최단거리 · 다익스트라 · 벨만포드</h2>
+  <div class="grid2">
+    <div class="card"><h3>다익스트라</h3><ul>
+      <li>간선이 <b>모두 0 이상</b>일 때 · 시작점 하나에서 모든 정점까지</li>
+      <li>아직 확정 안 된 정점 중 <code>dist</code> 가 가장 작은 x 를 확정(<code>check[x]=true</code>) → x 에서 나가는 간선으로 <code>dist</code> 갱신 · n−1 번</li>
+      <li>프린트 코드는 최솟값을 배열에서 찾아서 O(n²)</li>
+      <li>경로 출력: 갱신할 때 <code>from[y] = x</code> → end 에서 거꾸로 따라가며 stack 에 넣고 꺼냄</li>
+    </ul></div>
+    <div class="card"><h3>벨만포드</h3><ul>
+      <li><b>음수 간선</b>이 있어도 됨 · 모든 간선으로 갱신하기를 <b>n 번</b></li>
+      <li>n−1 번이면 최단거리가 끝나야 하는데 <b>n 번째에도 갱신</b>되면 <b>음수 사이클</b></li>
+      <li><code>dist[x] != inf</code> 인 간선만 씀 (아직 못 간 곳에서 출발 X)</li>
+      <li>타임머신: 음수 사이클이면 -1 · 웜홀: 도로는 양방향, 웜홀은 <code>cost *= -1</code></li>
+    </ul></div>
+  </div>
+  <div class="player" id="p-dij"></div>
+  <div class="player" id="p-bf"></div>
+</section>
+
+<!-- ───────── 한눈에 ───────── -->
+<section class="view" id="v-sum" hidden>
+  <h2>한눈에 비교</h2>
+  <div class="card tw"><table class="t cmp">
+    <tr><th>알고리즘</th><th>무엇을</th><th>쓰는 것</th><th>시간</th><th>한 줄 요약</th></tr>
+    <tr><td><b>최대 힙</b></td><td>최댓값을 빨리 꺼냄</td><td>배열 (1번부터)</td><td>O(log n)</td><td>넣기: 끝에 넣고 위로 · 빼기: 끝 값을 루트로 올리고 아래로</td></tr>
+    <tr><td><b>Union-Find</b></td><td>같은 집합인지</td><td><code>parent[]</code></td><td>거의 O(1)</td><td>루트가 같으면 같은 집합 · 경로 압축</td></tr>
+    <tr><td><b>트리 순회</b></td><td>노드 방문 순서</td><td>재귀</td><td>O(n)</td><td>Root 를 앞(전위) · 가운데(중위) · 뒤(후위)</td></tr>
+    <tr><td><b>크루스칼</b></td><td>MST</td><td>정렬 + Union-Find</td><td>O(E log E)</td><td>가벼운 간선부터, 사이클 안 생기면 채택</td></tr>
+    <tr><td><b>프림</b></td><td>MST</td><td>우선순위 큐 (−가중치)</td><td>O(n²) / O(E log V)</td><td>트리에 맞닿은 가장 가벼운 간선으로 정점 추가</td></tr>
+    <tr><td><b>위상정렬</b></td><td>DAG 의 순서</td><td>진입 차수 + 큐</td><td>O(V+E)</td><td>진입 차수 0 부터 꺼내고 다음 정점 차수 −1</td></tr>
+    <tr><td><b>다익스트라</b></td><td>최단거리 (음수 X)</td><td><code>dist</code> · <code>check</code></td><td>O(n²)</td><td>가장 가까운 미확정 정점을 확정하고 이웃 갱신</td></tr>
+    <tr><td><b>벨만포드</b></td><td>최단거리 (음수 O)</td><td>간선 목록</td><td>O(VE)</td><td>모든 간선 갱신을 n 번 · n 번째에 바뀌면 음수 사이클</td></tr>
+  </table></div>
+  <div class="card exam"><h3>프린트에서 짚은 것</h3><ul>
+    <li><b>작업(위상정렬)</b> 은 시험에 낸다고 하심 → 코드 빈칸의 '작업' 을 꼭 풀어 보기</li>
+    <li>크루스칼은 코드가 안 나오거나 빈칸으로 (Union-Find 부분 구현)</li>
+    <li>포화 이진트리 노드 수 2<sup>h</sup>−1 · 완전이진트리 판별</li>
+    <li>힙 삽입 · 제거 과정, 트리 순회 결과 쓰기</li>
+  </ul></div>
+</section>
+</div>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const INF = '∞';
+
+// ───────── 그래프 그리기 ─────────
+// G = { w, h, nodes:[{id,x,y,label}], edges:[{u,v,w,dir}] } · fr = { n:{id:cls}, e:{'u-v':cls}, sub:{id:text} }
+const ek = (u, v) => u + '-' + v;
+function drawGraph(svg, G, fr = {}) {
+  const R = G.r || 19;
+  const pos = Object.fromEntries(G.nodes.map((n) => [n.id, n]));
+  const has = new Set(G.edges.map((e) => ek(e.u, e.v)));
+  let h = `<defs><marker id="ar${svg.id}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>`;
+  for (const e of G.edges) {
+    const a = pos[e.u], b = pos[e.v];
+    if (!a || !b) continue;
+    const cls = (fr.e && (fr.e[ek(e.u, e.v)] || (!e.dir && fr.e[ek(e.v, e.u)]))) || '';
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const x1 = a.x + ux * R, y1 = a.y + uy * R, x2 = b.x - ux * (R + (e.dir ? 3 : 0)), y2 = b.y - uy * (R + (e.dir ? 3 : 0));
+    const curve = e.dir && has.has(ek(e.v, e.u));   // 양쪽 방향 간선은 휘어서
+    let line, lx, ly;
+    if (curve) {
+      const cx = (x1 + x2) / 2 - uy * 26, cy = (y1 + y2) / 2 + ux * 26;
+      line = `<path d="M${x1} ${y1}Q${cx} ${cy} ${x2} ${y2}"${e.dir ? ` marker-end="url(#ar${svg.id})"` : ''}/>`;
+      lx = (x1 + x2) / 4 + cx / 2; ly = (y1 + y2) / 4 + cy / 2;
+    } else {
+      line = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${e.dir ? ` marker-end="url(#ar${svg.id})"` : ''}/>`;
+      lx = (a.x + b.x) / 2 - uy * 11; ly = (a.y + b.y) / 2 + ux * 11;
+    }
+    h += `<g class="e ${cls}">${line}${e.w !== undefined ? `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central">${e.w}</text>` : ''}</g>`;
+  }
+  for (const n of G.nodes) {
+    const cls = (fr.n && fr.n[n.id]) || '';
+    const sub = fr.sub && fr.sub[n.id] !== undefined ? `<text class="sub" x="${n.x}" y="${n.y + R + 12}">${esc(fr.sub[n.id])}</text>` : '';
+    h += `<g class="n ${cls}"><circle cx="${n.x}" cy="${n.y}" r="${R}"/><text class="l" x="${n.x}" y="${n.y}">${esc(n.label ?? n.id)}</text>${sub}</g>`;
+  }
+  svg.setAttribute('viewBox', `0 0 ${G.w} ${G.h}`);
+  svg.innerHTML = h;
+}
+// 배열 트리(힙 · 완전이진트리): 번호 i 의 자리
+function arrTree(vals, W = 440, gap = 64, top = 30) {
+  const nodes = [], edges = [];
+  for (let i = 1; i < vals.length; i++) {
+    if (vals[i] === null || vals[i] === undefined) continue;
+    const d = Math.floor(Math.log2(i)), k = i - 2 ** d;
+    nodes.push({ id: i, label: vals[i], x: ((k + 0.5) / 2 ** d) * W, y: top + d * gap });
+    if (i > 1 && vals[i >> 1] !== null && vals[i >> 1] !== undefined) edges.push({ u: i >> 1, v: i });
+  }
+  const depth = Math.floor(Math.log2(Math.max(1, vals.length - 1)));
+  return { w: W, h: top * 2 + depth * gap + 8, nodes, edges };
+}
+// parent 배열로 숲(Union-Find) 배치
+function forest(parent, ids, W = 440) {
+  const kids = {}, roots = [];
+  for (const i of ids) { if (parent[i] === i) roots.push(i); else (kids[parent[i]] ||= []).push(i); }
+  const pos = {}; let leaf = 0, maxD = 0;
+  const place = (x, d) => {
+    maxD = Math.max(maxD, d);
+    const ch = (kids[x] || []).sort((a, b) => a - b);
+    if (!ch.length) { pos[x] = { x: leaf++, d }; return pos[x].x; }
+    const xs = ch.map((c) => place(c, d + 1));
+    pos[x] = { x: (xs[0] + xs[xs.length - 1]) / 2, d };
+    return pos[x].x;
+  };
+  roots.sort((a, b) => a - b).forEach((r) => { place(r, 0); leaf += 0.35; });
+  const span = Math.max(1, leaf - 0.35), step = Math.min(64, (W - 60) / Math.max(1, span - 1 || 1));
+  const off = (W - step * (span - 1)) / 2;
+  const nodes = ids.map((i) => ({ id: i, label: i, x: off + pos[i].x * step, y: 34 + pos[i].d * 66 }));
+  const edges = ids.filter((i) => parent[i] !== i).map((i) => ({ u: i, v: parent[i], dir: true }));
+  return { w: W, h: 70 + maxD * 66, nodes, edges, r: 17 };
+}
+
+// ───────── 단계 플레이어 ─────────
+// make({ el, title, ops: html, frames: [], render(frame) → {G, fr, panel, msg} }) · setFrames(frames) 로 새 단계
+function makePlayer(el, title, render) {
+  el.innerHTML = `<div class="top"><b>${title}</b><span class="scen"></span></div>
+    <div class="stage"><svg class="g" id="svg-${el.id}"></svg><div class="panel"></div></div>
+    <div class="msg"></div>
+    <div class="ctrl"><button class="btn" data-a="first" title="처음">⏮</button><button class="btn" data-a="prev" title="이전">◀</button>
+      <button class="btn pri" data-a="play">▶ 재생</button><button class="btn" data-a="next" title="다음">▶</button><button class="btn" data-a="last" title="끝">⏭</button>
+      <input type="range" min="0" value="0"><span class="cnt"></span></div>
+    <div class="ops"></div>`;
+  const svg = $('svg', el), panel = $('.panel', el), msg = $('.msg', el), range = $('input[type=range]', el), cnt = $('.cnt', el), playB = $('[data-a=play]', el);
+  let frames = [], i = 0, timer = null;
+  const show = () => {
+    const f = frames[i]; if (!f) return;
+    const r = render(f);
+    drawGraph(svg, r.G, r.fr);
+    panel.innerHTML = r.panel || '';
+    msg.innerHTML = r.msg || '';
+    range.max = frames.length - 1; range.value = i;
+    cnt.textContent = `${i + 1} / ${frames.length}`;
+  };
+  const stop = () => { clearInterval(timer); timer = null; playB.textContent = '▶ 재생'; };
+  const go = (k) => { i = Math.max(0, Math.min(frames.length - 1, k)); show(); if (i === frames.length - 1) stop(); };
+  el.addEventListener('click', (e) => {
+    const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+    if (a === 'play') {
+      if (timer) return stop();
+      if (i >= frames.length - 1) i = -1;
+      playB.textContent = '❚❚ 멈춤';
+      go(i + 1); timer = setInterval(() => go(i + 1), 1100);
+    } else { stop(); go(a === 'first' ? 0 : a === 'last' ? frames.length - 1 : a === 'prev' ? i - 1 : i + 1); }
+  });
+  range.oninput = () => { stop(); go(+range.value); };
+  return {
+    el, scen: $('.scen', el), ops: $('.ops', el),
+    set(fs, at = 0) { stop(); frames = fs; i = at; show(); },
+    play() { stop(); i = -1; playB.click(); },
+  };
+}
+const scenBtns = (p, list, onPick) => {
+  p.scen.innerHTML = list.map((s, k) => `<button class="btn${k ? '' : ' on'}" data-s="${k}">${s}</button>`).join('');
+  p.scen.onclick = (e) => {
+    const b = e.target.closest('[data-s]'); if (!b) return;
+    p.scen.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    onPick(+b.dataset.s);
+  };
+};
+const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slice(from).map((v, k) => `<span class="${hi[k + from] || ''}"><i>${lab(k + from)}</i>${v === undefined || v === null ? '' : v}</span>`).join('')}</div>`;
+
+// ═════════ 힙 ═════════
+{
+  let heap = [null, 9, 7, 6, 5, 3, 2, 4, 1, 4];   // 프린트 예제 (heap[1..9])
+  const snap = (h, hi, msg, extra = {}) => ({ h: h.slice(), hi, msg, ...extra });
+  function pushFrames(h, x) {
+    const F = []; h = h.slice();
+    if (h.length > 15) return [snap(h, {}, '이 그림에서는 14개까지만 넣을 수 있어요')];
+    h.push(x); let i = h.length - 1;
+    F.push(snap(h, { [i]: 'hi' }, `<b>push(${x})</b>: <code>heap[++hn] = ${x}</code> — 맨 마지막 위치(${i}번)에 넣어요`));
+    for (; i > 1; i = i >> 1) {
+      const p = i >> 1;
+      if (h[p] < h[i]) {
+        F.push(snap(h, { [i]: 'hi', [p]: 'hi' }, `부모 heap[${p}]=${h[p]} &lt; ${h[i]} → 부모가 자식보다 커야 하므로 스왑`));
+        [h[p], h[i]] = [h[i], h[p]];
+        F.push(snap(h, { [p]: 'ok' }, `스왑 완료 → ${p}번 자리로 올라왔어요`));
+      } else {
+        F.push(snap(h, { [i]: 'ok', [p]: 'hi' }, `부모 heap[${p}]=${h[p]} ≥ ${h[i]} → 조건 만족, 끝`));
+        return F;
+      }
+    }
+    F.push(snap(h, { 1: 'ok' }, '루트까지 올라왔어요 → 끝'));
+    return F;
+  }
+  function popFrames(h) {
+    const F = []; h = h.slice();
+    const hn = h.length - 1;
+    if (!hn) return [snap(h, {}, '힙이 비어 있어요 (프린트 코드는 0 을 출력)')];
+    const ans = h[1];
+    F.push(snap(h, { 1: 'hi' }, `<b>pop()</b>: 루트 heap[1]=${ans} 가 최댓값 → <code>ans</code> 에 저장`));
+    h[1] = h[hn]; h.pop();
+    F.push(snap(h, { 1: 'hi' }, `마지막 값 ${h[1] ?? ''} 을 루트로 올리고 마지막 칸을 비워요 (<code>heap[hn--] = 0</code>)`, { out: ans }));
+    const n = h.length - 1, v = (k) => (k <= n ? h[k] : 0);
+    for (let i = 1; i * 2 <= n;) {
+      const l = i * 2, r = l + 1;
+      if (v(i) > v(l) && v(i) > v(r)) { F.push(snap(h, { [i]: 'ok', [l]: 'hi', ...(r <= n ? { [r]: 'hi' } : {}) }, `${v(i)} 이 두 자식보다 커요 → 조건 만족, 끝`, { out: ans })); return F; }
+      const c = v(l) > v(r) ? l : r;
+      F.push(snap(h, { [i]: 'hi', [c]: 'hi' }, `자식 ${v(l)}${r <= n ? `, ${v(r)}` : ''} 중 더 큰 ${v(c)} 와 스왑`, { out: ans }));
+      [h[i], h[c]] = [h[c], h[i]];
+      F.push(snap(h, { [c]: 'ok' }, `스왑 완료 → ${c}번 자리로 내려갔어요`, { out: ans }));
+      i = c;
+    }
+    F.push(snap(h, {}, `더 내려갈 자식이 없어요 → 끝. 꺼낸 값 ${ans}`, { out: ans }));
+    return F;
+  }
+  const p = makePlayer($('#p-heap'), '최대 힙에 넣고 빼기', (f) => {
+    const G = arrTree(f.h);
+    return { G, fr: { n: Object.fromEntries(Object.entries(f.hi).map(([k, c]) => [k, c === 'ok' ? 'done' : 'cur'])), sub: Object.fromEntries(G.nodes.map((n) => [n.id, n.id])) },
+      panel: `<div class="lab">배열 heap[1..hn] (hn = ${f.h.length - 1})</div>${arrHtml(f.h, 1, f.hi)}${f.out !== undefined ? `<div class="lab">pop() 이 돌려준 값</div><div class="out">${f.out}</div>` : ''}<div class="lab">노드 아래 작은 수 = 배열 번호</div>`,
+      msg: f.msg };
+  });
+  p.ops.innerHTML = `<input type="number" id="hx" value="8" min="1" max="99"><button class="btn" id="hpush">넣기 push</button><button class="btn" id="hpop">빼기 pop</button><button class="btn" id="hreset">프린트 예제로</button>`;
+  const run = (F) => { heap = F[F.length - 1].h; p.set(F); p.play(); };
+  $('#hpush').onclick = () => { const x = parseInt($('#hx').value, 10); if (x > 0 && x < 100) run(pushFrames(heap, x)); };
+  $('#hpop').onclick = () => run(popFrames(heap));
+  $('#hreset').onclick = () => { const F = pushFrames([null, 9, 7, 6, 5, 3, 2, 4, 1, 4], 8); heap = F[F.length - 1].h; p.set(F); };
+  scenBtns(p, ['프린트: 8 넣기', '프린트: 루트 빼기'], (k) => {
+    const base = [null, 9, 7, 6, 5, 3, 2, 4, 1, 4];
+    const F = k ? popFrames(pushFrames(base, 8).pop().h) : pushFrames(base, 8);
+    heap = F[F.length - 1].h; p.set(F);
+  });
+  const F0 = pushFrames(heap, 8); heap = F0[F0.length - 1].h; p.set(F0);
+}
+
+// ═════════ Union-Find ═════════
+{
+  const ids7 = [1, 2, 3, 4, 5, 6, 7];
+  function ufFrames(n, ops, init) {
+    const ids = Array.from({ length: n }, (_, k) => k + 1);
+    const par = init ? init.slice() : [0, ...ids];
+    const F = [], fr = (hi, msg, path = []) => F.push({ par: par.slice(), ids, hi, msg, path });
+    fr({}, init ? '처음 상태' : '처음엔 모두 따로 → 자기 자신이 루트 (<code>parent[i] == i</code>)');
+    const find = (x, show) => {
+      const path = [x]; while (par[path[path.length - 1]] !== path[path.length - 1]) path.push(par[path[path.length - 1]]);
+      const root = path[path.length - 1];
+      if (show) fr(Object.fromEntries(path.map((v) => [v, v === root ? 'done' : 'seen'])), `Find(${x}): ${path.join(' → ')} 따라 올라가 루트 <b>${root}</b>`, path);
+      let changed = false;
+      for (const v of path) if (v !== root && par[v] !== root) { par[v] = root; changed = true; }
+      if (changed && show) fr(Object.fromEntries(path.map((v) => [v, v === root ? 'done' : 'cur'])), `경로 압축: 거쳐 간 ${path.filter((v) => v !== root).join(', ')} 를 루트 ${root} 에 바로 붙였어요 (<code>parent[x] = Find(parent[x])</code>)`);
+      return root;
+    };
+    for (const [op, a, b] of ops) {
+      if (op === 'U') {
+        const ra = find(a, false), rb = find(b, false);
+        if (ra === rb) { fr({ [ra]: 'done' }, `Union(${a},${b}): 루트가 둘 다 ${ra} → 이미 같은 집합, 할 일 없음`); continue; }
+        fr({ [a]: 'seen', [b]: 'seen', [ra]: 'cur', [rb]: 'cur' }, `Union(${a},${b}): ${a} 의 루트 ${ra}, ${b} 의 루트 ${rb}`);
+        par[rb] = ra;
+        fr({ [rb]: 'done', [ra]: 'done' }, `<code>parent[${rb}] = ${ra}</code> → ${b} 쪽 루트 ${rb} 를 ${ra} 밑에 붙임${rb !== b ? ` (${b} 가 아니라 루트 ${rb} 를 붙이는 것에 주의)` : ''}`);
+      } else if (op === 'S') {
+        const ra = find(a, false), rb = find(b, false);
+        fr({ [a]: 'seen', [b]: 'seen', [ra]: ra === rb ? 'done' : 'cur', [rb]: ra === rb ? 'done' : 'bad' }, `isUnion(${a},${b}): 루트 ${ra}${ra === rb ? ' = ' : ' ≠ '}${rb} → <b>${ra === rb ? '같은 집합 (1)' : '다른 집합 (0)'}</b>`);
+      } else if (op === 'F') find(a, true);
+    }
+    return F;
+  }
+  const p = makePlayer($('#p-uf'), 'Union-Find 따라가기', (f) => {
+    const G = forest(f.par, f.ids);
+    return { G, fr: { n: f.hi }, msg: f.msg,
+      panel: `<div class="lab">parent 배열 (화살표 = 부모)</div><div class="tw"><table class="t"><tr><th>i</th>${f.ids.map((i) => `<th>${i}</th>`).join('')}</tr><tr><th>p[i]</th>${f.ids.map((i) => `<td class="${f.par[i] !== i ? 'hi' : 'dim'}">${f.par[i]}</td>`).join('')}</tr></table></div>` };
+  });
+  const S = [
+    () => ufFrames(7, [['U', 1, 2], ['U', 4, 5], ['U', 5, 6], ['S', 2, 4], ['U', 1, 4], ['S', 2, 4]]),
+    () => ufFrames(8, [['F', 8], ['S', 3, 8]], [0, 1, 1, 2, 3, 4, 5, 6, 7]),
+  ];
+  scenBtns(p, ['프린트 예제', '경로 압축 Find(8)'], (k) => p.set(S[k]()));
+  p.set(S[0]());
+}
+
+// ═════════ 트리: 퀴즈 · 순회 ═════════
+{
+  const Q = [
+    { has: [1, 2, 3, 4, 5, 6, 7], a: '포화 ⭕ · 완전 ⭕<br>모든 레벨이 꽉 참' },
+    { has: [1, 2, 3, 4, 5, 6], a: '포화 ❌ · 완전 ⭕<br>마지막 레벨이 왼쪽부터 참' },
+    { has: [1, 2, 3, 4], a: '포화 ❌ · 완전 ⭕<br>오른쪽부터 비어 있음' },
+    { has: [1, 2, 3, 4, 6], a: '포화 ❌ · 완전 ❌<br>5번 자리가 비고 6번이 있음' },
+    { has: [1, 2, 3, 4, 5], a: '포화 ❌ · 완전 ⭕' },
+    { has: [1, 2, 3, 5], a: '포화 ❌ · 완전 ❌<br>4번(왼쪽) 없이 5번' },
+  ];
+  $('#quiz').innerHTML = Q.map((q, k) => `<div class="q"><svg class="g" id="qz${k}"></svg><div class="a"><button class="btn" data-q="${k}">정답 보기</button></div></div>`).join('');
+  Q.forEach((q, k) => { const v = [null]; for (let i = 1; i <= 7; i++) v[i] = q.has.includes(i) ? i : null; drawGraph($('#qz' + k), Object.assign(arrTree(v, 220, 50, 24), { r: 14 })); });
+  $('#quiz').onclick = (e) => { const b = e.target.closest('[data-q]'); if (b) b.parentElement.innerHTML = Q[+b.dataset.q].a; };
+
+  // 프린트 예제 트리 (트리 순회 입력)
+  const T = { A: ['B', 'C'], B: ['D', null], C: ['E', 'F'], D: [null, null], E: [null, null], F: [null, 'G'], G: [null, null] };
+  const P = { A: [220, 34], B: [120, 104], C: [320, 104], D: [70, 174], E: [270, 174], F: [370, 174], G: [410, 244] };
+  const G = { w: 450, h: 280, nodes: Object.keys(P).map((k) => ({ id: k, x: P[k][0], y: P[k][1] })), edges: Object.keys(T).flatMap((k) => T[k].filter(Boolean).map((c) => ({ u: k, v: c }))) };
+  function trav(kind) {
+    const F = [], out = [], stack = [], done = new Set();
+    const fr = (cur, msg) => F.push({ cur, out: out.join(''), stack: stack.slice(), done: new Set(done), msg });
+    const name = { pre: '전위', in: '중위', post: '후위' }[kind];
+    fr(null, `${name} 순회: ${kind === 'pre' ? 'Root → L → R' : kind === 'in' ? 'L → Root → R' : 'L → R → Root'}. A 에서 시작`);
+    const visit = (x) => {
+      stack.push(x);
+      const pr = () => { out.push(x); done.add(x); fr(x, `<b>${x}</b> 출력 → 지금까지 ${out.join('')}`); };
+      if (kind === 'pre') pr(); else fr(x, `${x} 에 들어옴 → 먼저 왼쪽${kind === 'post' ? ', 오른쪽' : ''} 으로`);
+      if (T[x][0]) visit(T[x][0]);
+      if (kind === 'in') pr();
+      if (T[x][1]) visit(T[x][1]);
+      if (kind === 'post') pr();
+      stack.pop();
+    };
+    visit('A');
+    fr(null, `끝: <b>${out.join('')}</b>`);
+    return F;
+  }
+  const p = makePlayer($('#p-tree'), '트리 순회 (프린트 입력)', (f) => {
+    const n = {};
+    for (const x of f.stack) n[x] = 'seen';
+    for (const x of f.done) n[x] = 'done';
+    if (f.cur) n[f.cur] = 'cur';
+    return { G, fr: { n }, msg: f.msg,
+      panel: `<div class="lab">출력</div><div class="out">${f.out || '&nbsp;'}</div><div class="lab">호출 중인 함수 (재귀 스택, 아래가 먼저)</div><div class="out">${f.stack.join(' → ') || '&nbsp;'}</div>
+        <div class="lab">답</div><table class="t"><tr><th>전위</th><td class="mono">ABDCEFG</td></tr><tr><th>중위</th><td class="mono">DBAECFG</td></tr><tr><th>후위</th><td class="mono">DBEGFCA</td></tr></table>` };
+  });
+  const K = ['pre', 'in', 'post'];
+  scenBtns(p, ['전위', '중위', '후위'], (k) => p.set(trav(K[k])));
+  p.set(trav('pre'));
+}
+
+// ═════════ MST ═════════
+{
+  // 프린트 크루스칼 · 프림 예시 그래프
+  const P = { A: [190, 40], B: [330, 30], C: [60, 120], D: [250, 105], E: [150, 210], F: [50, 285], G: [370, 275] };
+  const E = [['A', 'B', 3], ['A', 'D', 6], ['A', 'C', 17], ['B', 'D', 5], ['B', 'G', 12], ['C', 'E', 10], ['C', 'F', 8], ['D', 'E', 9], ['E', 'F', 4], ['E', 'G', 2], ['F', 'G', 14]];
+  const G = { w: 420, h: 320, nodes: Object.keys(P).map((k) => ({ id: k, x: P[k][0], y: P[k][1] })), edges: E.map(([u, v, w]) => ({ u, v, w })) };
+  const key = (u, v) => ek(u, v);
+  function kruskal() {
+    const F = [], sorted = E.slice().sort((a, b) => a[2] - b[2]), par = {}, st = {};
+    for (const k in P) par[k] = k;
+    const find = (x) => (par[x] === x ? x : (par[x] = find(par[x])));
+    let total = 0, picked = 0;
+    const fr = (cur, msg) => F.push({ st: { ...st }, cur, total, msg, list: sorted.map((e) => ({ e, s: st[key(e[0], e[1])] })), comp: Object.fromEntries(Object.keys(P).map((k) => [k, find(k)])) });
+    fr(null, '1) 간선을 가중치 오름차순으로 정렬 (오른쪽 목록)');
+    for (const e of sorted) {
+      const [u, v, w] = e, k = key(u, v);
+      st[k] = 'try'; fr(k, `${u}–${v} (${w}) 를 볼 차례 → find(${u}) = ${find(u)}, find(${v}) = ${find(v)}`);
+      if (find(u) === find(v)) { st[k] = 'rej'; fr(k, `루트가 같아요 → 넣으면 <b>사이클</b>이 생겨서 버림`); }
+      else { par[find(v)] = find(u); total += w; picked++; st[k] = 'pick'; fr(k, `다른 집합 → <b>채택</b> (unite) · 합 ${total} · ${picked}개`); }
+      if (picked === 6) { fr(null, `3) 간선이 n−1 = 6 개 → 끝. 최소 신장 트리의 합 <b>${total}</b>`); break; }
+    }
+    return F;
+  }
+  function prim() {
+    const F = [], adj = {}, chk = {}, st = {};
+    for (const [u, v, w] of E) { (adj[u] ||= []).push([v, w]); (adj[v] ||= []).push([u, w]); }
+    let pq = [], total = 0;
+    const fr = (msg, top) => F.push({ st: { ...st }, chk: { ...chk }, pq: pq.slice().sort((a, b) => a[0] - b[0]), total, msg, top });
+    const pushAll = (x) => { for (const [y, w] of adj[x]) pq.push([w, y, x]); };
+    chk.A = true; pushAll('A');
+    fr('A 에서 시작: <code>check[A] = true</code>, A 의 간선을 모두 우선순위 큐에 (<code>-가중치</code> 로 넣어 작은 것이 먼저)');
+    while (pq.length) {
+      pq.sort((a, b) => a[0] - b[0]);
+      const [w, y, x] = pq.shift(), k = key(x, y), k2 = key(y, x);
+      if (chk[y]) { if (!st[k] && !st[k2]) st[k] = 'rej'; fr(`꺼낸 간선 ${x}–${y} (${w}): ${y} 는 이미 트리에 있음 → 버림`, [w, y, x]); continue; }
+      chk[y] = true; total += w; delete st[k2]; st[k] = 'pick';
+      pushAll(y);
+      fr(`꺼낸 간선 ${x}–${y} (${w}): ${y} 를 트리에 추가 · 합 ${total} → ${y} 의 간선을 큐에 넣음`, [w, y, x]);
+    }
+    fr(`큐가 비었어요 → 끝. 최소 신장 트리의 합 <b>${total}</b>`);
+    return F;
+  }
+  const COMP = ['cur', 'seen', 'done', 'bad'];
+  const p = makePlayer($('#p-mst'), '최소 신장 트리 (프린트 그래프)', (f) => {
+    if (f.list) {   // 크루스칼
+      const roots = [...new Set(Object.values(f.comp))].filter((r) => Object.values(f.comp).filter((x) => x === r).length > 1);
+      const n = {}; for (const k in f.comp) { const i = roots.indexOf(f.comp[k]); if (i >= 0) n[k] = i === 0 ? 'done' : i === 1 ? 'seen' : 'cur'; }
+      return { G, fr: { e: f.st, n }, msg: f.msg,
+        panel: `<div class="lab">가중치 순으로 정렬한 간선</div><ul class="el">${f.list.map(({ e, s }) => `<li class="${f.cur === key(e[0], e[1]) ? 'hi' : s === 'pick' ? 'ok' : s === 'rej' ? 'bad' : ''}"><span class="mono">${e[2]}</span>${e[0]}–${e[1]}<span class="r">${s === 'pick' ? '채택' : s === 'rej' ? '사이클' : ''}</span></li>`).join('')}</ul><div class="lab">합</div><div class="out">${f.total}</div><div class="lab">같은 색 정점 = 같은 집합</div>` };
+    }
+    const n = {}; for (const k in f.chk) n[k] = 'done';
+    if (f.top) n[f.top[1]] = 'cur';
+    return { G, fr: { e: f.st, n }, msg: f.msg,
+      panel: `<div class="lab">우선순위 큐 (위가 먼저 나옴)</div><ul class="el">${f.pq.slice(0, 9).map((q) => `<li class="${f.chk[q[1]] ? 'bad' : ''}"><span class="mono">${q[0]}</span>${q[2]}→${q[1]}</li>`).join('') || '<li>비어 있음</li>'}${f.pq.length > 9 ? `<li>… ${f.pq.length - 9}개 더</li>` : ''}</ul><div class="lab">합</div><div class="out">${f.total}</div>` };
+  });
+  scenBtns(p, ['크루스칼', '프림 (A 부터)'], (k) => p.set(k ? prim() : kruskal()));
+  p.set(kruskal());
+}
+
+// ═════════ 위상정렬 (작업) ═════════
+{
+  // 작업 예제: 작업 번호, 시간, 앞선 작업
+  const W = { 1: [5, []], 2: [1, [1]], 3: [3, [2]], 4: [6, [1]], 5: [1, [2, 4]], 6: [8, [2, 4]], 7: [4, [3, 5, 6]] };
+  const P = { 1: [50, 150], 2: [160, 70], 4: [160, 230], 3: [290, 40], 5: [290, 150], 6: [290, 260], 7: [410, 150] };
+  const ids = Object.keys(W).map(Number);
+  const G = { w: 460, h: 310, nodes: ids.map((i) => ({ id: i, x: P[i][0], y: P[i][1] })), edges: ids.flatMap((i) => W[i][1].map((x) => ({ u: x, v: i, dir: true }))) };
+  function frames() {
+    const F = [], ind = {}, d = {}, adj = {}, q = [], out = [], st = {};
+    for (const i of ids) { ind[i] = W[i][1].length; for (const x of W[i][1]) (adj[x] ||= []).push(i); }
+    const fr = (cur, msg, hiE) => F.push({ ind: { ...ind }, d: { ...d }, q: q.slice(), out: out.slice(), cur, msg, st: { ...st, ...(hiE || {}) } });
+    fr(null, '진입 차수 <code>ind</code> 를 세요 (화살표가 들어오는 수). 노드 아래 = 걸리는 시간');
+    for (const i of ids) if (!ind[i]) { q.push(i); d[i] = W[i][0]; }
+    fr(null, `진입 차수 0 인 작업 ${q.join(', ')} 을 큐에 넣고 <code>d[i] = work[i]</code>`);
+    while (q.length) {
+      const x = q.shift(); out.push(x);
+      fr(x, `큐에서 ${x} 를 꺼냄 (끝나는 시각 d[${x}] = ${d[x]})`);
+      for (const y of adj[x] || []) {
+        ind[y]--;
+        const nd = d[x] + W[y][0], up = !(d[y] >= nd);
+        if (up) d[y] = nd;
+        st[ek(x, y)] = 'pick';
+        if (!ind[y]) q.push(y);
+        fr(x, `${x}→${y}: ind[${y}] → ${ind[y]} · d[${y}] = max(…, d[${x}] + work[${y}] = ${d[x]} + ${W[y][0]} = ${nd})${up ? ' → 갱신' : ' → 그대로'}${!ind[y] ? ` · 진입 차수 0 → ${y} 를 큐에` : ''}`, { [ek(x, y)]: 'try' });
+      }
+    }
+    fr(null, `모두 끝. 답 = d 의 최댓값 = <b>${Math.max(...Object.values(d))}</b>`);
+    return F;
+  }
+  const p = makePlayer($('#p-topo'), '작업 (프린트 예제 입력)', (f) => {
+    const n = {}; for (const x of f.out) n[x] = 'done'; for (const x of f.q) n[x] = 'seen'; if (f.cur) n[f.cur] = 'cur';
+    return { G, fr: { n, e: f.st, sub: Object.fromEntries(ids.map((i) => [i, `${W[i][0]}시간`])) }, msg: f.msg,
+      panel: `<div class="tw"><table class="t"><tr><th>작업</th>${ids.map((i) => `<th>${i}</th>`).join('')}</tr>
+        <tr><th>work</th>${ids.map((i) => `<td>${W[i][0]}</td>`).join('')}</tr>
+        <tr><th>ind</th>${ids.map((i) => `<td class="${f.ind[i] ? '' : 'dim'}">${f.ind[i]}</td>`).join('')}</tr>
+        <tr><th>d</th>${ids.map((i) => `<td class="${f.cur === i ? 'hi' : f.d[i] !== undefined ? 'ok' : 'dim'}">${f.d[i] ?? 0}</td>`).join('')}</tr></table></div>
+        <div class="lab">큐</div><div class="out">${f.q.join(' ') || '&nbsp;'}</div><div class="lab">꺼낸 순서 (= 위상정렬)</div><div class="out">${f.out.join(' ') || '&nbsp;'}</div>` };
+  });
+  p.set(frames());
+}
+
+// ═════════ 다익스트라 ═════════
+{
+  const P = { 1: [40, 170], 2: [170, 45], 3: [170, 295], 4: [290, 240], 5: [400, 70] };
+  const E = [[1, 2, 2], [1, 3, 3], [1, 4, 1], [1, 5, 10], [2, 4, 2], [3, 4, 1], [3, 5, 1], [4, 5, 3]];
+  const ids = [1, 2, 3, 4, 5];
+  const G = { w: 440, h: 340, nodes: ids.map((i) => ({ id: i, x: P[i][0], y: P[i][1] })), edges: E.map(([u, v, w]) => ({ u, v, w, dir: true })) };
+  function frames() {
+    const F = [], dist = {}, chk = {}, from = {}, st = {};
+    for (const i of ids) dist[i] = Infinity;
+    dist[1] = 0;
+    const fr = (x, msg, hi) => F.push({ dist: { ...dist }, chk: { ...chk }, from: { ...from }, x, msg, st: { ...st, ...(hi || {}) } });
+    fr(null, '모든 dist 를 ∞ 로, 시작점 1 의 dist 를 0 으로');
+    for (let k = 0; k < ids.length - 1; k++) {
+      let x = -1;
+      for (const i of ids) if (!chk[i] && (x < 0 || dist[i] < dist[x])) x = i;
+      chk[x] = true;
+      fr(x, `확정 안 된 정점 중 dist 가 가장 작은 <b>${x}</b> (dist ${dist[x]}) 를 확정 → <code>check[${x}] = true</code>`);
+      for (const [u, v, w] of E) if (u === x) {
+        const nd = dist[x] + w;
+        if (dist[v] > nd) { dist[v] = nd; for (const k2 in st) if (k2.endsWith('-' + v) && st[k2] === 'pick') delete st[k2]; st[ek(x, v)] = 'pick'; from[v] = x; fr(x, `${x}→${v} (${w}): ${nd} &lt; 기존 → dist[${v}] = ${nd}, from[${v}] = ${x}`, { [ek(x, v)]: 'try' }); }
+        else fr(x, `${x}→${v} (${w}): ${nd} ≥ dist[${v}] = ${dist[v]} → 그대로`, { [ek(x, v)]: 'rej' });
+      }
+    }
+    const path = []; for (let v = 5; v; v = from[v]) path.unshift(v);
+    fr(null, `끝. 1 → 5 최소 비용 <b>${dist[5]}</b> · from 을 거꾸로 따라간 경로 ${path.join(' → ')}`);
+    return F;
+  }
+  const p = makePlayer($('#p-dij'), '다익스트라 (최소비용 구하기 예제, 1 → 5)', (f) => {
+    const n = {}; for (const i in f.chk) n[i] = 'done'; if (f.x) n[f.x] = 'cur';
+    return { G, fr: { n, e: f.st, sub: Object.fromEntries(ids.map((i) => [i, f.dist[i] === Infinity ? INF : f.dist[i]])) }, msg: f.msg,
+      panel: `<div class="tw"><table class="t"><tr><th>정점</th>${ids.map((i) => `<th>${i}</th>`).join('')}</tr>
+        <tr><th>dist</th>${ids.map((i) => `<td class="${f.x === i ? 'hi' : f.chk[i] ? 'ok' : ''}">${f.dist[i] === Infinity ? INF : f.dist[i]}</td>`).join('')}</tr>
+        <tr><th>check</th>${ids.map((i) => `<td class="${f.chk[i] ? 'ok' : 'dim'}">${f.chk[i] ? 'T' : 'F'}</td>`).join('')}</tr>
+        <tr><th>from</th>${ids.map((i) => `<td class="dim">${i === 1 ? -1 : f.from[i] ?? ''}</td>`).join('')}</tr></table></div><div class="lab">초록 간선 = 지금 최단거리를 만든 간선</div>` };
+  });
+  p.set(frames());
+}
+
+// ═════════ 벨만포드 ═════════
+{
+  const P = { 1: [70, 200], 2: [220, 50], 3: [370, 200] };
+  const SC = [
+    { E: [[1, 2, 4], [1, 3, 3], [2, 3, -1], [3, 1, -2]], name: '타임머신 예제 1' },
+    { E: [[1, 2, 4], [1, 3, 3], [2, 3, -4], [3, 1, -2]], name: '예제 2 (음수 사이클)' },
+  ];
+  const ids = [1, 2, 3];
+  function frames(E) {
+    const F = [], dist = { 1: 0, 2: Infinity, 3: Infinity }, n = ids.length;
+    let neg = false;
+    const fr = (round, msg, hi, cur) => F.push({ dist: { ...dist }, round, msg, hi: hi || {}, cur });
+    fr(0, 'dist[1] = 0, 나머지 ∞. 모든 간선으로 갱신하기를 n = 3 번 반복해요 (간선은 입력 순서대로)');
+    for (let r = 1; r <= n; r++) {
+      let any = false;
+      for (const [x, y, z] of E) {
+        if (dist[x] !== Infinity && dist[y] > dist[x] + z) {
+          dist[y] = dist[x] + z; any = true;
+          if (r === n) neg = true;
+          fr(r, `${r}번째: ${x}→${y} (${z}) → dist[${y}] = ${dist[x]} + (${z}) = ${dist[y]}${r === n ? ' · <b>n 번째에도 갱신 → 음수 사이클!</b>' : ''}`, { [ek(x, y)]: r === n ? 'rej' : 'pick' }, y);
+        }
+      }
+      if (!any) fr(r, `${r}번째: 바뀐 dist 가 없어요`);
+    }
+    fr(n, neg ? '음수 사이클이 있어요 → 프린트 코드는 <b>-1</b> 출력' : `끝. 2, 3 번까지 거리 <b>${dist[2]}, ${dist[3]}</b> 출력`);
+    return F;
+  }
+  let cur = 0;
+  const p = makePlayer($('#p-bf'), '벨만포드 (타임머신)', (f) => {
+    const E = SC[cur].E, G = { w: 440, h: 270, nodes: ids.map((i) => ({ id: i, x: P[i][0], y: P[i][1] })), edges: E.map(([u, v, w]) => ({ u, v, w, dir: true })) };
+    return { G, fr: { e: f.hi, n: f.cur ? { [f.cur]: 'cur' } : {}, sub: Object.fromEntries(ids.map((i) => [i, f.dist[i] === Infinity ? INF : f.dist[i]])) }, msg: f.msg,
+      panel: `<div class="lab">${f.round ? `반복 ${f.round} / 3` : '시작'}</div><div class="tw"><table class="t"><tr><th>정점</th>${ids.map((i) => `<th>${i}</th>`).join('')}</tr><tr><th>dist</th>${ids.map((i) => `<td class="${f.cur === i ? 'hi' : ''}">${f.dist[i] === Infinity ? INF : f.dist[i]}</td>`).join('')}</tr></table></div>
+        <div class="lab">간선 (입력 순서)</div><ul class="el">${E.map(([x, y, z]) => `<li class="${f.hi[ek(x, y)] ? 'hi' : ''}">${x}→${y}<span class="r mono">${z}</span></li>`).join('')}</ul>` };
+  });
+  scenBtns(p, SC.map((s) => s.name), (k) => { cur = k; p.set(frames(SC[k].E)); });
+  p.set(frames(SC[0].E));
+}
+
+// ───────── 칸 고르기 (이 기기에 기억) ─────────
+{
+  const TABS = [['heap', '힙'], ['uf', 'Union-Find'], ['tree', '트리'], ['mst', 'MST'], ['topo', '위상정렬'], ['sp', '최단거리'], ['sum', '한눈에']];
+  let at = 'heap';
+  try { const s = localStorage.getItem('algograph-tab'); if (TABS.some((t) => t[0] === s)) at = s; } catch (e) {}
+  const nav = $('#nav');
+  nav.innerHTML = TABS.map(([k, l]) => `<button data-t="${k}">${l}</button>`).join('');
+  const open = (k) => {
+    at = k;
+    nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.t === k));
+    document.querySelectorAll('section.view').forEach((s) => (s.hidden = s.id !== 'v-' + k));
+    try { localStorage.setItem('algograph-tab', k); } catch (e) {}
+  };
+  nav.onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) { open(b.dataset.t); if (window.AG_EMBED) try { window.frameElement.scrollIntoView({ block: 'start' }); } catch (x) {} } };
+  open(at);
+}
+</script>
+<script>
+// ===== 공부 탭 안에서: 높이를 내용에 맞춰 부모의 iframe 을 늘립니다 (스크롤은 사이트 하나로) =====
+if (window.AG_EMBED) {
+  const frame = window.frameElement;
+  const root = document.scrollingElement || document.documentElement;
+  const fit = () => {
+    if (!frame) return;
+    const b = document.body, r = b.getBoundingClientRect();
+    const h = Math.ceil(r.bottom + root.scrollTop + (parseFloat(getComputedStyle(b).marginBottom) || 0)) + 'px';
+    if (frame.style.height !== h) frame.style.height = h;
+    if (root.scrollTop) root.scrollTop = 0;
+  };
+  new ResizeObserver(fit).observe(document.body);
+  window.addEventListener('load', fit);
+  setInterval(fit, 1000);
+  fit();
+}
+</script>
+<!-- 공부 페이지 사용 기록 (learnuse.sql) -->
+<script src="learn-track.js" defer></script>
+</body></html>
