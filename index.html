@@ -165,7 +165,7 @@
   .class-cell:hover { transform: scale(1.05); }
   .common-cell { background: rgba(136,136,170,0.12); color: var(--text-dim); border: 1px dashed var(--border); cursor: default; }
   .common-cell:hover { transform: none; }
-  .club-cell { background: rgba(167,139,250,0.14); color: var(--text); border: 1px dashed rgba(167,139,250,0.55); }
+  .club-cell { background: rgba(167,139,250,0.14); color: var(--text); border: 1px dashed rgba(167,139,250,0.55); cursor: pointer; }
   .class-cell .subj-name { font-size: 10.5px; font-weight: 700; }
   .class-cell .ban-name { font-size: 9px; opacity: 0.8; font-family: 'IBM Plex Mono', monospace; margin-top: 1px; }
   .color-0 { background: rgba(124,111,224,0.25); color: #a78bfa; border: 1px solid rgba(124,111,224,0.3); }
@@ -1705,7 +1705,7 @@ function buildTimetableRows(name) {
         }
       } else if (club && day === CLUB_SLOT.day && CLUB_SLOT.periods.includes(p)) {
         const mine = (MY_CLUBS[student.id] || [])[/학술/.test(club.name) ? 0 : 1];
-        tds += `<td><div class="class-cell common-cell club-cell" title="${club.name} (${club.label})"><div class="subj-name">${mine || club.short}</div><div class="ban-name">${mine ? club.kind + ' · ' : ''}${club.label}</div></div></td>`;
+        tds += `<td><div class="class-cell common-cell club-cell" title="${club.name} (${club.label})"${mine ? ` onclick="showClubDetail('${name}',event)"` : ''}><div class="subj-name">${mine || club.short}</div><div class="ban-name">${mine ? club.kind + ' · ' : ''}${club.label}</div></div></td>`;
       } else {
         tds += `<td><div class="empty-cell free-cell" onclick="showFreeDetail('${name}','${day}',${p},event)"><span class="free-label">공강</span></div></td>`;
       }
@@ -2500,6 +2500,31 @@ function showFreeDetail(myName, day, period, event) {
   popup.innerHTML = `<div class="cdp-header"><div><div class="cdp-subject" style="color:var(--accent3)">🕊 공강</div><div class="cdp-ban">${dayLabel[day]} ${period}교시</div></div><button class="cdp-close" onclick="document.getElementById('cdp').remove()">✕</button></div><div class="cdp-classmates-title">같이 공강인 사람 <span class="cdp-count" style="color:var(--accent3)">${freemates.length}명</span></div><div class="cdp-classmates">${freemates.length===0?'<div style="color:var(--text-dim);font-size:0.8rem;padding:4px">없음</div>':freemates.map(c=>`<div class="cdp-student" onclick="selectName('${c.name}');document.getElementById('cdp').remove()"><span class="cdp-sname">${c.name}</span><span class="cdp-sid">${c.id}</span><span class="st-loc" data-st="${c.id}"></span></div>`).join('')}</div>`;
   document.body.appendChild(popup);
   if (window.paintStatus) window.paintStatus(popup);   // 이름 옆 내 위치 (dshs-study.js)
+  positionPopup(popup, event);
+}
+
+// 동아리 칸을 누르면 그 학생의 학술 · 문예 동아리와 같은 동아리 학생 명단 (이번 주 동아리가 위, MY_CLUBS)
+function showClubDetail(myName, event) {
+  event.stopPropagation();
+  const existing = document.getElementById('cdp');
+  if (existing) existing.remove();
+  const mine = MY_CLUBS[SCHOOL_DATA[myName]?.id];
+  if (!mine) return;
+  const club = nextClub();
+  const week = club ? (/학술/.test(club.name) ? 0 : 1) : -1;
+  const idName = {};
+  for (const [n, d] of Object.entries(SCHOOL_DATA)) idName[d.id] = n;
+  const FULL = ['학술동아리', '문화예술동아리'];
+  const sections = (week === 1 ? [1, 0] : [0, 1]).map(k => {
+    const list = Object.keys(MY_CLUBS).filter(id => MY_CLUBS[id][k] === mine[k] && idName[id]).map(Number).sort((a, b) => a - b);
+    return `<div class="cdp-classmates-title">${FULL[k]} · ${mine[k]} <span class="cdp-count">${list.length}명</span>${week === k ? ` <span style="color:var(--text-dim);font-size:0.75rem">이번 주 ${club.label}</span>` : ''}</div><div class="cdp-classmates">${list.map(id => `<div class="cdp-student" onclick="selectName('${idName[id]}');document.getElementById('cdp').remove()"><span class="cdp-sname">${idName[id]}</span><span class="cdp-sid">${id}</span><span class="st-loc" data-st="${id}"></span></div>`).join('')}</div>`;
+  }).join('');
+  const popup = document.createElement('div');
+  popup.id = 'cdp';
+  popup.className = 'class-detail-popup';
+  popup.innerHTML = `<div class="cdp-header"><div><div class="cdp-subject" style="color:#a78bfa">동아리</div><div class="cdp-ban">화요일 8 · 9교시</div></div><button class="cdp-close" onclick="document.getElementById('cdp').remove()">✕</button></div>${sections}`;
+  document.body.appendChild(popup);
+  if (window.paintStatus) window.paintStatus(popup);
   positionPopup(popup, event);
 }
 
