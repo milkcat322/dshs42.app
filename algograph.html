@@ -114,6 +114,12 @@ svg.g marker path{fill:var(--node-line)}
 .quiz .q svg{width:100%;height:auto}
 .quiz .q .a{font-size:13px;margin-top:4px;min-height:40px}
 .cmp td,.cmp th{text-align:left!important;vertical-align:top}
+/* 프린트 코드 칸 */
+.codebox{margin-top:10px}
+pre.code{margin:4px 0 0;max-height:300px;overflow:auto;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 0;font:12.5px/1.55 "JetBrains Mono","D2Coding",Menlo,Consolas,monospace;position:relative}
+pre.code .cl{display:block;padding:0 12px 0 0;white-space:pre}
+pre.code .cl i{display:inline-block;width:34px;padding-right:10px;text-align:right;color:var(--muted);font-style:normal;opacity:.6;user-select:none}
+pre.code .cl.hl{background:var(--acc-bg);box-shadow:inset 3px 0 0 var(--acc);color:var(--ink);font-weight:700}
 html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </style></head><body><div class="wrap">
 <h1>그래프 · 트리 정리 <small>박지훈T 기말 범위</small></h1>
@@ -342,6 +348,18 @@ function forest(parent, ids, W = 440) {
   return { w: W, h: 70 + maxD * 66, nodes, edges, r: 17 };
 }
 
+// ───────── 프린트 코드 칸 ─────────
+// 코드 줄 끝에 //@이름 (여러 개면 //@a,b) 을 붙여 두고, 각 단계(frame)의 ln: ['이름', …] 과 같은 줄을 강조합니다
+function codeHtml(src, ln) {
+  return src.replace(/^\n/, '').replace(/\s+$/, '').split('\n').map((line, k) => {
+    const m = line.match(/\s*\/\/@([\w,-]+)\s*$/);
+    const tags = m ? m[1].split(',') : [];
+    const text = m ? line.slice(0, m.index) : line;
+    const on = tags.some((t) => ln.includes(t));
+    return `<span class="cl${on ? ' hl' : ''}"><i>${k + 1}</i>${esc(text) || ' '}</span>`;
+  }).join('');
+}
+
 // ───────── 단계 플레이어 ─────────
 // make({ el, title, ops: html, frames: [], render(frame) → {G, fr, panel, msg} }) · setFrames(frames) 로 새 단계
 function makePlayer(el, title, render) {
@@ -351,7 +369,9 @@ function makePlayer(el, title, render) {
     <div class="ctrl"><button class="btn" data-a="first" title="처음">⏮</button><button class="btn" data-a="prev" title="이전">◀</button>
       <button class="btn pri" data-a="play">▶ 재생</button><button class="btn" data-a="next" title="다음">▶</button><button class="btn" data-a="last" title="끝">⏭</button>
       <input type="range" min="0" value="0"><span class="cnt"></span></div>
-    <div class="ops"></div>`;
+    <div class="ops"></div>
+    <div class="codebox" hidden><div class="lab">프린트 코드 — 지금 단계에 해당하는 줄</div><pre class="code"></pre></div>`;
+  const cbox = $('.codebox', el), pre = $('pre.code', el);
   const svg = $('svg', el), panel = $('.panel', el), msg = $('.msg', el), range = $('input[type=range]', el), cnt = $('.cnt', el), playB = $('[data-a=play]', el);
   let frames = [], i = 0, timer = null;
   const show = () => {
@@ -360,6 +380,12 @@ function makePlayer(el, title, render) {
     drawGraph(svg, r.G, r.fr);
     panel.innerHTML = r.panel || '';
     msg.innerHTML = r.msg || '';
+    cbox.hidden = !r.code;
+    if (r.code) {
+      pre.innerHTML = codeHtml(r.code, f.ln || []);
+      const hl = pre.querySelector('.hl');
+      if (hl) pre.scrollTop = Math.max(0, hl.offsetTop - pre.clientHeight / 2 + hl.offsetHeight);   // 강조한 줄이 보이게 (코드 칸 안에서만)
+    }
     range.max = frames.length - 1; range.value = i;
     cnt.textContent = `${i + 1} / ${frames.length}`;
   };
@@ -399,19 +425,19 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
     const F = []; h = h.slice();
     if (h.length > 15) return [snap(h, {}, '이 그림에서는 14개까지만 넣을 수 있어요')];
     h.push(x); let i = h.length - 1;
-    F.push(snap(h, { [i]: 'hi' }, `<b>push(${x})</b>: <code>heap[++hn] = ${x}</code> — 맨 마지막 위치(${i}번)에 넣어요`));
+    F.push(snap(h, { [i]: 'hi' }, `<b>push(${x})</b>: <code>heap[++hn] = ${x}</code> — 맨 마지막 위치(${i}번)에 넣어요`, { ln: ['p1'] }));
     for (; i > 1; i = i >> 1) {
       const p = i >> 1;
       if (h[p] < h[i]) {
-        F.push(snap(h, { [i]: 'hi', [p]: 'hi' }, `부모 heap[${p}]=${h[p]} &lt; ${h[i]} → 부모가 자식보다 커야 하므로 스왑`));
+        F.push(snap(h, { [i]: 'hi', [p]: 'hi' }, `부모 heap[${p}]=${h[p]} &lt; ${h[i]} → 부모가 자식보다 커야 하므로 스왑`, { ln: ['p2', 'p3'] }));
         [h[p], h[i]] = [h[i], h[p]];
-        F.push(snap(h, { [p]: 'ok' }, `스왑 완료 → ${p}번 자리로 올라왔어요`));
+        F.push(snap(h, { [p]: 'ok' }, `스왑 완료 → ${p}번 자리로 올라왔어요`, { ln: ['p3'] }));
       } else {
-        F.push(snap(h, { [i]: 'ok', [p]: 'hi' }, `부모 heap[${p}]=${h[p]} ≥ ${h[i]} → 조건 만족, 끝`));
+        F.push(snap(h, { [i]: 'ok', [p]: 'hi' }, `부모 heap[${p}]=${h[p]} ≥ ${h[i]} → 조건 만족, 끝`, { ln: ['p4'] }));
         return F;
       }
     }
-    F.push(snap(h, { 1: 'ok' }, '루트까지 올라왔어요 → 끝'));
+    F.push(snap(h, { 1: 'ok' }, '루트까지 올라왔어요 → 끝', { ln: ['p2'] }));
     return F;
   }
   function popFrames(h) {
@@ -419,25 +445,50 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
     const hn = h.length - 1;
     if (!hn) return [snap(h, {}, '힙이 비어 있어요 (프린트 코드는 0 을 출력)')];
     const ans = h[1];
-    F.push(snap(h, { 1: 'hi' }, `<b>pop()</b>: 루트 heap[1]=${ans} 가 최댓값 → <code>ans</code> 에 저장`));
+    F.push(snap(h, { 1: 'hi' }, `<b>pop()</b>: 루트 heap[1]=${ans} 가 최댓값 → <code>ans</code> 에 저장`, { ln: ['o1'] }));
     h[1] = h[hn]; h.pop();
-    F.push(snap(h, { 1: 'hi' }, `마지막 값 ${h[1] ?? ''} 을 루트로 올리고 마지막 칸을 비워요 (<code>heap[hn--] = 0</code>)`, { out: ans }));
+    F.push(snap(h, { 1: 'hi' }, `마지막 값 ${h[1] ?? ''} 을 루트로 올리고 마지막 칸을 비워요 (<code>heap[hn--] = 0</code>)`, { out: ans, ln: ['o2'] }));
     const n = h.length - 1, v = (k) => (k <= n ? h[k] : 0);
     for (let i = 1; i * 2 <= n;) {
       const l = i * 2, r = l + 1;
-      if (v(i) > v(l) && v(i) > v(r)) { F.push(snap(h, { [i]: 'ok', [l]: 'hi', ...(r <= n ? { [r]: 'hi' } : {}) }, `${v(i)} 이 두 자식보다 커요 → 조건 만족, 끝`, { out: ans })); return F; }
+      if (v(i) > v(l) && v(i) > v(r)) { F.push(snap(h, { [i]: 'ok', [l]: 'hi', ...(r <= n ? { [r]: 'hi' } : {}) }, `${v(i)} 이 두 자식보다 커요 → 조건 만족, 끝`, { out: ans, ln: ['o4'] })); return F; }
       const c = v(l) > v(r) ? l : r;
-      F.push(snap(h, { [i]: 'hi', [c]: 'hi' }, `자식 ${v(l)}${r <= n ? `, ${v(r)}` : ''} 중 더 큰 ${v(c)} 와 스왑`, { out: ans }));
+      F.push(snap(h, { [i]: 'hi', [c]: 'hi' }, `자식 ${v(l)}${r <= n ? `, ${v(r)}` : ''} 중 더 큰 ${v(c)} 와 스왑`, { out: ans, ln: [c === l ? 'o5l' : 'o5r'] }));
       [h[i], h[c]] = [h[c], h[i]];
-      F.push(snap(h, { [c]: 'ok' }, `스왑 완료 → ${c}번 자리로 내려갔어요`, { out: ans }));
+      F.push(snap(h, { [c]: 'ok' }, `스왑 완료 → ${c}번 자리로 내려갔어요`, { out: ans, ln: [c === l ? 'o6l' : 'o6r'] }));
       i = c;
     }
-    F.push(snap(h, {}, `더 내려갈 자식이 없어요 → 끝. 꺼낸 값 ${ans}`, { out: ans }));
+    F.push(snap(h, {}, `더 내려갈 자식이 없어요 → 끝. 꺼낸 값 ${ans}`, { out: ans, ln: ['o3', 'o7'] }));
     return F;
   }
+  const HEAP_CODE = `
+int pop(){
+    int ans = heap[1]; //@o1
+    heap[1] = heap[hn]; //@o2
+    heap[hn--] = 0; //@o2
+    for(int i=1;i*2<=hn;){ //@o3
+        if(heap[i]>heap[i*2] && heap[i]>heap[i*2+1]){ //@o4
+            break; //@o4
+        }else if(heap[i*2]>heap[i*2+1]){ //@o5l
+            swap(heap[i],heap[i*2]); //@o5l
+            i=i*2; //@o6l
+        }else{ //@o5r
+            swap(heap[i],heap[i*2+1]); //@o5r
+            i=i*2+1; //@o6r
+        }
+    }
+    return ans; //@o7
+}
+void push(int x){
+    heap[++hn]=x; //@p1
+    for(int i=hn;i>1;i/=2){ //@p2
+        if(heap[i/2]<heap[i]) swap(heap[i/2],heap[i]); //@p3
+        else break; //@p4
+    }
+}`;
   const p = makePlayer($('#p-heap'), '최대 힙에 넣고 빼기', (f) => {
     const G = arrTree(f.h);
-    return { G, fr: { n: Object.fromEntries(Object.entries(f.hi).map(([k, c]) => [k, c === 'ok' ? 'done' : 'cur'])), sub: Object.fromEntries(G.nodes.map((n) => [n.id, n.id])) },
+    return { code: HEAP_CODE, G, fr: { n: Object.fromEntries(Object.entries(f.hi).map(([k, c]) => [k, c === 'ok' ? 'done' : 'cur'])), sub: Object.fromEntries(G.nodes.map((n) => [n.id, n.id])) },
       panel: `<div class="lab">배열 heap[1..hn] (hn = ${f.h.length - 1})</div>${arrHtml(f.h, 1, f.hi)}${f.out !== undefined ? `<div class="lab">pop() 이 돌려준 값</div><div class="out">${f.out}</div>` : ''}<div class="lab">노드 아래 작은 수 = 배열 번호</div>`,
       msg: f.msg };
   });
@@ -460,38 +511,70 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
   function ufFrames(n, ops, init) {
     const ids = Array.from({ length: n }, (_, k) => k + 1);
     const par = init ? init.slice() : [0, ...ids];
-    const F = [], fr = (hi, msg, path = []) => F.push({ par: par.slice(), ids, hi, msg, path });
+    // at = 지금 실행 중인 입력(ops) 줄, out = 지금까지 화면에 출력된 줄 (프린트 main 의 cout)
+    let at = -1; const out = [];
+    const F = [], fr = (hi, msg, path = [], ln = []) => F.push({ par: par.slice(), ids, hi, msg, path, ln, ops, at, out: out.slice(), init: !!init });
     fr({}, init ? '처음 상태' : '처음엔 모두 따로 → 자기 자신이 루트 (<code>parent[i] == i</code>)');
     const find = (x, show) => {
       const path = [x]; while (par[path[path.length - 1]] !== path[path.length - 1]) path.push(par[path[path.length - 1]]);
       const root = path[path.length - 1];
-      if (show) fr(Object.fromEntries(path.map((v) => [v, v === root ? 'done' : 'seen'])), `Find(${x}): ${path.join(' → ')} 따라 올라가 루트 <b>${root}</b>`, path);
+      if (show) fr(Object.fromEntries(path.map((v) => [v, v === root ? 'done' : 'seen'])), `Find(${x}): ${path.join(' → ')} 따라 올라가 루트 <b>${root}</b>`, path, ['f1', 'f2']);
       let changed = false;
       for (const v of path) if (v !== root && par[v] !== root) { par[v] = root; changed = true; }
-      if (changed && show) fr(Object.fromEntries(path.map((v) => [v, v === root ? 'done' : 'cur'])), `경로 압축: 거쳐 간 ${path.filter((v) => v !== root).join(', ')} 를 루트 ${root} 에 바로 붙였어요 (<code>parent[x] = Find(parent[x])</code>)`);
+      if (changed && show) fr(Object.fromEntries(path.map((v) => [v, v === root ? 'done' : 'cur'])), `경로 압축: 거쳐 간 ${path.filter((v) => v !== root).join(', ')} 를 루트 ${root} 에 바로 붙였어요 (<code>parent[x] = Find(parent[x])</code>)`, [], ['f2']);
       return root;
     };
     for (const [op, a, b] of ops) {
+      at++;
+      if (op === 'P') {
+        for (const i of ids) out.push(String(par[i]));
+        fr({}, `parent[1..${n}] 를 한 줄씩 출력 → ${ids.map((i) => par[i]).join(' ')}`);
+        continue;
+      }
       if (op === 'U') {
         const ra = find(a, false), rb = find(b, false);
-        if (ra === rb) { fr({ [ra]: 'done' }, `Union(${a},${b}): 루트가 둘 다 ${ra} → 이미 같은 집합, 할 일 없음`); continue; }
-        fr({ [a]: 'seen', [b]: 'seen', [ra]: 'cur', [rb]: 'cur' }, `Union(${a},${b}): ${a} 의 루트 ${ra}, ${b} 의 루트 ${rb}`);
+        if (ra === rb) { fr({ [ra]: 'done' }, `Union(${a},${b}): 루트가 둘 다 ${ra} → 이미 같은 집합, 할 일 없음`, [], ['u1', 'u2']); continue; }
+        fr({ [a]: 'seen', [b]: 'seen', [ra]: 'cur', [rb]: 'cur' }, `Union(${a},${b}): ${a} 의 루트 ${ra}, ${b} 의 루트 ${rb}`, [], ['u1']);
         par[rb] = ra;
-        fr({ [rb]: 'done', [ra]: 'done' }, `<code>parent[${rb}] = ${ra}</code> → ${b} 쪽 루트 ${rb} 를 ${ra} 밑에 붙임${rb !== b ? ` (${b} 가 아니라 루트 ${rb} 를 붙이는 것에 주의)` : ''}`);
+        fr({ [rb]: 'done', [ra]: 'done' }, `<code>parent[${rb}] = ${ra}</code> → ${b} 쪽 루트 ${rb} 를 ${ra} 밑에 붙임${rb !== b ? ` (${b} 가 아니라 루트 ${rb} 를 붙이는 것에 주의)` : ''}`, [], ['u3']);
       } else if (op === 'S') {
         const ra = find(a, false), rb = find(b, false);
-        fr({ [a]: 'seen', [b]: 'seen', [ra]: ra === rb ? 'done' : 'cur', [rb]: ra === rb ? 'done' : 'bad' }, `isUnion(${a},${b}): 루트 ${ra}${ra === rb ? ' = ' : ' ≠ '}${rb} → <b>${ra === rb ? '같은 집합 (1)' : '다른 집합 (0)'}</b>`);
+        out.push(`2와 4는 같은 집합인가? ${ra === rb ? 1 : 0}`.replace('2와 4', `${a}와 ${b}`));
+        fr({ [a]: 'seen', [b]: 'seen', [ra]: ra === rb ? 'done' : 'cur', [rb]: ra === rb ? 'done' : 'bad' }, `isUnion(${a},${b}): 루트 ${ra}${ra === rb ? ' = ' : ' ≠ '}${rb} → <b>${ra === rb ? '같은 집합 (1)' : '다른 집합 (0)'}</b>`, [], ['s1', 's2']);
       } else if (op === 'F') find(a, true);
     }
+    at = ops.length; fr({}, '입력을 모두 실행했어요');
     return F;
   }
+  // 입력(프린트 main 이 부르는 순서): 지금 줄은 강조, 지난 줄은 초록
+  const opText = (o, n) => o[0] === 'U' ? `Union(${o[1]},${o[2]});` : o[0] === 'S' ? `cout &lt;&lt; isUnion(${o[1]},${o[2]});` : o[0] === 'F' ? `Find(${o[1]});` : `for i=1..${n}: cout &lt;&lt; parent[i];`;
+  const opsHtml = (f) => `<div class="lab">입력 (main 에서 부르는 순서)</div><ul class="el mono">
+      <li class="${f.at < 0 ? 'hi' : 'ok'}">${f.init ? `parent = 한 줄로 1 ← 2 ← … ← ${f.ids.length}` : `for i=1..${f.ids.length}: parent[i] = i;`}</li>
+      ${f.ops.map((o, k) => `<li class="${k === f.at ? 'hi' : k < f.at ? 'ok' : ''}">${opText(o, f.ids.length)}</li>`).join('')}</ul>
+    <div class="lab">출력</div><div class="out" style="letter-spacing:0;font-size:13px;white-space:pre-line">${f.out.join('<br>') || '&nbsp;'}</div>`;
+  const UF_CODE = `
+int Find(int x){
+    if(x==parent[x]) return x; //@f1
+    else return parent[x]=Find(parent[x]); //@f2
+}
+void Union(int x,int y){
+    x=Find(x); //@u1
+    y=Find(y); //@u1
+    if(x==y) return; //@u2
+    parent[y]=x; //@u3
+}
+bool isUnion(int x,int y){
+    x=Find(x); //@s1
+    y=Find(y); //@s1
+    return x==y; //@s2
+}`;
   const p = makePlayer($('#p-uf'), 'Union-Find 따라가기', (f) => {
     const G = forest(f.par, f.ids);
-    return { G, fr: { n: f.hi }, msg: f.msg,
-      panel: `<div class="lab">parent 배열 (화살표 = 부모)</div><div class="tw"><table class="t"><tr><th>i</th>${f.ids.map((i) => `<th>${i}</th>`).join('')}</tr><tr><th>p[i]</th>${f.ids.map((i) => `<td class="${f.par[i] !== i ? 'hi' : 'dim'}">${f.par[i]}</td>`).join('')}</tr></table></div>` };
+    return { code: UF_CODE, G, fr: { n: f.hi }, msg: f.msg,
+      panel: opsHtml(f) + `<div class="lab">parent 배열 (화살표 = 부모)</div><div class="tw"><table class="t"><tr><th>i</th>${f.ids.map((i) => `<th>${i}</th>`).join('')}</tr><tr><th>p[i]</th>${f.ids.map((i) => `<td class="${f.par[i] !== i ? 'hi' : 'dim'}">${f.par[i]}</td>`).join('')}</tr></table></div>` };
   });
   const S = [
-    () => ufFrames(7, [['U', 1, 2], ['U', 4, 5], ['U', 5, 6], ['S', 2, 4], ['U', 1, 4], ['S', 2, 4]]),
+    () => ufFrames(7, [['U', 1, 2], ['U', 4, 5], ['U', 5, 6], ['P'], ['S', 2, 4], ['U', 1, 4], ['S', 2, 4]]),
     () => ufFrames(8, [['F', 8], ['S', 3, 8]], [0, 1, 1, 2, 3, 4, 5, 6, 7]),
   ];
   scenBtns(p, ['프린트 예제', '경로 압축 Find(8)'], (k) => p.set(S[k]()));
@@ -518,13 +601,13 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
   const G = { w: 450, h: 280, nodes: Object.keys(P).map((k) => ({ id: k, x: P[k][0], y: P[k][1] })), edges: Object.keys(T).flatMap((k) => T[k].filter(Boolean).map((c) => ({ u: k, v: c }))) };
   function trav(kind) {
     const F = [], out = [], stack = [], done = new Set();
-    const fr = (cur, msg) => F.push({ cur, out: out.join(''), stack: stack.slice(), done: new Set(done), msg });
+    const fr = (cur, msg, ln = []) => F.push({ cur, out: out.join(''), stack: stack.slice(), done: new Set(done), msg, ln, kind });
     const name = { pre: '전위', in: '중위', post: '후위' }[kind];
     fr(null, `${name} 순회: ${kind === 'pre' ? 'Root → L → R' : kind === 'in' ? 'L → Root → R' : 'L → R → Root'}. A 에서 시작`);
     const visit = (x) => {
       stack.push(x);
-      const pr = () => { out.push(x); done.add(x); fr(x, `<b>${x}</b> 출력 → 지금까지 ${out.join('')}`); };
-      if (kind === 'pre') pr(); else fr(x, `${x} 에 들어옴 → 먼저 왼쪽${kind === 'post' ? ', 오른쪽' : ''} 으로`);
+      const pr = () => { out.push(x); done.add(x); fr(x, `<b>${x}</b> 출력 → 지금까지 ${out.join('')}`, ['tp']); };
+      if (kind === 'pre') pr(); else fr(x, `${x} 에 들어옴 → 먼저 왼쪽${kind === 'post' ? ', 오른쪽' : ''} 으로`, ['tl']);
       if (T[x][0]) visit(T[x][0]);
       if (kind === 'in') pr();
       if (T[x][1]) visit(T[x][1]);
@@ -535,12 +618,35 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
     fr(null, `끝: <b>${out.join('')}</b>`);
     return F;
   }
+  const TREE_CODE = {
+    pre: `
+void preorder(int x) {
+    if (x == -1) return;
+    cout << (char)(x+'A'); //@tp
+    preorder(a[x][0]); //@tl
+    preorder(a[x][1]);
+}`,
+    in: `
+void inorder(int x) {
+    if (x == -1) return;
+    inorder(a[x][0]); //@tl
+    cout << (char)(x+'A'); //@tp
+    inorder(a[x][1]);
+}`,
+    post: `
+void postorder(int x) {
+    if (x == -1) return;
+    postorder(a[x][0]); //@tl
+    postorder(a[x][1]);
+    cout << (char)(x+'A'); //@tp
+}`,
+  };
   const p = makePlayer($('#p-tree'), '트리 순회 (프린트 입력)', (f) => {
     const n = {};
     for (const x of f.stack) n[x] = 'seen';
     for (const x of f.done) n[x] = 'done';
     if (f.cur) n[f.cur] = 'cur';
-    return { G, fr: { n }, msg: f.msg,
+    return { code: TREE_CODE[f.kind], G, fr: { n }, msg: f.msg,
       panel: `<div class="lab">출력</div><div class="out">${f.out || '&nbsp;'}</div><div class="lab">호출 중인 함수 (재귀 스택, 아래가 먼저)</div><div class="out">${f.stack.join(' → ') || '&nbsp;'}</div>
         <div class="lab">답</div><table class="t"><tr><th>전위</th><td class="mono">ABDCEFG</td></tr><tr><th>중위</th><td class="mono">DBAECFG</td></tr><tr><th>후위</th><td class="mono">DBEGFCA</td></tr></table>` };
   });
@@ -561,14 +667,14 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
     for (const k in P) par[k] = k;
     const find = (x) => (par[x] === x ? x : (par[x] = find(par[x])));
     let total = 0, picked = 0;
-    const fr = (cur, msg) => F.push({ st: { ...st }, cur, total, msg, list: sorted.map((e) => ({ e, s: st[key(e[0], e[1])] })), comp: Object.fromEntries(Object.keys(P).map((k) => [k, find(k)])) });
-    fr(null, '1) 간선을 가중치 오름차순으로 정렬 (오른쪽 목록)');
+    const fr = (cur, msg, ln = []) => F.push({ st: { ...st }, cur, total, msg, ln, list: sorted.map((e) => ({ e, s: st[key(e[0], e[1])] })), comp: Object.fromEntries(Object.keys(P).map((k) => [k, find(k)])) });
+    fr(null, '1) 간선을 가중치 오름차순으로 정렬 (오른쪽 목록)', ['k0']);
     for (const e of sorted) {
       const [u, v, w] = e, k = key(u, v);
-      st[k] = 'try'; fr(k, `${u}–${v} (${w}) 를 볼 차례 → find(${u}) = ${find(u)}, find(${v}) = ${find(v)}`);
-      if (find(u) === find(v)) { st[k] = 'rej'; fr(k, `루트가 같아요 → 넣으면 <b>사이클</b>이 생겨서 버림`); }
-      else { par[find(v)] = find(u); total += w; picked++; st[k] = 'pick'; fr(k, `다른 집합 → <b>채택</b> (unite) · 합 ${total} · ${picked}개`); }
-      if (picked === 6) { fr(null, `3) 간선이 n−1 = 6 개 → 끝. 최소 신장 트리의 합 <b>${total}</b>`); break; }
+      st[k] = 'try'; fr(k, `${u}–${v} (${w}) 를 볼 차례 → find(${u}) = ${find(u)}, find(${v}) = ${find(v)}`, ['k1', 'k2']);
+      if (find(u) === find(v)) { st[k] = 'rej'; fr(k, `루트가 같아요 → 넣으면 <b>사이클</b>이 생겨서 버림`, ['k3']); }
+      else { par[find(v)] = find(u); total += w; picked++; st[k] = 'pick'; fr(k, `다른 집합 → <b>채택</b> (unite) · 합 ${total} · ${picked}개`, ['k4', 'k5']); }
+      if (picked === 6) { fr(null, `3) 간선이 n−1 = 6 개 → 끝. 최소 신장 트리의 합 <b>${total}</b>`, ['k6']); break; }
     }
     return F;
   }
@@ -576,32 +682,74 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
     const F = [], adj = {}, chk = {}, st = {};
     for (const [u, v, w] of E) { (adj[u] ||= []).push([v, w]); (adj[v] ||= []).push([u, w]); }
     let pq = [], total = 0;
-    const fr = (msg, top) => F.push({ st: { ...st }, chk: { ...chk }, pq: pq.slice().sort((a, b) => a[0] - b[0]), total, msg, top });
+    const fr = (msg, top, ln = []) => F.push({ ln, st: { ...st }, chk: { ...chk }, pq: pq.slice().sort((a, b) => a[0] - b[0]), total, msg, top });
     const pushAll = (x) => { for (const [y, w] of adj[x]) pq.push([w, y, x]); };
     chk.A = true; pushAll('A');
-    fr('A 에서 시작: <code>check[A] = true</code>, A 의 간선을 모두 우선순위 큐에 (<code>-가중치</code> 로 넣어 작은 것이 먼저)');
+    fr('A 에서 시작: <code>check[A] = true</code>, A 의 간선을 모두 우선순위 큐에 (<code>-가중치</code> 로 넣어 작은 것이 먼저)', null, ['r0']);
     while (pq.length) {
       pq.sort((a, b) => a[0] - b[0]);
       const [w, y, x] = pq.shift(), k = key(x, y), k2 = key(y, x);
-      if (chk[y]) { if (!st[k] && !st[k2]) st[k] = 'rej'; fr(`꺼낸 간선 ${x}–${y} (${w}): ${y} 는 이미 트리에 있음 → 버림`, [w, y, x]); continue; }
+      if (chk[y]) { if (!st[k] && !st[k2]) st[k] = 'rej'; fr(`꺼낸 간선 ${x}–${y} (${w}): ${y} 는 이미 트리에 있음 → 버림`, [w, y, x], ['r1']); continue; }
       chk[y] = true; total += w; delete st[k2]; st[k] = 'pick';
       pushAll(y);
-      fr(`꺼낸 간선 ${x}–${y} (${w}): ${y} 를 트리에 추가 · 합 ${total} → ${y} 의 간선을 큐에 넣음`, [w, y, x]);
+      fr(`꺼낸 간선 ${x}–${y} (${w}): ${y} 를 트리에 추가 · 합 ${total} → ${y} 의 간선을 큐에 넣음`, [w, y, x], ['r2', 'r3']);
     }
-    fr(`큐가 비었어요 → 끝. 최소 신장 트리의 합 <b>${total}</b>`);
+    fr(`큐가 비었어요 → 끝. 최소 신장 트리의 합 <b>${total}</b>`, null, ['r4']);
     return F;
   }
   const COMP = ['cur', 'seen', 'done', 'bad'];
   const p = makePlayer($('#p-mst'), '최소 신장 트리 (프린트 그래프)', (f) => {
+    const MST_CODE = f.list ? `
+bool unite(int a, int b) {   // struct UnionFind
+    a = find(a); //@k2
+    b = find(b); //@k2
+    if (a == b) return false; //@k3
+    if (rnk[a] < rnk[b]) swap(a, b); //@k4
+    parent[b] = a; //@k4
+    if (rnk[a] == rnk[b]) rnk[a]++; //@k4
+    return true; //@k4
+}
+// main
+sort(edges.begin(), edges.end()); //@k0
+UnionFind uf(V);
+long long total = 0;
+int picked = 0;
+for (const Edge& e : edges) { //@k1
+    if (uf.unite(e.u, e.v)) { //@k1
+        total += e.w; //@k5
+        if (++picked == V - 1) break; //@k6
+    }
+}` : `
+void prim(){
+    check[1] = true; //@r0
+    priority_queue<pair<int,int>> q;
+    for(auto p: mArr[1]){ //@r0
+        q.push(make_pair(-p.second, p.first)); //@r0
+    }
+    int answer = 0;
+    while(!q.empty()){
+        pair<int,int> p = q.top(); //@r1
+        q.pop(); //@r1
+        if(!check[p.second]){ //@r1
+            check[p.second] = true; //@r2
+            answer+= -p.first; //@r2
+            int x = p.second;
+            for(pair<int,int> p : mArr[x]){ //@r3
+                q.push(make_pair(-p.second, p.first)); //@r3
+            }
+        }
+    }
+    cout<<answer<<'\\n'; //@r4
+}`;
     if (f.list) {   // 크루스칼
       const roots = [...new Set(Object.values(f.comp))].filter((r) => Object.values(f.comp).filter((x) => x === r).length > 1);
       const n = {}; for (const k in f.comp) { const i = roots.indexOf(f.comp[k]); if (i >= 0) n[k] = i === 0 ? 'done' : i === 1 ? 'seen' : 'cur'; }
-      return { G, fr: { e: f.st, n }, msg: f.msg,
+      return { code: MST_CODE, G, fr: { e: f.st, n }, msg: f.msg,
         panel: `<div class="lab">가중치 순으로 정렬한 간선</div><ul class="el">${f.list.map(({ e, s }) => `<li class="${f.cur === key(e[0], e[1]) ? 'hi' : s === 'pick' ? 'ok' : s === 'rej' ? 'bad' : ''}"><span class="mono">${e[2]}</span>${e[0]}–${e[1]}<span class="r">${s === 'pick' ? '채택' : s === 'rej' ? '사이클' : ''}</span></li>`).join('')}</ul><div class="lab">합</div><div class="out">${f.total}</div><div class="lab">같은 색 정점 = 같은 집합</div>` };
     }
     const n = {}; for (const k in f.chk) n[k] = 'done';
     if (f.top) n[f.top[1]] = 'cur';
-    return { G, fr: { e: f.st, n }, msg: f.msg,
+    return { code: MST_CODE, G, fr: { e: f.st, n }, msg: f.msg,
       panel: `<div class="lab">우선순위 큐 (위가 먼저 나옴)</div><ul class="el">${f.pq.slice(0, 9).map((q) => `<li class="${f.chk[q[1]] ? 'bad' : ''}"><span class="mono">${q[0]}</span>${q[2]}→${q[1]}</li>`).join('') || '<li>비어 있음</li>'}${f.pq.length > 9 ? `<li>… ${f.pq.length - 9}개 더</li>` : ''}</ul><div class="lab">합</div><div class="out">${f.total}</div>` };
   });
   scenBtns(p, ['크루스칼', '프림 (A 부터)'], (k) => p.set(k ? prim() : kruskal()));
@@ -618,28 +766,61 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
   function frames() {
     const F = [], ind = {}, d = {}, adj = {}, q = [], out = [], st = {};
     for (const i of ids) { ind[i] = W[i][1].length; for (const x of W[i][1]) (adj[x] ||= []).push(i); }
-    const fr = (cur, msg, hiE) => F.push({ ind: { ...ind }, d: { ...d }, q: q.slice(), out: out.slice(), cur, msg, st: { ...st, ...(hiE || {}) } });
-    fr(null, '진입 차수 <code>ind</code> 를 세요 (화살표가 들어오는 수). 노드 아래 = 걸리는 시간');
+    const fr = (cur, msg, hiE, ln = []) => F.push({ ln, ind: { ...ind }, d: { ...d }, q: q.slice(), out: out.slice(), cur, msg, st: { ...st, ...(hiE || {}) } });
+    fr(null, '진입 차수 <code>ind</code> 를 세요 (화살표가 들어오는 수). 노드 아래 = 걸리는 시간', null, ['w0']);
     for (const i of ids) if (!ind[i]) { q.push(i); d[i] = W[i][0]; }
-    fr(null, `진입 차수 0 인 작업 ${q.join(', ')} 을 큐에 넣고 <code>d[i] = work[i]</code>`);
+    fr(null, `진입 차수 0 인 작업 ${q.join(', ')} 을 큐에 넣고 <code>d[i] = work[i]</code>`, null, ['w1']);
     while (q.length) {
       const x = q.shift(); out.push(x);
-      fr(x, `큐에서 ${x} 를 꺼냄 (끝나는 시각 d[${x}] = ${d[x]})`);
+      fr(x, `큐에서 ${x} 를 꺼냄 (끝나는 시각 d[${x}] = ${d[x]})`, null, ['w2']);
       for (const y of adj[x] || []) {
         ind[y]--;
         const nd = d[x] + W[y][0], up = !(d[y] >= nd);
         if (up) d[y] = nd;
         st[ek(x, y)] = 'pick';
         if (!ind[y]) q.push(y);
-        fr(x, `${x}→${y}: ind[${y}] → ${ind[y]} · d[${y}] = max(…, d[${x}] + work[${y}] = ${d[x]} + ${W[y][0]} = ${nd})${up ? ' → 갱신' : ' → 그대로'}${!ind[y] ? ` · 진입 차수 0 → ${y} 를 큐에` : ''}`, { [ek(x, y)]: 'try' });
+        fr(x, `${x}→${y}: ind[${y}] → ${ind[y]} · d[${y}] = max(…, d[${x}] + work[${y}] = ${d[x]} + ${W[y][0]} = ${nd})${up ? ' → 갱신' : ' → 그대로'}${!ind[y] ? ` · 진입 차수 0 → ${y} 를 큐에` : ''}`, { [ek(x, y)]: 'try' }, ind[y] ? ['w3'] : ['w3', 'w4']);
       }
     }
-    fr(null, `모두 끝. 답 = d 의 최댓값 = <b>${Math.max(...Object.values(d))}</b>`);
+    fr(null, `모두 끝. 답 = d 의 최댓값 = <b>${Math.max(...Object.values(d))}</b>`, null, ['w5']);
     return F;
   }
+  const WORK_CODE = `
+// 입력: 작업 i 의 앞선 작업 x 마다
+a[x].push_back(i); //@w0
+ind[i] += 1; //@w0
+// 위상정렬
+queue<int> q;
+for (int i=1; i<=n; i++) {
+    if (ind[i] == 0) { //@w1
+        q.push(i); //@w1
+        d[i] = work[i]; //@w1
+    }
+}
+for (int k=0; k<n; k++) {
+    int x = q.front(); //@w2
+    q.pop(); //@w2
+    for (int i=0; i<a[x].size(); i++) {
+        int y = a[x][i]; //@w3
+        ind[y] -= 1; //@w3
+        if (d[y] < d[x]+work[y]) { //@w3
+            d[y] = d[x]+work[y]; //@w3
+        }
+        if (ind[y] == 0) { //@w4
+            q.push(y); //@w4
+        }
+    }
+}
+int ans = 0;
+for (int i=1; i<=n; i++) { //@w5
+    if (ans < d[i]) { //@w5
+        ans = d[i]; //@w5
+    }
+}
+printf("%d\\n",ans); //@w5`;
   const p = makePlayer($('#p-topo'), '작업 (프린트 예제 입력)', (f) => {
     const n = {}; for (const x of f.out) n[x] = 'done'; for (const x of f.q) n[x] = 'seen'; if (f.cur) n[f.cur] = 'cur';
-    return { G, fr: { n, e: f.st, sub: Object.fromEntries(ids.map((i) => [i, `${W[i][0]}시간`])) }, msg: f.msg,
+    return { code: WORK_CODE, G, fr: { n, e: f.st, sub: Object.fromEntries(ids.map((i) => [i, `${W[i][0]}시간`])) }, msg: f.msg,
       panel: `<div class="tw"><table class="t"><tr><th>작업</th>${ids.map((i) => `<th>${i}</th>`).join('')}</tr>
         <tr><th>work</th>${ids.map((i) => `<td>${W[i][0]}</td>`).join('')}</tr>
         <tr><th>ind</th>${ids.map((i) => `<td class="${f.ind[i] ? '' : 'dim'}">${f.ind[i]}</td>`).join('')}</tr>
@@ -659,26 +840,51 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
     const F = [], dist = {}, chk = {}, from = {}, st = {};
     for (const i of ids) dist[i] = Infinity;
     dist[1] = 0;
-    const fr = (x, msg, hi) => F.push({ dist: { ...dist }, chk: { ...chk }, from: { ...from }, x, msg, st: { ...st, ...(hi || {}) } });
-    fr(null, '모든 dist 를 ∞ 로, 시작점 1 의 dist 를 0 으로');
+    const fr = (x, msg, hi, ln = []) => F.push({ ln, dist: { ...dist }, chk: { ...chk }, from: { ...from }, x, msg, st: { ...st, ...(hi || {}) } });
+    fr(null, '모든 dist 를 ∞ 로, 시작점 1 의 dist 를 0 으로', null, ['d0']);
     for (let k = 0; k < ids.length - 1; k++) {
       let x = -1;
       for (const i of ids) if (!chk[i] && (x < 0 || dist[i] < dist[x])) x = i;
       chk[x] = true;
-      fr(x, `확정 안 된 정점 중 dist 가 가장 작은 <b>${x}</b> (dist ${dist[x]}) 를 확정 → <code>check[${x}] = true</code>`);
+      fr(x, `확정 안 된 정점 중 dist 가 가장 작은 <b>${x}</b> (dist ${dist[x]}) 를 확정 → <code>check[${x}] = true</code>`, null, ['d1', 'd2']);
       for (const [u, v, w] of E) if (u === x) {
         const nd = dist[x] + w;
-        if (dist[v] > nd) { dist[v] = nd; for (const k2 in st) if (k2.endsWith('-' + v) && st[k2] === 'pick') delete st[k2]; st[ek(x, v)] = 'pick'; from[v] = x; fr(x, `${x}→${v} (${w}): ${nd} &lt; 기존 → dist[${v}] = ${nd}, from[${v}] = ${x}`, { [ek(x, v)]: 'try' }); }
-        else fr(x, `${x}→${v} (${w}): ${nd} ≥ dist[${v}] = ${dist[v]} → 그대로`, { [ek(x, v)]: 'rej' });
+        if (dist[v] > nd) { dist[v] = nd; for (const k2 in st) if (k2.endsWith('-' + v) && st[k2] === 'pick') delete st[k2]; st[ek(x, v)] = 'pick'; from[v] = x; fr(x, `${x}→${v} (${w}): ${nd} &lt; 기존 → dist[${v}] = ${nd}, from[${v}] = ${x}`, { [ek(x, v)]: 'try' }, ['d3', 'd4']); }
+        else fr(x, `${x}→${v} (${w}): ${nd} ≥ dist[${v}] = ${dist[v]} → 그대로`, { [ek(x, v)]: 'rej' }, ['d3']);
       }
     }
     const path = []; for (let v = 5; v; v = from[v]) path.unshift(v);
-    fr(null, `끝. 1 → 5 최소 비용 <b>${dist[5]}</b> · from 을 거꾸로 따라간 경로 ${path.join(' → ')}`);
+    fr(null, `끝. 1 → 5 최소 비용 <b>${dist[5]}</b> · from 을 거꾸로 따라간 경로 ${path.join(' → ')}`, null, ['d5']);
     return F;
   }
+  const DIJ_CODE = `
+for (int i=1; i<=n; i++) {
+    dist[i] = inf; //@d0
+}
+dist[start] = 0; //@d0
+from[start] = -1; //@d0
+for (int k=0; k<n-1; k++) {
+    int m = inf+1; //@d1
+    int x = -1; //@d1
+    for (int i=1; i<=n; i++) { //@d1
+        if (check[i] == false && m > dist[i]) { //@d1
+            m = dist[i]; //@d1
+            x = i; //@d1
+        }
+    }
+    check[x] = true; //@d2
+    for (int i=0; i<a[x].size(); i++) {
+        int y = a[x][i].to; //@d3
+        if (dist[y] > dist[x] + a[x][i].cost) { //@d3
+            dist[y] = dist[x] + a[x][i].cost; //@d4
+            from[y] = x;   // 최소비용 구하기 2 (경로 출력) //@d4
+        }
+    }
+}
+printf("%d\\n",dist[end]); //@d5`;
   const p = makePlayer($('#p-dij'), '다익스트라 (최소비용 구하기 예제, 1 → 5)', (f) => {
     const n = {}; for (const i in f.chk) n[i] = 'done'; if (f.x) n[f.x] = 'cur';
-    return { G, fr: { n, e: f.st, sub: Object.fromEntries(ids.map((i) => [i, f.dist[i] === Infinity ? INF : f.dist[i]])) }, msg: f.msg,
+    return { code: DIJ_CODE, G, fr: { n, e: f.st, sub: Object.fromEntries(ids.map((i) => [i, f.dist[i] === Infinity ? INF : f.dist[i]])) }, msg: f.msg,
       panel: `<div class="tw"><table class="t"><tr><th>정점</th>${ids.map((i) => `<th>${i}</th>`).join('')}</tr>
         <tr><th>dist</th>${ids.map((i) => `<td class="${f.x === i ? 'hi' : f.chk[i] ? 'ok' : ''}">${f.dist[i] === Infinity ? INF : f.dist[i]}</td>`).join('')}</tr>
         <tr><th>check</th>${ids.map((i) => `<td class="${f.chk[i] ? 'ok' : 'dim'}">${f.chk[i] ? 'T' : 'F'}</td>`).join('')}</tr>
@@ -698,26 +904,53 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
   function frames(E) {
     const F = [], dist = { 1: 0, 2: Infinity, 3: Infinity }, n = ids.length;
     let neg = false;
-    const fr = (round, msg, hi, cur) => F.push({ dist: { ...dist }, round, msg, hi: hi || {}, cur });
-    fr(0, 'dist[1] = 0, 나머지 ∞. 모든 간선으로 갱신하기를 n = 3 번 반복해요 (간선은 입력 순서대로)');
+    const fr = (round, msg, hi, cur, ln = []) => F.push({ ln, dist: { ...dist }, round, msg, hi: hi || {}, cur });
+    fr(0, 'dist[1] = 0, 나머지 ∞. 모든 간선으로 갱신하기를 n = 3 번 반복해요 (간선은 입력 순서대로)', null, null, ['b0']);
     for (let r = 1; r <= n; r++) {
       let any = false;
       for (const [x, y, z] of E) {
         if (dist[x] !== Infinity && dist[y] > dist[x] + z) {
           dist[y] = dist[x] + z; any = true;
           if (r === n) neg = true;
-          fr(r, `${r}번째: ${x}→${y} (${z}) → dist[${y}] = ${dist[x]} + (${z}) = ${dist[y]}${r === n ? ' · <b>n 번째에도 갱신 → 음수 사이클!</b>' : ''}`, { [ek(x, y)]: r === n ? 'rej' : 'pick' }, y);
+          fr(r, `${r}번째: ${x}→${y} (${z}) → dist[${y}] = ${dist[x]} + (${z}) = ${dist[y]}${r === n ? ' · <b>n 번째에도 갱신 → 음수 사이클!</b>' : ''}`, { [ek(x, y)]: r === n ? 'rej' : 'pick' }, y, r === n ? ['b2', 'b3'] : ['b2']);
         }
       }
-      if (!any) fr(r, `${r}번째: 바뀐 dist 가 없어요`);
+      if (!any) fr(r, `${r}번째: 바뀐 dist 가 없어요`, null, null, ['b1']);
     }
-    fr(n, neg ? '음수 사이클이 있어요 → 프린트 코드는 <b>-1</b> 출력' : `끝. 2, 3 번까지 거리 <b>${dist[2]}, ${dist[3]}</b> 출력`);
+    fr(n, neg ? '음수 사이클이 있어요 → 프린트 코드는 <b>-1</b> 출력' : `끝. 2, 3 번까지 거리 <b>${dist[2]}, ${dist[3]}</b> 출력`, null, null, neg ? ['b4'] : ['b5']);
     return F;
   }
+  const BF_CODE = `
+for (int i=1; i<=n; i++) {
+    dist[i] = inf; //@b0
+}
+dist[1] = 0; //@b0
+bool negative_cycle = false; //@b0
+for (int i=1; i<=n; i++) { //@b1
+    for (int j=0; j<m; j++) { //@b1
+        int x = a[j].from;
+        int y = a[j].to;
+        int z = a[j].cost;
+        if (dist[x] != inf && dist[y] > dist[x]+z) { //@b2
+            dist[y] = dist[x]+z; //@b2
+            if (i == n) { //@b3
+                negative_cycle = true; //@b3
+            }
+        }
+    }
+}
+if (negative_cycle) { //@b4
+    printf("-1\\n"); //@b4
+} else {
+    for (int i=2; i<=n; i++) { //@b5
+        if (dist[i] == inf) dist[i] = -1; //@b5
+        printf("%d\\n",dist[i]); //@b5
+    }
+}`;
   let cur = 0;
   const p = makePlayer($('#p-bf'), '벨만포드 (타임머신)', (f) => {
     const E = SC[cur].E, G = { w: 440, h: 270, nodes: ids.map((i) => ({ id: i, x: P[i][0], y: P[i][1] })), edges: E.map(([u, v, w]) => ({ u, v, w, dir: true })) };
-    return { G, fr: { e: f.hi, n: f.cur ? { [f.cur]: 'cur' } : {}, sub: Object.fromEntries(ids.map((i) => [i, f.dist[i] === Infinity ? INF : f.dist[i]])) }, msg: f.msg,
+    return { code: BF_CODE, G, fr: { e: f.hi, n: f.cur ? { [f.cur]: 'cur' } : {}, sub: Object.fromEntries(ids.map((i) => [i, f.dist[i] === Infinity ? INF : f.dist[i]])) }, msg: f.msg,
       panel: `<div class="lab">${f.round ? `반복 ${f.round} / 3` : '시작'}</div><div class="tw"><table class="t"><tr><th>정점</th>${ids.map((i) => `<th>${i}</th>`).join('')}</tr><tr><th>dist</th>${ids.map((i) => `<td class="${f.cur === i ? 'hi' : ''}">${f.dist[i] === Infinity ? INF : f.dist[i]}</td>`).join('')}</tr></table></div>
         <div class="lab">간선 (입력 순서)</div><ul class="el">${E.map(([x, y, z]) => `<li class="${f.hi[ek(x, y)] ? 'hi' : ''}">${x}→${y}<span class="r mono">${z}</span></li>`).join('')}</ul>` };
   });
