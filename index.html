@@ -1704,7 +1704,8 @@ function buildTimetableRows(name) {
           tds += `<td><div class="class-cell ${cc}" onclick="showClassDetail('${name}','${c.subject.replace(/'/g,"\\'")}','${c.ban}',event)"><div class="subj-name">${shortName(c.subject)}</div><div class="ban-name">${c.ban}</div></div></td>`;
         }
       } else if (club && day === CLUB_SLOT.day && CLUB_SLOT.periods.includes(p)) {
-        tds += `<td><div class="class-cell common-cell club-cell" title="${club.name} (${club.label})"><div class="subj-name">${club.short}</div><div class="ban-name">${club.label}</div></div></td>`;
+        const mine = (MY_CLUBS[student.id] || [])[/학술/.test(club.name) ? 0 : 1];
+        tds += `<td><div class="class-cell common-cell club-cell" title="${club.name} (${club.label})"><div class="subj-name">${mine || club.short}</div><div class="ban-name">${mine ? club.kind + ' · ' : ''}${club.label}</div></div></td>`;
       } else {
         tds += `<td><div class="empty-cell free-cell" onclick="showFreeDetail('${name}','${day}',${p},event)"><span class="free-label">공강</span></div></td>`;
       }
@@ -1717,6 +1718,8 @@ function buildTimetableRows(name) {
 // 동아리: 화요일 8·9교시. 학사일정(academic.json, 카톡 공지는 academic-extra.json)에서
 // 다가오는 화요일(오늘 포함)이 학술동아리인지 문화예술동아리인지 찾아 그 칸에 적습니다. 없는 주는 공강.
 const CLUB_SLOT = { day: '화', periods: [8, 9] };
+// 학번 → [학술동아리, 문화예술동아리] (학교 "학생별 학술·문예동아리" 명단, 2026-11-24)
+const MY_CLUBS = {"2101":["CHEM","글로벌리더"],"2102":["Chal.C.","사부작 힐링 클럽"],"2103":["CHEM","Echonomy"],"2104":["LIFE","Echonomy"],"2105":["Chal.C.","Mind Data Lab"],"2106":["파인애플","글로벌리더"],"2107":["CHEM","서킷 트레이닝"],"2108":["C.C","Echonomy"],"2109":["C.C","페리아고게"],"2110":["C.C","페리아고게"],"2111":["로보티즈","글로벌리더"],"2112":["LIFE","페리아고게"],"2113":["파인애플","Echonomy"],"2114":["C.C","마크로스코프"],"2116":["BIO","사부작 힐링 클럽"],"2201":["C.C","페리아고게"],"2202":["CHEM","Echonomy"],"2203":["BIO","글로벌리더"],"2204":["로보티즈","Echonomy"],"2205":["Blitz","수학자의 노트"],"2206":["로보티즈","Deframe"],"2207":["파이","플스"],"2208":["파이","마크로스코프"],"2209":["수랑사랑","Deframe"],"2210":["별누리","서킷 트레이닝"],"2211":["BIO","페리아고게"],"2212":["Blitz","페리아고게"],"2213":["파이","수학자의 노트"],"2214":["MATHrix","플스"],"2215":["Blitz","페리아고게"],"2216":["BIO","공간문화탐구"],"2301":["로보티즈","사부작 힐링 클럽"],"2302":["Blitz","마크로스코프"],"2303":["CHEM","Echonomy"],"2304":["파인애플","서킷 트레이닝"],"2305":["파인애플","Deframe"],"2306":["BIO","Echonomy"],"2307":["LIFE","사부작 힐링 클럽"],"2308":["Chal.C.","페리아고게"],"2309":["MATHrix","Echonomy"],"2310":["파인애플","Deframe"],"2311":["CHEM","과학자의 서재"],"2312":["LIFE","서킷 트레이닝"],"2313":["무한상상","드림마인드랩"],"2314":["CHEM","글로벌리더"],"2315":["로보티즈","Deframe"],"2401":["Blitz","마크로스코프"],"2402":["BIO","글로벌리더"],"2403":["BIO","마크로스코프"],"2404":["로보티즈","서킷 트레이닝"],"2405":["파이","드림마인드랩"],"2406":["로보티즈","플스"],"2407":["MATHrix","플스"],"2408":["MATHrix","Echonomy"],"2409":["무한상상","글로벌리더"],"2410":["파이","Deframe"],"2411":["별누리","사부작 힐링 클럽"],"2412":["시그마","플스"],"2413":["별누리","과학자의 서재"],"2414":["무한상상","마크로스코프"],"2415":["무한상상","수학자의 노트"],"2501":["C.C","과학자의 서재"],"2502":["파이","Echonomy"],"2503":["무한상상","서킷 트레이닝"],"2504":["CHEM","글로벌리더"],"2505":["수랑사랑","서킷 트레이닝"],"2506":["시그마","사부작 힐링 클럽"],"2507":["시그마","페리아고게"],"2508":["수랑사랑","서킷 트레이닝"],"2509":["C.C","마크로스코프"],"2510":["무한상상","플스"],"2511":["로보티즈","Deframe"],"2512":["BIO","드림마인드랩"],"2513":["Blitz","마크로스코프"],"2514":["MATHrix","서킷 트레이닝"],"2515":["파인애플","Deframe"],"2601":["파인애플","수학자의 노트"],"2602":["무한상상","플스"],"2603":["C.C","마크로스코프"],"2604":["시그마","페리아고게"],"2605":["로보티즈","서킷 트레이닝"],"2606":["CHEM","페리아고게"],"2607":["별누리","페리아고게"],"2608":["파인애플","마크로스코프"],"2609":["MATHrix","서킷 트레이닝"],"2610":["무한상상","수학자의 노트"],"2611":["Blitz","Echonomy"],"2612":["Blitz","Echonomy"],"2613":["Blitz","마크로스코프"],"2614":["CHEM","플스"],"2615":["CHEM","글로벌리더"],"2616":["수랑사랑","Deframe"]};
 let clubDays = null; // { 'YYYY-MM-DD': '학술동아리' | '문화예술동아리' }
 function nextClub() {
   if (!clubDays) return null;
@@ -1725,7 +1728,8 @@ function nextClub() {
   const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const name = clubDays[key];
   if (!name) return null;
-  return { name, short: /학술/.test(name) ? '학술동아리' : '문예동아리', label: `${d.getMonth() + 1}/${d.getDate()}` };
+  const acad = /학술/.test(name);
+  return { name, short: acad ? '학술동아리' : '문예동아리', kind: acad ? '학술' : '문예', label: `${d.getMonth() + 1}/${d.getDate()}` };
 }
 fetch('academic.json').then(r => r.json()).then(a => {
   const list = Array.isArray(a) ? a : (a.events || []);
