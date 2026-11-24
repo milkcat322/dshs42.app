@@ -216,7 +216,7 @@ html.embed #nl-badge-frame, html.embed #nl-hud-frame { display: none !important;
 </header>
 <div class="layout">
   <aside id="side">
-    <input type="search" id="search" placeholder="문제 검색">
+    <input type="search" id="search" name="algo-search" placeholder="문제 검색" autocomplete="off" data-lpignore="true" data-1p-ignore>
     <div class="seg" role="tablist" aria-label="목록 보기">
       <button class="seg-b" data-view="all" role="tab">전체</button>
       <button class="seg-b" data-view="bm" role="tab"><svg class="bm-ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h8a.5.5 0 0 1 .5.5v12.2a.3.3 0 0 1-.48.24L8 11.5l-4.02 2.94a.3.3 0 0 1-.48-.24V2a.5.5 0 0 1 .5-.5z"/></svg>북마크 <span id="bmCount">0</span></button>
@@ -248,13 +248,13 @@ html.embed #nl-badge-frame, html.embed #nl-hud-frame { display: none !important;
         </select>
         <div class="help">한 서버가 막히거나 느리면 다른 서버로 바꿔 보세요. 제출한 코드는 선택한 서버로 전송됩니다.</div></div>
       <div class="row">
-        <div class="field"><label>컴파일러 ID</label><input id="sCompiler" placeholder="g132"><div class="help" id="sCompilerHelp"></div></div>
-        <div class="field"><label>컴파일 옵션</label><input id="sFlags" placeholder="-std=c++17 -O2"></div>
+        <div class="field"><label>컴파일러 ID</label><input id="sCompiler" autocomplete="off" placeholder="g132"><div class="help" id="sCompilerHelp"></div></div>
+        <div class="field"><label>컴파일 옵션</label><input id="sFlags" autocomplete="off" placeholder="-std=c++17 -O2"></div>
       </div>
       <div id="judge0Fields">
         <div class="row">
-          <div class="field"><label>Judge0 주소</label><input id="sJ0Url" placeholder="https://judge0-ce.p.rapidapi.com"></div>
-          <div class="field"><label>RapidAPI 키</label><input id="sJ0Key" type="password" autocomplete="off"></div>
+          <div class="field"><label>Judge0 주소</label><input id="sJ0Url" autocomplete="off" placeholder="https://judge0-ce.p.rapidapi.com"></div>
+          <div class="field"><label>RapidAPI 키</label><input id="sJ0Key" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore></div>
         </div>
       </div>
       <div class="field"><button class="btn small" id="testCompile">연결 테스트</button> <span class="muted" id="testCompileOut"></span></div>
@@ -266,11 +266,11 @@ html.embed #nl-badge-frame, html.embed #nl-hud-frame { display: none !important;
           <option value="gemini">Google Gemini (AI Studio 무료 키)</option>
           <option value="openai">OpenAI 호환 (Groq, OpenRouter 등)</option>
         </select></div>
-      <div class="field" id="aiBaseField"><label>API 주소</label><input id="sAiBase" placeholder="https://api.groq.com/openai/v1"><div class="help">예: Groq은 https://api.groq.com/openai/v1, OpenRouter는 https://openrouter.ai/api/v1</div></div>
-      <div class="field"><label>API 키</label><input id="sAiKey" type="password" autocomplete="off" placeholder="키를 붙여넣기">
+      <div class="field" id="aiBaseField"><label>API 주소</label><input id="sAiBase" autocomplete="off" placeholder="https://api.groq.com/openai/v1"><div class="help">예: Groq은 https://api.groq.com/openai/v1, OpenRouter는 https://openrouter.ai/api/v1</div></div>
+      <div class="field"><label>API 키</label><input id="sAiKey" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore placeholder="키를 붙여넣기">
         <div class="help" id="aiKeyHelp">aistudio.google.com 에서 Get API key로 무료 키를 만들 수 있습니다. 키는 이 브라우저에만 저장되고 AI 서버로만 전송됩니다.</div></div>
       <div class="field"><label>모델</label>
-        <div class="row" style="align-items:center"><input id="sAiModel" list="modelList" placeholder="gemini-2.5-flash"><button class="btn small" id="loadModels" style="flex:none">모델 불러오기</button></div>
+        <div class="row" style="align-items:center"><input id="sAiModel" autocomplete="off" list="modelList" placeholder="gemini-2.5-flash"><button class="btn small" id="loadModels" style="flex:none">모델 불러오기</button></div>
         <datalist id="modelList"></datalist>
         <div class="help" id="modelHelp">비워 두면 자동으로 골라요. 쓰던 모델이 종료되면 사용 가능한 최신 flash 모델로 자동으로 바꿔요.</div></div>
       <div class="field"><button class="btn small" id="testAi">AI 연결 테스트</button> <span class="muted" id="testAiOut"></span></div>
@@ -284,8 +284,8 @@ html.embed #nl-badge-frame, html.embed #nl-hud-frame { display: none !important;
   <div class="dlg-h"><h3 id="editTitle">문제 추가</h3><button class="btn ghost" data-close>✕</button></div>
   <div class="dlg-b">
     <div class="row">
-      <div class="field" style="flex:2"><label>제목</label><input id="eTitle"></div>
-      <div class="field"><label>분류</label><input id="eCat" list="catList"><datalist id="catList"></datalist></div>
+      <div class="field" style="flex:2"><label>제목</label><input id="eTitle" autocomplete="off"></div>
+      <div class="field"><label>분류</label><input id="eCat" autocomplete="off" list="catList"><datalist id="catList"></datalist></div>
       <div class="field" style="flex:.6"><label>난이도</label><select id="eLevel"><option value="1">★</option><option value="2">★★</option><option value="3">★★★</option></select></div>
     </div>
     <div class="field"><label>설명 (입력·출력 형식 포함)</label><textarea id="eDesc" rows="3"></textarea></div>
@@ -444,7 +444,9 @@ function renderSide() {
   $('#progBar').style.width = total ? (done / total * 100) + '%' : '0';
 }
 $('#cats').onclick = e => { const bt = e.target.closest('.bm-tog'); if (bt) { e.stopPropagation(); toggleBookmark(bt.dataset.bm); return; } const li = e.target.closest('li[data-id]'); if (li) { openProblem(li.dataset.id); $('#side').classList.remove('open'); } };
-$('#search').oninput = renderSide;
+const searchAutofilled = (el) => { for (const s of [':autofill', ':-webkit-autofill']) { try { if (el.matches(s)) return true; } catch (e) {} } return false; };
+$('#search').oninput = (e) => { if (searchAutofilled(e.target) || (e.inputType === undefined && e.isTrusted && !e.target.matches(':focus'))) e.target.value = ''; renderSide(); };
+$('#search').value = '';
 document.querySelectorAll('.seg-b').forEach(b => b.onclick = () => { sideView = b.dataset.view; store.set('sideView', sideView); renderSide(); });
 $('#menuBtn').onclick = () => $('#side').classList.toggle('open');
 
@@ -1043,7 +1045,7 @@ function renderChat() {
     h += `<div class="ai-msg ${m.role === 'user' ? 'user' : ''}">${m.role === 'user' ? esc(m.content) : md(m.content)}</div>`;
   }
   if (aiChat.some(m => m.role === 'assistant')) {
-    h += `<div class="ai-ask"><input id="aiQ" placeholder="이어서 질문하기 (예: 2번 빈칸에서 왜 k가 아니라 k+1이야?)"><button class="btn" id="aiSend">보내기</button></div>`;
+    h += `<div class="ai-ask"><input id="aiQ" autocomplete="off" placeholder="이어서 질문하기 (예: 2번 빈칸에서 왜 k가 아니라 k+1이야?)"><button class="btn" id="aiSend">보내기</button></div>`;
   }
   out.innerHTML = h;
   const q = $('#aiQ');
