@@ -3559,7 +3559,11 @@ function newHandoff() {
 // 카카오톡 안 브라우저: dshs.app 로그인(Google 로그인)을 Google 이 앱 안 브라우저에서 막으므로 기본 브라우저로 엽니다.
 // (index.html 이 열 때도 한 번 기본 브라우저로 보냄. 그게 안 됐을 때 로그인 버튼에서 다시)
 const inKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
-const leaveHow = (handoff) => (inKakao() ? "kakao" : handoff ? "popup" : "page");   // 로그인 이탈 기록용
+// 아이패드 홈 화면 앱(iPadOS 26): 새 창(팝업)으로 연 dshs.app 로그인이 앱으로 돌아오지 않아(2026-11-24 로그) 같은 화면에서 다녀옵니다.
+// 아이패드는 Safari 처럼 Mac 으로 자신을 알리므로 터치 화면인 Mac 도 아이패드로 봅니다. 아이폰 앱은 새 창 방식이 잘 되어 그대로.
+const isIPad = () => /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const samePageLogin = (handoff) => !!handoff && isIPad();
+const leaveHow = (handoff) => (inKakao() ? "kakao" : samePageLogin(handoff) ? "app-page" : handoff ? "popup" : "page");   // 로그인 이탈 기록용
 const kakaoOutside = (url) => `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`;
 
 // 앱: 로그인 화면을 새 창으로 열어 두었다가, 로그인이 끝나면 앱이 그 창을 닫습니다.
@@ -3570,6 +3574,13 @@ function openDshsLogin(url, handoff) {
     return;
   }
   if (!handoff) { location.href = url; return; }
+  // 아이패드 앱: 이 화면에서 로그인 화면으로 갔다가 돌아와(?dshs=app) sessionStorage 의 handoff 로 이어서 받습니다
+  if (samePageLogin(handoff)) {
+    try { sessionStorage.setItem(DSHS_HAND_KEY, JSON.stringify(waitHandoff.h)); } catch {}
+    waitHandoff();   // iPadOS 가 로그인 화면을 앱 밖(Safari)에서 열어 이 화면이 남아 있어도, 앱으로 돌아오면 결과를 받아 로그인합니다
+    location.href = url;
+    return;
+  }
   const w = window.open(url, "_blank");
   if (w) waitHandoff.win = w;
   else {

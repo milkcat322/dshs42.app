@@ -6,7 +6,7 @@
 -- 단계(step)
 --   click       시작 버튼을 누름 (reason = 누른 곳: gate 시간표 막힘 화면 · sheet 시작하기 창이나 설정 창)
 --   start_fail  로그인 주소를 받지 못함 (reason = 'net' 서버에 닿지 못함 · 'server' 서버가 거절)
---   leave       dshs.app 로그인 화면으로 떠남 (reason = page · popup · kakao)
+--   leave       dshs.app 로그인 화면으로 떠남 (reason = page · popup · app-page(아이패드 앱, 같은 화면) · kakao)
 --   done        로그인을 마치고 돌아와 이 사이트에 로그인됨
 --   fail        돌아왔지만 실패 (reason = denied 취소 · notstudent 명단에 없음 · expired 시간 초과 · failed dshs.app 오류 · verify 토큰 처리 실패 · profile 프로필 없음 · mismatch)
 -- env: 브라우저 종류 (ios-safari · ios-chrome · ios-app · android-chrome · android-samsung · android-app · kakao · inapp · pc · pc-app)
