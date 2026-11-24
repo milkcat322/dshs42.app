@@ -22,7 +22,7 @@ const TERMS = [
     ['변수변환 g : G → D', 'change of variables', '적분하기 쉬운 영역 G 를 원래 영역 D 로 보내는 함수. 전단사 · 미분가능 · g′ 연속 (C¹ 조건).', `${lk('v:v-b2', 'B2')}, ${lk('v:v-b6', 'B6')}.`],
     ['팽창률 q(c)', '넓이를 보정하는 배율', '점 c 를 품은 작은 영역 B 에 대해 넓이의 비 Δg(B) / ΔB 가 ΔB → 0 일 때 다가가는 값. 넓이의 비라서 0 이상.', `${lk('v:v-b2', 'B2 필요한 이유')}, ${lk('j:d-def', 'B3 정의')}.`],
     ['국소적으로 선형', 'locally linear', '미분가능하면 g(u) − g(c) = T(u − c) + R(u). T = Dg|<sub>c</sub> 이고 오차 R 은 더 빨리 사라진다.', `${lk('j:d-loc', 'B3')}. 휘어진 g(B) 대신 평행사변형 T(B) 의 넓이를 재도 되는 이유.`],
-    ['야코비안 det Dg', 'Jacobian', 'det Dg = ∂(x, y)/∂(u, v) = xᵤyᵥ − xᵥyᵤ. 팽창률은 그 절댓값 |det Dg(c)|.', `${lk('j:d-con', 'B3 결론')}, ${lk('v:v-b7', 'B7 푸는 순서')}.`],
+    ['야코비안 det Dg', 'Jacobian', 'det Dg = ∂(x, y)/∂(u, v) = xᵤyᵥ − xᵥyᵤ. 2 · 3변수에서는 팽창률을 이 값의 절댓값 |det Dg(c)| 로 구한다 (팽창률과 야코비안의 절댓값이 같은 말은 아니다).', `${lk('j:d-con', 'B3 결론')}, ${lk('v:v-b7', 'B7 푸는 순서')}.`],
     ['변수변환 공식', 'change of variables formula', '∫<sub>D</sub> f(x) dx = ∫<sub>G</sub> f(g(u)) |det Dg(u)| du. 함수 · 영역 · 넓이 요소 세 가지가 바뀐다.', `${lk('v:v-b6', 'B6')}, ${lk('v:v-b7', 'B7 예제')}.`],
   ]],
 ];
@@ -153,3 +153,18 @@ export const EXTRA_HTML = `
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !drawer.hidden) closeDrawer(); });
 })();
 </script>`;
+
+// 수업에서 선생님이 짚은 내용에 맞춰 원본 문장을 고치는 목록 (문세현T). 다시 변환해도 남도록 여기에 둔다: [원본, 바꿀 말]
+// 팽창률 = 야코비안의 절댓값이 아니다: 야코비안은 2×2 · 3×3 에서만 쓰고, 그 조건에서 팽창률을 그 절댓값으로 구할 뿐이다(포함 관계).
+export const TNOTE_B3 = `<div class="tnote"><p><b>팽창률 ≠ 야코비안의 절댓값.</b> 팽창률은 넓이(부피)의 비의 극한으로 정의한 더 넓은 개념이고, 야코비안은 2×2 · 3×3 행렬일 때만 쓴다. 그 조건에서 팽창률을 야코비안의 절댓값으로 구할 수 있는 것이지(포함 관계), 둘이 같은 것은 아니다.</p><p><b>팽창률은 이해를 위한 개념.</b> 변수변환이 왜 그렇게 되는지 이해하려고 배운 것이다. 실제 문제는 교재 속 문제를 열심히 풀어 볼 것.</p></div>`;
+export const FIXES = [
+  ['<span class="c-cond">팽창률 (야코비안의 절댓값)</span>', '<span class="c-cond">팽창률</span>'],
+  ['<p style="text-align:center" class="c-cond"><b>팽창률 = 야코비안의 절댓값</b></p>', '<p style="text-align:center" class="c-cond"><b>2 · 3변수에서는 팽창률을 야코비안의 절댓값으로 구한다</b></p>\n  ' + TNOTE_B3],
+  ['<li><b>팽창률</b> = 야코비안의 절댓값', '<li><b>팽창률</b>을 야코비안의 절댓값으로 구한다'],
+];
+// '선생님 강조' 메모 상자 (일반물리학Ⅱ 의 .nb.tn 과 같은 모양)
+export const FIX_CSS = `<style>
+.tnote{margin:14px 0 6px;padding:11px 16px 9px;border-radius:4px;background:color-mix(in srgb,#84cc16 24%,var(--surface));font-size:14.5px;line-height:1.72;text-align:left}
+.tnote::before{content:"선생님 강조";display:block;font-family:var(--mono,ui-monospace,monospace);font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.tnote p{margin:4px 0}
+</style>`;

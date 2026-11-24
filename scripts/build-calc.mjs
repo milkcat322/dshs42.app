@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EXTRA_TOOLS, EXTRA_PILLS, EXTRA_HTML } from './calc-extras.mjs';
+import { EXTRA_TOOLS, EXTRA_PILLS, EXTRA_HTML, FIXES, FIX_CSS } from './calc-extras.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const [, , srcA, srcB] = process.argv;
@@ -343,6 +343,8 @@ function extras(body) {
   must(/(<header class="bar" id="bar"[\s\S]*?<\/nav>)\s*(<\/div><\/header>)/, (m, a, b) => `${a}\n  ${EXTRA_TOOLS}\n${b}`);
   must(/<p class="homenote">[\s\S]*?<\/p>/, HOMENOTE('선형근사'));
   must(/<footer>[\s\S]*?<\/footer>/, `<footer>${FOOT}</footer>`);
+  // 수업에서 짚은 내용에 맞춰 원본 문장 고치기 · '선생님 강조' 메모 (calc-extras.mjs 의 FIXES)
+  for (const [a, b] of FIXES) { if (body.split(a).length !== 2) throw new Error('문세현T 문장 고치기: 한 번이 아님 ' + a); body = body.replace(a, () => b); }
   const i = body.lastIndexOf('</body>');
   if (i < 0) throw new Error('문세현T: </body> 없음');
   return body.slice(0, i) + EXTRA_HTML + '\n' + body.slice(i);
@@ -448,7 +450,7 @@ ${HEAD_JS(p.n)}
 <link rel="stylesheet" href="calc-fonts.css">
 <style>${katex}</style>
 ${styleOut.trimEnd()}
-${CALC_CSS}
+${CALC_CSS}${p.n === 1 ? '\n' + FIX_CSS : ''}
 </head>${body}`;
   writeFileSync(join(ROOT, p.file), out);
   console.log(p.file, (out.length / 1024).toFixed(0) + ' KB');
