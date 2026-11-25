@@ -90,13 +90,13 @@ table.t td.dim{color:var(--muted)}
 .el li.bad{color:var(--bad);text-decoration:line-through}
 .el li .r{margin-left:auto;font-size:12px}
 /* 그래프 그림 */
-svg.g .e line,svg.g .e path{stroke:var(--node-line);stroke-width:2;fill:none}
+svg.g .e path{stroke:var(--node-line);stroke-width:2;fill:none}
 svg.g .e text{fill:var(--muted);font-size:13px;font-weight:600;paint-order:stroke;stroke:var(--card);stroke-width:4px}
-svg.g .e.pick line,svg.g .e.pick path{stroke:var(--ok);stroke-width:4.5}
+svg.g .e.pick path{stroke:var(--ok);stroke-width:4.5}
 svg.g .e.pick text{fill:var(--ok)}
-svg.g .e.try line,svg.g .e.try path{stroke:var(--warn);stroke-width:4}
+svg.g .e.try path{stroke:var(--warn);stroke-width:4}
 svg.g .e.try text{fill:var(--warn)}
-svg.g .e.rej line,svg.g .e.rej path{stroke:var(--bad);stroke-dasharray:6 5;stroke-width:3}
+svg.g .e.rej path{stroke:var(--bad);stroke-dasharray:6 5;stroke-width:3}
 svg.g .e.rej text{fill:var(--bad)}
 svg.g .e.dim{opacity:.35}
 svg.g .n circle{fill:var(--node);stroke:var(--node-line);stroke-width:2}
@@ -114,6 +114,19 @@ svg.g marker path{fill:var(--node-line)}
 .quiz .q svg{width:100%;height:auto}
 .quiz .q .a{font-size:13px;margin-top:4px;min-height:40px}
 .cmp td,.cmp th{text-align:left!important;vertical-align:top}
+/* 애니메이션: 색 · 굵기는 부드럽게 바뀌고, 생기고 없어지는 것은 서서히 */
+svg.g .n,svg.g .e{transition:opacity .35s}
+svg.g .n.new,svg.g .e.new,svg.g .gone{opacity:0}
+svg.g .n circle{transition:fill .35s,stroke .35s,stroke-width .35s}
+svg.g .e path{transition:stroke .35s,stroke-width .35s}
+svg.g .e text{transition:fill .35s}
+svg.g .n.cur circle{animation:agPulse 1s ease-in-out infinite}
+@keyframes agPulse{50%{stroke-width:7;stroke:var(--acc-bg)}}
+svg.g .e.try path{stroke-dasharray:9 7;animation:agFlow .7s linear infinite}
+@keyframes agFlow{to{stroke-dashoffset:-16}}
+.msg.flash{animation:agMsg .45s ease-out}
+@keyframes agMsg{from{opacity:.35;transform:translateY(3px)}}
+@media (prefers-reduced-motion:reduce){svg.g .n.cur circle,svg.g .e.try path,.msg.flash{animation:none}}
 /* 프린트 코드 칸 */
 .codebox{margin-top:10px}
 pre.code{margin:4px 0 0;max-height:300px;overflow:auto;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 0;font:12.5px/1.55 "JetBrains Mono","D2Coding",Menlo,Consolas,monospace;position:relative}
@@ -284,45 +297,106 @@ const INF = '∞';
 // ───────── 그래프 그리기 ─────────
 // G = { w, h, nodes:[{id,x,y,label}], edges:[{u,v,w,dir}] } · fr = { n:{id:cls}, e:{'u-v':cls}, sub:{id:text} }
 const ek = (u, v) => u + '-' + v;
+// 단계가 바뀌어도 그림을 새로 만들지 않고 같은 정점 · 간선(id · 키가 같은 것)을 그대로 두고 움직입니다:
+// 정점은 새 자리로 미끄러지고(requestAnimationFrame 으로 ANIM_MS 동안), 간선은 정점을 따라가며, 색 · 굵기는 CSS transition 으로 바뀝니다.
+// 새로 생긴 것은 서서히 나타나고 없어진 것은 서서히 사라집니다. 간선 키는 e.k (없으면 'u-v').
+const SVGNS = 'http://www.w3.org/2000/svg';
+const ANIM_MS = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 480;
+const mk = (tag, attrs = {}, parent) => { const el = document.createElementNS(SVGNS, tag); for (const k in attrs) el.setAttribute(k, attrs[k]); if (parent) parent.appendChild(el); return el; };
+const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const appear = (g) => setTimeout(() => g.classList.remove('new'), 30);
 function drawGraph(svg, G, fr = {}) {
   const R = G.r || 19;
-  const pos = Object.fromEntries(G.nodes.map((n) => [n.id, n]));
-  const has = new Set(G.edges.map((e) => ek(e.u, e.v)));
-  let h = `<defs><marker id="ar${svg.id}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>`;
-  for (const e of G.edges) {
-    const a = pos[e.u], b = pos[e.v];
-    if (!a || !b) continue;
-    const cls = (fr.e && (fr.e[ek(e.u, e.v)] || (!e.dir && fr.e[ek(e.v, e.u)]))) || '';
-    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    const x1 = a.x + ux * R, y1 = a.y + uy * R, x2 = b.x - ux * (R + (e.dir ? 3 : 0)), y2 = b.y - uy * (R + (e.dir ? 3 : 0));
-    const curve = e.dir && has.has(ek(e.v, e.u));   // 양쪽 방향 간선은 휘어서
-    let line, lx, ly;
-    if (curve) {
-      const cx = (x1 + x2) / 2 - uy * 26, cy = (y1 + y2) / 2 + ux * 26;
-      line = `<path d="M${x1} ${y1}Q${cx} ${cy} ${x2} ${y2}"${e.dir ? ` marker-end="url(#ar${svg.id})"` : ''}/>`;
-      lx = (x1 + x2) / 4 + cx / 2; ly = (y1 + y2) / 4 + cy / 2;
-    } else {
-      line = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${e.dir ? ` marker-end="url(#ar${svg.id})"` : ''}/>`;
-      lx = (a.x + b.x) / 2 - uy * 11; ly = (a.y + b.y) / 2 + ux * 11;
-    }
-    h += `<g class="e ${cls}">${line}${e.w !== undefined ? `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central">${e.w}</text>` : ''}</g>`;
-  }
-  for (const n of G.nodes) {
-    const cls = (fr.n && fr.n[n.id]) || '';
-    const sub = fr.sub && fr.sub[n.id] !== undefined ? `<text class="sub" x="${n.x}" y="${n.y + R + 12}">${esc(fr.sub[n.id])}</text>` : '';
-    h += `<g class="n ${cls}"><circle cx="${n.x}" cy="${n.y}" r="${R}"/><text class="l" x="${n.x}" y="${n.y}">${esc(n.label ?? n.id)}</text>${sub}</g>`;
+  let st = svg._st;
+  if (!st || st.R !== R) {
+    svg.innerHTML = '';
+    const defs = mk('defs', {}, svg);
+    const m = mk('marker', { id: 'ar' + svg.id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerUnits: 'userSpaceOnUse', markerWidth: 12, markerHeight: 12, orient: 'auto-start-reverse' }, defs);
+    mk('path', { d: 'M0 0L10 5L0 10z' }, m);
+    st = svg._st = { R, nodes: new Map(), edges: new Map(), eL: mk('g', {}, svg), nL: mk('g', {}, svg), raf: 0 };
   }
   svg.setAttribute('viewBox', `0 0 ${G.w} ${G.h}`);
-  svg.innerHTML = h;
+  const fade = (el, map, key) => { el.classList.add('gone'); map.delete(key); setTimeout(() => el.remove(), 400); };
+  // 정점
+  const want = new Set();
+  for (const n of G.nodes) {
+    want.add(n.id);
+    let o = st.nodes.get(n.id);
+    if (!o) {
+      const g = mk('g', { class: 'n new' }, st.nL);
+      o = { g, c: mk('circle', { r: R }, g), t: mk('text', { class: 'l' }, g), s: mk('text', { class: 'sub', y: R + 12 }, g), x: n.x, y: n.y };
+      st.nodes.set(n.id, o);
+      appear(g);
+    }
+    o.tx = n.x; o.ty = n.y; o.fx = o.x; o.fy = o.y;
+    o.g.setAttribute('class', 'n ' + ((fr.n && fr.n[n.id]) || '') + (o.g.classList.contains('new') ? ' new' : ''));
+    o.t.textContent = n.label ?? n.id;
+    o.s.textContent = fr.sub && fr.sub[n.id] !== undefined ? fr.sub[n.id] : '';
+  }
+  for (const [id, o] of [...st.nodes]) if (!want.has(id)) fade(o.g, st.nodes, id);
+  // 간선
+  const has = new Set(G.edges.map((e) => ek(e.u, e.v)));
+  const wantE = new Set();
+  for (const e of G.edges) {
+    const key = e.k || ek(e.u, e.v);
+    wantE.add(key);
+    let o = st.edges.get(key);
+    if (!o) {
+      const g = mk('g', { class: 'e new' }, st.eL);
+      o = { g, p: mk('path', {}, g), t: mk('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central' }, g) };
+      st.edges.set(key, o);
+      appear(g);
+    }
+    o.e = e; o.curve = e.dir && has.has(ek(e.v, e.u));
+    o.g.setAttribute('class', 'e ' + ((fr.e && (fr.e[ek(e.u, e.v)] || (!e.dir && fr.e[ek(e.v, e.u)]))) || '') + (o.g.classList.contains('new') ? ' new' : ''));
+    if (e.dir) o.p.setAttribute('marker-end', `url(#ar${svg.id})`); else o.p.removeAttribute('marker-end');
+    o.t.textContent = e.w !== undefined ? e.w : '';
+  }
+  for (const [k, o] of [...st.edges]) if (!wantE.has(k)) fade(o.g, st.edges, k);
+  // 자리 잡기: 정점 위치를 따라 간선 · 간선 숫자를 다시 계산
+  const place = () => {
+    for (const o of st.nodes.values()) o.g.setAttribute('transform', `translate(${o.x} ${o.y})`);
+    for (const o of st.edges.values()) {
+      const a = st.nodes.get(o.e.u), b = st.nodes.get(o.e.v);
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, gap = R + (o.e.dir ? 3 : 0);
+      const x1 = a.x + ux * R, y1 = a.y + uy * R, x2 = b.x - ux * gap, y2 = b.y - uy * gap;
+      let lx, ly;
+      if (o.curve) {   // 양쪽 방향 간선은 휘어서
+        const cx = (x1 + x2) / 2 - uy * 26, cy = (y1 + y2) / 2 + ux * 26;
+        o.p.setAttribute('d', `M${x1} ${y1}Q${cx} ${cy} ${x2} ${y2}`);
+        lx = (x1 + x2) / 4 + cx / 2; ly = (y1 + y2) / 4 + cy / 2;
+      } else {
+        o.p.setAttribute('d', `M${x1} ${y1}L${x2} ${y2}`);
+        lx = (a.x + b.x) / 2 - uy * 11; ly = (a.y + b.y) / 2 + ux * 11;
+      }
+      o.t.setAttribute('x', lx); o.t.setAttribute('y', ly);
+    }
+  };
+  cancelAnimationFrame(st.raf); clearTimeout(st.fin);
+  const finish = () => { cancelAnimationFrame(st.raf); for (const o of st.nodes.values()) { o.x = o.tx; o.y = o.ty; } place(); };
+  const moving = [...st.nodes.values()].some((o) => o.fx !== o.tx || o.fy !== o.ty);
+  if (!moving || !ANIM_MS) return finish();
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = ease(Math.min(1, (now - t0) / ANIM_MS));
+    for (const o of st.nodes.values()) { o.x = o.fx + (o.tx - o.fx) * k; o.y = o.fy + (o.ty - o.fy) * k; }
+    place();
+    if (k < 1) st.raf = requestAnimationFrame(step);
+  };
+  place();
+  st.raf = requestAnimationFrame(step);
+  st.fin = setTimeout(finish, ANIM_MS + 80);   // 탭이 가려져 프레임이 멈춰도 마지막 자리에는 꼭 놓음
 }
 // 배열 트리(힙 · 완전이진트리): 번호 i 의 자리
-function arrTree(vals, W = 440, gap = 64, top = 30) {
+function arrTree(vals, W = 440, gap = 64, top = 30, keys) {
   const nodes = [], edges = [];
   for (let i = 1; i < vals.length; i++) {
     if (vals[i] === null || vals[i] === undefined) continue;
     const d = Math.floor(Math.log2(i)), k = i - 2 ** d;
-    nodes.push({ id: i, label: vals[i], x: ((k + 0.5) / 2 ** d) * W, y: top + d * gap });
-    if (i > 1 && vals[i >> 1] !== null && vals[i >> 1] !== undefined) edges.push({ u: i >> 1, v: i });
+    const id = keys ? keys[i] : i, pid = keys ? keys[i >> 1] : i >> 1;
+    nodes.push({ id, slot: i, label: vals[i], x: ((k + 0.5) / 2 ** d) * W, y: top + d * gap });
+    if (i > 1 && vals[i >> 1] !== null && vals[i >> 1] !== undefined) edges.push({ u: pid, v: id, k: 's' + i });
   }
   const depth = Math.floor(Math.log2(Math.max(1, vals.length - 1)));
   return { w: W, h: top * 2 + depth * gap + 8, nodes, edges };
@@ -379,7 +453,7 @@ function makePlayer(el, title, render) {
     const r = render(f);
     drawGraph(svg, r.G, r.fr);
     panel.innerHTML = r.panel || '';
-    msg.innerHTML = r.msg || '';
+    if (msg.innerHTML !== (r.msg || '')) { msg.innerHTML = r.msg || ''; msg.classList.remove('flash'); void msg.offsetWidth; msg.classList.add('flash'); }
     cbox.hidden = !r.code;
     if (r.code) {
       pre.innerHTML = codeHtml(r.code, f.ln || []);
@@ -420,17 +494,20 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
 // ═════════ 힙 ═════════
 {
   let heap = [null, 9, 7, 6, 5, 3, 2, 4, 1, 4];   // 프린트 예제 (heap[1..9])
-  const snap = (h, hi, msg, extra = {}) => ({ h: h.slice(), hi, msg, ...extra });
+  let KEY = 0;
+  const cp = (h) => { const c = h.slice(); c.k = h.k ? h.k.slice() : h.map(() => 'h' + ++KEY); return c; };
+  const swapK = (h, a, b) => { [h[a], h[b]] = [h[b], h[a]]; [h.k[a], h.k[b]] = [h.k[b], h.k[a]]; };
+  const snap = (h, hi, msg, extra = {}) => ({ h: cp(h), hi, msg, ...extra });
   function pushFrames(h, x) {
-    const F = []; h = h.slice();
+    const F = []; h = cp(h);
     if (h.length > 15) return [snap(h, {}, '이 그림에서는 14개까지만 넣을 수 있어요')];
-    h.push(x); let i = h.length - 1;
+    h.push(x); h.k.push('h' + ++KEY); let i = h.length - 1;
     F.push(snap(h, { [i]: 'hi' }, `<b>push(${x})</b>: <code>heap[++hn] = ${x}</code> — 맨 마지막 위치(${i}번)에 넣어요`, { ln: ['p1'] }));
     for (; i > 1; i = i >> 1) {
       const p = i >> 1;
       if (h[p] < h[i]) {
         F.push(snap(h, { [i]: 'hi', [p]: 'hi' }, `부모 heap[${p}]=${h[p]} &lt; ${h[i]} → 부모가 자식보다 커야 하므로 스왑`, { ln: ['p2', 'p3'] }));
-        [h[p], h[i]] = [h[i], h[p]];
+        swapK(h, p, i);
         F.push(snap(h, { [p]: 'ok' }, `스왑 완료 → ${p}번 자리로 올라왔어요`, { ln: ['p3'] }));
       } else {
         F.push(snap(h, { [i]: 'ok', [p]: 'hi' }, `부모 heap[${p}]=${h[p]} ≥ ${h[i]} → 조건 만족, 끝`, { ln: ['p4'] }));
@@ -441,12 +518,12 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
     return F;
   }
   function popFrames(h) {
-    const F = []; h = h.slice();
+    const F = []; h = cp(h);
     const hn = h.length - 1;
     if (!hn) return [snap(h, {}, '힙이 비어 있어요 (프린트 코드는 0 을 출력)')];
     const ans = h[1];
     F.push(snap(h, { 1: 'hi' }, `<b>pop()</b>: 루트 heap[1]=${ans} 가 최댓값 → <code>ans</code> 에 저장`, { ln: ['o1'] }));
-    h[1] = h[hn]; h.pop();
+    h[1] = h[hn]; h.k[1] = h.k[hn]; h.pop(); h.k.pop();
     F.push(snap(h, { 1: 'hi' }, `마지막 값 ${h[1] ?? ''} 을 루트로 올리고 마지막 칸을 비워요 (<code>heap[hn--] = 0</code>)`, { out: ans, ln: ['o2'] }));
     const n = h.length - 1, v = (k) => (k <= n ? h[k] : 0);
     for (let i = 1; i * 2 <= n;) {
@@ -454,7 +531,7 @@ const arrHtml = (a, from, hi = {}, lab = (k) => k) => `<div class="arr">${a.slic
       if (v(i) > v(l) && v(i) > v(r)) { F.push(snap(h, { [i]: 'ok', [l]: 'hi', ...(r <= n ? { [r]: 'hi' } : {}) }, `${v(i)} 이 두 자식보다 커요 → 조건 만족, 끝`, { out: ans, ln: ['o4'] })); return F; }
       const c = v(l) > v(r) ? l : r;
       F.push(snap(h, { [i]: 'hi', [c]: 'hi' }, `자식 ${v(l)}${r <= n ? `, ${v(r)}` : ''} 중 더 큰 ${v(c)} 와 스왑`, { out: ans, ln: [c === l ? 'o5l' : 'o5r'] }));
-      [h[i], h[c]] = [h[c], h[i]];
+      swapK(h, i, c);
       F.push(snap(h, { [c]: 'ok' }, `스왑 완료 → ${c}번 자리로 내려갔어요`, { out: ans, ln: [c === l ? 'o6l' : 'o6r'] }));
       i = c;
     }
@@ -487,8 +564,8 @@ void push(int x){
     }
 }`;
   const p = makePlayer($('#p-heap'), '최대 힙에 넣고 빼기', (f) => {
-    const G = arrTree(f.h);
-    return { code: HEAP_CODE, G, fr: { n: Object.fromEntries(Object.entries(f.hi).map(([k, c]) => [k, c === 'ok' ? 'done' : 'cur'])), sub: Object.fromEntries(G.nodes.map((n) => [n.id, n.id])) },
+    const G = arrTree(f.h, 440, 64, 30, f.h.k);
+    return { code: HEAP_CODE, G, fr: { n: Object.fromEntries(Object.entries(f.hi).map(([k, c]) => [f.h.k[k], c === 'ok' ? 'done' : 'cur'])), sub: Object.fromEntries(G.nodes.map((n) => [n.id, n.slot])) },
       panel: `<div class="lab">배열 heap[1..hn] (hn = ${f.h.length - 1})</div>${arrHtml(f.h, 1, f.hi)}${f.out !== undefined ? `<div class="lab">pop() 이 돌려준 값</div><div class="out">${f.out}</div>` : ''}<div class="lab">노드 아래 작은 수 = 배열 번호</div>`,
       msg: f.msg };
   });
