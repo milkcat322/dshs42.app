@@ -1538,7 +1538,7 @@ function openExam() {
 //   page: 띄울 페이지 (?embed=1 로 엶 · 테마(vocabTheme)는 그 페이지가 함). 없으면 단어장 vocab.html#<파트 id>
 //   wide: 넓은 화면용 노트 → '공부' 제목 아래 한 줄에 'PC · 아이패드 권장'을 띄움 (learnHint)
 //   fill: 높이를 내용에 맞추지 않고 화면 높이의 테두리 틀 안에서 스크롤 (과목 또는 파트에 줌. 지금은 자료구조와 알고리즘 '코드 빈칸' — 목록 · 편집기가 있는 앱이라)
-//   href: '새 창에서 크게 보기'가 page 대신 열 주소 (노션 파트)
+//   href: '새 창에서 크게 보기'가 page 대신 열 주소 (지금 쓰는 파트 없음)
 // 파트 id 는 기기에 기억되므로(dshs-learn-subject) 바꾸지 않습니다. 새 페이지는 sw.js 의 PAGES 에도 넣습니다.
 const LEARN_SUBJECTS = [
   { id: "eng", name: "영어", parts: [
@@ -1556,11 +1556,10 @@ const LEARN_SUBJECTS = [
     { id: "phys", name: "권진영T", sub: "맥스웰 방정식 · 전자기파 · 빛과 전자의 이중성 노트", page: "phys.html" },
     { id: "phys2", name: "윤석민T", sub: "기하광학 · 파동광학 노트", page: "phys2.html" },
   ] },
-  // 자료구조와 알고리즘: 파트가 선생님이 아니라 칸(코드 빈칸 · 그래프 · 노션)
+  // 자료구조와 알고리즘: 파트가 선생님이 아니라 칸(코드 빈칸 · 원리 이해 — id 는 algograph 그대로)
   { id: "algo", name: "자료구조와 알고리즘", wide: true, parts: [
     { id: "algo", name: "코드 빈칸", sub: "기말 프린트 코드를 빈칸으로 · 직접 쓰고 컴파일 채점", page: "algo.html", fill: true },
-    { id: "algograph", name: "그래프", sub: "박지훈T 범위: 힙 · Union-Find · 트리 · MST · 위상정렬 · 최단거리를 한 단계씩", page: "algograph.html" },
-    { id: "algonotion", name: "노션", sub: "자구알 기말고사 대비 노션", page: "algonotion.html", fill: true, href: "https://dandy-quiet-71f.notion.site/410ec8e2a70a80bf931cc721f0b8fffe" },
+    { id: "algograph", name: "원리 이해", sub: "박지훈T 범위: 힙 · Union-Find · 트리 · MST · 위상정렬 · 최단거리를 한 단계씩", page: "algograph.html" },
   ] },
 ];
 const LEARN_KEY = "dshs-learn-subject";   // 마지막으로 본 파트 id. 과목마다 마지막 파트는 dshs-learn-subject-<과목 id>

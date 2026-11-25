@@ -7,7 +7,7 @@
   'use strict';
   var file = (location.pathname.split('/').pop() || '').replace(/\.html$/, '');
   var EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
-  var PART = { bio: 'bio', calc: 'calc', calc2: 'calc2', phys: 'phys', phys2: 'phys2', algo: 'algo', algograph: 'algograph', algonotion: 'algonotion' };   // 파일 → LEARN_SUBJECTS 의 파트 id (단어장은 주소의 #과목)
+  var PART = { bio: 'bio', calc: 'calc', calc2: 'calc2', phys: 'phys', phys2: 'phys2', algo: 'algo', algograph: 'algograph' };   // 파일 → LEARN_SUBJECTS 의 파트 id (단어장은 주소의 #과목)
   var NAME = /^[a-z][a-z0-9_]{0,23}$/;
   var IDLE = 120000, TICK = 5000, SEND = 30000, REOPEN = 300000;
   var top = window;
