@@ -65,6 +65,8 @@ svg.g{width:100%;height:auto;display:block;background:var(--soft);border-radius:
 .ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .ctrl input[type=range]{flex:1;min-width:120px;accent-color:var(--acc)}
 .ctrl .cnt{font-size:12.5px;color:var(--muted);min-width:52px;text-align:right}
+.ctrl .speed{display:inline-flex;gap:3px;margin-left:4px}
+.ctrl .btn.sp{padding:4px 8px;font-size:12.5px;min-width:40px}
 .ops{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
 .ops input{width:70px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
 /* 표 */
@@ -282,6 +284,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <section class="view" id="v-sum" hidden>
   <h2>한눈에 보기</h2>
   <p class="lead">알고리즘마다 프린트 예제가 저절로 돌아가요. '자세히'를 누르면 한 단계씩 넘겨 보고 프린트 코드도 볼 수 있어요.</p>
+  <div class="ctrl" style="margin-bottom:10px"><span class="lab" style="margin:0">재생 속도</span><span class="speed" id="sumSpeed"></span></div>
   <div class="sumgrid" id="sumGrid"></div>
   <div class="card exam"><h3>프린트에서 짚은 것</h3><ul>
     <li><b>작업(위상정렬)</b> 은 시험에 낸다고 하심 → 코드 빈칸의 '작업' 을 꼭 풀어 보기</li>
@@ -305,7 +308,21 @@ const ek = (u, v) => u + '-' + v;
 // 정점은 새 자리로 미끄러지고(requestAnimationFrame 으로 ANIM_MS 동안), 간선은 정점을 따라가며, 색 · 굵기는 CSS transition 으로 바뀝니다.
 // 새로 생긴 것은 서서히 나타나고 없어진 것은 서서히 사라집니다. 간선 키는 e.k (없으면 'u-v').
 const SVGNS = 'http://www.w3.org/2000/svg';
-const ANIM_MS = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 480;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SPEEDS = [0.5, 1, 1.5, 2];
+let SPEED = 1;
+try { const v = parseFloat(localStorage.getItem('algograph-speed')); if (SPEEDS.includes(v)) SPEED = v; } catch (e) {}
+const STEP_MS = () => 1100 / SPEED;                                           // 재생할 때 한 단계 간격
+const animMs = () => (REDUCED ? 0 : Math.max(160, Math.min(900, 480 / SPEED)));   // 정점이 움직이는 시간
+const speedBtns = () => SPEEDS.map((v) => `<button class="btn sp${v === SPEED ? ' on' : ''}" data-speed="${v}" title="재생 속도">${v}×</button>`).join('');
+const SPEED_SUBS = [];   // 속도가 바뀌면 부를 것들 (재생 중인 플레이어 · 한눈에)
+function setSpeed(v) {
+  SPEED = v;
+  try { localStorage.setItem('algograph-speed', String(v)); } catch (e) {}
+  document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('on', +b.dataset.speed === v));
+  SPEED_SUBS.forEach((f) => f());
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-speed]'); if (b) setSpeed(+b.dataset.speed); });
 const mk = (tag, attrs = {}, parent) => { const el = document.createElementNS(SVGNS, tag); for (const k in attrs) el.setAttribute(k, attrs[k]); if (parent) parent.appendChild(el); return el; };
 const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 const appear = (g) => setTimeout(() => g.classList.remove('new'), 30);
@@ -380,6 +397,7 @@ function drawGraph(svg, G, fr = {}) {
   cancelAnimationFrame(st.raf); clearTimeout(st.fin);
   const finish = () => { cancelAnimationFrame(st.raf); for (const o of st.nodes.values()) { o.x = o.tx; o.y = o.ty; } place(); };
   const moving = [...st.nodes.values()].some((o) => o.fx !== o.tx || o.fy !== o.ty);
+  const ANIM_MS = animMs();
   if (!moving || !ANIM_MS) return finish();
   const t0 = performance.now();
   const step = (now) => {
@@ -449,7 +467,7 @@ function makePlayer(el, title, render) {
     <div class="msg"></div>
     <div class="ctrl"><button class="btn" data-a="first" title="처음">⏮</button><button class="btn" data-a="prev" title="이전">◀</button>
       <button class="btn pri" data-a="play">▶ 재생</button><button class="btn" data-a="next" title="다음">▶</button><button class="btn" data-a="last" title="끝">⏭</button>
-      <input type="range" min="0" value="0"><span class="cnt"></span></div>
+      <input type="range" min="0" value="0"><span class="cnt"></span><span class="speed">${speedBtns()}</span></div>
     <div class="ops"></div>
     <div class="codebox" hidden><div class="lab">프린트 코드 — 지금 단계에 해당하는 줄</div><pre class="code"></pre></div>`;
   const cbox = $('.codebox', el), pre = $('pre.code', el);
@@ -470,6 +488,7 @@ function makePlayer(el, title, render) {
     range.max = frames.length - 1; range.value = i;
     cnt.textContent = `${i + 1} / ${frames.length}`;
   };
+  SPEED_SUBS.push(() => { if (timer) { clearInterval(timer); timer = setInterval(() => go(i + 1), STEP_MS()); } });
   const stop = () => { clearInterval(timer); timer = null; playB.textContent = '▶ 재생'; };
   const go = (k) => { i = Math.max(0, Math.min(frames.length - 1, k)); show(); if (i === frames.length - 1) stop(); };
   el.addEventListener('click', (e) => {
@@ -478,7 +497,7 @@ function makePlayer(el, title, render) {
       if (timer) return stop();
       if (i >= frames.length - 1) i = -1;
       playB.textContent = '❚❚ 멈춤';
-      go(i + 1); timer = setInterval(() => go(i + 1), 1100);
+      go(i + 1); timer = setInterval(() => go(i + 1), STEP_MS());
     } else { stop(); go(a === 'first' ? 0 : a === 'last' ? frames.length - 1 : a === 'prev' ? i - 1 : i + 1); }
   });
   range.oninput = () => { stop(); go(+range.value); };
@@ -1080,6 +1099,7 @@ if (negative_cycle) { //@b4
     ['dij', 'sp', '다익스트라', 'O(n²)', 'dist · check', ['가장 가까운 미확정 정점을 확정하고 이웃 dist 갱신', '간선이 음수면 못 씀 · 경로는 from[]']],
     ['bf', 'sp', '벨만포드', 'O(VE)', '간선 목록', ['모든 간선 갱신을 n 번', 'n 번째에도 바뀌면 음수 사이클 (타임머신 -1 · 웜홀 YES)']],
   ];
+  $('#sumSpeed').innerHTML = speedBtns();
   const grid = $('#sumGrid');
   const cards = META.map(([key, tab, name, big, uses, sum]) => {
     const m = MINI.find((x) => x.key === key);
@@ -1100,14 +1120,16 @@ if (negative_cycle) { //@b4
     c.mm.innerHTML = r.msg || '';
   };
   cards.forEach(show);
-  setInterval(() => {
+  const tick = () => {
     if (document.hidden || $('#v-sum').hidden) return;
     for (const c of cards) {
       if (c.i >= c.F.length - 1) { if (++c.hold < 3) continue; c.hold = 0; c.i = 0; }   // 끝에서 잠깐 멈춤
       else c.i++;
       show(c);
     }
-  }, 1000);
+  };
+  let sumTimer = setInterval(tick, 1000 / SPEED);
+  SPEED_SUBS.push(() => { clearInterval(sumTimer); sumTimer = setInterval(tick, 1000 / SPEED); });
 }
 </script>
 <script>
