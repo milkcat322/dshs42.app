@@ -127,6 +127,19 @@ svg.g .e.try path{stroke-dasharray:9 7;animation:agFlow .7s linear infinite}
 .msg.flash{animation:agMsg .45s ease-out}
 @keyframes agMsg{from{opacity:.35;transform:translateY(3px)}}
 @media (prefers-reduced-motion:reduce){svg.g .n.cur circle,svg.g .e.try path,.msg.flash{animation:none}}
+/* 한눈에: 알고리즘 카드 (작은 애니메이션 + 요약) */
+.sumgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:14px}
+.scard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.scard .hd{display:flex;align-items:center;gap:8px}
+.scard .hd b{font-size:16px;margin-right:auto}
+.scard .chip{font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.scard .chip.o{background:var(--acc-bg);color:var(--acc)}
+.scard svg.g{max-height:230px}
+.scard .mm{font-size:12.5px;color:var(--muted);min-height:38px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.scard .mm code{font-size:11.5px}
+.scard ul{margin:0;padding-left:18px;font-size:13.5px}
+.scard li{margin:2px 0}
+.scard .go{align-self:flex-start}
 /* 프린트 코드 칸 */
 .codebox{margin-top:10px}
 pre.code{margin:4px 0 0;max-height:300px;overflow:auto;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 0;font:12.5px/1.55 "JetBrains Mono","D2Coding",Menlo,Consolas,monospace;position:relative}
@@ -267,18 +280,9 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 
 <!-- ───────── 한눈에 ───────── -->
 <section class="view" id="v-sum" hidden>
-  <h2>한눈에 비교</h2>
-  <div class="card tw"><table class="t cmp">
-    <tr><th>알고리즘</th><th>무엇을</th><th>쓰는 것</th><th>시간</th><th>한 줄 요약</th></tr>
-    <tr><td><b>최대 힙</b></td><td>최댓값을 빨리 꺼냄</td><td>배열 (1번부터)</td><td>O(log n)</td><td>넣기: 끝에 넣고 위로 · 빼기: 끝 값을 루트로 올리고 아래로</td></tr>
-    <tr><td><b>Union-Find</b></td><td>같은 집합인지</td><td><code>parent[]</code></td><td>거의 O(1)</td><td>루트가 같으면 같은 집합 · 경로 압축</td></tr>
-    <tr><td><b>트리 순회</b></td><td>노드 방문 순서</td><td>재귀</td><td>O(n)</td><td>Root 를 앞(전위) · 가운데(중위) · 뒤(후위)</td></tr>
-    <tr><td><b>크루스칼</b></td><td>MST</td><td>정렬 + Union-Find</td><td>O(E log E)</td><td>가벼운 간선부터, 사이클 안 생기면 채택</td></tr>
-    <tr><td><b>프림</b></td><td>MST</td><td>우선순위 큐 (−가중치)</td><td>O(n²) / O(E log V)</td><td>트리에 맞닿은 가장 가벼운 간선으로 정점 추가</td></tr>
-    <tr><td><b>위상정렬</b></td><td>DAG 의 순서</td><td>진입 차수 + 큐</td><td>O(V+E)</td><td>진입 차수 0 부터 꺼내고 다음 정점 차수 −1</td></tr>
-    <tr><td><b>다익스트라</b></td><td>최단거리 (음수 X)</td><td><code>dist</code> · <code>check</code></td><td>O(n²)</td><td>가장 가까운 미확정 정점을 확정하고 이웃 갱신</td></tr>
-    <tr><td><b>벨만포드</b></td><td>최단거리 (음수 O)</td><td>간선 목록</td><td>O(VE)</td><td>모든 간선 갱신을 n 번 · n 번째에 바뀌면 음수 사이클</td></tr>
-  </table></div>
+  <h2>한눈에 보기</h2>
+  <p class="lead">알고리즘마다 프린트 예제가 저절로 돌아가요. '자세히'를 누르면 한 단계씩 넘겨 보고 프린트 코드도 볼 수 있어요.</p>
+  <div class="sumgrid" id="sumGrid"></div>
   <div class="card exam"><h3>프린트에서 짚은 것</h3><ul>
     <li><b>작업(위상정렬)</b> 은 시험에 낸다고 하심 → 코드 빈칸의 '작업' 을 꼭 풀어 보기</li>
     <li>크루스칼은 코드가 안 나오거나 빈칸으로 (Union-Find 부분 구현)</li>
@@ -434,6 +438,9 @@ function codeHtml(src, ln) {
   }).join('');
 }
 
+// 한눈에 칸이 쓰는 작은 애니메이션들: { key, frames: () => [...], render } (각 개념 칸 블록이 등록)
+const MINI = [];
+
 // ───────── 단계 플레이어 ─────────
 // make({ el, title, ops: html, frames: [], render(frame) → {G, fr, panel, msg} }) · setFrames(frames) 로 새 단계
 function makePlayer(el, title, render) {
@@ -476,7 +483,7 @@ function makePlayer(el, title, render) {
   });
   range.oninput = () => { stop(); go(+range.value); };
   return {
-    el, scen: $('.scen', el), ops: $('.ops', el),
+    el, render, scen: $('.scen', el), ops: $('.ops', el),
     set(fs, at = 0) { stop(); frames = fs; i = at; show(); },
     play() { stop(); i = -1; playB.click(); },
   };
@@ -580,6 +587,7 @@ void push(int x){
     heap = F[F.length - 1].h; p.set(F);
   });
   const F0 = pushFrames(heap, 8); heap = F0[F0.length - 1].h; p.set(F0);
+  MINI.push({ key: 'heap', render: p.render, frames: () => { const A = pushFrames([null, 9, 7, 6, 5, 3, 2, 4, 1, 4], 8); return A.concat(popFrames(A[A.length - 1].h)); } });
 }
 
 // ═════════ Union-Find ═════════
@@ -656,6 +664,7 @@ bool isUnion(int x,int y){
   ];
   scenBtns(p, ['프린트 예제', '경로 압축 Find(8)'], (k) => p.set(S[k]()));
   p.set(S[0]());
+  MINI.push({ key: 'uf', render: p.render, frames: S[0] });
 }
 
 // ═════════ 트리: 퀴즈 · 순회 ═════════
@@ -730,6 +739,7 @@ void postorder(int x) {
   const K = ['pre', 'in', 'post'];
   scenBtns(p, ['전위', '중위', '후위'], (k) => p.set(trav(K[k])));
   p.set(trav('pre'));
+  MINI.push({ key: 'tree', render: p.render, frames: () => trav('pre') });
 }
 
 // ═════════ MST ═════════
@@ -831,6 +841,7 @@ void prim(){
   });
   scenBtns(p, ['크루스칼', '프림 (A 부터)'], (k) => p.set(k ? prim() : kruskal()));
   p.set(kruskal());
+  MINI.push({ key: 'kruskal', render: p.render, frames: kruskal }, { key: 'prim', render: p.render, frames: prim });
 }
 
 // ═════════ 위상정렬 (작업) ═════════
@@ -905,6 +916,7 @@ printf("%d\\n",ans); //@w5`;
         <div class="lab">큐</div><div class="out">${f.q.join(' ') || '&nbsp;'}</div><div class="lab">꺼낸 순서 (= 위상정렬)</div><div class="out">${f.out.join(' ') || '&nbsp;'}</div>` };
   });
   p.set(frames());
+  MINI.push({ key: 'topo', render: p.render, frames });
 }
 
 // ═════════ 다익스트라 ═════════
@@ -968,6 +980,7 @@ printf("%d\\n",dist[end]); //@d5`;
         <tr><th>from</th>${ids.map((i) => `<td class="dim">${i === 1 ? -1 : f.from[i] ?? ''}</td>`).join('')}</tr></table></div><div class="lab">초록 간선 = 지금 최단거리를 만든 간선</div>` };
   });
   p.set(frames());
+  MINI.push({ key: 'dij', render: p.render, frames });
 }
 
 // ═════════ 벨만포드 ═════════
@@ -981,7 +994,7 @@ printf("%d\\n",dist[end]); //@d5`;
   function frames(E) {
     const F = [], dist = { 1: 0, 2: Infinity, 3: Infinity }, n = ids.length;
     let neg = false;
-    const fr = (round, msg, hi, cur, ln = []) => F.push({ ln, dist: { ...dist }, round, msg, hi: hi || {}, cur });
+    const fr = (round, msg, hi, cur, ln = []) => F.push({ ln, E, dist: { ...dist }, round, msg, hi: hi || {}, cur });
     fr(0, 'dist[1] = 0, 나머지 ∞. 모든 간선으로 갱신하기를 n = 3 번 반복해요 (간선은 입력 순서대로)', null, null, ['b0']);
     for (let r = 1; r <= n; r++) {
       let any = false;
@@ -1026,13 +1039,14 @@ if (negative_cycle) { //@b4
 }`;
   let cur = 0;
   const p = makePlayer($('#p-bf'), '벨만포드 (타임머신)', (f) => {
-    const E = SC[cur].E, G = { w: 440, h: 270, nodes: ids.map((i) => ({ id: i, x: P[i][0], y: P[i][1] })), edges: E.map(([u, v, w]) => ({ u, v, w, dir: true })) };
+    const E = f.E || SC[cur].E, G = { w: 440, h: 270, nodes: ids.map((i) => ({ id: i, x: P[i][0], y: P[i][1] })), edges: E.map(([u, v, w]) => ({ u, v, w, dir: true })) };
     return { code: BF_CODE, G, fr: { e: f.hi, n: f.cur ? { [f.cur]: 'cur' } : {}, sub: Object.fromEntries(ids.map((i) => [i, f.dist[i] === Infinity ? INF : f.dist[i]])) }, msg: f.msg,
       panel: `<div class="lab">${f.round ? `반복 ${f.round} / 3` : '시작'}</div><div class="tw"><table class="t"><tr><th>정점</th>${ids.map((i) => `<th>${i}</th>`).join('')}</tr><tr><th>dist</th>${ids.map((i) => `<td class="${f.cur === i ? 'hi' : ''}">${f.dist[i] === Infinity ? INF : f.dist[i]}</td>`).join('')}</tr></table></div>
         <div class="lab">간선 (입력 순서)</div><ul class="el">${E.map(([x, y, z]) => `<li class="${f.hi[ek(x, y)] ? 'hi' : ''}">${x}→${y}<span class="r mono">${z}</span></li>`).join('')}</ul>` };
   });
   scenBtns(p, SC.map((s) => s.name), (k) => { cur = k; p.set(frames(SC[k].E)); });
   p.set(frames(SC[0].E));
+  MINI.push({ key: 'bf', render: p.render, frames: () => frames(SC[0].E) });
 }
 
 // ───────── 칸 고르기 (이 기기에 기억) ─────────
@@ -1048,8 +1062,52 @@ if (negative_cycle) { //@b4
     document.querySelectorAll('section.view').forEach((s) => (s.hidden = s.id !== 'v-' + k));
     try { localStorage.setItem('algograph-tab', k); } catch (e) {}
   };
+  window.agOpen = (k) => { open(k); scrollTo({ top: 0 }); if (window.AG_EMBED) try { window.frameElement.scrollIntoView({ block: 'start' }); } catch (x) {} };
   nav.onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) { open(b.dataset.t); if (window.AG_EMBED) try { window.frameElement.scrollIntoView({ block: 'start' }); } catch (x) {} } };
   open(at);
+}
+
+// ───────── 한눈에: 카드마다 작은 애니메이션이 저절로 돌고 요약 ─────────
+// 한눈에 칸이 보일 때만 돌립니다 (CPU 아끼기). 끝 단계에서 잠깐 멈췄다가 처음부터 다시.
+{
+  const META = [
+    ['heap', 'heap', '최대 힙', 'O(log n)', '배열 heap[1..hn]', ['넣기: 맨 끝에 넣고 부모보다 크면 위로 스왑', '빼기: 루트를 꺼내고 끝 값을 올려 더 큰 자식과 아래로 스왑']],
+    ['uf', 'uf', 'Union-Find', '거의 O(1)', 'parent[]', ['루트가 같으면 같은 집합', 'Union: 루트끼리 붙임 · Find: 경로 압축']],
+    ['tree', 'tree', '트리 순회', 'O(n)', '재귀', ['전위 Root-L-R · 중위 L-Root-R · 후위 L-R-Root', '프린트 예제 전위: ABDCEFG']],
+    ['kruskal', 'mst', '크루스칼', 'O(E log E)', '정렬 + Union-Find', ['가벼운 간선부터, 사이클이 안 생기면 채택', '간선 n−1 개면 끝 (예제 합 31)']],
+    ['prim', 'mst', '프림', 'O(n²)', '우선순위 큐 (−가중치)', ['트리에 맞닿은 가장 가벼운 간선으로 정점 추가', '이미 트리에 있는 정점이면 버림 (예제 합 31)']],
+    ['topo', 'topo', '위상정렬 · 작업', 'O(V+E)', '진입 차수 + 큐', ['진입 차수 0 부터 꺼내고 다음 정점 차수 −1', 'd[y] = max(d[y], d[x] + work[y]) · 답 23 (시험!)']],
+    ['dij', 'sp', '다익스트라', 'O(n²)', 'dist · check', ['가장 가까운 미확정 정점을 확정하고 이웃 dist 갱신', '간선이 음수면 못 씀 · 경로는 from[]']],
+    ['bf', 'sp', '벨만포드', 'O(VE)', '간선 목록', ['모든 간선 갱신을 n 번', 'n 번째에도 바뀌면 음수 사이클 (타임머신 -1 · 웜홀 YES)']],
+  ];
+  const grid = $('#sumGrid');
+  const cards = META.map(([key, tab, name, big, uses, sum]) => {
+    const m = MINI.find((x) => x.key === key);
+    const el = document.createElement('div');
+    el.className = 'scard';
+    el.innerHTML = `<div class="hd"><b>${name}</b><span class="chip o">${big}</span><span class="chip">${esc(uses)}</span></div>
+      <svg class="g" id="mini-${key}"></svg><div class="mm"></div>
+      <ul>${sum.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      <button class="btn go" data-go="${tab}">자세히 · 한 단계씩 →</button>`;
+    grid.appendChild(el);
+    return { m, svg: $('svg', el), mm: $('.mm', el), F: m ? m.frames() : [], i: 0, hold: 0 };
+  });
+  grid.onclick = (e) => { const b = e.target.closest('[data-go]'); if (b) window.agOpen(b.dataset.go); };
+  const show = (c) => {
+    const f = c.F[c.i]; if (!f || !c.m) return;
+    const r = c.m.render(f);
+    drawGraph(c.svg, r.G, r.fr);
+    c.mm.innerHTML = r.msg || '';
+  };
+  cards.forEach(show);
+  setInterval(() => {
+    if (document.hidden || $('#v-sum').hidden) return;
+    for (const c of cards) {
+      if (c.i >= c.F.length - 1) { if (++c.hold < 3) continue; c.hold = 0; c.i = 0; }   // 끝에서 잠깐 멈춤
+      else c.i++;
+      show(c);
+    }
+  }, 1000);
 }
 </script>
 <script>
