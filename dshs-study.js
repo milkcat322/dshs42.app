@@ -1440,7 +1440,7 @@ function rerender() {
   else renderList(view);
 }
 window.closeStudyView = closeStudy;
-// 인터넷이 없을 때 오프라인 안내의 '단어장' 버튼: 단어장은 서버 없이 동작하므로 공부 탭만 열어 줍니다 (북마크는 다시 연결되면 올림)
+// 인터넷이 없을 때 오프라인 안내의 '공부' 버튼: 공부 페이지는 서버 없이 동작하므로 공부 탭만 열어 줍니다 (북마크는 다시 연결되면 올림)
 window.openOfflineLearn = () => {
   destroyCal();
   page = "learn"; view = "learn";
@@ -1541,10 +1541,7 @@ function openExam() {
 //   href: '새 창에서 크게 보기'가 page 대신 열 주소 (지금 쓰는 파트 없음)
 // 파트 id 는 기기에 기억되므로(dshs-learn-subject) 바꾸지 않습니다. 새 페이지는 sw.js 의 PAGES 에도 넣습니다.
 const LEARN_SUBJECTS = [
-  { id: "eng", name: "영어", parts: [
-    { id: "atc", name: "학술영어 세미나", sub: "The Art of Thinking Clearly 어휘 · 문장 배열 · 문장 암기" },
-    { id: "crit", name: "비판적 영어 읽기와 토론", sub: "필수동사 150개 · 필수형용사 100개" },
-  ] },
+  // 영어(단어장 vocab.html, 파트 atc · crit)는 2026-11-25 에 공부 탭에서 뺐다. vocab.html · learnBookmarks 는 남아 있어 이 줄을 되살리면 다시 보인다.
   { id: "bio", name: "일반생물학", parts: [
     { id: "bio", name: "손희창T", sub: "Ch17 전사 · 가공 · 번역 · 돌연변이 핵심 기작 애니메이션", page: "bio.html" },
   ] },
@@ -1628,7 +1625,7 @@ function renderLearn(pick) {
           <button class="asg-card learn-card" data-learn="s:${s.id}">
             <span><span class="asg-title">${esc(s.name)}</span><span class="study-sub">${esc(s.parts.map((p) => p.name).join(" · "))}</span></span>
           </button>`).join("")}</div>`}
-    <div class="study-foot">북마크는 계정에 저장돼 다른 기기에서도 보여요. 퀴즈 기록은 이 기기에만 남아요</div>`;
+`;
   bind();
 }
 
