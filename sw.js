@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v241';
+const CACHE = 'dshs-study-v242';
 
 const SHELL = [
   './',
@@ -13,6 +13,7 @@ const SHELL = [
   './vocab.html',
   './bio.html',
   './bio2.html',
+  './bio-book.js',
   './algograph.html',
   './icon-144.png',
   './icon-192.png',
