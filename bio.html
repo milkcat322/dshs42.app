@@ -93,15 +93,29 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 .chs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
 .chs button{font-weight:700;border-radius:999px}
 .chs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.mm-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:4px 0 22px}
+svg.mm{display:block;width:100%;height:auto;min-width:720px;max-width:1000px;margin:0 auto}
+svg.mm .br{cursor:pointer}
+svg.mm .br:hover rect{filter:brightness(1.12)}
+#mmView{max-width:1240px;margin:auto;padding:8px max(5vw,16px) 64px}
+html.embed #mmView{padding:4px 0 16px}
+#mmView[hidden],#tree[hidden]{display:none}
+h3.mmh{margin:6px 0 2px;font-size:18px}
+p.mmhint{color:var(--sub);font-size:14px;margin:0 0 10px}
 </style></head><body>
 <header>
 <h1>유전자 발현 · 조절 핵심 기작 <span class="en">손희창T</span></h1>
 <p class="lead">구조를 펼쳐 기작을 고르면 캠벨 그림 모양의 분자들이 시간 순서대로 이어서 움직입니다. 펼치면 애니메이션이 자동 재생되고, 슬라이더로 원하는 순간을 되감거나 숫자를 눌러 단계로 이동할 수 있습니다.</p>
-<div class="chs" role="group" aria-label="단원"><button data-ch="17">Ch 17 유전자 발현</button><button data-ch="18">Ch 18 유전자 발현 조절</button></div>
+<div class="chs" role="group" aria-label="단원"><button data-ch="17">Ch 17 유전자 발현</button><button data-ch="18">Ch 18 유전자 발현 조절</button><button data-ch="mm">🗺 마인드맵</button></div>
 <div class="tools"><a class="home" id="bioHome" href="./" hidden>← dshs42.app</a><span class="seg" role="group" aria-label="보는 방식"><button data-view="step">과정별</button><button data-view="org">원핵 / 진핵</button></span><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
 </header>
 <script>if (!window.BIO_EMBED) document.getElementById("bioHome").hidden = false;</script>
 <main id="tree"></main>
+<section id="mmView" hidden>
+<p class="mmhint">단원마다 핵심을 한 장으로 · 가지를 누르면 그 기작 묶음으로 가요</p>
+<h3 class="mmh">Ch 17 유전자 발현</h3><div class="mm-wrap"><svg class="mm" data-mm="17" role="img" aria-label="Ch 17 마인드맵"></svg></div>
+<h3 class="mmh">Ch 18 유전자 발현 조절</h3><div class="mm-wrap"><svg class="mm" data-mm="18" role="img" aria-label="Ch 18 마인드맵"></svg></div>
+</section>
 <script>
 {
 const C={tpl:'#1f4e8c',ntpl:'#8fb8e0',rna:'#e0457b',pol:'#ecd3a0',polS:'#a07c3c',L:'#b9a6d1',S:'#d6cbe8',ribS:'#6d5a8a',tr:'#b5d86a',trS:'#5f8a1f',prot:'#6b4fa0'};
@@ -703,20 +717,79 @@ function fitCols(row){if(!row||row.children.length<2)return;row.style.gridTempla
 // 맨 아래 갈래(돌연변이)는 따로 한 줄, 나머지(전사 · 가공 · 번역 / 원핵 · 진핵)는 한 줄에 나란히
 function drawTree(view){
  tree.querySelectorAll('.vh').forEach(h=>h._v&&h._v.pause());active=null;
+ const isMM=curCh==='mm';tree.hidden=isMM;mmView.hidden=!isMM;
+ document.querySelectorAll('.tools .seg,#openAll,#closeAll').forEach(e=>e.style.display=isMM?'none':'');
+ if(isMM){document.querySelectorAll('.chs [data-ch]').forEach(b=>{b.classList.toggle('on',b.dataset.ch===curCh);b.setAttribute('aria-pressed',b.dataset.ch===curCh);});return;}
  const list=curCh==='18'?TREE18:view==='org'?TREE_ORG:TREE,rows=[list.slice(0,-1),list.slice(-1)];
  tree.innerHTML=`<details class="lv1" open style="--c:#16181c"><summary>${curCh==='18'?'Ch 18 유전자 발현 조절 <span class="en">Control of gene expression</span>':'Ch 17 유전자 발현 <span class="en">Expression of genes</span>'}</summary>${rows.map(r=>`<div class="cols n${r.length}">${r.map(n=>node(n,1)).join('')}</div>`).join('')}</details>`;
  tree.querySelectorAll('details.leaf').forEach(d=>{const h=d.querySelector('.vh');h._leaf=d;d.addEventListener('toggle',()=>{
   if(d.open){if(!h._v)makeViewer(h,d.dataset.m);else h._v.play();active=h;}else if(h._v)h._v.pause();
   fitCols(d.closest('.cols'));});});
 document.querySelectorAll('.seg [data-view]').forEach(b=>{b.classList.toggle('on',b.dataset.view===view);b.setAttribute('aria-pressed',b.dataset.view===view);});
- document.querySelector('.seg').hidden=curCh==='18';
+ document.querySelector('.seg').hidden=curCh!=='17';
  document.querySelectorAll('.chs [data-ch]').forEach(b=>{b.classList.toggle('on',b.dataset.ch===curCh);b.setAttribute('aria-pressed',b.dataset.ch===curCh);});
 }
 let curView='step';try{if(localStorage.getItem(VIEW_KEY)==='org')curView='org';}catch(e){}
-let curCh='17';try{if(localStorage.getItem('bio-ch')==='18')curCh='18';}catch(e){}
+let curCh='17';try{const v=localStorage.getItem('bio-ch');if(v==='18'||v==='mm')curCh=v;}catch(e){}
 document.querySelectorAll('.chs [data-ch]').forEach(b=>b.onclick=()=>{if(b.dataset.ch===curCh)return;curCh=b.dataset.ch;try{localStorage.setItem('bio-ch',curCh);}catch(e){}drawTree(curView);});
 document.querySelectorAll('.seg [data-view]').forEach(b=>b.onclick=()=>{if(b.dataset.view===curView)return;curView=b.dataset.view;try{localStorage.setItem(VIEW_KEY,curView);}catch(e){}drawTree(curView);});
-wide.addEventListener('change',()=>tree.querySelectorAll('.cols').forEach(fitCols));   // 가로 ↔ 세로 배치가 바뀌면 열 너비 다시
+wide.addEventListener('change',()=>tree.querySelectorAll('.cols').forEach(fitCols));
+
+// 마인드맵 그리기: branches = [[가지, 갈 곳, [잎 …]], …] · 가지를 누르면 go(갈 곳)
+function drawMindmap(svg, title, branches, centerFill, go) {
+  const COLS = ['#e07a5f', '#4a90c2', '#5fae86', '#d9a441', '#9b7bd1', '#d1607e', '#4fb0b8'];
+  const cv = drawMindmap.cv || (drawMindmap.cv = document.createElement('canvas').getContext('2d'));
+  const FONT = '"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+  const tw = (t, f) => { cv.font = f + ' ' + FONT; return cv.measureText(t).width; };
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const W = 1000, cx = W / 2, ROW = 25, GAP = 16;
+  const side = { L: [], R: [] }, cnt = { L: 0, R: 0 };
+  branches.forEach((b, i) => { const k = cnt.R <= cnt.L ? 'R' : 'L'; side[k].push([b, i]); cnt[k] += b[2].length + 0.7; });
+  const hOf = (list) => list.reduce((a, [b]) => a + b[2].length * ROW + GAP, -GAP);
+  const H = Math.max(hOf(side.L), hOf(side.R)) + 40, cy = H / 2;
+  const tW = tw(title, '800 17px') + 34;
+  let g = '', minX = 0, maxX = W;
+  for (const k of ['L', 'R']) {
+    const dir = k === 'R' ? 1 : -1;
+    let y = cy - hOf(side[k]) / 2;
+    for (const [[name, to, leaves], i] of side[k]) {
+      const col = COLS[i % COLS.length], bh = leaves.length * ROW, by = y + bh / 2;
+      const bw = tw(name, '800 14px') + 24, bx = cx + dir * 205;
+      const x0 = cx + dir * tW / 2, x1 = bx - dir * bw / 2;
+      g += '<path d="M' + x0 + ',' + cy + ' C' + (x0 + dir * 60) + ',' + cy + ' ' + (x1 - dir * 60) + ',' + by + ' ' + x1 + ',' + by + '" fill="none" stroke="' + col + '" stroke-width="3.2"/>';
+      const lx = bx + dir * (bw / 2), lt = bx + dir * (bw / 2 + 44);
+      leaves.forEach((t, j) => {
+        const ly = y + j * ROW + ROW / 2, ww = tw(t, '400 13.5px');
+        if (dir < 0) minX = Math.min(minX, lt - 2 - ww - 8); else maxX = Math.max(maxX, lt + 2 + ww + 8);
+        g += '<path d="M' + lx + ',' + by + ' C' + (lx + dir * 24) + ',' + by + ' ' + (lt - dir * 24) + ',' + ly + ' ' + (lt - dir * 6) + ',' + ly + '" fill="none" stroke="' + col + '" stroke-width="1.6" opacity=".8"/>';
+        g += '<circle cx="' + (lt - dir * 6) + '" cy="' + ly + '" r="2.6" fill="' + col + '"/>';
+        g += '<text x="' + (lt + dir * 2) + '" y="' + (ly + 4.5) + '" font-size="13.5" style="fill:var(--ink)"' + (dir < 0 ? ' text-anchor="end"' : '') + '>' + esc(t) + '</text>';
+      });
+      g += '<g class="br" data-to="' + to + '"><rect x="' + (bx - bw / 2) + '" y="' + (by - 15) + '" width="' + bw + '" height="30" rx="15" fill="' + col + '"/><text x="' + bx + '" y="' + (by + 5) + '" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff">' + esc(name) + '</text></g>';
+      y += bh + GAP;
+    }
+  }
+  g += '<rect x="' + (cx - tW / 2) + '" y="' + (cy - 22) + '" width="' + tW + '" height="44" rx="12" style="fill:' + centerFill + '"/><text x="' + cx + '" y="' + (cy + 6) + '" text-anchor="middle" font-size="17" font-weight="800" style="fill:#fff">' + esc(title) + '</text>';
+  svg.setAttribute('viewBox', minX + ' 0 ' + (maxX - minX) + ' ' + H);
+  svg.innerHTML = g;
+  svg.onclick = (e) => { const b = e.target.closest('.br'); if (b) go(b.dataset.to); };
+}
+
+const MM={
+ 17:['Ch17 유전자 발현',[
+  ['전사','17|전사',['DNA → mRNA · RNA 중합효소','원핵 개시: σ factor + core','진핵 개시: TATA box · 전사인자','신장: 5′ → 3′ 방향 합성','종결: ρ 의존 · ρ 비의존 · AAUAAA']],
+  ['RNA 가공','17|가공',['진핵에서만 · 핵 안','5′ cap · poly-A tail','splicing: intron 제거','선택적 splicing · exon shuffling']],
+  ['번역','17|번역',['mRNA → 단백질 · tRNA · 리보솜','원핵 개시: Shine-Dalgarno','진핵 개시: 5′ cap → AUG','신장: A · P · E site','종결: 종결 코돈 · 방출 인자','SRP → ER 로 표적화']],
+  ['돌연변이','17|돌연변이',['치환: silent · missense · nonsense','삽입 · 결실 → frameshift','CRISPR-Cas9 유전자 편집']]]],
+ 18:['Ch18 유전자 발현 조절',[
+  ['원핵: 오페론','18|원핵 조절',['operator · promoter · 구조 유전자','trp: 억제성 (corepressor)','lac 음성: 유도성 (allolactose)','lac 양성: 포도당 X → cAMP · CRP']],
+  ['진핵: 여러 단계','18|진핵 조절',['염색질: 아세틸화 · 메틸화','전사 개시: enhancer · activator','조합 조절 (세포마다 다른 activator)','miRNA · siRNA: 분해 · 번역 차단','단백질 분해: ubiquitin · proteasome']],
+  ['발생과 분화','18|발생과 분화',['세포질 결정인자 · 유도','순차적 발현: myoD → 근육세포','축 형성: bicoid 농도 기울기']]]]};
+const mmGo=(to)=>{const [ch,t]=to.split('|');curCh=ch;try{localStorage.setItem('bio-ch',ch);}catch(e){}drawTree(curView);
+ const d=[...tree.querySelectorAll('details')].find(x=>x.querySelector('summary').textContent.trim().startsWith(t));
+ if(d)setTimeout(()=>d.scrollIntoView({behavior:'smooth',block:'start'}),40);};
+const mmAll=()=>document.querySelectorAll('svg.mm').forEach(svg=>{const m=MM[svg.dataset.mm];drawMindmap(svg,m[0],m[1],'var(--acc)',mmGo);});
+mmAll();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(mmAll);   // 가로 ↔ 세로 배치가 바뀌면 열 너비 다시
 drawTree(curView);
 document.addEventListener('keydown',e=>{if(!active||!active._v||!active._leaf.open)return;if(e.key==='ArrowRight')active._v.next();if(e.key==='ArrowLeft')active._v.prev();});
 document.getElementById('openAll').onclick=()=>tree.querySelectorAll('details').forEach(d=>d.open=true);

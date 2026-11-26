@@ -93,11 +93,15 @@ figure.viz figcaption{color:var(--sub);font-size:13.5px;margin-top:6px}
 .legend{display:flex;gap:6px 14px;flex-wrap:wrap;justify-content:center;font-size:13px;margin-top:6px}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 table.mat td:not(:first-child),table.mat th:not(:first-child){text-align:center}
-/* 마인드맵 */
-.mm-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-svg.mm{min-width:720px;max-width:1000px;background:transparent}
+/* 마인드맵 탭 */
+.mm-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:4px 0 22px}
+svg.mm{display:block;width:100%;height:auto;min-width:720px;max-width:1000px;margin:0 auto}
 svg.mm .br{cursor:pointer}
 svg.mm .br:hover rect{filter:brightness(1.12)}
+h3.mmh{margin:6px 0 2px;font-size:18px}
+p.mmhint{color:var(--sub);font-size:14px;margin:0 0 10px}
+.chs button[data-ch="mm"].on{background:var(--acc)}
+#cmm{--c:var(--acc)}
 /* 직접 해 보기 */
 .lab{border:1.5px dashed var(--c);border-radius:14px;padding:12px;margin:12px 0;background:var(--card)}
 .lab>.lt{font-weight:800;margin:0 0 4px}
@@ -135,7 +139,15 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <script>if (!window.BIO_EMBED) document.getElementById("bioHome").hidden = false;</script>
 <h1>진화 · 계통발생 · 개체군의 진화 <span class="en">장은영T</span></h1>
 <p class="lead">캠벨 Ch 21 · 22 · 23 핵심 개념을 절마다 정리했어요. 🧪 칸은 값을 바꾸거나 눌러서 직접 확인해 보는 곳이고, 단원 끝에 자주 틀리는 O/X 가 있어요. <span class="star">★</span> = 수업에서 강조한 부분.</p>
-<div class="chs" role="group" aria-label="단원"><button data-ch="21">Ch 21 진화</button><button data-ch="22">Ch 22 계통발생</button><button data-ch="23">Ch 23 개체군의 진화</button></div>
+<div class="chs" role="group" aria-label="단원"><button data-ch="21">Ch 21 진화</button><button data-ch="22">Ch 22 계통발생</button><button data-ch="23">Ch 23 개체군의 진화</button><button data-ch="mm">🗺 마인드맵</button></div>
+
+<!-- ═══════════════ 마인드맵 ═══════════════ -->
+<section class="ch" id="cmm" hidden>
+<div class="chhead"><h2>마인드맵</h2><p>단원마다 절별 핵심을 한 장으로 · 가지를 누르면 그 절로 가요</p></div>
+<h3 class="mmh">Ch 21 진화</h3><div class="mm-wrap"><svg class="mm" data-mm="21" role="img" aria-label="Ch 21 마인드맵"></svg></div>
+<h3 class="mmh">Ch 22 계통발생</h3><div class="mm-wrap"><svg class="mm" data-mm="22" role="img" aria-label="Ch 22 마인드맵"></svg></div>
+<h3 class="mmh">Ch 23 개체군의 진화</h3><div class="mm-wrap"><svg class="mm" data-mm="23" role="img" aria-label="Ch 23 마인드맵"></svg></div>
+</section>
 
 <!-- ═══════════════ Ch 21 ═══════════════ -->
 <section class="ch" id="c21" hidden>
@@ -222,7 +234,6 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <li>과학에서 <b>이론</b> = 수많은 관찰을 설명 · 통합하는 것</li></ul>
 </div></details>
 
-<details class="sec" open><summary>Ch 21 한눈에 보기 — 마인드맵 <span class="en">가지를 누르면 그 절로 가요</span></summary><div class="body"><div class="mm-wrap"><svg class="viz mm" data-mm="21" role="img" aria-label="Ch 21 마인드맵"></svg></div></div></details>
 <details class="sec"><summary>Ch 21 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="21"></ul></div></details>
 <details class="sec"><summary>Ch 21 영어 용어</summary><div class="body"><div class="terms" data-terms="21"></div></div></details>
 </section>
@@ -323,7 +334,6 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <div class="key"><b class="h">탐구: 진딧물의 카로티노이드 합성 유전자</b><div class="flow"><span>동물은 보통 카로티노이드를 못 만듦</span><span>그런데 진딧물 서열이 <b>균류</b>와 가장 비슷</span><span>균류에서 HGT 로 얻었다는 가설을 지지</span></div>세균 · 식물과도 비슷한 이유: 이 효소 유전자가 먼 공통 조상에서 유래한 상동 유전자라 보존된 부분이 있음</div>
 </div></details>
 
-<details class="sec" open><summary>Ch 22 한눈에 보기 — 마인드맵 <span class="en">가지를 누르면 그 절로 가요</span></summary><div class="body"><div class="mm-wrap"><svg class="viz mm" data-mm="22" role="img" aria-label="Ch 22 마인드맵"></svg></div></div></details>
 <details class="sec"><summary>Ch 22 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="22"></ul></div></details>
 <details class="sec"><summary>Ch 22 영어 용어</summary><div class="body"><div class="terms" data-terms="22"></div></div></details>
 </section>
@@ -409,7 +419,6 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <div class="key"><b class="h">자연선택이 완벽한 생물을 못 만드는 이유 4가지</b><ol class="nums"><li>이미 있는 변이에만 작용</li><li>역사적 제약</li><li>적응은 종종 타협</li><li>우연 · 자연선택 · 환경의 상호작용</li></ol></div>
 </div></details>
 
-<details class="sec" open><summary>Ch 23 한눈에 보기 — 마인드맵 <span class="en">가지를 누르면 그 절로 가요</span></summary><div class="body"><div class="mm-wrap"><svg class="viz mm" data-mm="23" role="img" aria-label="Ch 23 마인드맵"></svg></div></div></details>
 <details class="sec"><summary>Ch 23 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="23"></ul></div></details>
 <details class="sec"><summary>Ch 23 영어 용어</summary><div class="body"><div class="terms" data-terms="23"></div></div></details>
 </section>
@@ -425,7 +434,7 @@ const rnd = (() => { let x = 20261217; return () => ((x = (x * 1103515245 + 1234
 // ───────── 단원 고르기 (이 기기에 bio2-ch 로 기억) ─────────
 {
   let at = '21';
-  try { const v = localStorage.getItem('bio2-ch'); if (['21', '22', '23'].includes(v)) at = v; } catch (e) {}
+  try { const v = localStorage.getItem('bio2-ch'); if (['21', '22', '23', 'mm'].includes(v)) at = v; } catch (e) {}
   const open = (k) => {
     at = k;
     document.querySelectorAll('.chs [data-ch]').forEach((b) => { b.classList.toggle('on', b.dataset.ch === k); b.setAttribute('aria-pressed', b.dataset.ch === k); });
@@ -434,6 +443,7 @@ const rnd = (() => { let x = 20261217; return () => ((x = (x * 1103515245 + 1234
     try { localStorage.setItem('bio2-ch', k); } catch (e) {}
   };
   document.querySelectorAll('.chs [data-ch]').forEach((b) => (b.onclick = () => { open(b.dataset.ch); if (window.BIO_EMBED) try { window.frameElement.scrollIntoView({ block: 'start' }); } catch (x) {} else scrollTo({ top: 0 }); }));
+  window.bio2Open = open;
   open(at);
 }
 
@@ -764,9 +774,49 @@ const L = (pts) => '<path class="ln" d="M' + pts.map((p) => p.join(',')).join(' 
   $('#vNeck').innerHTML = g;
 }
 
-// ───────── 마인드맵 (단원 끝) ─────────
+// ───────── 마인드맵 탭 ─────────
+
+// 마인드맵 그리기: branches = [[가지, 갈 곳, [잎 …]], …] · 가지를 누르면 go(갈 곳)
+function drawMindmap(svg, title, branches, centerFill, go) {
+  const COLS = ['#e07a5f', '#4a90c2', '#5fae86', '#d9a441', '#9b7bd1', '#d1607e', '#4fb0b8'];
+  const cv = drawMindmap.cv || (drawMindmap.cv = document.createElement('canvas').getContext('2d'));
+  const FONT = '"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+  const tw = (t, f) => { cv.font = f + ' ' + FONT; return cv.measureText(t).width; };
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const W = 1000, cx = W / 2, ROW = 25, GAP = 16;
+  const side = { L: [], R: [] }, cnt = { L: 0, R: 0 };
+  branches.forEach((b, i) => { const k = cnt.R <= cnt.L ? 'R' : 'L'; side[k].push([b, i]); cnt[k] += b[2].length + 0.7; });
+  const hOf = (list) => list.reduce((a, [b]) => a + b[2].length * ROW + GAP, -GAP);
+  const H = Math.max(hOf(side.L), hOf(side.R)) + 40, cy = H / 2;
+  const tW = tw(title, '800 17px') + 34;
+  let g = '', minX = 0, maxX = W;
+  for (const k of ['L', 'R']) {
+    const dir = k === 'R' ? 1 : -1;
+    let y = cy - hOf(side[k]) / 2;
+    for (const [[name, to, leaves], i] of side[k]) {
+      const col = COLS[i % COLS.length], bh = leaves.length * ROW, by = y + bh / 2;
+      const bw = tw(name, '800 14px') + 24, bx = cx + dir * 205;
+      const x0 = cx + dir * tW / 2, x1 = bx - dir * bw / 2;
+      g += '<path d="M' + x0 + ',' + cy + ' C' + (x0 + dir * 60) + ',' + cy + ' ' + (x1 - dir * 60) + ',' + by + ' ' + x1 + ',' + by + '" fill="none" stroke="' + col + '" stroke-width="3.2"/>';
+      const lx = bx + dir * (bw / 2), lt = bx + dir * (bw / 2 + 44);
+      leaves.forEach((t, j) => {
+        const ly = y + j * ROW + ROW / 2, ww = tw(t, '400 13.5px');
+        if (dir < 0) minX = Math.min(minX, lt - 2 - ww - 8); else maxX = Math.max(maxX, lt + 2 + ww + 8);
+        g += '<path d="M' + lx + ',' + by + ' C' + (lx + dir * 24) + ',' + by + ' ' + (lt - dir * 24) + ',' + ly + ' ' + (lt - dir * 6) + ',' + ly + '" fill="none" stroke="' + col + '" stroke-width="1.6" opacity=".8"/>';
+        g += '<circle cx="' + (lt - dir * 6) + '" cy="' + ly + '" r="2.6" fill="' + col + '"/>';
+        g += '<text x="' + (lt + dir * 2) + '" y="' + (ly + 4.5) + '" font-size="13.5" style="fill:var(--ink)"' + (dir < 0 ? ' text-anchor="end"' : '') + '>' + esc(t) + '</text>';
+      });
+      g += '<g class="br" data-to="' + to + '"><rect x="' + (bx - bw / 2) + '" y="' + (by - 15) + '" width="' + bw + '" height="30" rx="15" fill="' + col + '"/><text x="' + bx + '" y="' + (by + 5) + '" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff">' + esc(name) + '</text></g>';
+      y += bh + GAP;
+    }
+  }
+  g += '<rect x="' + (cx - tW / 2) + '" y="' + (cy - 22) + '" width="' + tW + '" height="44" rx="12" style="fill:' + centerFill + '"/><text x="' + cx + '" y="' + (cy + 6) + '" text-anchor="middle" font-size="17" font-weight="800" style="fill:#fff">' + esc(title) + '</text>';
+  svg.setAttribute('viewBox', minX + ' 0 ' + (maxX - minX) + ' ' + H);
+  svg.innerHTML = g;
+  svg.onclick = (e) => { const b = e.target.closest('.br'); if (b) go(b.dataset.to); };
+}
+
 {
-  // [가지 이름, 갈 절(summary 앞부분), [잎 …]]
   const MM = {
     21: ['Ch21 진화', [
       ['세 가지 관찰', '21.0', ['적응 adaptation', '통일성 unity', '다양성 diversity', '→ 변형을 통한 계승']],
@@ -794,58 +844,18 @@ const L = (pts) => '<path class="ln" d="M' + pts.map((p) => p.join(',')).join(' 
       ['자연선택', '23.4', ['상대적 적합도', '방향성 · 분기성 · 안정화', '성선택 (동성 · 이성)', '균형선택 (빈도 의존 · 이형 우위)', '완벽하지 못한 이유 4가지']],
     ]],
   };
-  const COLS = ['var(--b1)', 'var(--b2)', 'var(--b3)', 'var(--b4)', '#9b7bd1', '#d1607e', '#4fb0b8'];
-  const cv = document.createElement('canvas').getContext('2d');
-  const tw = (t, f) => { cv.font = f; return cv.measureText(t).width; };
-  const FONT = '"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif';
-  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const draw = (svg) => {
-    const [title, branches] = MM[svg.dataset.mm];
-    const W = 1000, cx = W / 2, ROW = 25, GAP = 16;
-    // 잎 수로 좌우 균형
-    const side = { L: [], R: [] }, cnt = { L: 0, R: 0 };
-    branches.forEach((b, i) => { const k = cnt.R <= cnt.L ? 'R' : 'L'; side[k].push([b, i]); cnt[k] += b[2].length + 0.7; });
-    const hOf = (list) => list.reduce((a, [b]) => a + b[2].length * ROW + GAP, -GAP);
-    const H = Math.max(hOf(side.L), hOf(side.R)) + 40, cy = H / 2;
-    let g = '';
-    const tW = tw(title, '800 17px ' + FONT) + 34;
-    for (const k of ['L', 'R']) {
-      const dir = k === 'R' ? 1 : -1;
-      let y = cy - hOf(side[k]) / 2;
-      for (const [[name, to, leaves], i] of side[k]) {
-        const col = COLS[i % COLS.length], bh = leaves.length * ROW, by = y + bh / 2;
-        const bw = tw(name, '800 14px ' + FONT) + 24, bx = cx + dir * 205;          // 가지 상자 가운데
-        const x0 = cx + dir * tW / 2, x1 = bx - dir * bw / 2;
-        g += '<path d="M' + x0 + ',' + cy + ' C' + (x0 + dir * 60) + ',' + cy + ' ' + (x1 - dir * 60) + ',' + by + ' ' + x1 + ',' + by + '" fill="none" stroke="' + col + '" stroke-width="3.2"/>';
-        const lx = bx + dir * (bw / 2), lt = bx + dir * (bw / 2 + 44);
-        leaves.forEach((t, j) => {
-          const ly = y + j * ROW + ROW / 2;
-          g += '<path d="M' + lx + ',' + by + ' C' + (lx + dir * 24) + ',' + by + ' ' + (lt - dir * 24) + ',' + ly + ' ' + (lt - dir * 6) + ',' + ly + '" fill="none" stroke="' + col + '" stroke-width="1.6" opacity=".8"/>';
-          g += '<circle cx="' + (lt - dir * 6) + '" cy="' + ly + '" r="2.6" fill="' + col + '"/>';
-          g += '<text x="' + (lt + dir * 2) + '" y="' + (ly + 4.5) + '" font-size="13.5"' + (dir < 0 ? ' text-anchor="end"' : '') + '>' + esc(t) + '</text>';
-        });
-        g += '<g class="br" data-to="' + to + '"><rect x="' + (bx - bw / 2) + '" y="' + (by - 15) + '" width="' + bw + '" height="30" rx="15" fill="' + col + '"/><text x="' + bx + '" y="' + (by + 5) + '" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff">' + esc(name) + '</text></g>';
-        y += bh + GAP;
-      }
-    }
-    g += '<rect x="' + (cx - tW / 2) + '" y="' + (cy - 22) + '" width="' + tW + '" height="44" rx="12" style="fill:var(--c)"/><text x="' + cx + '" y="' + (cy + 6) + '" text-anchor="middle" font-size="17" font-weight="800" style="fill:#fff">' + esc(title) + '</text>';
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    svg.innerHTML = g;
+  const go = (ch) => (to) => {
+    window.bio2Open(ch);
+    const d = [...document.querySelectorAll('#c' + ch + ' details.sec')].find((x) => x.querySelector('summary').textContent.trim().startsWith(to));
+    if (!d) return;
+    d.open = true;
+    setTimeout(() => d.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
   };
-  document.querySelectorAll('svg.mm').forEach((svg) => {
-    draw(svg);
-    svg.addEventListener('click', (e) => {
-      const b = e.target.closest('.br'); if (!b) return;
-      const sec = svg.closest('section.ch');
-      const d = [...sec.querySelectorAll('details.sec')].find((x) => x.querySelector('summary').textContent.trim().startsWith(b.dataset.to));
-      if (!d) return;
-      d.open = true;
-      setTimeout(() => d.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
-    });
-  });
-  // 글꼴이 늦게 오면 글자 너비가 바뀌므로 한 번 더
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => document.querySelectorAll('svg.mm').forEach(draw));
+  const all = () => document.querySelectorAll('svg.mm').forEach((svg) => { const ch = svg.dataset.mm; drawMindmap(svg, MM[ch][0], MM[ch][1], 'var(--c' + ch + ')', go(ch)); });
+  all();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(all);   // 글꼴이 늦게 오면 글자 너비가 바뀌므로 한 번 더
 }
+
 // 사이트 테마가 바뀌면 그림 색도 다시 (단원 버튼은 CSS 변수라 그대로)
 const _vt = window.vocabTheme;
 window.vocabTheme = function () { _vt && _vt(); };
