@@ -99,20 +99,398 @@ svg.mm .br{cursor:pointer}
 svg.mm .br:hover rect{filter:brightness(1.12)}
 #mmView{max-width:1240px;margin:auto;padding:8px max(5vw,16px) 64px}
 html.embed #mmView{padding:4px 0 16px}
-#mmView[hidden],#tree[hidden]{display:none}
+#mmView[hidden],#tree[hidden],#ccView[hidden]{display:none}
+#ccView{max-width:1000px;margin:auto;padding:8px max(5vw,16px) 64px}
+html.embed #ccView{padding:4px 0 16px}
+#ccView .cc-tools{display:flex;gap:8px;margin:0 0 10px}
+#ccView h2.cc-ch{font-size:20px;margin:22px 0 8px;padding-left:10px;border-left:5px solid var(--acc)}
+#ccView details.cc-sec{border:1px solid var(--line);border-radius:12px;background:var(--card);margin:0 0 10px;padding:0}
+#ccView details.cc-sec>summary{padding:11px 14px;font-weight:800;font-size:16px}
+#ccView .cc-body{padding:0 16px 12px;font-size:15px;line-height:1.65}
+#ccView .cc-body h3{font-size:15.5px;margin:14px 0 6px;color:var(--acc)}
+#ccView .cc-body ul{margin:4px 0;padding-left:20px}
+#ccView .cc-body li{margin:3px 0}
+#ccView .cc-body table{border-collapse:collapse;width:100%;font-size:14px;margin:6px 0 10px;display:block;overflow-x:auto}
+#ccView .cc-body th,#ccView .cc-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+#ccView .cc-body th{color:var(--sub)}
+#ccView .cc-body .box{border:1px solid var(--line);border-left:4px solid #d9a441;border-radius:10px;padding:8px 12px;margin:8px 0}
+#ccView .cc-body .box.red{border-left-color:#e5383b}
+#ccView .cc-body .box.blue{border-left-color:#4a90c2}
+#ccView .cc-body .box b.t{display:block;margin-bottom:2px}
+#ccView .star{color:#e0a100;font-weight:800}
+#ccView mark{background:rgba(255,213,79,.35);color:inherit;padding:0 2px;border-radius:3px}
+#ccView .note{display:block;font-size:13px;color:var(--sub)}
+svg.mm .lf{cursor:pointer}
+svg.mm .lf:hover text{text-decoration:underline}
+#mmPop{position:absolute;inset:0;min-height:100%;background:rgba(0,0,0,.45);z-index:50}
+#mmPop[hidden]{display:none}
+#mmPop .mmp-box{max-width:520px;margin:40px auto 0;width:calc(100% - 32px);background:var(--card);color:var(--ink);border:1px solid var(--line);border-top:5px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#mmPop .mmp-h{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px 4px;font-size:16.5px}
+#mmPop .mmp-x{border:0;background:transparent;font-size:18px;color:var(--sub);cursor:pointer;min-height:36px;padding:0 8px}
+#mmPop .mmp-b{padding:2px 16px 16px;font-size:15px;line-height:1.65}
+#mmPop .mmp-b p{margin:4px 0}
+#mmPop .mmdl{margin:4px 0;display:grid;gap:2px}
+#mmPop .mmdl dt{font-weight:800;margin-top:8px}
+#mmPop .mmdl dd{margin:0;color:var(--ink)}
+body{position:relative}
+
 h3.mmh{margin:6px 0 2px;font-size:18px}
 p.mmhint{color:var(--sub);font-size:14px;margin:0 0 10px}
 </style></head><body>
 <header>
 <h1>유전자 발현 · 조절 핵심 기작 <span class="en">손희창T</span></h1>
 <p class="lead">구조를 펼쳐 기작을 고르면 캠벨 그림 모양의 분자들이 시간 순서대로 이어서 움직입니다. 펼치면 애니메이션이 자동 재생되고, 슬라이더로 원하는 순간을 되감거나 숫자를 눌러 단계로 이동할 수 있습니다.</p>
-<div class="chs" role="group" aria-label="단원"><button data-ch="17">Ch 17 유전자 발현</button><button data-ch="18">Ch 18 유전자 발현 조절</button><button data-ch="mm">🗺 마인드맵</button></div>
+<div class="chs" role="group" aria-label="단원"><button data-ch="17">Ch 17 유전자 발현</button><button data-ch="18">Ch 18 유전자 발현 조절</button><button data-ch="all">📖 전체 개념</button><button data-ch="mm">🗺 마인드맵</button></div>
 <div class="tools"><a class="home" id="bioHome" href="./" hidden>← dshs42.app</a><span class="seg" role="group" aria-label="보는 방식"><button data-view="step">과정별</button><button data-view="org">원핵 / 진핵</button></span><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
 </header>
-<script>if (!window.BIO_EMBED) document.getElementById("bioHome").hidden = false;</script>
+<script>
+// 공부 탭 밖에서 열렸을 때만 보이는 버튼. 사이트의 '새 창에서 크게 보기'로 열린 창이면 사이트로 가지 않고 이 창을 닫음 (사이트가 두 번 열리지 않게)
+(function () {
+  if (window.BIO_EMBED) return;
+  var a = document.getElementById("bioHome"); if (!a) return;
+  var fromSite = false;
+  try { fromSite = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (e) {}
+  a.hidden = false;
+  if (!fromSite) return;
+  a.textContent = "✕ 이 창 닫기";
+  a.addEventListener("click", function (e) {
+    e.preventDefault();
+    window.close();
+    setTimeout(function () { a.textContent = "이 창을 닫으면 사이트로 돌아가요"; }, 300);
+  });
+})();
+</script>
 <main id="tree"></main>
+<section id="ccView" hidden>
+<p class="mmhint">Ch 17 · 18 개념을 수업 순서대로 정리했어요. 절을 눌러 펼쳐요. <span class="star">★</span> = 강조된 부분</p>
+<div class="cc-tools"><button type="button" id="ccOpen">모두 펼치기</button><button type="button" id="ccClose">모두 접기</button></div>
+<h2 class="cc-ch">Ch 17 유전자 발현 <span class="en">Gene expression: from gene to protein</span></h2>
+<details class="cc-sec"><summary>17.1 유전자는 전사와 번역을 통해 단백질을 지정한다 <span class="en">Genes specify proteins</span></summary><div class="cc-body"><h3>유전 정보의 흐름 <span class="en">The flow of genetic information</span></h3>
+<ul>  
+<li>유전자의 정보 = 뉴클레오타이드의 특정 서열 <span class="en">(specific sequence)</span>. DNA는 단백질 합성을 지시함으로써 특정 형질을 유도.</li>  
+<li><span class="star">★</span> <mark>유전자형과 표현형 사이의 연결고리 = 단백질</mark> <span class="en">(genotype ↔ phenotype : protein)</span></li>  
+<li><b>유전자 발현</b> <span class="en">(gene expression)</span> = DNA가 단백질 합성을 지시하는 과정 → 2단계: <b>전사</b><span class="en">(transcription)</span> + <b>번역</b><span class="en">(translation)</span></li>  
+</ul>
+<h3>가로드의 제안 (1902) <span class="en">Archibald Garrod</span></h3>
+<ul>  
+<li>영국 의사 가로드: <b>유전자가 효소를 통해 표현형을 결정</b>한다고 제안. 유전병 증상 = 특정 효소를 합성하지 못한 결과 → "<b>선천성 대사 이상</b>" <span class="en">(inborn errors of metabolism)</span></li>  
+<li><span class="star">★</span> 근거 ① <b>알캅톤뇨증</b> <span class="en">(alkaptonuria)</span>: 효소가 없어 중간 산물이 쌓여 소변이 검게 변함 / 근거 ② <b>근친혼 가계</b>에서 함께 발병 → 유전적 연관</li>  
+</ul>
+<h3><span class="star">★</span> 비들과 테이텀 — 붉은빵곰팡이의 영양요구성 돌연변이 <span class="en">Beadle &amp; Tatum, Neurospora</span></h3>
+<ul>  
+<li><b>최소 배지</b> <span class="en">(minimal medium)</span>: 생존에 필요한 최소 영양분만 → 야생형은 나머지를 스스로 합성해 자람 / <b>완전 배지</b> <span class="en">(complete medium)</span>: 모든 영양소.</li>  
+<li><b>영양요구성 돌연변이</b> <span class="en">(nutritional mutant)</span> = 최소 배지에선 못 자라고, 완전 배지에선 자라는 돌연변이.</li>  
+<li>전제: <b>X선의 표적 = DNA</b> → 결과 = 효소 이상.</li>  
+</ul>
+<div class="box red"><b class="t">★ 반수체(n)를 쓴 이유 </b>  
+붉은빵곰팡이는 <b>반수체</b> → 대립유전자가 하나뿐이라 돌연변이가 우열 관계 없이 <b>바로 표현형으로 나타남</b> (유전자형 = 표현형). 이배체였다면 열성 돌연변이가 우성 대립유전자에 가려져 나타나지 않는다.<br>  
+<b>한 유전자의 돌연변이인지 확인</b>: 돌연변이(n) × 야생형(n) 접합 → 2n → 감수분열 → 자낭 포자 8개 → <b>돌연변이 : 야생형 = 4 : 4 = 1 : 1</b> </div>
+<h3>스르브와 호로위츠 — 아르지닌 요구성 돌연변이 3종류 <span class="en">Srb &amp; Horowitz</span></h3>
+<ul>  
+<li>세 종류 모두 아르지닌을 넣으면 자람 → <b>막힌 단계만 다름</b>. 더 많은 물질에서 자랄수록 경로 <b>앞쪽</b>이 막힌 것.</li>  
+<li>각 돌연변이는 <b>한 효소를 만드는 유전자 하나</b>만 돌연변이 (X선이 두 유전자에 동시에 돌연변이를 일으킬 확률은 매우 낮음) → <mark>1 유전자 – 1 효소설</mark> <span class="en">(one gene–one enzyme)</span></li>  
+</ul>
+<h3>유전자 발현 산물: 가설의 발전 <span class="en">The products of gene expression</span></h3>
+<table>  
+<tbody><tr><th>가설</th><th>내용</th><th>수정된 이유</th></tr>  
+<tr><td>1 유전자 – 1 효소</td><td>유전자는 특정 효소 지정</td><td>출발점 (비들·테이텀)</td></tr>  
+<tr><td>1 유전자 – 1 단백질 <span class="en">one gene–one protein</span></td><td>효소가 아닌 단백질도 유전자 산물</td><td>인슐린, 케라틴</td></tr>  
+<tr><td>1 유전자 – 1 폴리펩타이드 <span class="en">one gene–one polypeptide</span></td><td>단백질은 여러 폴리펩타이드로 구성, 각각 고유 유전자</td><td>헤모글로빈 α·β 사슬</td></tr>  
+<tr><td>그 너머</td><td><span class="star">★</span> 단백질로 번역되지 않는 유전자 존재 (rRNA, tRNA) / 선택적 스플라이싱</td><td>보통 유전자 산물을 "단백질"이라 부름</td></tr>  
+</tbody></table>
+<h3>전사와 번역의 기본 원리 <span class="en">Basic principles</span></h3>
+<ul>  
+<li><b>RNA</b> = 유전자와 단백질 사이의 <b>다리</b>. 전사 = DNA 정보로 RNA 합성 → <b>mRNA</b><span class="en">(messenger RNA)</span> / 번역 = mRNA 정보로 폴리펩타이드 합성, 장소 = <b>리보솜</b>.</li>  
+<li><b>1차 전사물</b> <span class="en">(primary transcript)</span> = RNA 가공 전 처음 RNA / <b>pre-mRNA</b> = 진핵 단백질 유전자의 1차 전사물 (원핵엔 없음).</li>  
+</ul>
+<table>  
+<tbody><tr><th></th><th>원핵세포 <span class="en">prokaryote</span></th><th>진핵세포 <span class="en">eukaryote</span></th></tr>  
+<tr><td>핵막</td><td>없음</td><td>있음</td></tr>  
+<tr><td>전사·번역</td><td><span class="star">★</span> 전사 종료 전에 번역 시작 (시간·공간적으로 동시)</td><td>핵막이 전사(핵)와 번역(세포질)을 분리</td></tr>  
+<tr><td>RNA 가공</td><td>거의 없음</td><td>pre-mRNA → RNA processing → mRNA</td></tr>  
+</tbody></table>
+<h3><span class="star">★</span> 유전암호 <span class="en">The genetic code</span></h3>
+<table>  
+<tbody><tr><th>용어</th><th>뜻</th></tr>  
+<tr><td><b>주형 가닥</b> <span class="en">template strand</span></td><td>RNA 서열을 결정하는 가닥 = 안티센스·안티코딩 가닥 <span class="en">(antisense)</span> → mRNA와 <b>상보적</b></td></tr>  
+<tr><td><b>비주형 가닥</b> <span class="en">nontemplate (coding) strand</span></td><td>코딩·센스 가닥 <span class="en">(sense)</span> → mRNA와 <b>서열이 같음</b> (T ↔ U)</td></tr>  
+<tr><td><b>3자 암호</b> <span class="en">triplet code</span></td><td>DNA에서 의미를 갖는 3염기 단위 (4³ = 64 ≥ 20)</td></tr>  
+<tr><td><b>코돈</b> <span class="en">codon</span></td><td>mRNA의 3염기, 5′→3′로 씀 (triplet code에 상보적)</td></tr>  
+<tr><td><b>안티코돈</b> <span class="en">anticodon</span></td><td>tRNA의 3염기, 코돈과 상보적, 관례상 3′→5′로 씀</td></tr>  
+</tbody></table>
+<ul>  
+<li>복제는 두 가닥 모두 주형, 전사는 <b>한 가닥만</b> 주형. 어느 가닥이 주형인지는 <b>유전자마다 다름</b> (프로모터 방향이 결정).</li>  
+<li>코돈 64개 = <b>61개 아미노산</b> + <b>3개 종결코돈</b> <span class="en">(stop: UAA, UAG, UGA)</span> / <b>AUG = Met + 개시코돈</b> <span class="en">(start)</span></li>  
+<li><span class="star">★</span> 유전암호는 <b>중복적이지만 모호하지 않음</b> <span class="en">(redundant but not ambiguous)</span>: GGU·GGC·GGA·GGG → 모두 Gly / 한 코돈은 한 아미노산만. 거의 <b>보편적</b> <span class="en">(universal)</span>.</li>  
+<li><span class="star">★</span> 코돈은 올바른 <b>판독틀</b> <span class="en">(reading frame)</span>로: 겹치지 않고 3개씩. UCUCUC → UCU·CUC(Ser-Leu) / 한 칸 밀리면 Leu-Ser. 판독틀은 <b>AUG가 결정</b>.</li>  
+<li><span class="star">★</span> <b>코돈표를 만든 과정</b>: 반복 염기서열 mRNA를 합성(UUUU…, CCCC…, UCUCUC…) → 번역에 필요한 효소와 재료가 든 배지에 넣음 → 합성된 아미노산 확인 (예: UUUU… → Phe만 연결된 polypeptide → UUU = Phe).</li>  
+<li><span class="star">★</span> <b>서열 표기 관례</b>: DNA 서열을 한 줄만 주면 <b>비주형 가닥</b>을 준 것 (mRNA와 같은 서열). 코돈은 mRNA 5′→3′, 3자 암호(주형 가닥)는 3′→5′로 씀. 예) 주형 3′-GGC-5′ ↔ 코돈 5′-CCG-3′.</li>  
+</ul>
+<div class="box"><b class="t">서열 문제 푸는 법</b>  
+주형 가닥을 주면 방향(3′→5′)을 먼저 맞추고 상보적으로 바꾼다 / 비주형 가닥이면 T만 U로. → <b>AUG부터</b> 3개씩 끊고 종결코돈에서 멈춘다 (종결코돈은 아미노산 개수에 X).<br>  
+예) mRNA 5′-GC <b>AUG GCC UUU CAA UAA</b> GC-3′ → Met–Ala–Phe–Gln (앞뒤 GC = UTR, 번역 X)</div></div></details>
+<details class="cc-sec"><summary>17.2 전사: DNA 지시에 따른 RNA 합성 <span class="en">Transcription</span></summary><div class="cc-body"><h3>전사에 참여하는 분자 <span class="en">Molecular components</span></h3>
+<table>  
+<tbody><tr><th>용어</th><th>내용</th></tr>  
+<tr><td><b>RNA 중합효소</b> <span class="en">RNA polymerase</span></td><td>DNA 두 가닥을 벌리고 RNA를 <b>5′→3′</b> 방향으로 합성 / <span class="star">★</span> <b>프라이머 불필요</b> <span class="en">(no primer)</span></td></tr>  
+<tr><td><b>프로모터</b> <span class="en">promoter</span></td><td>RNA 중합효소가 결합해 전사를 시작하는 DNA 서열, 개시점의 <b>상류</b><span class="en">(upstream)</span></td></tr>  
+<tr><td><b>종결자</b> <span class="en">terminator</span></td><td>원핵세포의 전사 종결 신호 (RNA 암호화 부위에 포함되어 전사됨)</td></tr>  
+<tr><td><b>전사 단위</b> <span class="en">transcription unit</span></td><td><span class="star">★</span> 수업 정의: <b>Promoter + RNA-coding region + Terminator</b> (terminator는 RNA-coding region에 포함되어 전사됨)<br><span>※ 캠벨 본문은 "promoter 하류의 전사되는 부위"로 정의 </span></td></tr>  
+<tr><td>+1 / −1</td><td>+1 = 전사된 첫 뉴클레오타이드(개시점), −1 = 바로 상류 (0번 없음)</td></tr>  
+</tbody></table>
+<table>  
+<tbody><tr><th></th><th>원핵세포</th><th>진핵세포</th></tr>  
+<tr><td>RNA 중합효소</td><td>1종류로 모든 RNA</td><td><span class="star">★</span> <b>Pol Ⅰ → rRNA, Pol Ⅱ → mRNA, Pol Ⅲ → tRNA</b></td></tr>  
+<tr><td>프로모터 결합</td><td><span class="star">★</span> <b>σ 인자</b><span class="en">(sigma factor)</span> + core 효소 = <b>holoenzyme</b> → 프로모터(−10 TATAAT, −35)에 직접 결합<br><span class="star">★</span> σ는 promoter 인식을 돕고 <b>elongation 단계에서 이탈</b></td><td>직접 결합 X → <b>전사인자</b>가 먼저 TATA box에 결합</td></tr>  
+<tr><td>종결</td><td>종결자 서열 (ρ 비의존 / ρ 의존)</td><td>AAUAAA 전사 후 하류에서 절단</td></tr>  
+</tbody></table>
+<h3>전사의 3단계: 개시 → 신장 → 종결 <span class="en">Initiation · Elongation · Termination</span></h3>
+<ul><li><b>개시</b>: RNA 중합효소가 프로모터에 결합해 DNA 를 풂 → <b>신장</b>: 주형 가닥을 3′→5′ 로 읽으며 RNA 를 5′→3′ 로 합성 (한 번에 DNA 10~20 염기 노출) → <b>종결</b>: 종결 신호에서 RNA 와 중합효소가 떨어짐.</li></ul>
+<h3><span class="star">★</span> 개시: 진핵세포의 RNA 중합효소 결합 <span class="en">Initiation</span></h3>
+<ul>  
+<li><b>전사인자</b> <span class="en">(transcription factors)</span> = RNA 중합효소의 결합과 전사 개시를 매개하는 단백질.</li>  
+<li><b>TATA box</b> = 진핵 핵심 프로모터, 개시점 상류 약 25 nt. 전사인자 <b>TBP</b><span class="en">(TATA-binding protein)</span>가 인식.</li>  
+<li><span class="star">★</span> TATA box 서열(TATAAAA)은 <b>비주형 가닥 기준</b>으로 쓴 것 — 실제로 결합하는 상보 가닥은 ATATTTT. 진핵은 결합이 약해 RNA pol 혼자 전사 개시 X → 전사 개시 복합체 도움.</li>  
+<li>RNA pol 자체가 <b>helicase 활성</b>을 가져 스스로 DNA를 풂.</li>  
+<li><b>전사 개시 복합체</b> <span class="en">(transcription initiation complex)</span> = 프로모터에 결합한 전사인자 + RNA 중합효소 Ⅱ.</li>  
+</ul>
+<h3>신장 <span class="en">Elongation of the RNA strand</span></h3>
+<ul><li>하나의 유전자를 <b>여러 RNA 중합효소가 동시에</b> 전사 가능 → 짧은 시간에 많은 RNA.</li></ul>
+<h3><span class="star">★</span> 종결 — 세균과 진핵세포가 다름 <span class="en">Termination</span></h3>
+<ul>  
+<li>세균: 종결된 전사물을 변형 없이 바로 mRNA로 사용.</li>  
+<li>진핵: Pol Ⅱ가 <b>아데닐산중합반응 신호</b> <span class="en">(polyadenylation signal)</span>를 전사 → pre-mRNA의 <b>AAUAAA</b> → 10~35 nt 하류에서 절단 → 중합효소는 조금 더 전사하다가 떨어짐 <br><span class="star">★</span> 절단 후 아직 전사 중인 남은 RNA의 5′ 끝을 <b>exonuclease</b>가 팩맨처럼 먹어 들어감 → RNA pol Ⅱ를 따라잡으면 pol이 DNA에서 떨어짐 → 종결.</li>  
+</ul>
+<div class="box red"><b class="t">자주 틀리는 것</b>  
+진핵 RNA pol Ⅱ는 프로모터에 직접 결합 ✗ → 전사인자 먼저 / RNA 중합효소는 프라이머 필요 ✗ / ρ 비의존성 종결 = <b>머리핀 + U 연속</b> 둘 다</div></div></details>
+<details class="cc-sec"><summary>17.3 진핵세포는 전사 후 RNA를 변형한다 <span class="en">RNA processing</span></summary><div class="cc-body"><ul>  
+<li><b>RNA 가공</b> = 핵 안의 효소가 pre-mRNA를 세포질로 내보내기 전에 변형. <span class="star">★</span> 3가지: <b>5′ 캡 씌우기</b><span class="en">(capping)</span> · <b>꼬리 붙이기</b><span class="en">(tailing)</span> · <b>골라 잇기</b><span class="en">(splicing)</span></li>  
+</ul>
+<h3><span class="star">★</span> mRNA 양 끝의 변형 <span class="en">Alteration of mRNA ends</span></h3>
+<table>  
+<tbody><tr><th></th><th>5′ 캡 <span class="en">5′ cap</span></th><th>폴리A 꼬리 <span class="en">poly-A tail</span></th></tr>  
+<tr><td>구조</td><td>변형된 구아닌 (G-P-P-P, 5′-5′ 결합) = G-cap</td><td>아데닌 50~250개</td></tr>  
+<tr><td>시기</td><td>5′ 말단 20~40 nt 전사 직후</td><td>AAUAAA 하류에서 절단된 뒤</td></tr>  
+<tr><td>참고</td><td>리보솜 결합 위치 표시</td><td>꼬리 길이 ↔ mRNA 수명 ↔ 단백질 양</td></tr>  
+</tbody></table>
+<div class="box red"><b class="t">AAUAAA는 꼬리 자체가 아니라 "꼬리를 붙여라" 신호 / UTR도 엑손이다</b>5′ cap · poly-A tail 의 기능 3가지: ① 핵 밖(세포질)으로 내보내기 ② 가수분해효소로부터 보호 ③ 리보솜 결합 도움</div>
+<h3>분할 유전자와 RNA 스플라이싱 <span class="en">Split genes and RNA splicing</span></h3>
+<ul><li><b>인트론</b> <span class="en">(intron)</span> = 잘려 나가는 비암호화 부위 / <b>엑손</b> <span class="en">(exon)</span> = 아미노산 서열로 번역·발현되는 부위 (mRNA에 남음). 두 용어는 RNA와 DNA 서열 모두에 씀.</li></ul>
+<ul>  
+<li><span class="star">★</span> <b>snRNA</b> + 단백질 → <b>snRNP</b> → 여러 snRNP + 단백질 → <b>스플라이싱 복합체</b> <span class="en">(spliceosome)</span>: 스플라이싱 자리 <span class="en">(splice site)</span>를 인식.</li>  
+<li><span class="star">★</span> 인트론 서열: <b>5′-GU ‥‥ A ‥‥ AG-3′</b>. 인트론은 올가미 모양으로 잘려 나가 분해됨.</li>  
+</ul>
+<h3><span class="star">★</span> 리보자임 <span class="en">Ribozymes</span></h3>
+<ul>  
+<li>리보자임 = <b>효소 역할을 하는 촉매성 RNA</b> (예: snRNA, 스스로 스플라이싱하는 인트론, 리보솜의 rRNA).</li>  
+<li>RNA가 효소로 작용할 수 있는 3가지 특성: ① 스스로 <b>염기쌍</b>을 이뤄 <b>3차원 구조</b> 형성 ② 일부 염기가 촉매에 참여하는 <b>작용기</b> 보유 ③ 다른 핵산과 <b>수소결합</b> → 기질 인식(특이성)</li>  
+</ul>
+<h3>인트론의 기능적·진화적 중요성 <span class="en">Importance of introns</span></h3>
+<ul>  
+<li><span class="star">★</span> <b>선택적 RNA 스플라이싱</b> <span class="en">(alternative RNA splicing)</span>: 1 유전자 → 2종 이상의 폴리펩타이드 (사람 다중 엑손 유전자 약 95%).</li>  
+<li>단백질은 <b>도메인</b><span class="en">(domain)</span>으로 된 모듈 구조 / 각 엑손이 서로 다른 도메인을 코딩하는 경우가 많음 → <b>엑손 뒤섞기</b> <span class="en">(exon shuffling)</span>로 새 단백질 진화.</li>  
+</ul></div></details>
+<details class="cc-sec"><summary>17.4 번역: RNA 지시에 따른 폴리펩타이드 합성 <span class="en">Translation</span></summary><div class="cc-body"><h3>tRNA의 구조와 기능 <span class="en">Transfer RNA</span></h3>
+<ul><li>각 tRNA는 mRNA 코돈을 특정 아미노산으로 번역 / <b>3′ 끝(CCA)</b>의 A에 아미노산의 <b>C말단(카복실기)</b>이 결합 / 반대쪽 고리 = <b>안티코돈</b> (mRNA 코돈과 상보 결합).</li></ul>
+<h3><span class="star">★</span> 아미노아실-tRNA 합성효소 <span class="en">Aminoacyl-tRNA synthetase</span></h3>
+<ul><li>아미노산마다 하나씩 <b>20종</b> — 활성 부위가 특정 아미노산과 그에 맞는 tRNA 를 함께 인식해 결합시킴 (ATP 사용) → <b>아미노아실-tRNA</b>(charged tRNA).</li><li><span class="star">★</span> 번역의 정확성은 ① 합성효소가 아미노산–tRNA 를 맞게 연결 ② 안티코돈–코돈 염기쌍 두 단계에 달려 있음.</li></ul>
+<h3><span class="star">★</span> 동요 <span class="en">Wobble</span></h3>
+<ul><li>코돈의 <b>셋째 염기</b>와 안티코돈의 <b>첫째(5′) 염기</b> 사이의 염기쌍 규칙이 느슨함 → 한 tRNA 가 여러 코돈을 읽음 (tRNA 약 45종으로 61개 코돈).</li><li>예) 안티코돈 5′ 쪽 <b>U</b> 는 A · G 와, <b>I</b>(이노신) 은 U · C · A 와 짝지을 수 있음.</li></ul>
+<div class="box red"><b class="t">동요는 코돈 셋째(3′) = 안티코돈 첫째(5′) 자리에서만</b>안티코돈은 3′→5′로 쓰므로 맨 오른쪽 글자가 5′ 염기임에 주의!</div>
+<h3><span class="star">★</span> 리보솜의 구조와 기능 <span class="en">Ribosomes</span></h3>
+<ul>  
+<li>리보솜 = 대단위체 <span class="en">(large subunit, LSU)</span> + 소단위체 <span class="en">(small subunit, SSU)</span>, 각각 단백질 + <b>rRNA</b>(Pol Ⅰ이 전사, 진핵은 인에서 조립).</li>  
+<li>원핵 70S (50S: 23S·5S rRNA / 30S: <b>16S rRNA</b> — <span class="star">★</span> 개시 때 샤인-달가노 서열 인식, 돌연변이 시 치명적 → 잘 보존되어 <b>서로 다른 종을 구분할 때 사용</b>) · 진핵 80S (60S: 28S·5.8S·5S / 40S: 18S).</li>  
+<li>세균과 진핵 리보솜의 차이 → 일부 <b>항생제</b>(테트라사이클린, 스트렙토마이신)는 세균 리보솜만 표적.</li>  
+</ul>
+<h3>폴리펩타이드 합성 3단계 <span class="en">Building a polypeptide</span></h3>
+<p>개시 → 신장 → 종결. 세 단계 모두 단백질 인자 필요 (개시인자·신장인자·방출인자), 일부 단계에 에너지(GTP) 필요.</p>
+<table>  
+<tbody><tr><th>단계</th><th>원핵</th><th>진핵</th></tr>  
+<tr><td>① 소단위체 결합</td><td>16S rRNA ↔ mRNA의 <b>샤인-달가노 서열</b> <span class="en">(Shine-Dalgarno)</span></td><td>개시 tRNA가 붙은 소단위체가 <b>5′ 캡</b>에 결합 → AUG까지 스캔</td></tr>  
+<tr><td>② 개시 tRNA</td><td colspan="2">안티코돈 3′-UAC-5′ ↔ AUG / 개시 aa: 원핵 <b>fMet</b>, 진핵 Met</td></tr>  
+<tr><td>③ 대단위체 결합</td><td colspan="2">번역 개시 복합체 완성 (GTP 사용). <span class="star">★</span> <b>개시 tRNA만 P 자리</b>, 나머지 tRNA는 모두 A 자리로</td></tr>  
+</tbody></table>
+<ul><li><b>신장</b>: ① 코돈 인식 — 아미노아실-tRNA 가 A 자리 코돈과 결합 ② 펩타이드 결합 — 대단위체 rRNA 가 P 자리 폴리펩타이드를 A 자리 아미노산에 연결 ③ 전위 — 리보솜이 한 코돈 이동 (A → P → E, E 자리 tRNA 방출). 단계마다 GTP 사용.</li><li><b>종결</b>: 종결 코돈이 A 자리에 오면 <b>방출 인자</b>(release factor)가 결합 → 물 분자를 더해 폴리펩타이드를 떼어 냄 → 리보솜 해체.</li><li><b>폴리리보솜</b>(polyribosome): 한 mRNA 를 여러 리보솜이 동시에 번역.</li></ul>
+<h3>기능을 갖는 단백질의 완성과 이동 <span class="en">Completing and targeting the functional protein</span></h3>
+<ul>  
+<li><span class="star">★</span> <b>Gene은 primary structure(1차 구조)를 결정, primary structure가 shape(입체 구조)를 결정</b></li>  
+<li>단백질 구조: <b>1차</b> = polypeptide의 아미노산 서열 / <b>2차</b> = α나선, β병풍 (수소결합) / <b>3차</b> = R기 상호작용으로 접힌 입체 구조 / <b>4차</b> = 3차 구조 polypeptide 2개 이상 결합 (예: 헤모글로빈)</li>  
+<li>합성 중 1차 구조에 따라 스스로 접혀 2·3차 구조 형성 <span class="en">(protein folding)</span> → 번역 후 변형 <span class="en">(post-translational modifications)</span>: 당·지질·인산기 첨가, 일부 아미노산 제거, 4차 구조.</li>  
+<li><b>자유 리보솜</b> <span class="en">(free ribosomes)</span>: 세포질 기능 단백질 / <b>부착 리보솜</b> <span class="en">(bound ribosomes)</span>: 내막계·막·분비 단백질. 두 리보솜은 같은 것 → 오갈 수 있음.</li>  
+</ul>
+<ul><li><b>신호 펩타이드</b> <span class="en">(signal peptide)</span> = N 말단 약 20 aa / <b>SRP</b> <span class="en">(signal-recognition particle)</span>가 인식 → ER 막 수용체로 안내. 신호 펩타이드를 없앤 유전자 → 단백질이 세포질에 남음.</li>  
+<li><span class="star">★</span> Polypeptide 합성은 <b>cytosol에서 시작</b>하고, <b>특별한 신호가 없으면 cytosol에서 종료</b>.</li>  
+<li>SRP 6단계: ① 합성 시작 ② SRP가 signal peptide 결합 ③ SRP가 <b>SRP receptor protein</b>에 결합 ④ SRP 분리, 합성 재개 (<b>translocation complex</b> 통로로 ER lumen에 들어감) ⑤ <b>signal-cleaving enzyme</b>이 signal peptide 절단 ⑥ 완성된 polypeptide가 최종 구조로 접힘</li></ul></div></details>
+<details class="cc-sec"><summary>17.5 뉴클레오타이드 돌연변이는 단백질 구조와 기능에 영향을 준다 <span class="en">Mutations</span></summary><div class="cc-body"><ul>  
+<li><b>돌연변이</b> <span class="en">(mutation)</span> = 세포의 유전정보 변화 / <b>점돌연변이</b> <span class="en">(point mutation)</span> = 한 유전자의 뉴클레오타이드쌍 하나 변화 → 비정상 단백질.</li>  
+<li>소규모 돌연변이 2종류: <b>뉴클레오타이드쌍 치환</b> <span class="en">(substitution)</span> / <b>삽입·결실</b> <span class="en">(insertion · deletion)</span></li>  
+</ul>
+<table>  
+<tbody><tr><th>종류</th><th>변화</th><th>결과</th></tr>  
+<tr><td>침묵 <span class="en">silent</span></td><td>같은 aa 코돈으로 치환 (주로 셋째 염기)</td><td>영향 거의 없음 (중복성)</td></tr>  
+<tr><td>과오 <span class="en">missense</span></td><td>다른 aa 코돈으로 치환</td><td>위치에 따라 영향 다름 — 겸형 적혈구: 주형 CTC → CAC, mRNA GAG → GUG (Glu → Val)</td></tr>  
+<tr><td>정지 <span class="en">nonsense</span></td><td>aa 코돈 → 종결코돈</td><td>짧은 단백질 → 대부분 기능 X</td></tr>  
+<tr><td>틀이동 <span class="en">frameshift</span></td><td>3의 배수가 아닌 삽입·결실</td><td>뒤쪽 판독틀이 모두 바뀜 → <b>치환보다 치명적</b></td></tr>  
+</tbody></table>
+<ul><li><b>돌연변이유발원</b> <span class="en">(mutagens)</span>: 자외선(타이민 이합체), X선, 염기 유사물 등 화학 물질.</li></ul>
+<h3>유전자·유전체 편집 <span class="en">Editing genes and genomes</span></h3>
+<ul><li><b>CRISPR-Cas9</b>: 가이드 RNA 가 표적 DNA 서열을 찾아가고 <b>Cas9</b>(핵산분해효소)가 두 가닥을 자름 → 세포가 수선하면서 유전자가 망가지거나(기능 연구), 넣어 준 정상 서열로 고쳐짐(유전자 교정).</li></ul>
+<div class="box blue"><b class="t">유전자란 무엇인가? <span class="en">What is a gene?</span></b>  
+유전의 개별 단위 → 염색체의 특정 뉴클레오타이드 서열 → 특정 폴리펩타이드를 암호화하는 DNA → <b>최종 정의: 폴리펩타이드 또는 RNA 분자 같은 기능적 산물을 만들기 위해 발현되는 DNA 영역</b></div></div></details>
+<h2 class="cc-ch">Ch 18 유전자 발현 조절 <span class="en">Regulation of gene expression</span></h2>
+<details class="cc-sec"><summary>18.1 세균은 전사를 조절하여 환경 변화에 반응한다 <span class="en">Bacteria respond by regulating transcription</span></summary><div class="cc-body"><ul>  
+<li>세균의 유전자 발현 조절 과정 중 하나 = <mark>operon model</mark>.</li>  
+<li>대사 경로 조절 2가지: <b>효소 활성 조절</b>(최종 산물 tryptophan이 첫 효소를 억제 = <span class="en">feedback inhibition</span>, 빠름) / <b>효소 생산 조절</b>(유전자 발현 조절, 느리지만 장기적).</li>  
+</ul>
+<h3>Operon의 구성</h3>
+<table>  
+<tbody><tr><th>구성 요소</th><th>설명</th></tr>  
+<tr><td><b>promoter</b> <span class="en">(프로모터)</span></td><td>RNA polymerase가 결합. ★ promoter 하나에 structural gene 여러 개 가능</td></tr>  
+<tr><td><b>operator</b> <span class="en">(작동자)</span></td><td>★ <b>repressor(억제 단백질)가 결합하는 DNA 부위</b> → operator에 붙어서 발현을 억제. promoter 안 또는 promoter와 유전자 사이</td></tr>  
+<tr><td><b>structural gene</b> <span class="en">(구조 유전자)</span></td><td>기능적으로 연관된 gene cluster → 단일 "on-off switch"로 함께 조절, 하나의 mRNA로 전사</td></tr>  
+<tr><td><b>regulatory gene</b> <span class="en">(조절 유전자)</span></td><td>★ <b>operon에 포함 X</b> · 여기서 <b>repressor</b>가 만들어짐 (자기 promoter를 가짐)</td></tr>  
+<tr><td><b>repressor</b> <span class="en">(억제자)</span></td><td>operator에 결합해 RNA polymerase의 전사를 막는 단백질 (allosteric: 활성/불활성 두 모양)</td></tr>  
+<tr><td><b>corepressor</b> <span class="en">(보조억제자)</span></td><td>★ corepressor가 repressor에 결합해야 repressor가 작용하는 경우도 있음 (예: tryptophan)</td></tr>  
+</tbody></table>
+<h3><span class="star">★</span> Repressible and Inducible Operons <span class="en">Two Types of Negative Gene Regulation</span></h3>
+<table>  
+<tbody><tr><th></th><th>Negative <span class="en">음성 조절</span><br>조절 단백질 = repressor(억제자)</th><th>Positive <span class="en">양성 조절</span><br>조절 단백질 = activator(활성자)</th></tr>  
+<tr><td><b>Repressible</b> 억제성 operon<br><span>평소 켜져 있음 · 억제성 물질 관여 · <b>동화</b></span></td><td><b>trp operon</b></td><td>자연계에서 발견되지 X</td></tr>  
+<tr><td><b>Inducible</b> 유도성 operon<br><span>평소 꺼져 있음 · 유도성 물질 관여 · <b>이화</b></span></td><td><b>lac operon</b> (allolactose)</td><td><b>lac operon</b> (cAMP) ← activator: <b>CRP</b></td></tr>  
+</tbody></table>
+<p>★ repressor 는 operator 에 붙어 발현을 막고, activator(CRP)는 promoter 상류에 붙어 발현을 활성화 · repressor ↔ activator</p>
+<h3><span class="star">★</span> trp operon — 트립토판 오페론 / 동화의 역할 <span class="en">repressible</span></h3>
+<ul>  
+<li>trpR(조절 유전자)가 만드는 trp repressor는 <b>혼자서는 불활성</b> → 평소 operon on → tryptophan 합성 효소(trpE~trpA) 생산.</li>  
+<li>tryptophan이 쌓이면 ★ <b>tryptophan이 repressor에 결합 = corepressor</b> → repressor 활성 → operator에 결합 → <b>No RNA made</b> → tryptophan ↓ (<b>음성 피드백</b>).</li>  
+</ul>
+<h3><span class="star">★</span> lac operon — 젖당 오페론 / lactose 분해, 이화의 역할 <span class="en">inducible</span></h3>
+<ul>  
+<li>lacI(조절 유전자)가 만드는 lac repressor는 <b>원래부터 활성</b> → 젖당이 없으면 operator에 결합 → off.</li>  
+<li>★ <b>allolactose가 결합되면 repressor 비활성화 → lac operon on</b> = <b>inducer</b>(유도자)로 작용.</li>  
+<li>lacZ = <b>β-galactosidase</b>(젖당 → 포도당 + 갈락토스) / lacY = <b>permease</b>(젖당 유입) / lacA = <b>transacetylase</b>.</li>  
+<li>★ <b>알로락토스 기준 음성 조절, cAMP 기준 양성 조절</b> · 젖당보다 포도당이 더 좋음.</li>  
+</ul>
+<h3><span class="star">★</span> 양성 조절 — cAMP와 CRP <span class="en">positive gene regulation</span></h3>
+<ul>  
+<li>★ <b>포도당 X → 아데닐산 고리화 효소 활성화 → cAMP↑ → cAMP + CRP → CRP 활성화</b>.</li>  
+<li><b>CRP</b> = <span class="en">cAMP receptor protein</span> = activator. 활성 CRP가 promoter 상류 <b>CRP-binding site</b>에 결합 → RNA polymerase 결합 촉진 → 전사↑.</li>  
+<li>lac operon이 많이 전사되려면 ★ <b>① lactose 존재 ② 포도당 농도 낮음</b> 두 조건 모두 필요.</li>  
+</ul>
+<table>  
+<tbody><tr><th>젖당</th><th>포도당</th><th>repressor</th><th>cAMP / CRP</th><th>lac mRNA</th></tr>  
+<tr><td>X</td><td>X 또는 O</td><td>활성 (operator 결합)</td><td>—</td><td><b>거의 없음</b></td></tr>  
+<tr><td>O</td><td>O</td><td>불활성</td><td>cAMP 적음, CRP 불활성</td><td><b>조금</b></td></tr>  
+<tr><td>O</td><td>X</td><td>불활성</td><td>cAMP 많음, CRP 활성</td><td><b>많음</b></td></tr>  
+</tbody></table></div></details>
+<details class="cc-sec"><summary>18.2 진핵생물의 유전자 발현은 여러 단계에서 조절된다 <span class="en">Eukaryotic gene expression is regulated at many stages</span></summary><div class="cc-body"><ul>  
+<li>유기체의 거의 모든 세포는 <b>동일한 genome</b>을 포함 (예외: 생식세포, 적혈구, 면역세포).</li>  
+<li>세포 유형 간 차이 = <mark>differential gene expression</mark> = 동일한 게놈을 가진 세포에서 서로 다른 유전자가 발현된 결과.</li>  
+</ul>
+<h3>1. Regulation of Chromatin Structure <span class="en">염색질 구조 조절</span></h3>
+<ul>  
+<li>고도로 밀집된 <b>heterochromatin</b> 내의 유전자는 일반적으로 발현되지 않음.</li>  
+<li>histone과 chromatin의 DNA에 대한 화학적 변형 → 염색질 구조와 유전자 발현 모두에 영향.</li>  
+</ul>
+<table>  
+<tbody><tr><th>변형</th><th>대상</th><th>결과</th></tr>  
+<tr><td><b>histone acetylation</b></td><td>histone tail의 아미노산에 acetyl group 부착</td><td>염색질 구조를 열어(<b>탈응축</b>) 전사 개시 <b>촉진</b></td></tr>  
+<tr><td><b>histone methylation</b></td><td>histone</td><td>염색질 <b>응축</b> → 전사 <b>감소</b></td></tr>  
+<tr><td><b>DNA methylation</b></td><td>DNA의 특정 염기에 메틸기</td><td>일부 종에서 전사 감소 · 세포 분화에서 유전자의 <b>장기적 불활성화</b></td></tr>  
+</tbody></table>
+<div class="box"><b class="t"><span class="star">★</span> 정리</b>DNA X · 히스톤 O <b>acetylation</b> : 촉진이 많음 / DNA O · 히스톤 O <b>methylation</b> : 억제가 많음</div>
+<div class="box blue"><b class="t">Epigenetic Inheritance <span class="en">후성 유전</span></b>  
+chromatin modification은 DNA 서열을 바꾸지 않지만 <b>다음 세대 세포로 전달</b>될 수 있음.<br>  
+<b>epigenetic inheritance</b> = 뉴클레오타이드 서열과 직접 관련되지 않는 메커니즘에 의해 전달되는 형질의 유전.</div>
+<h3>2. Regulation of Transcription Initiation <span class="en">전사 개시 조절</span></h3>
+<ul>  
+<li>진핵 유전자: 상류의 <b>enhancer</b>(distal control elements) — <b>proximal control elements</b> — <b>promoter</b>(TATA box) — exon/intron — poly-A signal sequence — transcription termination region.</li>  
+<li><b>General transcription factors</b> <span class="en">(★ 보편 전사인자)</span>: RNA polymerase는 전사를 시작하려면 transcription factor의 도움 필요 · <b>모든 단백질 코딩 유전자의 전사에 필수</b> · 일부는 promoter 내 <b>TATA box</b>에 결합 · 많은 것들이 다른 전사인자·<b>RNA polymerase Ⅱ</b>를 포함한 단백질에 결합.</li>  
+<li><b>Specific transcription factors</b> <span class="en">(★ 특수 전사인자)</span>: control element에 결합. <b>proximal control elements</b>는 promoter 가까이 / <b>enhancer</b> = distal control elements는 <u>유전자에서 멀리 떨어져 있거나 intron에 위치할 수도 있음</u>(★ 수만 단위 떨어져 있을 수도) · 각 enhancer는 일반적으로 <b>하나의 유전자에만</b> 연관. enhancer는 하나 또는 여러 개의 조절 요소를 포함하는 부위 / 원거리 조절 요소, 근거리 조절 요소 / 특수 전사인자들이 enhancer에 붙으면 발현이 조절됨.</li>  
+<li><b>Activator</b>: ★ <b>enhancer에 결합</b>하여 유전자 전사를 촉진하는 단백질 · <b>두 개의 domain</b>(bind DNA, activates transcription).</li>  
+<li><b>Repressor</b>: ★ <b>silencer와 결합</b> · 특정 유전자의 발현을 억제하는 단백질. (★ enhancer ↔ silencer)</li>  
+</ul>
+<h3><span class="star">★</span> Combinatorial Control of Gene Activation </h3>
+<ul><li>조절 요소의 종류는 적지만 그 <b>조합</b>이 유전자마다 다름 → 세포에 어떤 activator 가 있느냐에 따라 발현할 유전자가 정해짐.</li><li>예) 간세포와 수정체 세포 모두 알부민 · 크리스탈린 유전자를 가짐 → <b>간세포</b>는 알부민 enhancer 에 맞는 activator 를 가져 <b>알부민</b>만, <b>수정체 세포</b>는 <b>크리스탈린</b>만 발현.</li></ul>
+<h3>3. Post-Transcriptional Regulation — RNA Processing</h3>
+<ul>  
+<li><b>Alternative RNA splicing</b> <span class="en">(★ 선택적 스플라이싱)</span>: 어떤 RNA 부분이 exon과 intron으로 처리되는지에 따라 동일한 primary transcript에서 서로 다른 mRNA 분자가 생성 (예: troponin T gene).</li>  
+<li>Human genome의 유전자 수가 예상과 달리 적은 이유.</li>  
+</ul>
+<h3>4. Initiation of Translation and mRNA Degradation</h3>
+<ul>  
+<li>선택된 mRNA의 번역 시작은 mRNA의 서열이나 구조에 결합하는 <b>조절 단백질</b>에 의해 차단 가능.</li>  
+<li><b>Eukaryotic mRNA는 prokaryotic mRNA보다 긴 수명</b>. 수명에 영향을 주는 서열은 <b>3′ 말단의 UTR</b>(untranslated region)에 존재.</li>  
+</ul>
+<h3>5. Protein Processing and Degradation </h3>
+<ul><li>새로 만든 폴리펩타이드가 올바르게 접히도록 <b>chaperone</b> 단백질이 도움.</li></ul>
+<ul>  
+<li>번역 후 폴리펩타이드는 <b>절단 및 화학적 변형</b>을 포함한 처리 과정을 거침.</li>  
+<li>단백질이 작동하는 기간은 <b>selective degradation</b>에 의해 조절 → 세포는 <b>ubiquitin</b>을 단백질에 부착해 분해될 단백질을 표시 → 표식은 단백질을 인식·분해하는 <b>proteasome</b>에 의해 인식.</li>  
+</ul></div></details>
+<details class="cc-sec"><summary>18.3 비번역 RNA는 유전자 발현 조절에서 여러 역할을 한다 <span class="en">Noncoding RNAs play multiple roles</span></summary><div class="cc-body"><table>  
+<tbody><tr><th>용어</th><th>정의</th></tr>  
+<tr><td><b>ORF</b> <span class="en">(Open Reading Frame)</span></td><td>시작 코돈(AUG)에서 종결 코돈(UAA, UAG, UGA)까지의 서열</td></tr>  
+<tr><td><b>CDS</b> <span class="en">(coding sequence)</span></td><td>ORF에서 실제로 protein으로 번역되는 서열 · intron을 제외하고 시작 코돈부터 종결 코돈까지</td></tr>  
+<tr><td><b>Coding DNA</b></td><td>★ = exon</td></tr>  
+<tr><td><b>Noncoding DNA</b></td><td>★ = exon 빼고 다 (ex. intron, telomere) · ★ coding : noncoding ≈ 1 : 99</td></tr>  
+</tbody></table>
+<ul>  
+<li>과거에는 단백질이나 기능성 RNA를 암호화하지 않는 유전자를 <b>"junk DNA"</b>로 간주 → 유전체의 상당 부분이 <b>noncoding RNAs(ncRNA)</b>로 전사 가능, ncRNA에는 다양한 생물학적 역할.</li>  
+<li>★ 대장균에 인슐린 유전자를 그대로 넣으면? → intron 제거 안 됨 (세균엔 splicing X).</li>  
+</ul>
+<h3><span class="star">★</span> Effects on mRNAs by MicroRNAs and Small Interfering RNAs</h3>
+<table>  
+<tbody><tr><th></th><th>MicroRNA (miRNA)</th><th>Small interfering RNA (siRNA)</th></tr>  
+<tr><td>기원</td><td><b>자기 유전체 게놈</b> · 짧은 <b>헤어핀</b>을 형성하는 <b>ssRNA</b></td><td><b>외인성 물질</b> · <b>dsRNA</b></td></tr>  
+<tr><td>가공</td><td colspan="2">★ <b>다이서</b>(Dicer)가 잘라 짧은 RNA로 → 단백질과 복합체</td></tr>  
+<tr><td>작용</td><td colspan="2">표적 mRNA와 염기쌍 → <b>완전히 상보적이면 mRNA 분해</b> / <b>덜 맞으면 번역 차단</b> = <b>RNA interference (RNAi)</b></td></tr>  
+</tbody></table>
+<h3>Chromatin Remodeling and Effects on Transcription by ncRNAs</h3>
+<ul>  
+<li>일부 ncRNA는 chromatin structure의 재구조화를 유발.</li>  
+<li>일부 yeast에서 chromosome replication 후 centromere에서 <b>siRNA</b>가 heterochromatin을 재형성.</li>  
+<li><b>piwi-interacting RNAs (piRNAs)</b> · <b>Long noncoding RNAs (lncRNAs)</b>.</li>  
+</ul></div></details>
+<details class="cc-sec"><summary>18.4 차등적 유전자 발현 프로그램이 다세포 생물의 여러 세포 유형을 만든다 <span class="en">A program of differential gene expression</span></summary><div class="cc-body"><ul>  
+<li>Embryonic development 과정에서 fertilized egg는 다양한 종류의 세포를 생성 → 세포는 tissues, organs, organ systems, the whole organism으로 연속적으로 조직됨 → gene expression이 동물의 발달 과정을 조율.</li>  
+<li><b>Zygote → adult</b> 변형 = <b>cell division, cell differentiation, morphogenesis</b>의 결과.</li>  
+</ul>
+<table>  
+<tbody><tr><th>용어</th><th>뜻</th></tr>  
+<tr><td><b>Cell differentiation</b></td><td>세포의 구조와 기능이 특화되는 과정</td></tr>  
+<tr><td><b>Morphogenesis</b></td><td>개체의 형태를 만드는 물리적인 과정</td></tr>  
+<tr><td><b>Differential gene expression</b></td><td>동일한 유전자를 가진 각 세포에서 유전자가 다르게 조절되며 발현</td></tr>  
+</tbody></table>
+<ul><li>Egg cell의 물질은 세포가 분열할 때 수행되는 유전자 조절 프로그램을 설정.</li></ul>
+<h3>Cytoplasmic Determinants and Inductive Signals</h3>
+<ul>  
+<li>Egg's cytoplasm에는 unfertilized egg에 <b>불균등하게 분포</b>된 RNA, 단백질 및 기타 물질이 포함.</li>  
+<li><b>Cytoplasmic determinant</b>: 초기 발생 과정에 영향을 미치는 난자의 <b>모계 기원 물질</b> → zygote가 mitosis로 분열하면 세포는 서로 다른 cytoplasmic determinant를 포함 → 서로 다른 유전자 발현.</li>  
+<li>또 하나의 발생 정보 = 세포 주변 환경, 특히 인근 embryonic cell의 신호 → <b>Induction</b>: 특정한 환경 신호가 표적세포에 변화를 유발, 표적세포의 운명에 영향 → 세포 간 상호작용이 특화된 세포 유형의 differentiation을 유도.</li>  
+</ul>
+<h3>Sequential Regulation of Gene Expression During Cellular Differentiation</h3>
+<ul>  
+<li><b>Determination</b>: 배아세포가 <b>비가역적</b>으로 특정 세포 유형으로 운명이 정해짐 · <mark>Determination이 differentiation보다 먼저</mark>.</li>  
+<li>Cell differentiation은 <b>tissue-specific protein</b>을 암호화하는 특정 유전자의 발현에 기인.</li>  
+<li>근육: master regulatory gene <b>myoD</b> → MyoD protein(transcription factor) → myoblast(determined) → MyoD가 자신과 다른 근육 특이적 유전자를 활성화 → muscle fiber(fully differentiated cell).</li>  
+</ul>
+<h3>Pattern Formation: Setting Up the Body Plan</h3>
+<ul>  
+<li><b>Pattern formation</b>: 조직과 기관의 공간적 배열의 형성 · 동물의 패턴 형성은 <b>major axes의 확립</b>으로 시작.</li>  
+<li><b>Positional information</b>: pattern formation을 조절하는 분자 신호 · cytoplasmic determinant와 inductive signal에 의해 제공 · 세포에 체축 및 인접 세포에 대한 상대적인 위치를 제시.</li>  
+<li>초파리(<i>Drosophila</i>)는 <b>미수정란의 cytoplasmic determinant가 수정 전 체축을 결정</b>.</li>  
+</ul>
+<h3><span class="star">★</span> Axis Establishment — Maternal effect genes · Bicoid</h3>
+<ul>  
+<li><b>Maternal effect genes</b>: 자손 자체의 유전자형에 상관없이 <b>어미의 유전자</b>에 이상이 있을 때 자손에게 돌연변이 표현형을 일으키는 유전자 · 모체 난소에 존재하는 난자에 위치 · 수정 전에는 주로 <b>mRNA 형태</b> · cytoplasmic determinant는 maternal effect gene의 산물 · 초파리 극성을 조절해 <b>egg-polarity gene</b>이라고도 함.</li>  
+<li>모계 효과 유전자 중 하나인 <b><i>bicoid</i></b> 유전자는 신체의 <b>앞쪽 절반</b>에 영향.</li>  
+<li><b>Morphogen gradient hypothesis</b>: 형태형성물질(morphogen)이라 불리는 물질의 분포가 배아의 축과 여러 형태적 특성을 결정한다는 가설.</li>  
+</ul></div></details>
+</section>
 <section id="mmView" hidden>
-<p class="mmhint">단원마다 핵심을 한 장으로 · 가지를 누르면 그 기작 묶음으로 가요</p>
+<p class="mmhint">단원마다 핵심을 한 장으로 · 개념을 누르면 설명이, 가지를 누르면 그 가지 전체가 떠요</p>
 <h3 class="mmh">Ch 17 유전자 발현</h3><div class="mm-wrap"><svg class="mm" data-mm="17" role="img" aria-label="Ch 17 마인드맵"></svg></div>
 <h3 class="mmh">Ch 18 유전자 발현 조절</h3><div class="mm-wrap"><svg class="mm" data-mm="18" role="img" aria-label="Ch 18 마인드맵"></svg></div>
 </section>
@@ -717,7 +1095,7 @@ function fitCols(row){if(!row||row.children.length<2)return;row.style.gridTempla
 // 맨 아래 갈래(돌연변이)는 따로 한 줄, 나머지(전사 · 가공 · 번역 / 원핵 · 진핵)는 한 줄에 나란히
 function drawTree(view){
  tree.querySelectorAll('.vh').forEach(h=>h._v&&h._v.pause());active=null;
- const isMM=curCh==='mm';tree.hidden=isMM;mmView.hidden=!isMM;
+ const isMM=curCh==='mm'||curCh==='all';tree.hidden=isMM;mmView.hidden=curCh!=='mm';ccView.hidden=curCh!=='all';
  document.querySelectorAll('.tools .seg,#openAll,#closeAll').forEach(e=>e.style.display=isMM?'none':'');
  if(isMM){document.querySelectorAll('.chs [data-ch]').forEach(b=>{b.classList.toggle('on',b.dataset.ch===curCh);b.setAttribute('aria-pressed',b.dataset.ch===curCh);});return;}
  const list=curCh==='18'?TREE18:view==='org'?TREE_ORG:TREE,rows=[list.slice(0,-1),list.slice(-1)];
@@ -730,13 +1108,14 @@ document.querySelectorAll('.seg [data-view]').forEach(b=>{b.classList.toggle('on
  document.querySelectorAll('.chs [data-ch]').forEach(b=>{b.classList.toggle('on',b.dataset.ch===curCh);b.setAttribute('aria-pressed',b.dataset.ch===curCh);});
 }
 let curView='step';try{if(localStorage.getItem(VIEW_KEY)==='org')curView='org';}catch(e){}
-let curCh='17';try{const v=localStorage.getItem('bio-ch');if(v==='18'||v==='mm')curCh=v;}catch(e){}
+let curCh='17';try{const v=localStorage.getItem('bio-ch');if(v==='18'||v==='mm'||v==='all')curCh=v;}catch(e){}
 document.querySelectorAll('.chs [data-ch]').forEach(b=>b.onclick=()=>{if(b.dataset.ch===curCh)return;curCh=b.dataset.ch;try{localStorage.setItem('bio-ch',curCh);}catch(e){}drawTree(curView);});
 document.querySelectorAll('.seg [data-view]').forEach(b=>b.onclick=()=>{if(b.dataset.view===curView)return;curView=b.dataset.view;try{localStorage.setItem(VIEW_KEY,curView);}catch(e){}drawTree(curView);});
 wide.addEventListener('change',()=>tree.querySelectorAll('.cols').forEach(fitCols));
 
 // 마인드맵 그리기: branches = [[가지, 갈 곳, [잎 …]], …] · 가지를 누르면 go(갈 곳)
-function drawMindmap(svg, title, branches, centerFill, go) {
+function drawMindmap(svg, title, branches, centerFill) {
+  // branches = [[가지, [[잎, 설명], …]], …] · 잎을 누르면 그 설명, 가지를 누르면 가지 전체를 팝업으로
   const COLS = ['#e07a5f', '#4a90c2', '#5fae86', '#d9a441', '#9b7bd1', '#d1607e', '#4fb0b8'];
   const cv = drawMindmap.cv || (drawMindmap.cv = document.createElement('canvas').getContext('2d'));
   const FONT = '"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
@@ -744,51 +1123,74 @@ function drawMindmap(svg, title, branches, centerFill, go) {
   const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const W = 1000, cx = W / 2, ROW = 25, GAP = 16;
   const side = { L: [], R: [] }, cnt = { L: 0, R: 0 };
-  branches.forEach((b, i) => { const k = cnt.R <= cnt.L ? 'R' : 'L'; side[k].push([b, i]); cnt[k] += b[2].length + 0.7; });
-  const hOf = (list) => list.reduce((a, [b]) => a + b[2].length * ROW + GAP, -GAP);
+  branches.forEach((b, i) => { const k = cnt.R <= cnt.L ? 'R' : 'L'; side[k].push([b, i]); cnt[k] += b[1].length + 0.7; });
+  const hOf = (list) => list.reduce((a, [b]) => a + b[1].length * ROW + GAP, -GAP);
   const H = Math.max(hOf(side.L), hOf(side.R)) + 40, cy = H / 2;
   const tW = tw(title, '800 17px') + 34;
   let g = '', minX = 0, maxX = W;
   for (const k of ['L', 'R']) {
     const dir = k === 'R' ? 1 : -1;
     let y = cy - hOf(side[k]) / 2;
-    for (const [[name, to, leaves], i] of side[k]) {
+    for (const [[name, leaves], i] of side[k]) {
       const col = COLS[i % COLS.length], bh = leaves.length * ROW, by = y + bh / 2;
       const bw = tw(name, '800 14px') + 24, bx = cx + dir * 205;
       const x0 = cx + dir * tW / 2, x1 = bx - dir * bw / 2;
       g += '<path d="M' + x0 + ',' + cy + ' C' + (x0 + dir * 60) + ',' + cy + ' ' + (x1 - dir * 60) + ',' + by + ' ' + x1 + ',' + by + '" fill="none" stroke="' + col + '" stroke-width="3.2"/>';
       const lx = bx + dir * (bw / 2), lt = bx + dir * (bw / 2 + 44);
-      leaves.forEach((t, j) => {
+      leaves.forEach(([t], j) => {
         const ly = y + j * ROW + ROW / 2, ww = tw(t, '400 13.5px');
         if (dir < 0) minX = Math.min(minX, lt - 2 - ww - 8); else maxX = Math.max(maxX, lt + 2 + ww + 8);
         g += '<path d="M' + lx + ',' + by + ' C' + (lx + dir * 24) + ',' + by + ' ' + (lt - dir * 24) + ',' + ly + ' ' + (lt - dir * 6) + ',' + ly + '" fill="none" stroke="' + col + '" stroke-width="1.6" opacity=".8"/>';
-        g += '<circle cx="' + (lt - dir * 6) + '" cy="' + ly + '" r="2.6" fill="' + col + '"/>';
-        g += '<text x="' + (lt + dir * 2) + '" y="' + (ly + 4.5) + '" font-size="13.5" style="fill:var(--ink)"' + (dir < 0 ? ' text-anchor="end"' : '') + '>' + esc(t) + '</text>';
+        g += '<g class="lf" data-b="' + i + '" data-l="' + j + '"><rect x="' + (dir > 0 ? lt - 12 : lt - ww - 4) + '" y="' + (ly - 11) + '" width="' + (ww + 16) + '" height="22" rx="6" fill="transparent"/>' +
+          '<circle cx="' + (lt - dir * 6) + '" cy="' + ly + '" r="2.6" fill="' + col + '"/>' +
+          '<text x="' + (lt + dir * 2) + '" y="' + (ly + 4.5) + '" font-size="13.5" style="fill:var(--ink)"' + (dir < 0 ? ' text-anchor="end"' : '') + '>' + esc(t) + '</text></g>';
       });
-      g += '<g class="br" data-to="' + to + '"><rect x="' + (bx - bw / 2) + '" y="' + (by - 15) + '" width="' + bw + '" height="30" rx="15" fill="' + col + '"/><text x="' + bx + '" y="' + (by + 5) + '" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff">' + esc(name) + '</text></g>';
+      g += '<g class="br" data-b="' + i + '"><rect x="' + (bx - bw / 2) + '" y="' + (by - 15) + '" width="' + bw + '" height="30" rx="15" fill="' + col + '"/><text x="' + bx + '" y="' + (by + 5) + '" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff">' + esc(name) + '</text></g>';
       y += bh + GAP;
     }
   }
   g += '<rect x="' + (cx - tW / 2) + '" y="' + (cy - 22) + '" width="' + tW + '" height="44" rx="12" style="fill:' + centerFill + '"/><text x="' + cx + '" y="' + (cy + 6) + '" text-anchor="middle" font-size="17" font-weight="800" style="fill:#fff">' + esc(title) + '</text>';
   svg.setAttribute('viewBox', minX + ' 0 ' + (maxX - minX) + ' ' + H);
   svg.innerHTML = g;
-  svg.onclick = (e) => { const b = e.target.closest('.br'); if (b) go(b.dataset.to); };
+  svg.onclick = (e) => {
+    const lf = e.target.closest('.lf'), br = e.target.closest('.br');
+    if (lf) { const b = branches[+lf.dataset.b], [t, d] = b[1][+lf.dataset.l]; mmPop(b[0] + ' › ' + t, '<p>' + d + '</p>', COLS[+lf.dataset.b % COLS.length]); }
+    else if (br) { const b = branches[+br.dataset.b]; mmPop(b[0], '<dl class="mmdl">' + b[1].map(([t, d]) => '<dt>' + esc(t) + '</dt><dd>' + d + '</dd>').join('') + '</dl>', COLS[+br.dataset.b % COLS.length]); }
+  };
+}
+// 마인드맵 팝업 (공부 탭 안에서는 화면 높이를 알 수 없어 누른 자리 근처에 띄움)
+function mmPop(title, html, col) {
+  let ov = document.getElementById('mmPop');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'mmPop';
+    ov.innerHTML = '<div class="mmp-box" role="dialog" aria-modal="true"><div class="mmp-h"><b></b><button type="button" class="mmp-x" aria-label="닫기">✕</button></div><div class="mmp-b"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov || e.target.closest('.mmp-x')) ov.hidden = true; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ov.hidden = true; });
+  }
+  ov.querySelector('.mmp-h b').textContent = title;
+  ov.querySelector('.mmp-b').innerHTML = html;
+  ov.querySelector('.mmp-box').style.borderTopColor = col || 'var(--line)';
+  ov.hidden = false;
+  // 공부 탭 iframe 은 높이가 내용만큼이라 화면 가운데 대신 지금 보이는 곳에 맞춤
+  let top = window.scrollY + 40;
+  try { if (window.frameElement) { const r = window.frameElement.getBoundingClientRect(); top = Math.max(16, -r.top + 40); } } catch (e) {}
+  ov.querySelector('.mmp-box').style.marginTop = top + 'px';
 }
 
 const MM={
  17:['Ch17 유전자 발현',[
-  ['전사','17|전사',['DNA → mRNA · RNA 중합효소','원핵 개시: σ factor + core','진핵 개시: TATA box · 전사인자','신장: 5′ → 3′ 방향 합성','종결: ρ 의존 · ρ 비의존 · AAUAAA']],
-  ['RNA 가공','17|가공',['진핵에서만 · 핵 안','5′ cap · poly-A tail','splicing: intron 제거','선택적 splicing · exon shuffling']],
-  ['번역','17|번역',['mRNA → 단백질 · tRNA · 리보솜','원핵 개시: Shine-Dalgarno','진핵 개시: 5′ cap → AUG','신장: A · P · E site','종결: 종결 코돈 · 방출 인자','SRP → ER 로 표적화']],
-  ['돌연변이','17|돌연변이',['치환: silent · missense · nonsense','삽입 · 결실 → frameshift','CRISPR-Cas9 유전자 편집']]]],
+  ['전사',[['DNA → mRNA · RNA 중합효소','RNA 중합효소가 DNA 를 벌리고 주형 가닥에 상보적인 RNA 를 5′→3′ 로 합성. 프라이머가 필요 없다.'],['원핵 개시: σ factor + core','σ 인자 + core 효소 = holoenzyme 가 프로모터(−10 · −35)에 직접 결합. σ 는 신장 단계에서 떨어짐.'],['진핵 개시: TATA box · 전사인자','전사인자(TBP 등)가 먼저 TATA box 에 결합 → RNA 중합효소 Ⅱ 가 붙어 전사 개시 복합체.'],['신장: 5′ → 3′ 방향 합성','주형을 3′→5′ 로 읽으며 RNA 를 늘림. 한 유전자를 여러 중합효소가 동시에 전사할 수 있다.'],['종결: ρ 의존 · ρ 비의존 · AAUAAA','세균: ρ 비의존(머리핀 + U 연속) · ρ 의존(ρ 단백질). 진핵: AAUAAA 10~35 nt 하류에서 절단.']]],
+  ['RNA 가공',[['진핵에서만 · 핵 안','핵 안에서 pre-mRNA 를 mRNA 로 바꾼 뒤 세포질로 내보냄 (원핵은 거의 없음).'],['5′ cap · poly-A tail','5′ 캡 = 변형된 G, 폴리A 꼬리 = A 50~250개. 기능: 핵 밖으로 내보내기 · 분해로부터 보호 · 리보솜 결합 도움.'],['splicing: intron 제거','spliceosome(snRNP + 단백질)이 인트론(5′-GU…A…AG-3′)을 잘라 내고 엑손을 잇는다.'],['선택적 splicing · exon shuffling','어떤 부분을 엑손으로 남기느냐에 따라 한 유전자에서 여러 폴리펩타이드. 엑손이 도메인 단위라 엑손 뒤섞기로 새 단백질이 진화.']]],
+  ['번역',[['mRNA → 단백질 · tRNA · 리보솜','tRNA 가 코돈에 맞는 아미노산을 가져오고(안티코돈), 리보솜이 펩타이드 결합을 만든다. 아미노아실-tRNA 합성효소가 아미노산을 tRNA 에 붙임.'],['원핵 개시: Shine-Dalgarno','소단위체의 16S rRNA 가 mRNA 의 Shine-Dalgarno 서열과 결합 → 개시 tRNA(fMet).'],['진핵 개시: 5′ cap → AUG','개시 tRNA(Met)가 붙은 소단위체가 5′ 캡에 붙어 AUG 까지 훑어 내려감 → 대단위체 결합.'],['신장: A · P · E site','코돈 인식(A 자리) → 펩타이드 결합 → 전위(A → P → E). 개시 tRNA 만 P 자리로 들어감.'],['종결: 종결 코돈 · 방출 인자','종결 코돈(UAA · UAG · UGA)에 방출 인자가 결합 → 폴리펩타이드를 떼어 내고 리보솜 해체.'],['SRP → ER 로 표적화','신호 펩타이드를 SRP 가 인식 → ER 막 수용체로 → 폴리펩타이드가 ER 안으로 들어가며 합성, 신호 펩타이드는 잘림.']]],
+  ['돌연변이',[['치환: silent · missense · nonsense','침묵 = 같은 아미노산, 과오 = 다른 아미노산(겸형 적혈구 GAG → GUG), 정지 = 종결 코돈이 되어 짧은 단백질.'],['삽입 · 결실 → frameshift','3의 배수가 아닌 삽입 · 결실은 뒤쪽 판독틀이 모두 바뀌어 치환보다 치명적.'],['CRISPR-Cas9 유전자 편집','가이드 RNA 가 표적 서열로 안내하고 Cas9 이 DNA 를 자름 → 수선 과정에서 유전자 불활성화 · 교정.']]]]],
  18:['Ch18 유전자 발현 조절',[
-  ['원핵: 오페론','18|원핵 조절',['operator · promoter · 구조 유전자','trp: 억제성 (corepressor)','lac 음성: 유도성 (allolactose)','lac 양성: 포도당 X → cAMP · CRP']],
-  ['진핵: 여러 단계','18|진핵 조절',['염색질: 아세틸화 · 메틸화','전사 개시: enhancer · activator','조합 조절 (세포마다 다른 activator)','miRNA · siRNA: 분해 · 번역 차단','단백질 분해: ubiquitin · proteasome']],
-  ['발생과 분화','18|발생과 분화',['세포질 결정인자 · 유도','순차적 발현: myoD → 근육세포','축 형성: bicoid 농도 기울기']]]]};
-const mmGo=(to)=>{const [ch,t]=to.split('|');curCh=ch;try{localStorage.setItem('bio-ch',ch);}catch(e){}drawTree(curView);
- const d=[...tree.querySelectorAll('details')].find(x=>x.querySelector('summary').textContent.trim().startsWith(t));
- if(d)setTimeout(()=>d.scrollIntoView({behavior:'smooth',block:'start'}),40);};
-const mmAll=()=>document.querySelectorAll('svg.mm').forEach(svg=>{const m=MM[svg.dataset.mm];drawMindmap(svg,m[0],m[1],'var(--acc)',mmGo);});
+  ['원핵: 오페론',[['operator · promoter · 구조 유전자','오페론 = 프로모터 + 작동자 + 함께 조절되는 구조 유전자들. 억제자를 만드는 조절 유전자는 오페론 밖에 있다.'],['trp: 억제성 (corepressor)','평소 켜져 있음. 트립토판이 많으면 억제자에 붙어(corepressor) 억제자를 활성화 → 작동자에 결합 → 꺼짐. 동화 경로.'],['lac 음성: 유도성 (allolactose)','평소 억제자가 작동자에 붙어 꺼져 있음. 젖당이 있으면 알로락토스(inducer)가 억제자를 비활성화 → 켜짐. 이화 경로.'],['lac 양성: 포도당 X → cAMP · CRP','포도당이 없으면 cAMP ↑ → cAMP + CRP(activator)가 프로모터 상류에 붙어 전사 촉진. 젖당 O + 포도당 X 일 때 가장 많이 전사.']]],
+  ['진핵: 여러 단계',[['염색질: 아세틸화 · 메틸화','히스톤 아세틸화 → 염색질이 풀려 전사 ↑. 히스톤 · DNA 메틸화 → 응축 · 전사 ↓ (장기 불활성화). 후성 유전으로 전달될 수 있음.'],['전사 개시: enhancer · activator','보편 전사인자는 모든 유전자에 필요. 특수 전사인자인 activator 가 멀리 있는 enhancer 에 붙고, DNA 가 굽혀져 프로모터의 전사 복합체를 돕는다.'],['조합 조절 (세포마다 다른 activator)','조절 요소의 조합이 유전자마다 다르고, 세포마다 가진 activator 가 달라 간세포는 알부민, 수정체 세포는 크리스탈린만 발현.'],['miRNA · siRNA: 분해 · 번역 차단','Dicer 가 자른 짧은 RNA 가 단백질과 복합체를 만들어 표적 mRNA 와 결합 → 완전히 상보적이면 분해, 덜 맞으면 번역 차단 (RNAi).'],['단백질 분해: ubiquitin · proteasome','분해할 단백질에 유비퀴틴을 붙이면 프로테아솜이 인식해 분해 → 단백질이 작동하는 기간 조절.']]],
+  ['발생과 분화',[['세포질 결정인자 · 유도','난자 세포질에 고르지 않게 퍼진 모계 물질(결정인자)과 이웃 세포의 신호(유도)가 세포마다 다른 유전자를 켠다.'],['순차적 발현: myoD → 근육세포','결정(되돌릴 수 없음)이 분화보다 먼저. myoD 가 만든 MyoD 단백질(전사인자)이 근육 특이 유전자를 켜 근육세포로 분화.'],['축 형성: bicoid 농도 기울기','모계 효과 유전자 bicoid 의 mRNA 가 난자 앞쪽에 있어 단백질 농도 기울기 → 앞쪽(머리) 결정. 형태형성물질 기울기 가설.']]]]]};
+const mmAll=()=>document.querySelectorAll('svg.mm').forEach(svg=>{const m=MM[svg.dataset.mm];drawMindmap(svg,m[0],m[1],'var(--acc)');});
+document.getElementById('ccOpen').onclick=()=>ccView.querySelectorAll('details').forEach(d=>d.open=true);
+document.getElementById('ccClose').onclick=()=>ccView.querySelectorAll('details').forEach(d=>d.open=false);
 mmAll();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(mmAll);   // 가로 ↔ 세로 배치가 바뀌면 열 너비 다시
 drawTree(curView);
 document.addEventListener('keydown',e=>{if(!active||!active._v||!active._leaf.open)return;if(e.key==='ArrowRight')active._v.next();if(e.key==='ArrowLeft')active._v.prev();});

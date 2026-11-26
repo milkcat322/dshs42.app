@@ -94,6 +94,19 @@ figure.viz figcaption{color:var(--sub);font-size:13.5px;margin-top:6px}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 table.mat td:not(:first-child),table.mat th:not(:first-child){text-align:center}
 /* 마인드맵 탭 */
+svg.mm .lf{cursor:pointer}
+svg.mm .lf:hover text{text-decoration:underline}
+#mmPop{position:absolute;inset:0;min-height:100%;background:rgba(0,0,0,.45);z-index:50}
+#mmPop[hidden]{display:none}
+#mmPop .mmp-box{max-width:520px;margin:40px auto 0;width:calc(100% - 32px);background:var(--card);color:var(--ink);border:1px solid var(--line);border-top:5px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#mmPop .mmp-h{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px 4px;font-size:16.5px}
+#mmPop .mmp-x{border:0;background:transparent;font-size:18px;color:var(--sub);cursor:pointer;min-height:36px;padding:0 8px}
+#mmPop .mmp-b{padding:2px 16px 16px;font-size:15px;line-height:1.65}
+#mmPop .mmp-b p{margin:4px 0}
+#mmPop .mmdl{margin:4px 0;display:grid;gap:2px}
+#mmPop .mmdl dt{font-weight:800;margin-top:8px}
+#mmPop .mmdl dd{margin:0;color:var(--ink)}
+body{position:relative}
 .mm-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:4px 0 22px}
 svg.mm{display:block;width:100%;height:auto;min-width:720px;max-width:1000px;margin:0 auto}
 svg.mm .br{cursor:pointer}
@@ -136,14 +149,30 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head><body><div class="wrap">
 <a class="home" id="bioHome" href="./" hidden>← dshs42.app</a>
-<script>if (!window.BIO_EMBED) document.getElementById("bioHome").hidden = false;</script>
+<script>
+// 공부 탭 밖에서 열렸을 때만 보이는 버튼. 사이트의 '새 창에서 크게 보기'로 열린 창이면 사이트로 가지 않고 이 창을 닫음 (사이트가 두 번 열리지 않게)
+(function () {
+  if (window.BIO_EMBED) return;
+  var a = document.getElementById("bioHome"); if (!a) return;
+  var fromSite = false;
+  try { fromSite = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (e) {}
+  a.hidden = false;
+  if (!fromSite) return;
+  a.textContent = "✕ 이 창 닫기";
+  a.addEventListener("click", function (e) {
+    e.preventDefault();
+    window.close();
+    setTimeout(function () { a.textContent = "이 창을 닫으면 사이트로 돌아가요"; }, 300);
+  });
+})();
+</script>
 <h1>진화 · 계통발생 · 개체군의 진화 <span class="en">장은영T</span></h1>
 <p class="lead">캠벨 Ch 21 · 22 · 23 핵심 개념을 절마다 정리했어요. 🧪 칸은 값을 바꾸거나 눌러서 직접 확인해 보는 곳이고, 단원 끝에 자주 틀리는 O/X 가 있어요. <span class="star">★</span> = 수업에서 강조한 부분.</p>
 <div class="chs" role="group" aria-label="단원"><button data-ch="21">Ch 21 진화</button><button data-ch="22">Ch 22 계통발생</button><button data-ch="23">Ch 23 개체군의 진화</button><button data-ch="mm">🗺 마인드맵</button></div>
 
 <!-- ═══════════════ 마인드맵 ═══════════════ -->
 <section class="ch" id="cmm" hidden>
-<div class="chhead"><h2>마인드맵</h2><p>단원마다 절별 핵심을 한 장으로 · 가지를 누르면 그 절로 가요</p></div>
+<div class="chhead"><h2>마인드맵</h2><p>단원마다 절별 핵심을 한 장으로 · 개념을 누르면 설명이, 가지를 누르면 그 가지 전체가 떠요</p></div>
 <h3 class="mmh">Ch 21 진화</h3><div class="mm-wrap"><svg class="mm" data-mm="21" role="img" aria-label="Ch 21 마인드맵"></svg></div>
 <h3 class="mmh">Ch 22 계통발생</h3><div class="mm-wrap"><svg class="mm" data-mm="22" role="img" aria-label="Ch 22 마인드맵"></svg></div>
 <h3 class="mmh">Ch 23 개체군의 진화</h3><div class="mm-wrap"><svg class="mm" data-mm="23" role="img" aria-label="Ch 23 마인드맵"></svg></div>
@@ -777,7 +806,8 @@ const L = (pts) => '<path class="ln" d="M' + pts.map((p) => p.join(',')).join(' 
 // ───────── 마인드맵 탭 ─────────
 
 // 마인드맵 그리기: branches = [[가지, 갈 곳, [잎 …]], …] · 가지를 누르면 go(갈 곳)
-function drawMindmap(svg, title, branches, centerFill, go) {
+function drawMindmap(svg, title, branches, centerFill) {
+  // branches = [[가지, [[잎, 설명], …]], …] · 잎을 누르면 그 설명, 가지를 누르면 가지 전체를 팝업으로
   const COLS = ['#e07a5f', '#4a90c2', '#5fae86', '#d9a441', '#9b7bd1', '#d1607e', '#4fb0b8'];
   const cv = drawMindmap.cv || (drawMindmap.cv = document.createElement('canvas').getContext('2d'));
   const FONT = '"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
@@ -785,73 +815,90 @@ function drawMindmap(svg, title, branches, centerFill, go) {
   const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const W = 1000, cx = W / 2, ROW = 25, GAP = 16;
   const side = { L: [], R: [] }, cnt = { L: 0, R: 0 };
-  branches.forEach((b, i) => { const k = cnt.R <= cnt.L ? 'R' : 'L'; side[k].push([b, i]); cnt[k] += b[2].length + 0.7; });
-  const hOf = (list) => list.reduce((a, [b]) => a + b[2].length * ROW + GAP, -GAP);
+  branches.forEach((b, i) => { const k = cnt.R <= cnt.L ? 'R' : 'L'; side[k].push([b, i]); cnt[k] += b[1].length + 0.7; });
+  const hOf = (list) => list.reduce((a, [b]) => a + b[1].length * ROW + GAP, -GAP);
   const H = Math.max(hOf(side.L), hOf(side.R)) + 40, cy = H / 2;
   const tW = tw(title, '800 17px') + 34;
   let g = '', minX = 0, maxX = W;
   for (const k of ['L', 'R']) {
     const dir = k === 'R' ? 1 : -1;
     let y = cy - hOf(side[k]) / 2;
-    for (const [[name, to, leaves], i] of side[k]) {
+    for (const [[name, leaves], i] of side[k]) {
       const col = COLS[i % COLS.length], bh = leaves.length * ROW, by = y + bh / 2;
       const bw = tw(name, '800 14px') + 24, bx = cx + dir * 205;
       const x0 = cx + dir * tW / 2, x1 = bx - dir * bw / 2;
       g += '<path d="M' + x0 + ',' + cy + ' C' + (x0 + dir * 60) + ',' + cy + ' ' + (x1 - dir * 60) + ',' + by + ' ' + x1 + ',' + by + '" fill="none" stroke="' + col + '" stroke-width="3.2"/>';
       const lx = bx + dir * (bw / 2), lt = bx + dir * (bw / 2 + 44);
-      leaves.forEach((t, j) => {
+      leaves.forEach(([t], j) => {
         const ly = y + j * ROW + ROW / 2, ww = tw(t, '400 13.5px');
         if (dir < 0) minX = Math.min(minX, lt - 2 - ww - 8); else maxX = Math.max(maxX, lt + 2 + ww + 8);
         g += '<path d="M' + lx + ',' + by + ' C' + (lx + dir * 24) + ',' + by + ' ' + (lt - dir * 24) + ',' + ly + ' ' + (lt - dir * 6) + ',' + ly + '" fill="none" stroke="' + col + '" stroke-width="1.6" opacity=".8"/>';
-        g += '<circle cx="' + (lt - dir * 6) + '" cy="' + ly + '" r="2.6" fill="' + col + '"/>';
-        g += '<text x="' + (lt + dir * 2) + '" y="' + (ly + 4.5) + '" font-size="13.5" style="fill:var(--ink)"' + (dir < 0 ? ' text-anchor="end"' : '') + '>' + esc(t) + '</text>';
+        g += '<g class="lf" data-b="' + i + '" data-l="' + j + '"><rect x="' + (dir > 0 ? lt - 12 : lt - ww - 4) + '" y="' + (ly - 11) + '" width="' + (ww + 16) + '" height="22" rx="6" fill="transparent"/>' +
+          '<circle cx="' + (lt - dir * 6) + '" cy="' + ly + '" r="2.6" fill="' + col + '"/>' +
+          '<text x="' + (lt + dir * 2) + '" y="' + (ly + 4.5) + '" font-size="13.5" style="fill:var(--ink)"' + (dir < 0 ? ' text-anchor="end"' : '') + '>' + esc(t) + '</text></g>';
       });
-      g += '<g class="br" data-to="' + to + '"><rect x="' + (bx - bw / 2) + '" y="' + (by - 15) + '" width="' + bw + '" height="30" rx="15" fill="' + col + '"/><text x="' + bx + '" y="' + (by + 5) + '" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff">' + esc(name) + '</text></g>';
+      g += '<g class="br" data-b="' + i + '"><rect x="' + (bx - bw / 2) + '" y="' + (by - 15) + '" width="' + bw + '" height="30" rx="15" fill="' + col + '"/><text x="' + bx + '" y="' + (by + 5) + '" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff">' + esc(name) + '</text></g>';
       y += bh + GAP;
     }
   }
   g += '<rect x="' + (cx - tW / 2) + '" y="' + (cy - 22) + '" width="' + tW + '" height="44" rx="12" style="fill:' + centerFill + '"/><text x="' + cx + '" y="' + (cy + 6) + '" text-anchor="middle" font-size="17" font-weight="800" style="fill:#fff">' + esc(title) + '</text>';
   svg.setAttribute('viewBox', minX + ' 0 ' + (maxX - minX) + ' ' + H);
   svg.innerHTML = g;
-  svg.onclick = (e) => { const b = e.target.closest('.br'); if (b) go(b.dataset.to); };
+  svg.onclick = (e) => {
+    const lf = e.target.closest('.lf'), br = e.target.closest('.br');
+    if (lf) { const b = branches[+lf.dataset.b], [t, d] = b[1][+lf.dataset.l]; mmPop(b[0] + ' › ' + t, '<p>' + d + '</p>', COLS[+lf.dataset.b % COLS.length]); }
+    else if (br) { const b = branches[+br.dataset.b]; mmPop(b[0], '<dl class="mmdl">' + b[1].map(([t, d]) => '<dt>' + esc(t) + '</dt><dd>' + d + '</dd>').join('') + '</dl>', COLS[+br.dataset.b % COLS.length]); }
+  };
+}
+// 마인드맵 팝업 (공부 탭 안에서는 화면 높이를 알 수 없어 누른 자리 근처에 띄움)
+function mmPop(title, html, col) {
+  let ov = document.getElementById('mmPop');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'mmPop';
+    ov.innerHTML = '<div class="mmp-box" role="dialog" aria-modal="true"><div class="mmp-h"><b></b><button type="button" class="mmp-x" aria-label="닫기">✕</button></div><div class="mmp-b"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov || e.target.closest('.mmp-x')) ov.hidden = true; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ov.hidden = true; });
+  }
+  ov.querySelector('.mmp-h b').textContent = title;
+  ov.querySelector('.mmp-b').innerHTML = html;
+  ov.querySelector('.mmp-box').style.borderTopColor = col || 'var(--line)';
+  ov.hidden = false;
+  // 공부 탭 iframe 은 높이가 내용만큼이라 화면 가운데 대신 지금 보이는 곳에 맞춤
+  let top = window.scrollY + 40;
+  try { if (window.frameElement) { const r = window.frameElement.getBoundingClientRect(); top = Math.max(16, -r.top + 40); } } catch (e) {}
+  ov.querySelector('.mmp-box').style.marginTop = top + 'px';
 }
 
 {
   const MM = {
     21: ['Ch21 진화', [
-      ['세 가지 관찰', '21.0', ['적응 adaptation', '통일성 unity', '다양성 diversity', '→ 변형을 통한 계승']],
-      ['다윈 이전', '21.1', ['아리스토텔레스 · 린네: 종 고정', '퀴비에 대격변설 (멸종 O 진화 X)', '허턴 · 라이엘 점진주의', '라마르크 용불용설 ✗', '맬서스 인구론 → 생존투쟁']],
-      ['자연선택', '21.2', ['관찰: 유전되는 변이', '관찰: 과잉 생산', '추론: 유리한 형질 → 자손 ↑', '추론: 여러 세대 → 축적', '개체군이 진화 · 편집 O 창조 X']],
-      ['직접 관찰', '21.3', ['무환자나무 벌레 부리', 'MRSA 내성', '구피 몸 색', 'DDT 내성 모기']],
-      ['상동성', '21.3', ['상동기관 · 흔적기관', '비교 발생학 (인두궁)', '분자 상동성 (유전암호)', '↔ 상사성 = 수렴 진화']],
-      ['화석 · 생물지리', '21.3', ['고래 발목뼈 → 우제류', '뒷다리 축소 화석', '판게아 · 대륙 이동', '섬의 고유종']],
+      ['세 가지 관찰', [['적응 adaptation', '생물이 사는 환경에 정교하게 맞춰진 특징 (보호색, 나뭇잎을 닮은 나방).'], ['통일성 unity', '모든 생물이 DNA 를 유전물질로 쓰고 같은 유전암호를 씀 → 공통 조상에게서 물려받음.'], ['다양성 diversity', '형태 · 생활 방식이 매우 다양 → 공통 조상에서 갈라져 서로 다른 환경에 적응.'], ['→ 변형을 통한 계승', '다윈의 진화 개념. <b>변형</b> = 자연선택에 의한 적응, <b>계승</b> = 공통 조상. 세 관찰을 한꺼번에 설명.']]],
+      ['다윈 이전', [['아리스토텔레스 · 린네: 종 고정', '아리스토텔레스: 종은 변하지 않음 → 자연의 척도(scala naturae). 린네: 분류학 · 이명법을 만들었지만 적응은 창조주의 설계로 봄.'], ['퀴비에 대격변설 (멸종 O 진화 X)', '지층 경계마다 격변 → 많은 종 멸종 → 다른 지역 종이 이주. 멸종은 인정했지만 진화는 반대.'], ['허턴 · 라이엘 점진주의', '작은 변화가 오랜 시간 쌓여 큰 변화. 라이엘: 그 작용은 오늘도 같은 속도(동일과정설) → 지구는 아주 오래됨 → 다윈에게 영향.'], ['라마르크 용불용설 ✗', '많이 쓰는 기관은 발달 + 획득 형질이 유전된다는 주장 → 증거 없어 기각.'], ['맬서스 인구론 → 생존투쟁', '인구는 기하급수, 식량은 산술급수로 늘어 생존투쟁. 다윈: 자손을 과잉 생산하는 것은 모든 종의 특징.']]],
+      ['자연선택', [['관찰: 유전되는 변이', '개체군의 구성원은 유전되는 형질에서 다양한 변이를 가진다.'], ['관찰: 과잉 생산', '모든 종은 환경이 부양할 수 있는 것보다 훨씬 많은 자손을 만든다 → 많은 수가 살아남지 못함.'], ['추론: 유리한 형질 → 자손 ↑', '그 환경에서 생존 · 번식에 유리한 유전 형질을 가진 개체가 더 많은 자손을 남긴다.'], ['추론: 여러 세대 → 축적', '차별적 생존 · 번식이 여러 세대 반복되면 유리한 형질이 개체군에 쌓인다.'], ['개체군이 진화 · 편집 O 창조 X', '자연선택은 개체에 작용하지만 진화하는 것은 개체군. 이미 있는 형질을 편집할 뿐 새 형질을 만들지 않는다.']]],
+      ['직접 관찰', [['무환자나무 벌레 부리', '부리 길이 ≈ 씨앗까지의 깊이. 토착 풍선덩굴(열매 큼)을 먹는 곳은 부리가 길고, 도입된 모감주나무(열매 납작)를 먹는 곳은 부리가 짧아짐 → 수십 년 만에 진화.'], ['MRSA 내성', '페니실린 · 메티실린 사용 후 각각 2년 만에 내성균 등장. 원래 있던 내성균이 살아남아 늘어남 (세대가 짧아 빠름).'], ['구피 몸 색', '강한 포식자 하천에서는 수수한 수컷, 약한 포식자 하천에서는 화려한 수컷(성선택)이 늘어남. 옮기면 여러 세대 뒤 반점 증가.'], ['DDT 내성 모기', '내성 4% → 45% → 77%. 살포로 감수성 모기가 죽고 원래 있던 내성 모기만 남아 번식.']]],
+      ['상동성', [['상동기관 · 흔적기관', '사람 팔 · 고양이 앞다리 · 고래 지느러미 · 박쥐 날개는 같은 뼈 배열 (기능은 다름). 흔적기관: 사람 꼬리뼈.'], ['비교 발생학 (인두궁)', '모든 척추동물 배아에 항문 뒤 꼬리와 인두궁이 있음 (사람: 귀 · 목 구조, 어류: 아가미).'], ['분자 상동성 (유전암호)', '모든 생물이 같은 유전암호를 쓰고, 사람과 세균도 공유하는 유전자가 있음.'], ['↔ 상사성 = 수렴 진화', '멀리 떨어진 집단이 비슷한 환경에 독립적으로 적응해 비슷해진 것 (슈가글라이더 · 날다람쥐). 공통 조상 때문이 아님.']]],
+      ['화석 · 생물지리', [['고래 발목뼈 → 우제류', '파키세투스 · 돼지 · 사슴은 발목뼈 양 끝에 두 개의 혹 → 고래류는 우제류와 가깝다.'], ['뒷다리 축소 화석', '파키세투스 → 로도세투스 → 도루돈: 유선형 · 크기 증가, 뒷다리 축소.'], ['판게아 · 대륙 이동', '대륙들은 판게아로 붙어 있다가 갈라짐 → 생물 분포를 설명.'], ['섬의 고유종', '고유종은 섬에 많고 가장 가까운 본토의 종과 가깝다 → 본토 종이 건너와 진화.']]],
     ]],
     22: ['Ch22 계통발생', [
-      ['분류', '22.1', ['이명법 (속명 + 종소명)', '역계문강목과속종', '분류군 taxon']],
-      ['계통수 읽기', '22.1', ['분기점 · 자매 분류군', '기저 분류군', '돌려도 같은 나무', '혈통 패턴 (시간 X)']],
-      ['상동 vs 상사', '22.2', ['화석 · 복잡성 · 서열', '수렴 진화 주의', '서열 정렬 (gap)']],
-      ['분기학', '22.3', ['단계통군 = clade', '측계통 · 다계통 ✗', '공유 파생 형질로 정의', '외군으로 조상 형질 판단', '분기도 · 계통도 · 시간 계통도']],
-      ['계통수 고르기', '22.3', ['최대 단순성 (변화 최소)', '최대 개연성 (확률)', '계통학적 괄호묶기']],
-      ['유전체 · 분자시계', '22.4', ['rRNA 느림 / mtDNA 빠름', '이종상동 (종분화)', '동종유사 (유전자 중복)', '분자시계 · HIV 1910년경']],
-      ['생명의 계통수', '22.6', ['3역: 세균 · 고세균 · 진핵', '진핵 ↔ 고세균 더 가까움', '수평적 유전자 전달 HGT']],
+      ['분류', [['이명법 (속명 + 종소명)', '학명 = 속명 + 종소명, 속명 첫 글자는 대문자, 전체를 이탤릭 (<i>Panthera pardus</i>).'], ['역계문강목과속종', '포괄적 계층 분류. 다른 계통의 같은 단계(목, 과)끼리는 비교할 수 없다 — 사람이 편의상 정한 기준.'], ['분류군 taxon', '분류 단계마다의 단위 (복수 taxa).']]],
+      ['계통수 읽기', [['분기점 · 자매 분류군', '분기점 = 공통 조상에서 두 계통이 갈라진 곳. 자매 분류군 = 다른 어떤 분류군과도 공유하지 않는 직계 공통 조상을 공유.'], ['기저 분류군', '집단의 역사 초기에 갈라져 나온 가지.'], ['돌려도 같은 나무', '분기점을 중심으로 회전해도 같은 계통수 → 가지 끝의 순서는 의미 없음.'], ['혈통 패턴 (시간 X)', '계통수는 혈통의 패턴. 언제 · 얼마나 변했는지는 안 보여 주고(가지 길이 비례 계통수 제외), 바로 옆 분류군에서 진화했다고 읽으면 안 됨.']]],
+      ['상동 vs 상사', [['화석 · 복잡성 · 서열', '상동인지 가리는 법: 화석으로 조상 형태 확인 · 복잡한 구조일수록 비슷한 요소가 많으면 상동 · 서열을 많이 공유하면 상동.'], ['수렴 진화 주의', '상사 형질로 계통수를 만들면 틀린다 (유대류 두더지 vs 황금두더지).'], ['서열 정렬 (gap)', '두 서열을 정렬하고, 삽입 · 결실로 어긋난 곳에 틈을 넣어 다시 맞춘 뒤 비교.']]],
+      ['분기학', [['단계통군 = clade', '조상 종 + 그 모든 후손. 분기군으로 인정.'], ['측계통 · 다계통 ✗', '측계통 = 조상 + 일부 후손, 다계통 = 가장 최근 공통 조상이 빠진 묶음. 둘 다 분기군 X.'], ['공유 파생 형질로 정의', '특정 분기군에서 새로 생긴 형질로 분기군을 정의. 공유 조상 형질은 분기군을 정의하지 못함 (비교 대상에 따라 바뀜).'], ['외군으로 조상 형질 판단', '내군 · 외군이 함께 가진 형질 = 조상 형질, 외군엔 없고 내군 일부만 가진 형질 = 공유 파생 형질.'], ['분기도 · 계통도 · 시간 계통도', '가지 길이: 분기도 = 의미 없음 · 계통도 = 유전적 변화량 · 시간 계통도 = 시간 (끝이 모두 현재).']]],
+      ['계통수 고르기', [['최대 단순성 (변화 최소)', '진화적 사건(염기 변화 · 형질 출현)이 가장 적게 필요한 계통수를 고른다.'], ['최대 개연성 (확률)', 'DNA 가 변하는 확률 규칙에 따라 가장 그럴듯한 계통수를 고른다.'], ['계통학적 괄호묶기', '새와 악어가 공유한 특징(4심실 심장 · 둥지 · 알 품기)은 그 사이의 공룡도 가졌을 것 → 알 위의 오비랍토르 화석.']]],
+      ['유전체 · 분자시계', [['rRNA 느림 / mtDNA 빠름', 'rRNA 유전자는 느리게 변해 수억 년 전 관계(3역)에, mtDNA 는 빠르게 변해 최근 사건(고래 고기 판별)에 쓴다.'], ['이종상동 (종분화)', '종분화로 갈라진 같은 유전자 → 서로 다른 종에 있음.'], ['동종유사 (유전자 중복)', '유전자 중복으로 한 종 안에 여러 개 → 사본은 새 기능을 가질 수 있음.'], ['분자시계 · HIV 1910년경', '일정한 속도로 변하는 유전자로 분기 시간을 추정 (화석으로 보정). HIV 의 사람 전파 시점 → 1910년경.']]],
+      ['생명의 계통수', [['3역: 세균 · 고세균 · 진핵', '2계 → 5계 → 3역 (rRNA 서열 비교).'], ['진핵 ↔ 고세균 더 가까움', 'rRNA 계통수에서 진핵생물은 세균보다 고세균과 더 가깝다. 미토콘드리아 · 엽록체는 세균에서 유래.'], ['수평적 유전자 전달 HGT', '부모 → 자손이 아니라 게놈 사이로 유전자가 이동 (전이 인자 · 플라스미드 · 바이러스 · 융합) → 유전자마다 계통수가 달라짐.']]],
     ]],
     23: ['Ch23 개체군의 진화', [
-      ['소진화', '23.0', ['대립유전자 빈도 변화', '개체군이 진화', '선택 · 부동 · 흐름']],
-      ['유전적 변이', '23.1', ['이형접합성 · 뉴클레오타이드', '점 돌연변이', '유전자 중복', '유성생식 재조합']],
-      ['하디-바인베르크', '23.2', ['p + q = 1', 'p² + 2pq + q² = 1', '평형 5조건', 'PKU 보인자 2pq']],
-      ['유전적 부동', '23.3', ['작은 개체군에서 큼', '창시자 효과', '병목 현상', '다양성 손실 · 해로운 것도 고정']],
-      ['유전자 흐름', '23.3', ['개체 · 꽃가루 이동', '개체군 간 차이 ↓']],
-      ['자연선택', '23.4', ['상대적 적합도', '방향성 · 분기성 · 안정화', '성선택 (동성 · 이성)', '균형선택 (빈도 의존 · 이형 우위)', '완벽하지 못한 이유 4가지']],
+      ['소진화', [['대립유전자 빈도 변화', '소진화 = 여러 세대에 걸쳐 개체군의 대립유전자 빈도가 변하는 것.'], ['개체군이 진화', '자연선택은 개체에 작용하지만 진화하는 것은 개체군 (가뭄 뒤 핀치 개체군의 평균 부리 깊이 증가).'], ['선택 · 부동 · 흐름', '빈도를 바꾸는 세 가지. 그중 일관되게 적응을 만드는 것은 자연선택뿐.']]],
+      ['유전적 변이', [['이형접합성 · 뉴클레오타이드', '유전자 변이성 = 이형접합인 유전자좌의 평균 비율 / 뉴클레오타이드 변이성 = DNA 서열 비교 (차이는 대부분 인트론).'], ['점 돌연변이', '새 대립유전자의 근원. 생식세포 계열의 돌연변이만 자손에게 전달, 유전암호 중복성 때문에 중립일 수도.'], ['유전자 중복', '유전자 수 · 위치 변화. 작은 조각의 중복은 덜 해롭고, 중복된 유전자가 새 기능을 얻을 수 있음.'], ['유성생식 재조합', '대부분의 변이는 기존 대립유전자의 재조합 (교차 · 독립적 분리 · 수정).']]],
+      ['하디-바인베르크', [['p + q = 1', '한 유전자좌의 두 대립유전자 빈도의 합. 이배체는 대립유전자 수 = 개체 수 × 2.'], ['p² + 2pq + q² = 1', 'p², q² = 동형접합 빈도, 2pq = 이형접합 빈도.'], ['평형 5조건', '돌연변이 없음 · 무작위 교배 · 자연선택 없음 · 매우 큰 개체군 · 유전자 흐름 없음.'], ['PKU 보인자 2pq', 'q² = 열성 동형접합 빈도 → q = √q² → 보인자 2pq. 열성 대립유전자는 대부분 보인자 안에 있다.']]],
+      ['유전적 부동', [['작은 개체군에서 큼', '표본이 작을수록 우연히 예측에서 벗어나 빈도가 무작위로 변한다.'], ['창시자 효과', '소수가 떨어져 나가 새 개체군을 만들면 빈도가 원래 개체군과 달라진다.'], ['병목 현상', '환경 급변으로 개체군이 급감하면 남은 유전자 풀이 원래를 반영하지 못한다.'], ['다양성 손실 · 해로운 것도 고정', '부동은 무작위라 유전적 다양성을 줄이고 해로운 대립유전자도 고정시킬 수 있다.']]],
+      ['유전자 흐름', [['개체 · 꽃가루 이동', '개체나 배우자가 개체군 사이를 오가며 대립유전자가 이동.'], ['개체군 간 차이 ↓', '개체군끼리 비슷해지게 하고, 지역 적응을 방해하거나 도울 수 있다.']]],
+      ['자연선택', [['상대적 적합도', '다음 세대 유전자 풀에 기여하는 정도를 다른 개체와 비교한 값.'], ['방향성 · 분기성 · 안정화', '방향성 = 한쪽 극단 선호 · 분기성 = 양쪽 극단 선호 · 안정화 = 중간 선호.'], ['성선택 (동성 · 이성)', '동성 선택 = 같은 성끼리 경쟁, 이성 선택 = 짝 선택(대개 암컷이 고름) → 성적 이형성.'], ['균형선택 (빈도 의존 · 이형 우위)', '두 개 이상의 표현형을 유지. 빈도 의존 = 드문 표현형이 유리, 이형접합체 우위 = Aa 가 가장 유리.'], ['완벽하지 못한 이유 4가지', '① 이미 있는 변이에만 작용 ② 역사적 제약 ③ 적응은 타협 ④ 우연 · 자연선택 · 환경의 상호작용.']]],
     ]],
   };
-  const go = (ch) => (to) => {
-    window.bio2Open(ch);
-    const d = [...document.querySelectorAll('#c' + ch + ' details.sec')].find((x) => x.querySelector('summary').textContent.trim().startsWith(to));
-    if (!d) return;
-    d.open = true;
-    setTimeout(() => d.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
-  };
-  const all = () => document.querySelectorAll('svg.mm').forEach((svg) => { const ch = svg.dataset.mm; drawMindmap(svg, MM[ch][0], MM[ch][1], 'var(--c' + ch + ')', go(ch)); });
+  const all = () => document.querySelectorAll('svg.mm').forEach((svg) => { const ch = svg.dataset.mm; drawMindmap(svg, MM[ch][0], MM[ch][1], 'var(--c' + ch + ')'); });
   all();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(all);   // 글꼴이 늦게 오면 글자 너비가 바뀌므로 한 번 더
 }
