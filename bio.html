@@ -139,6 +139,7 @@ html.embed #ccView{padding:4px 0 16px}
 #ccOutline .cc-no{display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15pt;color:#1d3557;border-right:1px solid #d5dde8;background:#f6f9fc}
 #ccOutline .cc-main{padding:2.4mm 3mm;min-width:0}
 #ccOutline .cc-t{font-weight:800;font-size:11pt;color:#16181c;margin-bottom:1mm;line-height:1.4}
+#ccOutline .cc-mech{font-size:8.4pt;font-weight:800;color:#fff;background:#e76f51;border-radius:99px;padding:1px 8px;white-space:nowrap;vertical-align:1px}
 #ccOutline .cc-more{font-size:8.6pt;font-weight:700;color:#2a6f97;white-space:nowrap}
 #ccOutline .cc-s{font-size:9.6pt;line-height:1.6;color:#333}
 #ccOutline .cc-s b{color:#16181c}
@@ -1482,6 +1483,8 @@ function makeViewer(host,key){const mech=M[key];const steps=mech.steps;const n=s
  const jump=dk=>{const cur=shown;const k=Math.max(0,Math.min(n-1,cur+dk));t=startOf(k);frame(t);};
  host._v={next:()=>jump(1),prev:()=>jump(-1),pause:()=>{open=false;},play:()=>{open=true;kick();}};
  frame(0);setPlay(!matchMedia('(prefers-reduced-motion: reduce)').matches);}
+/* 전체 개념 · 마인드맵의 문항 팝업(bio-book.js)에서 같은 기작 애니메이션을 띄움 */
+window.bioMechViewer=(host,key)=>{if(!M[key])return null;makeViewer(host,key);return host._v;};
 /* 보는 방식(과정별 · 원핵/진핵)을 바꾸면 트리를 새로 그림 (돌던 애니메이션은 멈춤). 고른 방식은 이 기기에 기억 */
 const VIEW_KEY='bio-view';
 const wide=matchMedia('(min-width:720px)');
@@ -1634,7 +1637,7 @@ if (window.BioBook) {
       const notStep = imgs.find((x) => !x.closest('.c-steps'));
       const steps = imgs.filter((x) => x.closest('.c-steps'));
       const pic = notStep || steps[steps.length - 1];
-      return '<div class="cc-row" data-c="' + k + '" role="button" tabindex="0"><div class="cc-no">' + n + '</div><div class="cc-main"><div class="cc-t">' + name(k) + ' <span class="cc-more">자세히 ▸</span></div>' +
+      return '<div class="cc-row" data-c="' + k + '" role="button" tabindex="0"><div class="cc-no">' + n + '</div><div class="cc-main"><div class="cc-t">' + name(k) + (BioBook.mechs(k).length ? ' <span class="cc-mech">▶ 기작</span>' : '') + ' <span class="cc-more">자세히 ▸</span></div>' +
         (ans ? '<div class="cc-s">' + ans.innerHTML + '</div>' : '') + '</div>' + (pic ? '<div class="cc-pic"><img src="' + pic.getAttribute('src') + '" loading="lazy" alt=""></div>' : '') + '</div>';
     };
     outl.innerHTML = secs.map((s, i) => {
