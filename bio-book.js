@@ -114,5 +114,5 @@ function search(v, prefix) {
   return ORDER.filter((k) => (!prefix || k[0] === prefix) && (ITEMS[k].t + ' ' + ITEMS[k].c.replace(/<[^>]+>/g, ' ')).toLowerCase().includes(v)).slice(0, 30).map((k) => [k, ITEMS[k].t]);
 }
 
-window.BioBook = { open, wrap, search, order: (p) => ORDER.filter((k) => k[0] === p), has: (k) => !!ITEMS[k] };
+window.BioBook = { open, wrap, search, order: (p) => ORDER.filter((k) => k[0] === p), has: (k) => !!ITEMS[k], title: (k) => (ITEMS[k] ? ITEMS[k].t : '') };
 })();

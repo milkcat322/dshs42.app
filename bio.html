@@ -132,6 +132,9 @@ html.embed #ccView{padding:4px 0 16px}
 #ccView .orig{background:#fff;color:#222;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.08);padding:8mm 10mm;margin:0 0 18px;font-family:'Noto Sans KR','Noto Sans CJK KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:10pt;line-height:1.45;color-scheme:light}
 @media (max-width:700px){#ccView .orig{padding:5mm 4mm}}
 #ccView .orig img{max-width:100%}
+#ccOutline .cc-ks{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+#ccOutline .cc-k{font:inherit;font-size:13.5px;line-height:1.4;text-align:left;padding:6px 11px;border-radius:8px;border:1px solid #e3cf7a;background:#fff8d6;color:#222;cursor:pointer;min-height:0}
+#ccOutline .cc-k:hover{background:#ffe680;box-shadow:0 0 0 2px rgba(255,193,7,.55)}
 #ccView .orig h1{font-size: 20pt; margin: 0 0 2mm; color: #1d3557;}
 #ccView .orig .sub{color: #555; margin-bottom: 4mm;}
 #ccView .orig h2{font-size: 14pt; color: #fff; background: #1d3557; padding: 2mm 3mm; margin: 6mm 0 3mm; border-radius: 2mm; page-break-after: avoid;}
@@ -403,10 +406,11 @@ p.mmhint{color:var(--sub);font-size:14px;margin:0 0 10px}
 </script>
 <main id="tree"></main>
 <section id="ccView" hidden>
-<p class="mmhint">원본 교재의 개념 정리를 PPT 순서대로 그대로 옮겼어요. 올렸을 때 노랗게 되는 곳을 누르면 그 문항 팝업이 뜨고, 밑줄 친 용어는 올리면(폰은 누르면) 뜻이 나와요.</p>
+<p class="mmhint">Ch 17 · 18 절 제목 아래 핵심 개념을 PPT 순서대로 모았어요. 노란 개념을 누르면 자세한 설명 · 외울 것 · 그림 · 표 · 자주 틀리는 것이 팝업으로 떠요. 밑줄 친 용어는 올리면(폰은 누르면) 뜻이 나와요.</p>
 <div class="cc-tools"><input id="ccQ" type="search" placeholder="문항 · 개념 검색 (예: SRP)" autocomplete="off"></div>
 <div id="ccRes" hidden></div>
-<div class="orig">
+<div class="orig" id="ccOutline"></div>
+<div class="orig cc-src" hidden>
 
 <div class="cpt"><h2 data-c="손1">17.1 유전자는 전사와 번역을 통해 단백질을 지정한다 <span class="en" style="color:#cfe3f5">Genes specify proteins</span></h2>
 <h3 data-c="장47">유전 정보의 흐름 <span class="en">The flow of genetic information</span></h3>
@@ -1587,6 +1591,35 @@ document.getElementById('closeAll').onclick=()=>tree.querySelectorAll('details.l
 <script>
 if (window.BioBook) {
   const cc = document.getElementById('ccView'), SON = BioBook.order('손');
+  // 전체 개념 = 절 제목(원본 모양) + 그 절의 핵심 개념 문항만. 자세한 설명 · 표 · 도식은 문항을 누르면 팝업으로 (원본 본문은 숨겨 두고 팝업의 '개념 정리에서'에만 씀)
+  {
+    const src = cc.querySelector('.cc-src'), outl = document.getElementById('ccOutline');
+    // 1) 제목마다 그 아래 본문에 나오는 문항 번호를 모음
+    const secs = [];
+    const add = (k, s) => { if (k && k[0] === '손' && BioBook.has(k)) { if (!s.ks.includes(k)) s.ks.push(k); s.n[k] = (s.n[k] || 0) + 1; } };
+    const walk = (el) => {
+      for (const e of el.children) {
+        if (/^H[234]$/.test(e.tagName)) { secs.push({ h: e, own: e.dataset.c || '', ks: [], n: {} }); continue; }
+        if (e.querySelector('h2,h3,h4')) { walk(e); continue; }
+        const s = secs[secs.length - 1]; if (!s) continue;
+        add(e.dataset.c, s); e.querySelectorAll('[data-c]').forEach((x) => add(x.dataset.c, s));
+      }
+    };
+    walk(src);
+    // 2) 문항은 한 곳에만: 본문에서 가장 많이 나오는 제목 아래 (같으면 먼저 나온 곳, 본문에 없으면 그 번호가 달린 제목 아래)
+    const home = {};
+    const best = {};
+    secs.forEach((s, i) => s.ks.forEach((k) => { if (best[k] === undefined || s.n[k] > best[k]) { best[k] = s.n[k]; home[k] = i; } }));
+    secs.forEach((s, i) => { if (s.own && s.own[0] === '손' && BioBook.has(s.own) && home[s.own] === undefined) home[s.own] = i; });
+    // 본문에 번호가 안 달린 문항은 바로 앞 번호 문항과 같은 제목 아래로
+    SON.forEach((k, j) => { if (home[k] === undefined) home[k] = j ? home[SON[j - 1]] : 0; });
+    const name = (k) => BioBook.title(k).replace(/^손[0-9]+ · /, '');
+    outl.innerHTML = secs.map((s, i) => {
+      const h = s.h.cloneNode(true); h.removeAttribute('data-c'); h.querySelectorAll('[data-c]').forEach((x) => x.removeAttribute('data-c'));
+      const mine = Object.keys(home).filter((k) => home[k] === i).sort((a, b) => SON.indexOf(a) - SON.indexOf(b));
+      return h.outerHTML + (mine.length ? '<div class="cc-ks">' + mine.map((k) => '<button type="button" class="cc-k" data-c="' + k + '">' + name(k) + '</button>').join('') + '</div>' : '');
+    }).join('');
+  }
   BioBook.wrap(cc);
   cc.addEventListener('click', (e) => {
     if (getSelection().toString() || e.target.closest('summary,.cc-tools,#ccRes,.gl')) return;
