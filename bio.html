@@ -89,10 +89,15 @@ html.embed main{padding:4px 0 16px}
 @media(max-width:600px){html.embed details{margin-left:2px;padding-left:8px}html.embed details.lv1{padding-left:10px}html.embed .viewer{padding:8px}}
 /* Netlify 무료 요금제가 HTML 마다 넣는 배지: iframe 안에서는 숨김 (바깥 사이트 것만 남김) */
 html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
+.seg[hidden]{display:none!important}
+.chs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.chs button{font-weight:700;border-radius:999px}
+.chs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
 </style></head><body>
 <header>
-<h1>Ch 17 핵심 기작 <span class="en">손희창T</span></h1>
+<h1>유전자 발현 · 조절 핵심 기작 <span class="en">손희창T</span></h1>
 <p class="lead">구조를 펼쳐 기작을 고르면 캠벨 그림 모양의 분자들이 시간 순서대로 이어서 움직입니다. 펼치면 애니메이션이 자동 재생되고, 슬라이더로 원하는 순간을 되감거나 숫자를 눌러 단계로 이동할 수 있습니다.</p>
+<div class="chs" role="group" aria-label="단원"><button data-ch="17">Ch 17 유전자 발현</button><button data-ch="18">Ch 18 유전자 발현 조절</button></div>
 <div class="tools"><a class="home" id="bioHome" href="./" hidden>← dshs42.app</a><span class="seg" role="group" aria-label="보는 방식"><button data-view="step">과정별</button><button data-view="org">원핵 / 진핵</button></span><button id="openAll">모두 펼치기</button><button id="closeAll">모두 접기</button></div>
 </header>
 <script>if (!window.BIO_EMBED) document.getElementById("bioHome").hidden = false;</script>
@@ -137,7 +142,7 @@ function trna(anti,aa){let s=`<path d="M-13,-7 C-16,-30 -10,-50 -14,-74 Q-13,-88
  for(let i=0;i<3;i++)s+=`<rect x="${-12+i*8.5}" y="-7" width="6.5" height="7" fill="#3d6b14"/>`;
  if(anti)s+=T(0,-14,anti,{size:9.5,w:700,c:'#2d4d0d'});if(aa)s+=aaC(40,-90,aa);return s;}
 function chain(list){let s='';const n=list.length;for(let k=n-1;k>=0;k--){const j=n-1-k;s+=aaC(-j*17,-j*12,list[k],10);if(j>0)s+='';}return s;}
-const RF=()=>`<path d="M-14,-7 C-18,-30 -12,-60 -14,-80 Q-14,-92 -2,-90 C8,-94 18,-92 22,-86 C26,-60 18,-30 22,-7 Z" fill="${gid('#f4a261')}" stroke="#b5651d" stroke-width="1.1"/>`+T(4,-40,'RF',{size:12,w:800,c:'#6b3510'});
+const RF=()=>`<path d="M-14,-7 C-18,-30 -12,-60 -14,-80 Q-14,-92 -2,-90 C8,-94 18,-92 22,-86 C26,-60 18,-30 22,-7 Z" fill="${gid('#f4a261')}" stroke="#b5651d" stroke-width="1.1"/>`+T(4,-40,'release',{size:9,w:800,c:'#6b3510'});
 const lab=(s,o={})=>T(0,0,s,Object.assign({size:13,w:700,c:'#1d3557'},o));
 const arrow=(x1,y1,x2,y2,c='#555')=>{const a=Math.atan2(y2-y1,x2-x1),L=9;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="2"/><path d="M${x2},${y2} L${x2-L*Math.cos(a-.45)},${y2-L*Math.sin(a-.45)} L${x2-L*Math.cos(a+.45)},${y2-L*Math.sin(a+.45)}Z" fill="${c}"/>`;};
 const O=(id,svg,x=0,y=0,e={})=>Object.assign({id,svg,x,y},e);
@@ -189,7 +194,7 @@ function preSvg(p){let d='';for(let s=p.s0;s<=p.s1;s+=3){const q=rpt(s,{});d+=(d
  let o=rstroke(d);const e=rpt(p.s1,{}),b=rpt(p.s0,{});o+=T(e[0]-12,e[1]+4,"5′",{size:11,c:C.rna});
  const q=rpt(p.s1-p.sig,{});o+=`<rect x="${(q[0]-27).toFixed(1)}" y="${(q[1]-23).toFixed(1)}" width="54" height="14" rx="3" fill="#ffd6d6" stroke="#e5989b"/>`+T(q[0],q[1]-12,'AAUAAA',{size:9.5,w:800,c:'#a4161a'});
  const w=p.n*120;if(w>1){o+=`<rect x="${b[0].toFixed(1)}" y="${(b[1]-6).toFixed(1)}" width="${w.toFixed(1)}" height="12" rx="6" fill="${lid('#f6d58b')}" stroke="#b08800"/>`;let A='';for(let x=6;x<w-4;x+=8)A+=T(b[0]+x,b[1]+4,'A',{size:8.5,w:800,c:'#6b5200'});o+=A+T(b[0]+w/2,b[1]+22,'poly-A tail',{size:11,w:700,c:'#8a6d00'});}
- if(p.pap>0)o+=`<g transform="translate(${(b[0]+w+14).toFixed(1)},${b[1].toFixed(1)})" opacity="${p.pap.toFixed(2)}">${blob(16,12,'#9ad1d4','#3f8f94','PAP',9)}</g>`+op(T(b[0]+w+14,b[1]-18,'poly-A polymerase',{size:10,w:700,c:'#2f7f84'}),p.pap);
+ if(p.pap>0)o+=`<g transform="translate(${(b[0]+w+14).toFixed(1)},${b[1].toFixed(1)})" opacity="${p.pap.toFixed(2)}">${blob(16,12,'#9ad1d4','#3f8f94','효소',9)}</g>`+op(T(b[0]+w+14,b[1]-18,'poly-A tail 합성 효소',{size:10,w:700,c:'#2f7f84'}),p.pap);
  return o;}
 const PRE=(x)=>({k:'pre',p:Object.assign({s0:0,s1:0,sig:0,n:0,pap:0},x),f:preSvg});
 const nt=(b,c)=>`<circle r="8" fill="${gid(c)}" stroke="${dk(c,.3)}"/>`+T(0,4,b,{size:9,w:800,c:'#222'})+`<circle cx="11" cy="-6" r="3" fill="#f4d35e" stroke="#b08800" stroke-width=".6"/><circle cx="16" cy="-10" r="3" fill="#f4d35e" stroke="#b08800" stroke-width=".6"/><circle cx="21" cy="-14" r="3" fill="#f4d35e" stroke="#b08800" stroke-width=".6"/>`;
@@ -199,34 +204,34 @@ const sigma=blob(26,20,'#f1cf6a','#a7841f','σ',16);
 const DP=(svg,x)=>O('dna',svg||dna(700),60,DY);
 
 /* 원핵 개시 */
-const prom=`<rect x="150" y="-6" width="40" height="30" rx="4" fill="#ffe08a" opacity=".6"/><rect x="230" y="-6" width="40" height="30" rx="4" fill="#ffe08a" opacity=".6"/>`+T(170,-12,'−35',{size:12,w:700,c:'#8a6d00'})+T(250,-12,'−10 (TATAAT)',{size:12,w:700,c:'#8a6d00'})+`<line x1="300" y1="-16" x2="300" y2="34" stroke="#c1121f" stroke-dasharray="3 3"/>`+T(300,50,'start point (+1)',{size:11,c:'#c1121f'});
+const prom=`<rect x="150" y="-6" width="40" height="30" rx="4" fill="#ffe08a" opacity=".6"/><rect x="230" y="-6" width="40" height="30" rx="4" fill="#ffe08a" opacity=".6"/>`+T(170,-12,'−35',{size:12,w:700,c:'#8a6d00'})+T(250,-12,'−10 (TATAAT)',{size:12,w:700,c:'#8a6d00'})+`<line x1="300" y1="-16" x2="300" y2="34" stroke="#c1121f" stroke-dasharray="3 3"/>`+T(300,50,'start point',{size:11,c:'#c1121f'});
 const PR=O('prom',prom,60,DY);
-M.prokInit={kp:'원핵: <b>σ factor + core enzyme = holoenzyme</b> → σ가 promoter의 <b>−35, −10(TATAAT)</b>을 인식해 <b>직접</b> 결합(closed complex) → DNA를 풀어 <b>open complex</b> → <b>primer 없이</b> 합성 시작 → σ는 <b>elongation 단계에서 이탈</b>.',steps:[
+M.prokInit={kp:'원핵: <b>σ factor + core enzyme = holoenzyme</b> → σ가 promoter의 <b>−35 공통서열, −10 공통서열(TATAAT)</b>을 인식해 <b>직접</b> 결합 → RNA polymerase가 DNA를 풀고(helicase 활성) → <b>primer 없이</b> 합성 시작 → σ는 <b>elongation 단계에서 이탈</b>.',steps:[
 {c:'RNA polymerase <b>core enzyme</b>과 <b>σ factor</b>(시그마 인자)가 따로 떠 있다.',o:[DP(),PR,O('core',PV('core enzyme',0),470,95),O('sig',sigma,240,95)]},
 {c:'σ factor가 core enzyme에 결합 → <b>holoenzyme</b>.',o:[DP(),PR,O('core',PV('holoenzyme',0),430,100),O('sig',sigma,372,128)]},
-{c:'σ가 promoter의 <b>−35, −10</b> 서열을 인식 → holoenzyme이 promoter에 <b>직접</b> 결합 (<b>closed complex</b>: DNA는 아직 이중나선).',o:[DP(),PR,O('core',PV('holoenzyme',0),340,DY+8),O('sig',sigma,282,DY+34)]},
-{c:'RNA polymerase가 −10 부근의 DNA를 <b>풀어</b> 주형 가닥을 노출 (<b>open complex</b>, 자체 helicase 활성).',o:[DP(),PR,O('core',PV('holoenzyme',1),340,DY+8),O('sig',sigma,282,DY+34),O('t',LB('unwinding','#1f4e8c'),340,DY-62)]},
-{c:'+1부터 주형(3′→5′)에 상보적인 <b>NTP</b>가 들어와 RNA 합성 시작 — <b>primer 불필요</b>.',o:[DP(),PR,O('core',PV('holoenzyme',1),340,DY+8),O('sig',sigma,282,DY+34),O('rna',RN(2),340,DY+8,{z:2}),O('n1',nt('A',NC.A),372,DY+18,{from:[430,90],o:0}),O('n2',nt('U',NC.U),372,DY+18,{from:[500,140],o:0}),O('n3',nt('G',NC.G),372,DY+18,{from:[560,70],o:0})]},
+{c:'σ가 promoter의 <b>−35, −10 공통서열</b>을 인식 → holoenzyme이 promoter에 <b>직접</b> 결합 (DNA는 아직 이중나선).',o:[DP(),PR,O('core',PV('holoenzyme',0),340,DY+8),O('sig',sigma,282,DY+34)]},
+{c:'RNA polymerase가 −10 부근의 DNA를 <b>풀어</b>(unwound DNA) 주형 가닥을 노출 — RNA pol 자체가 <b>helicase 활성</b>.',o:[DP(),PR,O('core',PV('holoenzyme',1),340,DY+8),O('sig',sigma,282,DY+34),O('t',LB('unwinding','#1f4e8c'),340,DY-62)]},
+{c:'<b>start point</b>부터 주형(3′→5′)에 상보적인 <b>RNA nucleotide</b>가 들어와 RNA 합성 시작 — <b>primer 불필요</b>.',o:[DP(),PR,O('core',PV('holoenzyme',1),340,DY+8),O('sig',sigma,282,DY+34),O('rna',RN(2),340,DY+8,{z:2}),O('n1',nt('A',NC.A),372,DY+18,{from:[430,90],o:0}),O('n2',nt('U',NC.U),372,DY+18,{from:[500,140],o:0}),O('n3',nt('G',NC.G),372,DY+18,{from:[560,70],o:0})]},
 {c:'RNA가 조금 길어지면(약 10 nt) <b>σ factor가 떨어져 나가고</b> core enzyme만 하류로 <b>elongation</b>.',o:[DP(),PR,O('core',PV('core enzyme',1),570,DY+8),O('rna',RN(190),570,DY+8,{z:2}),O('sig',sigma,300,80,{o:.55}),O('t',LB('σ 이탈','#a7841f'),300,50)]}]};
 
 /* 진핵 개시 */
 const tata=`<rect x="160" y="-6" width="60" height="30" rx="4" fill="#ffe08a" opacity=".7"/>`+T(190,48,'TATA box',{size:12,w:700,c:'#8a6d00'})+`<line x1="270" y1="-16" x2="270" y2="34" stroke="#c1121f" stroke-dasharray="3 3"/>`+T(270,-22,'start point',{size:11,c:'#c1121f'})+T(110,-22,'promoter',{size:12,c:'#555'});
 const TA=O('tata',tata,60,DY);
 const tbp=blob(34,20,'#a8d48f','#4d7e3a','TBP',12),tfa=blob(22,17,'#f1cf6a','#a7841f','TF',11),tfb=blob(22,17,'#97bfe6','#3b6fa0','TF',11),tfc=blob(20,15,'#f4a6a6','#a04040','TF',10);
-M.eukInit={kp:'진핵: RNA pol Ⅱ는 promoter에 직접 결합 X → <b>transcription factor(TBP)</b>가 먼저 <b>TATA box</b>(약 −25)에 결합 → 다른 전사인자 + RNA pol Ⅱ = <b>transcription initiation complex</b> → DNA 풀림 → 전사 시작. TATA box 서열은 <b>비주형 가닥 기준</b>.',steps:[
+M.eukInit={kp:'진핵: RNA pol Ⅱ는 promoter에 직접 결합 X → <b>transcription factor</b>(TBP 부위를 가진 전사인자)가 먼저 <b>TATA box</b>(core promoter, 약 −25)에 결합 → 다른 전사인자 + RNA pol Ⅱ = <b>transcription initiation complex</b> → DNA 풀림 → 전사 시작. TATA box 서열은 <b>비주형 가닥 기준</b>.',steps:[
 {c:'진핵 promoter: start point 상류 약 25 nt에 <b>TATA box</b>(TATAAAA, 비주형 가닥 기준).',o:[DP(),TA]},
-{c:'<b>TATA-binding protein(TBP)</b>을 포함한 <b>transcription factor</b>가 먼저 TATA box에 결합한다.',o:[DP(),TA,O('tf1',tbp,250,DY-6,{from:[250,50]})]},
+{c:'<b>TBP</b>(TATA box binding protein) 부위를 가진 <b>transcription factor</b>(전사인자)가 먼저 TATA box에 결합한다.',o:[DP(),TA,O('tf1',tbp,250,DY-6,{from:[250,50]})]},
 {c:'다른 <b>transcription factor</b>들이 차례로 결합한다.',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22,{from:[120,50]}),O('tf3',tfb,300,DY-24,{from:[380,50]})]},
 {c:'<b>RNA polymerase Ⅱ</b>와 나머지 전사인자가 결합 → <b>transcription initiation complex</b> 완성.',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22),O('tf3',tfb,300,DY-24),O('p2',PV('RNA polymerase Ⅱ',0),370,DY+8,{from:[600,80]}),O('tf4',tfc,330,DY+36,{from:[300,360]}),O('t1',LB('transcription initiation complex','#5a3f10'),320,340)]},
-{c:'전사인자(helicase 활성)가 DNA를 풀어 주형 가닥 노출.',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22),O('tf3',tfb,300,DY-24),O('p2',PV('RNA polymerase Ⅱ',1),370,DY+8),O('tf4',tfc,330,DY+36),O('t1',LB('unwinding','#1f4e8c'),370,DY-66)]},
+{c:'RNA polymerase Ⅱ가 DNA를 풀어 주형 가닥 노출 — RNA pol 자체가 <b>helicase 활성</b>.',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22),O('tf3',tfb,300,DY-24),O('p2',PV('RNA polymerase Ⅱ',1),370,DY+8),O('tf4',tfc,330,DY+36),O('t1',LB('unwinding','#1f4e8c'),370,DY-66)]},
 {c:'RNA pol Ⅱ가 주형을 따라 RNA를 5′→3′로 합성하며 promoter를 떠난다 (TF 일부는 남음).',o:[DP(),TA,O('tf1',tbp,250,DY-6),O('tf2',tfa,206,DY-22),O('tf3',tfb,300,DY-24),O('p2',PV('RNA polymerase Ⅱ',1),540,DY+8),O('rna',RN(130),540,DY+8,{z:2}),O('tf4',tfc,330,DY+36,{o:.5})]}]};
 
 /* 신장 */
 const dirA=O('dir',arrow(0,0,110,0)+T(55,-8,'direction of transcription',{size:11}),600,DY+80);
-M.elong={kp:'한 번에 DNA <b>10~20 nt</b>를 풀어 전사 거품 → 주형에 상보적인 NTP가 RNA <b>3′ end</b>에 결합(주형 A ↔ <b>U</b>) → RNA는 <b>5′→3′</b>, 주형은 <b>3′→5′</b>로 읽음 → 지나간 DNA는 다시 감김(rewound). 한 gene을 <b>여러 RNA polymerase</b>가 동시에 전사 가능.',steps:[
-{c:'RNA polymerase가 DNA를 풀어 <b>전사 거품</b>을 만들고, <b>template strand</b>(진한 파랑)를 3′→5′ 방향으로 읽는다.',o:[DP(),O('p',PV('RNA polymerase'),220,DY+8),O('rna',RN(30),220,DY+8,{z:2}),dirA]},
-{c:'세포 안의 <b>ribonucleoside triphosphate(NTP)</b>들이 주변을 떠다닌다.',o:[DP(),O('p',PV('RNA polymerase'),220,DY+8),O('rna',RN(30),220,DY+8,{z:2}),dirA,O('n1',nt('U',NC.U),330,110,{from:[380,40]}),O('n2',nt('G',NC.G),420,150,{from:[470,60]}),O('n3',nt('C',NC.C),500,95,{from:[560,30]}),O('n4',nt('A',NC.A),600,140,{from:[660,60]})]},
-{c:'주형 염기와 <b>상보적인 NTP</b>만 RNA의 <b>3′ end</b>에 결합 (주형 A 맞은편 = U). polymerase가 앞으로 이동하며 RNA가 길어진다.',o:[DP(),O('p',PV('RNA polymerase'),330,DY+8),O('rna',RN(140),330,DY+8,{z:2}),dirA,O('n1',nt('U',NC.U),362,DY+16,{o:0}),O('n2',nt('G',NC.G),362,DY+16,{o:0}),O('n3',nt('C',NC.C),362,DY+16,{o:0}),O('n4',nt('A',NC.A),362,DY+16,{o:0})]},
+M.elong={kp:'DNA를 풀고(<b>unwound DNA</b>) → 주형에 상보적인 RNA nucleotide가 성장하는 RNA의 <b>3′ end</b>에 추가(주형 A ↔ <b>U</b>) → RNA는 <b>5′→3′</b>, 주형은 <b>3′→5′</b>로 읽음 → 지나간 DNA는 다시 감김(rewound). 한 gene을 <b>여러 RNA polymerase</b>가 동시에 전사 가능.',steps:[
+{c:'RNA polymerase가 DNA를 풀고(<b>unwound DNA</b>), <b>template strand</b>(진한 파랑)를 3′→5′ 방향으로 읽는다.',o:[DP(),O('p',PV('RNA polymerase'),220,DY+8),O('rna',RN(30),220,DY+8,{z:2}),dirA]},
+{c:'주변에 <b>RNA nucleotide</b>들이 떠다닌다.',o:[DP(),O('p',PV('RNA polymerase'),220,DY+8),O('rna',RN(30),220,DY+8,{z:2}),dirA,O('n1',nt('U',NC.U),330,110,{from:[380,40]}),O('n2',nt('G',NC.G),420,150,{from:[470,60]}),O('n3',nt('C',NC.C),500,95,{from:[560,30]}),O('n4',nt('A',NC.A),600,140,{from:[660,60]})]},
+{c:'주형 염기와 <b>상보적인 RNA nucleotide</b>만 RNA의 <b>3′ end</b>에 추가 (주형 A 맞은편 = U). polymerase가 앞으로 이동하며 RNA가 길어진다.',o:[DP(),O('p',PV('RNA polymerase'),330,DY+8),O('rna',RN(140),330,DY+8,{z:2}),dirA,O('n1',nt('U',NC.U),362,DY+16,{o:0}),O('n2',nt('G',NC.G),362,DY+16,{o:0}),O('n3',nt('C',NC.C),362,DY+16,{o:0}),O('n4',nt('A',NC.A),362,DY+16,{o:0})]},
 {c:'polymerase가 지나간 뒤 DNA는 <b>다시 감긴다(rewound)</b>. RNA는 뒤쪽으로 빠져나온다.',o:[DP(),O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(370),560,DY+8,{z:2}),dirA,O('tl',T(0,0,'rewound DNA',{size:12,w:700,c:'#555'}),330,DY+52)]},
 {c:'같은 gene을 <b>여러 RNA polymerase</b>가 줄지어 동시에 전사 → 짧은 시간에 많은 RNA.',o:[DP(),O('p',PV('RNA polymerase'),620,DY+8),O('rna',RN(430),620,DY+8,{z:2}),O('p0',PV('RNA polymerase',1),330,DY+8,{from:[100,DY+8]}),O('rna0',RN(110),330,DY+8,{from:[100,DY+8],z:2})]}]};
 
@@ -241,9 +246,9 @@ M.rhoIndep={kp:'<b>ρ 비의존성</b>: terminator 전사 → RNA에 서로 상�
 {c:'약한 A–U 결합이 끊어져 <b>RNA transcript가 떨어지고</b>, polymerase도 DNA에서 분리 → <b>termination</b>. DNA는 다시 감긴다.',o:[DP(),TM,O('p',PV('RNA polymerase',0),720,105,{o:.55}),O('rna',RN(380,{a:34,hp:1,fold:1,u4:0}),540,DY-95,{z:2}),O('st',LB('completed RNA transcript',C.rna,13),300,60)]}]};
 
 /* ρ 의존성 */
-M.rhoDep={kp:'<b>ρ 의존성</b>: ① RNA의 <b>rut 부위</b>(C 풍부) 노출 ② <b>ρ factor</b>(고리형 6량체)가 rut에 결합 ③ ρ가 <b>ATP</b>를 쓰며 RNA를 따라 3′ 쪽(polymerase 쪽)으로 이동 ④ 멈춘 RNA pol에 도달 → <b>helicase 활성</b>으로 RNA–DNA를 풀어 RNA 방출.',steps:[
+M.rhoDep={kp:'<b>ρ 의존성</b>: ① RNA의 <b>rut 부위</b>(C 풍부) 노출 ② <b>ρ 인자</b>(rho 인자)가 rut 부위에 부착 ③ ρ 인자가 RNA를 따라 polymerase 쪽으로 올라감 ④ RNA pol과 만나면 <b>이탈시킴</b> → 종결.',steps:[
 {c:'① 전사된 RNA에 <b>rut 부위</b>(rho utilization site)가 노출된다.',o:[DP(),O('p',PV('RNA polymerase'),380,DY+8),O('rna',RN(160,{rut:90,rho:90,rhoO:0}),380,DY+8,{z:2})]},
-{c:'② <b>ρ factor</b>(6개 단위체 고리)가 RNA를 감싸며 <b>rut 부위에 결합</b>한다. 그동안 전사는 계속된다.',o:[DP(),O('p',PV('RNA polymerase'),500,DY+8),O('rna',RN(280,{rut:90,rho:90,rhoO:1}),500,DY+8,{z:2})]},
+{c:'② <b>ρ 인자</b>(rho 인자)가 <b>rut 부위에 부착</b>한다. 그동안 전사는 계속된다.',o:[DP(),O('p',PV('RNA polymerase'),500,DY+8),O('rna',RN(280,{rut:90,rho:90,rhoO:1}),500,DY+8,{z:2})]},
 {c:'③ RNA pol이 종결 부위에서 <b>멈추고(pause)</b>, ρ는 <b>ATP</b>를 쓰며 RNA를 따라 polymerase 쪽으로 이동한다.',o:[DP(),O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(340,{rut:90,rho:230,rhoO:1}),560,DY+8,{z:2}),O('atp',gtp('ATP → ADP'),380,90),O('st',LB('⏸ pause','#c1121f',14),640,DY-56)]},
 {c:'④ ρ가 polymerase에 도달 → <b>helicase 활성</b>으로 RNA–DNA 결합을 풀어낸다.',o:[DP(),O('p',PV('RNA polymerase'),560,DY+8),O('rna',RN(340,{rut:90,rho:334,rhoO:1}),560,DY+8,{z:2}),O('atp',gtp('ATP → ADP'),380,90)]},
 {c:'RNA와 polymerase가 떨어져 나간다 → <b>termination</b>.',o:[DP(),O('p',PV('RNA polymerase',0),720,105,{o:.55}),O('rna',RN(340,{rut:90,rho:334,rhoO:1}),540,DY-95,{z:2})]}]};
@@ -256,7 +261,7 @@ M.eukTerm={kp:'진핵: Pol Ⅱ가 <b>polyadenylation signal</b>을 전사 → pr
 {c:'RNA pol Ⅱ가 <b>polyadenylation signal</b>을 전사 → pre-mRNA에 <b>AAUAAA</b>가 생긴다.',o:[DP(),O('p',PV('RNA pol Ⅱ'),400,DY+8),O('rna',RN(300,{sig:240,pac:0}),400,DY+8,{z:2})]},
 {c:'Pol Ⅱ는 계속 전사하고, 절단 단백질들이 <b>AAUAAA를 인식</b>해 결합한다.',o:[DP(),O('p',PV('RNA pol Ⅱ'),520,DY+8),O('rna',RN(420,{sig:240,pac:0}),520,DY+8,{z:2}),O('c1',cf,...at(520,420,240).map((v,i)=>v+(i?-30:0)),{from:[200,60]}),O('c2',cf,...at(520,420,265).map((v,i)=>v+(i?-26:0)),{from:[480,50]})]},
 {c:'AAUAAA의 <b>10~35 nt 하류</b>에서 pre-mRNA가 <b>잘린다</b>.',o:[DP(),O('p',PV('RNA pol Ⅱ'),520,DY+8),O('rna',RN(420,{sig:240,pac:0}),520,DY+8,{z:2}),O('c1',cf,...at(520,420,240).map((v,i)=>v+(i?-30:0))),O('c2',cf,...at(520,420,265).map((v,i)=>v+(i?-26:0))),O('sc',scis,...at(520,420,268).map((v,i)=>v+(i?-2:0)))]},
-{c:'잘린 pre-mRNA는 떨어져 나가 3′ 끝에 <b>poly-A polymerase</b>가 A를 하나씩 붙인다. Pol Ⅱ 쪽 남은 RNA의 5′ 끝에는 <b>exonuclease</b>가 붙는다.',o:[DP(),O('p',PV('RNA pol Ⅱ'),560,DY+8),O('rna',RN(192,{pac:1}),560,DY+8,{z:2}),O('pre',PRE({s0:152,s1:420,sig:240,n:0,pap:1}),480,DY-100,{from:[520,DY+8],z:3}),O('c1',cf,330,90,{o:0}),O('c2',cf,380,90,{o:0})]},
+{c:'잘린 pre-mRNA는 떨어져 나가 3′ 끝에 효소가 A를 붙여 <b>poly-A tail</b>을 만든다. Pol Ⅱ 쪽 남은 RNA의 5′ 끝에는 <b>exonuclease</b>가 붙는다.',o:[DP(),O('p',PV('RNA pol Ⅱ'),560,DY+8),O('rna',RN(192,{pac:1}),560,DY+8,{z:2}),O('pre',PRE({s0:152,s1:420,sig:240,n:0,pap:1}),480,DY-100,{from:[520,DY+8],z:3}),O('c1',cf,330,90,{o:0}),O('c2',cf,380,90,{o:0})]},
 {c:'poly-A tail이 길어지는 동안, <b>exonuclease</b>는 남은 RNA를 5′ 끝부터 <b>팩맨처럼 먹어 들어간다</b>. Pol Ⅱ는 계속 전사.',o:[DP(),O('p',PV('RNA pol Ⅱ'),640,DY+8),O('rna',RN(40,{pac:1}),640,DY+8,{z:2}),O('pre',PRE({s0:152,s1:420,sig:240,n:1,pap:1}),480,DY-100,{z:3})]},
 {c:'exonuclease가 Pol Ⅱ를 <b>따라잡으면</b> Pol Ⅱ가 DNA에서 떨어진다 → 전사 종결.',o:[DP(),O('p',PV('RNA pol Ⅱ',0),730,110,{o:.5}),O('rna',RN(0,{pac:0}),680,DY+8,{z:2,o:0}),O('pre',PRE({s0:152,s1:420,sig:240,n:1,pap:0}),480,DY-100,{z:3})]}]};
 
@@ -265,14 +270,14 @@ const seg=(w,f,t)=>`<rect x="0" y="-9" width="${w}" height="18" fill="${f}" stro
 const premRNA=`<rect x="0" y="-9" width="70" height="18" fill="#f3c1d4"/>`+T(35,24,"5′ UTR",{size:11})+`<rect x="70" y="-9" width="300" height="18" fill="${C.rna}"/>`+T(220,4,'protein-coding segment',{size:11,w:700,c:'#fff'})+T(80,40,'start codon',{size:10})+T(360,40,'stop codon',{size:10})+`<rect x="370" y="-9" width="120" height="18" fill="#f3c1d4"/>`+T(430,24,"3′ UTR",{size:11})+`<rect x="440" y="-9" width="44" height="18" fill="#ffd6d6"/>`+T(462,3,'AAUAAA',{size:8.5,w:800,c:'#a4161a'})+`<rect x="490" y="-9" width="60" height="18" fill="#f3c1d4" opacity=".7"/>`+T(-12,4,"5′",{size:11,c:C.rna});
 const cap=`<rect x="0" y="-11" width="46" height="22" rx="5" fill="#d9c3a5" stroke="#8a6d2d"/>`+T(23,4,'G-P-P-P',{size:10,w:800,c:'#4a3510'})+T(23,-18,'5′ cap',{size:12,w:800,c:'#8a6d2d'});
 const tailA=`<rect x="0" y="-9" width="110" height="18" rx="3" fill="#f6d58b" stroke="#b08800"/>`+T(55,4,'AAA……AAA',{size:11,w:800,c:'#5a4500'})+T(55,-16,'poly-A tail (A 50~250개)',{size:11,w:700,c:'#8a6d00'});
-const TAp=n=>({k:'ta',p:{n},f:q=>{const w=8+q.n*102;let s=`<rect x="0" y="-9" width="${w.toFixed(1)}" height="18" rx="5" fill="${lid('#f6d58b')}" stroke="#b08800"/>`;for(let x=7;x<w-3;x+=8)s+=T(x,4,'A',{size:9,w:800,c:'#5a4500'});return s+op(T(55,-16,'poly-A tail (A 50~250개)',{size:11,w:700,c:'#8a6d00'}),cl(q.n*2))+op(`<g transform="translate(${(w+16).toFixed(1)},0)">${blob(16,12,'#9ad1d4','#3f8f94','PAP',9)}</g>`,q.n<.98?1:0);}});
+const TAp=n=>({k:'ta',p:{n},f:q=>{const w=8+q.n*102;let s=`<rect x="0" y="-9" width="${w.toFixed(1)}" height="18" rx="5" fill="${lid('#f6d58b')}" stroke="#b08800"/>`;for(let x=7;x<w-3;x+=8)s+=T(x,4,'A',{size:9,w:800,c:'#5a4500'});return s+op(T(55,-16,'poly-A tail (A 50~250개)',{size:11,w:700,c:'#8a6d00'}),cl(q.n*2))+op(`<g transform="translate(${(w+16).toFixed(1)},0)">${blob(16,12,'#9ad1d4','#3f8f94','효소',9)}</g>`,q.n<.98?1:0);}});
 const preC=premRNA.replace(`<rect x="490" y="-9" width="60" height="18" fill="#f3c1d4" opacity=".7"/>`,'');
-M.capTail={kp:'5′ cap(<b>변형된 G</b>, G-PPP, 5′-5′ 결합) + poly-A tail(A 50~250) → 기능 3가지: ① <b>세포질로 이동</b> 촉진 ② <b>hydrolytic enzyme으로부터 보호</b> ③ <b>ribosome이 5′ end에 부착</b>하도록 도움. UTR도 exon.',steps:[
+M.capTail={kp:'5′ cap(<b>modified guanine nucleotide</b> = 메틸화된 구아닌, G-PPP) + poly-A tail(A 50~250) → 기능 3가지: ① <b>세포질로 이동</b> 촉진 ② <b>hydrolytic enzyme으로부터 보호</b> ③ <b>ribosome이 5′ end에 부착</b>하도록 도움. UTR도 exon.',steps:[
 {c:'RNA pol Ⅱ가 <b>20~40 nt</b>를 전사하자마자 5′ 끝에 <b>변형된 구아닌(G-PPP)</b>이 붙는다 = <b>5′ cap</b>.',o:[O('pre',seg(90,C.rna,'5′ 20~40 nt'),160,200),O('cap',cap,114,200,{from:[114,60]})]},
 {c:'전사가 계속되어 pre-mRNA 완성: 5′ UTR – coding segment – 3′ UTR(<b>AAUAAA</b> 포함).',o:[O('pre',premRNA,160,200),O('cap',cap,114,200)]},
 {c:'<b>AAUAAA</b>의 10~35 nt 하류에서 pre-mRNA가 <b>절단</b>된다.',o:[O('pre',premRNA,160,200),O('cap',cap,114,200),O('sc',scis,650,180)]},
-{c:'잘린 조각은 분해되고, <b>poly-A polymerase(PAP)</b>가 3′ 끝에 결합한다.',o:[O('pre',preC,160,200),O('cap',cap,114,200),O('cut',`<rect x="0" y="-9" width="60" height="18" fill="#f3c1d4" opacity=".7"/>`,720,330,{from:[650,200],o:0}),O('tail',TAp(0),650,200,{from:[760,110]})]},
-{c:'PAP가 <b>A를 50~250개</b> 하나씩 붙여 <b>poly-A tail</b>을 만든다.',o:[O('pre',preC,160,200),O('cap',cap,114,200),O('tail',TAp(1),650,200)]},
+{c:'잘린 조각은 분해되고, 효소가 3′ 끝에 결합한다.',o:[O('pre',preC,160,200),O('cap',cap,114,200),O('cut',`<rect x="0" y="-9" width="60" height="18" fill="#f3c1d4" opacity=".7"/>`,720,330,{from:[650,200],o:0}),O('tail',TAp(0),650,200,{from:[760,110]})]},
+{c:'효소가 <b>adenine nucleotide 50~250개</b>를 붙여 <b>poly-A tail</b>을 만든다.',o:[O('pre',preC,160,200),O('cap',cap,114,200),O('tail',TAp(1),650,200)]},
 {c:'완성된 mRNA → ① <b>세포질로 이동</b> ② <b>분해 방지</b> ③ <b>ribosome 부착</b> 도움.',o:[O('pre',preC,60,200),O('cap',cap,14,200),O('tail',TAp(1),550,200),O('f',T(0,0,'① cytoplasm으로 이동   ② hydrolytic enzyme으로부터 보호   ③ ribosome 부착',{size:14,w:700,c:'#1d3557'}),410,300)]}]};
 
 /* splicing */
@@ -283,17 +288,17 @@ function intronSvg(p){let d='';for(let s=0;s<=200;s+=2.5){const q=ipt(s,p);d+=(d
  let o=`<path d="${d}" stroke="#d6d6d6" stroke-width="15" stroke-dasharray="1.6 3.4" fill="none"/><path d="${d}" stroke="#7d7d7d" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" stroke="#bdbdbd" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
  const g=ipt(5,p),a=ipt(150,p),ag=ipt(194,p),m=ipt(100,p);
  o+=T(g[0]+(p.lar>.5?-14:4),g[1]-12,'GU',{size:12,w:800,c:'#c1121f'})+`<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="5" fill="#c1121f"/>`+T(a[0]+(p.lar>.5?16:0),a[1]+(p.lar>.5?4:-12),'A',{size:12,w:800,c:'#c1121f'})+T(ag[0],ag[1]-12,'AG',{size:12,w:800,c:'#c1121f'});
- o+=T(m[0],m[1]+(p.lar>.5?-30:26),p.lar>.5?'lariat (올가미)':'intron',{size:12,w:700,c:'#555'});return o;}
+ o+=p.lar>.5?T(a[0]+34,a[1]-30,'고리 구조',{size:12,w:700,c:'#555',a:'start'}):T(m[0],m[1]+26,'intron',{size:12,w:700,c:'#555'});return o;}
 const IN=(x)=>({k:'in',p:Object.assign({span:200,bend:0,lar:0},x),f:intronSvg});
 const sn=(l)=>blob(22,15,'#c9a2d8','#7d5590',l,10,'#3a1e47');
 const sCase=`<ellipse rx="150" ry="78" fill="#c9a2d8" opacity=".25" stroke="#7d5590" stroke-dasharray="5 4"/>`+T(0,-86,'spliceosome',{size:13,w:800,c:'#5e3a70'});
-M.splice={kp:'<b>snRNA + 단백질 = snRNP</b> → snRNP가 <b>5′ splice site(GU)</b>와 <b>branch point(A)</b>에 결합 → 여러 snRNP + 단백질 = <b>spliceosome</b> → ① 5′ splice site 절단, intron 5′ 끝이 A에 붙어 <b>올가미(lariat)</b> ② 3′ splice site(AG) 절단 + <b>exon 연결</b>. <b>snRNA가 촉매 = ribozyme</b>.',steps:[
+M.splice={kp:'<b>snRNA + 단백질 = snRNP</b> → snRNP가 <b>5′ splice site(GU)</b>와 intron 안쪽 <b>A</b>에 결합 → 여러 snRNP + 단백질 = <b>spliceosome</b> → ① 5′ splice site 절단, intron 5′ 끝이 A에 붙어 <b>고리 구조</b> ② 3′ splice site(AG) 절단 + <b>exon 연결</b>. <b>snRNA가 촉매 = ribozyme</b>.',steps:[
 {c:'pre-mRNA: <b>exon</b>(남아서 발현) 사이에 <b>intron</b>(잘려 나가는 noncoding). intron은 <b>5′-GU … A … AG-3′</b>.',o:[O('e1',ex(160,'Exon 1'),100,220),O('in',IN({}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),460,220)]},
-{c:'snRNA가 상보 결합으로 위치를 찾아 <b>snRNP</b>가 <b>5′ splice site(GU)</b>와 <b>branch point(A)</b>에 결합한다.',o:[O('e1',ex(160,'Exon 1'),100,220),O('in',IN({}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),460,220),O('u1',sn('U1'),268,190,{from:[268,40],z:3}),O('u2',sn('U2'),410,190,{from:[410,40],z:3})]},
-{c:'다른 snRNP와 단백질이 모여 <b>spliceosome</b>이 되고, intron이 휘어 <b>두 exon 끝이 가까워진다</b>.',o:[O('sp',sCase,320,186,{z:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),380,220),O('u1',sn('U1'),262,196,{z:3}),O('u2',sn('U2'),350,150,{z:3}),O('u5',sn('U5'),318,240,{from:[318,370],z:3}),O('u6',sn('U4/U6'),296,146,{from:[200,40],z:3})]},
-{c:'① <b>5′ splice site가 잘리고</b>, intron의 5′ 끝(G)이 <b>branch point A</b>에 붙어 <b>올가미(lariat)</b> 모양이 된다.',o:[O('sp',sCase,320,186,{z:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1,lar:1}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),380,220),O('u1',sn('U1'),245,180,{z:3,o:.6}),O('u2',sn('U2'),370,130,{z:3}),O('u5',sn('U5'),318,240,{z:3}),O('u6',sn('U4/U6'),290,140,{z:3}),O('sc',scis,262,206,{z:4})]},
-{c:'② <b>3′ splice site(AG)가 잘리고</b> 두 <b>exon이 연결</b>된다 (snRNA = <b>ribozyme</b>). lariat과 snRNP는 떨어져 나간다.',o:[O('sp',sCase,320,186,{o:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1,lar:1}),430,150,{z:1}),O('e2',ex(160,'Exon 2'),260,220),O('u1',sn('U1'),180,90,{o:0}),O('u2',sn('U2'),520,80,{z:3,o:0}),O('u5',sn('U5'),330,340,{o:0}),O('u6',sn('U4/U6'),300,40,{o:0})]},
-{c:'완성된 <b>mRNA</b>: exon만 이어진 연속된 coding sequence. 잘린 intron(lariat)은 <b>분해</b>된다.',o:[O('e1',ex(160,'Exon 1'),240,220),O('e2',ex(160,'Exon 2'),400,220),O('in',IN({span:120,bend:1,lar:1}),560,140,{s:.5,o:0}),O('m',T(0,0,'mRNA',{size:15,w:800,c:C.rna}),400,180)]}]};
+{c:'snRNA가 상보 결합으로 위치를 찾아 <b>snRNP</b>가 <b>5′ splice site(GU)</b>와 intron 안쪽 <b>A</b>에 결합한다.',o:[O('e1',ex(160,'Exon 1'),100,220),O('in',IN({}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),460,220),O('u1',sn('snRNP'),268,190,{from:[268,40],z:3}),O('u2',sn('snRNP'),410,190,{from:[410,40],z:3})]},
+{c:'다른 snRNP와 단백질이 모여 <b>spliceosome</b>이 되고, intron이 휘어 <b>두 exon 끝이 가까워진다</b>.',o:[O('sp',sCase,320,186,{z:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),380,220),O('u1',sn('snRNP'),262,196,{z:3}),O('u2',sn('snRNP'),350,150,{z:3}),O('u5',sn('snRNP'),318,240,{from:[318,370],z:3}),O('u6',sn('snRNP'),296,146,{from:[200,40],z:3})]},
+{c:'① <b>5′ splice site가 잘리고</b>, intron의 5′ 끝(G)이 intron 안쪽 <b>A</b>에 붙어 <b>고리 구조</b>가 된다.',o:[O('sp',sCase,320,186,{z:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1,lar:1}),260,220,{z:1}),O('e2',ex(160,'Exon 2'),380,220),O('u1',sn('snRNP'),215,190,{z:3,o:.6}),O('u2',sn('snRNP'),445,160,{z:3}),O('u5',sn('snRNP'),318,240,{z:3}),O('u6',sn('snRNP'),290,140,{z:3}),O('sc',scis,262,206,{z:4})]},
+{c:'② <b>3′ splice site(AG)가 잘리고</b> 두 <b>exon이 연결</b>된다 (snRNA = <b>ribozyme</b>). 고리 구조 intron(cut-out intron)과 spliceosome components는 떨어져 나간다.',o:[O('sp',sCase,320,186,{o:0}),O('e1',ex(160,'Exon 1'),100,220),O('in',IN({span:120,bend:1,lar:1}),430,150,{z:1}),O('e2',ex(160,'Exon 2'),260,220),O('u1',sn('snRNP'),180,90,{o:0}),O('u2',sn('snRNP'),520,80,{z:3,o:0}),O('u5',sn('snRNP'),330,340,{o:0}),O('u6',sn('snRNP'),300,40,{o:0})]},
+{c:'완성된 <b>mRNA</b>: exon만 이어진 연속된 coding sequence. 잘린 intron(cut-out intron)은 <b>분해</b>된다.',o:[O('e1',ex(160,'Exon 1'),240,220),O('e2',ex(160,'Exon 2'),400,220),O('in',IN({span:120,bend:1,lar:1}),560,140,{s:.5,o:0}),O('m',T(0,0,'mRNA',{size:15,w:800,c:C.rna}),400,180)]}]};
 
 const E=(t,f)=>ex(56,t,f);const I=`<rect x="0" y="-5" width="40" height="10" fill="#bdbdbd"/>`;
 const preAlt=E('E1','#e0457b')+`<g transform="translate(56,0)">${I}</g><g transform="translate(96,0)">${E('E2','#f08a4b')}</g><g transform="translate(152,0)">${I}</g><g transform="translate(192,0)">${E('E3','#8d6ec7')}</g>`;
@@ -310,31 +315,31 @@ M.alt={kp:'<b>alternative RNA splicing</b>: 같은 pre-mRNA에서 exon 조합을
 /* 번역 개시 */
 const codI=['AUG','GCC','UUU','GGC'];
 const IF=(l,c)=>blob(16,12,c,dk(c,.3),l,9);
-M.tlInitP={kp:'원핵 개시: <b>small subunit</b>(+initiation factor)의 <b>16S rRNA</b>가 mRNA의 <b>Shine-Dalgarno 서열</b>과 상보 결합 → <b>initiator tRNA</b>(anticodon 3′-UAC-5′, <b>fMet</b>)가 AUG에 결합 → <b>large subunit</b> 결합(<b>GTP</b> 사용), initiation factor 방출 = translation initiation complex. initiator tRNA는 <b>P site</b>, A site는 비어 있음.',steps:[
+M.tlInitP={kp:'원핵 개시: <b>small ribosomal subunit</b>(+protein factor)의 <b>16S rRNA</b>가 mRNA의 <b>Shine-Dalgarno 서열</b>과 상보 결합 → <b>initiator tRNA</b>(anticodon 3′-UAC-5′, <b>fMet</b>)가 AUG에 결합 → <b>large ribosomal subunit</b> 결합(<b>GTP</b> 사용), protein factor 방출 = translation initiation complex. initiator tRNA는 <b>P site</b>, A site는 비어 있음.',steps:[
 {c:'mRNA: start codon <b>AUG</b> 앞(5′ 쪽)에 <b>Shine-Dalgarno 서열</b>이 있다.',o:[O('m',mrna(codI,{lead:150,sd:1}),235,260,{z:1})]},
-{c:'<b>initiation factor</b>가 붙은 <b>small subunit</b>이 결합: <b>16S rRNA</b>가 Shine-Dalgarno 서열과 상보 결합 → AUG가 P site 자리에 온다.',o:[O('S',riboS(),410,260,{from:[410,430],z:0}),O('if1',IF('IF',' #f4a6a6'.trim()),470,312,{from:[470,430],z:2}),O('if3',IF('IF','#9ad1d4'),350,314,{from:[350,430],z:2}),O('m',null,235,260,{z:1}),O('l16',T(0,0,'16S rRNA ↔ Shine-Dalgarno',{size:12,w:700,c:'#5e4a7f'}),330,350)]},
-{c:'<b>initiator tRNA</b>(anticodon 3′-UAC-5′)가 <b>fMet</b>을 달고 AUG에 결합 (IF·<b>GTP</b>가 도움).',o:[O('S',riboS(),410,260,{z:0}),O('if1',IF('IF','#f4a6a6'),470,312,{z:2}),O('if3',IF('IF','#9ad1d4'),350,314,{z:2}),O('m',null,235,260,{z:1}),O('t',trna('UAC','fMet'),410,253,{from:[410,40],z:3}),O('g',gtp('GTP'),560,120)]},
-{c:'<b>large subunit</b>이 결합하고 <b>GTP → GDP</b>, initiation factor 방출 → <b>translation initiation complex</b>. initiator tRNA는 <b>P site</b>, <b>A site</b>는 비어 있다.',o:[O('S',riboS(),410,260,{z:0}),O('m',null,235,260,{z:1}),O('L',riboL(),410,260,{from:[410,-130],z:2}),O('t',trna('UAC','fMet'),410,253,{z:3}),O('if1',IF('IF','#f4a6a6'),640,340,{o:0}),O('if3',IF('IF','#9ad1d4'),170,340,{o:0}),O('g',gtp(),640,90)]}]};
-M.tlInitE={kp:'진핵 개시: initiator tRNA(<b>Met</b>)와 initiation factor가 붙은 small subunit이 <b>5′ cap</b>에 결합 → mRNA를 따라 <b>AUG까지 스캔</b> → large subunit 결합(GTP).',steps:[
+{c:'<b>protein factor</b>(개시인자)가 붙은 <b>small ribosomal subunit</b>이 결합: <b>16S rRNA</b>가 Shine-Dalgarno 서열과 상보 결합 → AUG가 P site 자리에 온다.',o:[O('S',riboS(),410,260,{from:[410,430],z:0}),O('if1',IF('factor','#f4a6a6'),470,312,{from:[470,430],z:2}),O('if3',IF('factor','#9ad1d4'),350,314,{from:[350,430],z:2}),O('m',null,235,260,{z:1}),O('l16',T(0,0,'16S rRNA ↔ Shine-Dalgarno',{size:12,w:700,c:'#5e4a7f'}),330,350)]},
+{c:'<b>initiator tRNA</b>(anticodon 3′-UAC-5′)가 <b>fMet</b>을 달고 AUG에 결합 (protein factor·<b>GTP</b>가 도움).',o:[O('S',riboS(),410,260,{z:0}),O('if1',IF('factor','#f4a6a6'),470,312,{z:2}),O('if3',IF('factor','#9ad1d4'),350,314,{z:2}),O('m',null,235,260,{z:1}),O('t',trna('UAC','fMet'),410,253,{from:[410,40],z:3}),O('g',gtp('GTP'),560,120)]},
+{c:'<b>large ribosomal subunit</b>이 결합하고 <b>GTP → GDP</b>, protein factor 방출 → <b>translation initiation complex</b>. initiator tRNA는 <b>P site</b>, <b>A site</b>는 비어 있다.',o:[O('S',riboS(),410,260,{z:0}),O('m',null,235,260,{z:1}),O('L',riboL(),410,260,{from:[410,-130],z:2}),O('t',trna('UAC','fMet'),410,253,{z:3}),O('if1',IF('factor','#f4a6a6'),640,340,{o:0}),O('if3',IF('factor','#9ad1d4'),170,340,{o:0}),O('g',gtp(),640,90)]}]};
+M.tlInitE={kp:'진핵 개시: initiator tRNA(<b>Met</b>)와 protein factor가 붙은 small ribosomal subunit이 <b>5′ cap</b>에 결합 → mRNA를 따라 <b>AUG까지 스캔</b> → large subunit 결합(GTP).',steps:[
 {c:'진핵 mRNA: 5′ 끝에 <b>5′ cap</b>이 있다.',o:[O('m',mrna(codI,{lead:150,cap:1}),235,260,{z:1})]},
-{c:'<b>initiator tRNA(Met)</b>와 initiation factor가 붙은 <b>small subunit</b>이 <b>5′ cap</b>을 인식해 결합한다.',o:[O('S',riboS(),290,260,{from:[290,430],z:0}),O('t',trna('UAC','Met'),290,253,{from:[290,430],z:3}),O('if',IF('eIF','#9ad1d4'),226,248,{from:[226,430],z:3}),O('m',null,235,260,{z:1})]},
-{c:'small subunit이 mRNA를 따라 <b>5′→3′로 스캔</b>하다가 <b>start codon AUG</b>를 찾는다 (anticodon UAC ↔ AUG).',o:[O('S',riboS(),410,260,{z:0}),O('t',trna('UAC','Met'),410,253,{z:3}),O('if',IF('eIF','#9ad1d4'),346,248,{z:3}),O('m',null,235,260,{z:1}),O('sc',arrow(0,0,100,0,'#5e4a7f')+T(50,-8,'scanning',{size:12,w:700,c:'#5e4a7f'}),300,350)]},
-{c:'<b>large subunit</b>이 결합(GTP 사용), eIF 방출 → initiator tRNA는 <b>P site</b>.',o:[O('S',riboS(),410,260,{z:0}),O('m',null,235,260,{z:1}),O('L',riboL(),410,260,{from:[410,-130],z:2}),O('t',trna('UAC','Met'),410,253,{z:3}),O('if',IF('eIF','#9ad1d4'),180,330,{o:0}),O('g',gtp(),640,90)]}]};
+{c:'<b>initiator tRNA(Met)</b>와 protein factor가 붙은 <b>small ribosomal subunit</b>이 <b>5′ cap</b>을 인식해 결합한다.',o:[O('S',riboS(),290,260,{from:[290,430],z:0}),O('t',trna('UAC','Met'),290,253,{from:[290,430],z:3}),O('if',IF('factor','#9ad1d4'),226,248,{from:[226,430],z:3}),O('m',null,235,260,{z:1})]},
+{c:'small subunit이 mRNA를 따라 <b>5′→3′로 스캔</b>하다가 <b>start codon AUG</b>를 찾는다 (anticodon UAC ↔ AUG).',o:[O('S',riboS(),410,260,{z:0}),O('t',trna('UAC','Met'),410,253,{z:3}),O('if',IF('factor','#9ad1d4'),346,248,{z:3}),O('m',null,235,260,{z:1}),O('sc',arrow(0,0,100,0,'#5e4a7f')+T(50,-8,'scanning',{size:12,w:700,c:'#5e4a7f'}),300,350)]},
+{c:'<b>large ribosomal subunit</b>이 결합(GTP 사용), protein factor 방출 → initiator tRNA는 <b>P site</b>.',o:[O('S',riboS(),410,260,{z:0}),O('m',null,235,260,{z:1}),O('L',riboL(),410,260,{from:[410,-130],z:2}),O('t',trna('UAC','Met'),410,253,{z:3}),O('if',IF('factor','#9ad1d4'),180,330,{o:0}),O('g',gtp(),640,90)]}]};
 
 /* 번역 신장 */
 const cE=['AUG','GCC','UUU','GGC','UCA','UGG'];const mE=(dx)=>O('m',mrna(cE,{lead:100}),285+dx,260,{z:1});
 const RB=[O('S',riboS(),410,260,{z:0}),O('L',riboL(),410,260,{z:2})];
 const TP=(id,a,aa,x,e={})=>O(id,trna(a,aa),x,253,Object.assign({z:3},e));
 const CH=(l,x,e={})=>O('ch',chain(l),x+40,163,Object.assign({z:4},e));
-const EFT=blob(22,15,'#9ad1d4','#3f8f94','EF-Tu',9),EFG=blob(22,15,'#f4c27a','#b07a20','EF-G',9);
-M.tlElong={kp:'<b>elongation</b> 3단계 반복: ① <b>codon recognition</b>(aminoacyl tRNA가 elongation factor와 함께 A site로, GTP) ② <b>peptide bond formation</b>(large subunit의 <b>rRNA</b>가 촉매, P의 polypeptide → A의 아미노산으로) ③ <b>translocation</b>(codon 1개 이동: A→P, P→E, GTP) → E에서 빈 tRNA 방출. 아미노산 1개당 <b>GTP 2</b>. 아미노산은 사슬의 <b>C-terminus</b>에 추가, mRNA는 <b>5′→3′</b>.',steps:[
+const EFT=blob(22,15,'#9ad1d4','#3f8f94','factor',9),EFG=blob(22,15,'#f4c27a','#b07a20','factor',9);
+M.tlElong={kp:'<b>elongation</b> 3단계 반복: ① <b>codon recognition</b>(aminoacyl tRNA가 protein factor와 함께 A site로, GTP) ② <b>peptide bond formation</b>(large subunit의 <b>rRNA</b>가 촉매, P의 polypeptide → A의 아미노산으로) ③ <b>translocation</b>(codon 1개 이동: A→P, P→E, GTP) → E site에서 discharged tRNA 방출. 아미노산 1개당 <b>GTP 2</b>. 아미노산은 사슬의 <b>C-terminus</b>에 추가, mRNA는 <b>5′→3′</b>.',steps:[
 {c:'개시 직후: Met-tRNA가 <b>P site</b>, <b>A site</b>는 다음 codon(GCC)을 비워 둔 상태.',o:[...RB,mE(0),TP('t1','UAC','',410),CH(['Met'],410)]},
-{c:'① <b>codon recognition</b>: <b>elongation factor</b>(EF-Tu·GTP)가 GCC에 맞는 <b>Ala-tRNA</b>(anticodon CGG)를 A site로 데려온다.',o:[...RB,mE(0),TP('t1','UAC','',410),CH(['Met'],410),TP('t2','CGG','Ala',460,{from:[690,60]}),O('ef',EFT,500,190,{from:[730,40],z:5})]},
-{c:'anticodon–codon이 맞으면 <b>GTP → GDP</b>, elongation factor가 떨어진다.',o:[...RB,mE(0),TP('t1','UAC','',410),CH(['Met'],410),TP('t2','CGG','Ala',460),O('ef',EFT,700,60,{o:0,z:5}),O('g',gtp(),660,110)]},
+{c:'① <b>codon recognition</b>: <b>protein factor</b>(elongation factor)·GTP가 GCC에 맞는 <b>Ala-tRNA</b>(anticodon CGG)를 A site로 데려온다.',o:[...RB,mE(0),TP('t1','UAC','',410),CH(['Met'],410),TP('t2','CGG','Ala',460,{from:[690,60]}),O('ef',EFT,500,190,{from:[730,40],z:5})]},
+{c:'anticodon–codon이 맞으면 <b>GTP → GDP</b>, protein factor가 떨어진다.',o:[...RB,mE(0),TP('t1','UAC','',410),CH(['Met'],410),TP('t2','CGG','Ala',460),O('ef',EFT,700,60,{o:0,z:5}),O('g',gtp(),660,110)]},
 {c:'② <b>peptide bond formation</b>: large subunit의 <b>rRNA</b>가 촉매 → P site의 Met이 A site tRNA의 Ala와 결합(사슬이 A site tRNA로 넘어감).',o:[...RB,mE(0),TP('t1','UAC','',410),TP('t2','CGG','',460),CH(['Met','Ala'],460),O('pb',T(0,0,'peptide bond (rRNA = ribozyme)',{size:12,w:700,c:'#c1121f'}),620,110)]},
-{c:'③ <b>translocation</b>: EF-G·<b>GTP</b>의 도움으로 ribosome이 <b>codon 1개(3′ 쪽)</b> 이동 → A의 tRNA는 <b>P</b>로, 빈 tRNA는 <b>E</b>로.',o:[...RB,mE(-50),TP('t1','UAC','',360),TP('t2','CGG','',410),CH(['Met','Ala'],410),O('efg',EFG,520,195,{from:[730,40],z:5}),O('g',gtp(),660,110)]},
-{c:'빈 tRNA가 <b>E site에서 방출</b>되고, A site에는 다음 codon(UUU)이 놓인다.',o:[...RB,mE(-50),TP('t1','UAC','',240,{y:110,o:0}),TP('t2','CGG','',410),CH(['Met','Ala'],410),O('efg',EFG,720,60,{o:0,z:5})]},
-{c:'다시 ① <b>Phe-tRNA</b>(anticodon AAA)가 elongation factor와 함께 A site로 들어온다.',o:[...RB,mE(-50),TP('t2','CGG','',410),CH(['Met','Ala'],410),TP('t3','AAA','Phe',460,{from:[690,60]}),O('ef',EFT,500,190,{from:[730,40],z:5})]},
+{c:'③ <b>translocation</b>: protein factor·<b>GTP</b>의 도움으로 ribosome이 <b>codon 1개(3′ 쪽)</b> 이동 → A의 tRNA는 <b>P</b>로, 빈 tRNA는 <b>E</b>로.',o:[...RB,mE(-50),TP('t1','UAC','',360),TP('t2','CGG','',410),CH(['Met','Ala'],410),O('efg',EFG,520,195,{from:[730,40],z:5}),O('g',gtp(),660,110)]},
+{c:'빈 tRNA(<b>discharged tRNA</b>)가 <b>E site(exit site)에서 방출</b>되고, A site에는 다음 codon(UUU)이 놓인다.',o:[...RB,mE(-50),TP('t1','UAC','',240,{y:110,o:0}),TP('t2','CGG','',410),CH(['Met','Ala'],410),O('efg',EFG,720,60,{o:0,z:5})]},
+{c:'다시 ① <b>Phe-tRNA</b>(anticodon AAA)가 protein factor와 함께 A site로 들어온다.',o:[...RB,mE(-50),TP('t2','CGG','',410),CH(['Met','Ala'],410),TP('t3','AAA','Phe',460,{from:[690,60]}),O('ef',EFT,500,190,{from:[730,40],z:5})]},
 {c:'② peptide bond → 사슬이 A site tRNA로. 이렇게 <b>N말단 → C말단</b> 방향으로 길어진다.',o:[...RB,mE(-50),TP('t2','CGG','',410),TP('t3','AAA','',460),CH(['Met','Ala','Phe'],460),O('ef',EFT,700,60,{o:0,z:5})]},
 {c:'③ translocation → 반복. ribosome은 mRNA를 <b>5′ → 3′</b> 방향으로 읽는다.',o:[...RB,mE(-100),TP('t2','CGG','',360),TP('t3','AAA','',410),CH(['Met','Ala','Phe'],410),O('efg',EFG,520,195,{from:[730,40],z:5})]}]};
 
@@ -360,6 +365,7 @@ M.srp={kp:'Polypeptide 합성은 <b>cytosol에서 시작</b>, 특별한 신호�
 {c:'⑥ 완성된 polypeptide가 ER lumen에서 <b>최종 구조로 접힌다</b>. ribosome은 떨어져 나간다.',o:[O('mem',mem,0,270),O('tc',`<rect x="-12" y="0" width="24" height="26" fill="#9aa5b1" stroke="#5b6470"/>`,450,270),O('r',mini,620,110,{o:.4}),O('pp',blob(34,18,'#b7a3d9','#5e3a70','protein',11),450,340)]}]};
 
 /* mutations */
+/* mutations */
 function seqSvg(p){const m=MU[p.i],cw=22,x0=230,r=p.r;let s=T(410,30,m[0],{size:16,w:800,c:'#1d3557'});
  const row=(y,lb,str,hi,f,tc)=>{let o=T(x0-12,y+15,lb,{size:12,w:700,a:'end'});[...str].forEach((ch,i)=>{o+=`<rect x="${x0+i*cw}" y="${y}" width="${cw-2}" height="22" rx="3" fill="${hi.includes(i)?'#ffd166':f}" stroke="${hi.includes(i)?'#e09f00':'#b9c2cc'}" stroke-width="${hi.includes(i)?1.6:.5}"/>`+T(x0+i*cw+10,y+16,ch,{size:12,w:700,c:tc});});return o;};
  s+=row(62,"template 3′",m[1],m[4],'#dce8f5','#1f4e8c')+T(x0+m[1].length*cw+6,77,"5′",{size:11,a:'start'})+row(118,"mRNA 5′",m[2],m[5],'#fbd3e2','#7a1f3d')+T(x0+m[2].length*cw+6,133,"3′",{size:11,a:'start'});
@@ -368,15 +374,15 @@ function seqSvg(p){const m=MU[p.i],cw=22,x0=230,r=p.r;let s=T(410,30,m[0],{size:
  s+=T(x0-12,213,'Protein',{size:12,w:700,a:'end'});
  if(r<m[3].length+.01){const rx=x0+Math.min(r,m[3].length-.5)*3*cw+3*cw/2-2;s+=op(`<ellipse cx="${rx.toFixed(1)}" cy="122" rx="40" ry="22" fill="${C.L}" opacity=".55" stroke="${C.ribS}"/><ellipse cx="${rx.toFixed(1)}" cy="146" rx="36" ry="10" fill="${C.S}" opacity=".6" stroke="${C.ribS}"/>`+T(rx,98,'ribosome',{size:10,w:700,c:'#5e4a7f'}),r<m[3].length-.02?1:cl((m[3].length-r)*20+0));}
  return s;}
-const MU=[['Wild type (정상)','TACTTCAAACCGATT','AUGAAGUUUGGCUAA',['Met','Lys','Phe','Gly','Stop'],[],[],'기준 서열: Met-Lys-Phe-Gly-Stop.'],
-['Silent (침묵)','TACTTCAAACCAATT','AUGAAGUUUGGUUAA',['Met','Lys','Phe','Gly','Stop'],[11],[11],'<b>silent</b>: 주형 G→A 치환(mRNA C→U) → GGU도 <b>Gly</b> → 유전암호의 <b>중복성</b> 때문에 아미노산 변화 없음.'],
-['Missense (과오)','TACTTCAAATCGATT','AUGAAGUUUAGCUAA',['Met','Lys','Phe','Ser','Stop'],[9],[9],'<b>missense</b>: 주형 C→T 치환 → GGC가 AGC → <b>Gly → Ser</b>, 다른 아미노산.'],
-['Nonsense (정지)','TACATCAAACCGATT','AUGUAGUUUGGCUAA',['Met','Stop'],[3],[3],'<b>nonsense</b>: 주형 T→A 치환 → AAG가 <b>UAG(stop)</b> → 번역이 일찍 끝남 → 대부분 기능 없는 단백질.'],
-['Frameshift: 1 nt insertion','TACATTCAAACCGATT','AUGUAAGUUUGGCUAA',['Met','Stop'],[3],[3],'<b>insertion</b>: 염기 하나 추가 → 뒤 <b>reading frame</b>(괄호)이 모두 밀림 → 여기선 바로 UAA(stop).'],
-['Frameshift: 1 nt deletion','TACTTCAACCGATT','AUGAAGUUGGCUAA',['Met','Lys','Leu','Ala'],[],[],'<b>deletion</b>: 염기 하나 빠짐 → 세 번째 codon부터 UUG(Leu), GCU(Ala)… 뒤 아미노산이 전부 바뀜 → <b>치환보다 치명적</b>.'],
-['3 nt deletion (틀 유지)','TACAAACCGATT','AUGUUUGGCUAA',['Met','Phe','Gly','Stop'],[],[],'<b>3 nt deletion</b>: reading frame은 유지, <b>아미노산 1개(Lys)만 빠짐</b>.']];
+const MU=[['Wild type','TACTTCAAACCGATT','AUGAAGUUUGGCUAA',['Met','Lys','Phe','Gly','Stop'],[],[],'기준 서열: Met-Lys-Phe-Gly-Stop.'],
+['Nucleotide-pair substitution: silent','TACTTCAAACCAATT','AUGAAGUUUGGUUAA',['Met','Lys','Phe','Gly','Stop'],[11],[11],'<b>silent</b>: 주형 G→A 치환(mRNA C→U) → GGU도 <b>Gly</b> → 유전암호의 <b>중복성</b> 때문에 아미노산 변화 없음.'],
+['Nucleotide-pair substitution: missense','TACTTCAAATCGATT','AUGAAGUUUAGCUAA',['Met','Lys','Phe','Ser','Stop'],[9],[9],'<b>missense</b>: 주형 C→T 치환 → GGC가 AGC → <b>Gly → Ser</b>, 다른 아미노산.'],
+['Nucleotide-pair substitution: nonsense','TACATCAAACCGATT','AUGUAGUUUGGCUAA',['Met','Stop'],[3],[3],'<b>nonsense</b>: 주형 T→A 치환 → AAG가 <b>UAG(stop)</b> → 번역이 일찍 끝남 → 대부분 기능 없는 단백질.'],
+['Frameshift: 1 nucleotide-pair insertion','TACATTCAAACCGATT','AUGUAAGUUUGGCUAA',['Met','Stop'],[3],[3],'<b>insertion</b>: 주형에 Extra A (mRNA Extra U) → 뒤 <b>reading frame</b>(괄호)이 모두 밀림 → 여기선 바로 UAA(stop).'],
+['Frameshift: 1 nucleotide-pair deletion','TACTTCAACCGATT','AUGAAGUUGGCUAA',['Met','Lys','Leu','Ala'],[],[],'<b>deletion</b>: 주형 A missing (mRNA U missing) → 세 번째 codon부터 UUG(Leu), GCU(Ala)… 뒤 아미노산이 전부 바뀜 → <b>치환보다 치명적</b>.'],
+['No frameshift: 3 nucleotide-pair deletion','TACAAACCGATT','AUGUUUGGCUAA',['Met','Phe','Gly','Stop'],[],[],'<b>3 nucleotide-pair deletion</b>: 주형 TTC missing (mRNA AAG missing) → frameshift 없음, <b>아미노산 1개(Lys)만 빠짐</b>.']];
 const SQ=(i,r)=>({k:'mu'+i,p:{i,r},f:seqSvg});
-M.mut={kp:'점돌연변이 = gene 내 nucleotide pair 하나의 변화. <b>substitution</b>: silent / missense / nonsense. <b>insertion·deletion</b>: 3의 배수가 아니면 <b>frameshift</b> → substitution보다 치명적. (ribosome이 codon 단위로 읽는 과정을 보면 차이가 보임)',steps:MU.flatMap((m,i)=>[{c:(i?'바뀐 염기(노란색) 확인 → ':'')+m[6].split(':')[0]+' — ribosome이 읽기 전',o:[O('sq',SQ(i,0),0,0)]},{c:m[6],o:[O('sq',SQ(i,m[3].length),0,0)]}])};
+M.mut={kp:'<b>point mutation</b> = gene의 one nucleotide pair 변화. <b>nucleotide-pair substitution</b>: silent / missense / nonsense. <b>insertion·deletion</b>: 3의 배수가 아니면 reading frame 변경 → <b>frameshift mutation</b> → substitution보다 치명적. (ribosome이 codon 단위로 읽는 과정을 보면 차이가 보임)',steps:MU.flatMap((m,i)=>[{c:(i?'바뀐 염기(노란색) 확인 → ':'')+m[6].split(':')[0]+' — ribosome이 읽기 전',o:[O('sq',SQ(i,0),0,0)]},{c:m[6],o:[O('sq',SQ(i,m[3].length),0,0)]}])};
 
 /* CRISPR */
 const cas=blob(70,50,'#eba97c','#b05a24','Cas9',15,'#6b2f0c');
@@ -396,6 +402,220 @@ M.crispr={kp:'<b>CRISPR-Cas9</b>: <b>Cas9</b>(DNA 자르는 단백질) + <b>guid
 {c:'(a) 잘린 자리를 세포가 이을 때 <b>무작위 nucleotide</b>가 끼어들어 유전자가 망가짐 → <b>knock-out</b> → 원래 기능 연구.',o:[O('nuc',nuc,470,0),O('td',TD({gap:0,fix:1,t:'random nucleotides → knock-out'}),450,250)]},
 {c:'(b) 같은 방식으로 자른 뒤, <b>정상(functional) 유전자 사본</b>을 함께 넣어 주면…',o:[O('nuc',nuc,470,0),O('td',TD({gap:18,t:'double-strand break'}),441,250),O('nm',dna(200,false)+T(100,-14,'normal gene (template)',{size:11,w:700,c:'#2e7d32'}),520,120,{from:[200,120]})]},
 {c:'수선 효소가 정상 사본을 <b>주형</b>으로 고쳐 돌연변이를 <b>교정</b>한다 (예: 겸형 적혈구 치료 연구).',o:[O('nuc',nuc,470,0),O('td',TD({gap:0,fix:1,fc:1,t:'정상 서열로 복구'}),450,250),O('nm',dna(200,false)+T(100,-14,'normal gene (template)',{size:11,w:700,c:'#2e7d32'}),515,170)]}]};
+
+/* ===================== Ch 18 control of gene expression ===================== */
+const gz_18=(x,w,c,lab,up=false,lc)=>`<rect x="${x}" y="-8" width="${w}" height="33" rx="4" fill="${c}" opacity=".5"/>`+(lab?T(x+w/2,up?-15:46,lab,{size:11.5,w:800,c:lc||dk(c,.45)}):'');
+const hexm_18=(c='#f4a261',l='')=>`<path d="M-8,0 L-4,-7 L4,-7 L8,0 L4,7 L-4,7 Z" fill="${gid(c)}" stroke="${dk(c,.35)}" stroke-width="1"/>`+(l?T(0,20,l,{size:10,w:700,c:dk(c,.45)}):'');
+const dia_18=(c='#e9a03b')=>`<path d="M0,-8 L8,0 L0,8 L-8,0 Z" fill="${gid(c)}" stroke="${dk(c,.35)}"/>`;
+const ball_18=(c='#43aa8b',r=8)=>`<circle r="${r}" fill="${gid(c)}" stroke="${dk(c,.35)}"/>`;
+/* repressor: active = prongs fit operator; inactive = skewed */
+function repr_18(active,lab,c='#d1495b'){const f=active?c:mix(c,'#9a9a9a',.55);
+ const d=active?'M-28,14 L-28,-4 L-16,-4 L-16,-16 L-5,-16 L-5,-4 L5,-4 L5,-16 L16,-16 L16,-4 L28,-4 L28,14 Z':'M-28,14 L-30,-2 L-19,-6 L-24,-17 L-12,-19 L-6,-6 L4,-3 L10,-15 L20,-11 L16,0 L28,-2 L26,14 Z';
+ let s=`<path d="${d}" fill="${gid(f)}" stroke="${dk(f,.35)}" stroke-width="1.2" stroke-linejoin="round"/>`;
+ if(active)s=`<ellipse rx="40" ry="26" fill="#ffe066" opacity=".45"/>`+s;
+ return s+(lab?T(0,32,lab,{size:11,w:700,c:dk(f,.5)}):'');}
+const enz_18=(l,c)=>blob(26,17,c,dk(c,.3),l,11,'#fff');
+const LBL_18=(s,c='#1d3557',sz=13)=>T(0,0,s,{size:sz,w:700,c});
+const xmark_18=`<path d="M-11,-11 L11,11 M11,-11 L-11,11" stroke="#c1121f" stroke-width="4" stroke-linecap="round"/>`;
+const mline_18=(w,lab)=>`<path d="M0,0 C${w*.25},-10 ${w*.5},10 ${w*.75},-4 S${w},2 ${w},0" stroke="${C.rna}" stroke-width="5" fill="none" stroke-linecap="round"/>`+T(-8,4,"5′",{size:11,c:C.rna,a:'end'})+(lab?T(w/2,-14,lab,{size:11,w:700,c:C.rna}):'');
+
+/* ---------- trp operon ---------- */
+const trpDNA_18=dna(700)+gz_18(20,70,'#8e6cbf','trpR',true)+gz_18(190,62,'#3fae5a','trp promoter',true)+gz_18(252,36,'#f2c84b','operator',false,'#8a6d00')
+ +[['trpE',300],['trpD',380],['trpC',460],['trpB',540],['trpA',620]].map(([l,x])=>gz_18(x,78,'#5b8fd6',l,true,'#1d3557')).join('')
+ +T(500,-34,'trp operon (structural genes)',{size:11,c:'#555'})+`<path d="M300,-28 L698,-28" stroke="#999" stroke-width="1"/>`;
+const TRPD=O('dna',trpDNA_18,60,DY);
+const trpE5_18=['E','D','C','B','A'].map((l,i)=>O('e'+l,enz_18(l,'#7b6cc4'),230+i*80,150,{from:[230+i*80,DY-40]}));
+M.trp={kp:'<b>trp operon = repressible operon</b>(억제성). 조절 유전자 <b>trpR</b>(operon에 포함 X)이 만든 <b>trp repressor</b>는 혼자서는 <b>불활성</b> → operon <b>on</b>. tryptophan이 쌓이면 tryptophan이 <b>corepressor</b>로 repressor에 결합 → <b>active repressor</b>가 <b>operator</b>에 결합 → RNA polymerase가 막혀 전사 <b>off</b> (최종 산물에 의한 음성 피드백, 동화 경로).',steps:[
+{c:'<b>operon</b> = promoter + <b>operator</b>(repressor가 결합하는 DNA 부위) + structural gene(trpE~trpA). 하나의 promoter로 여러 유전자가 함께 조절된다. <b>regulatory gene trpR</b>는 operon 밖에 있다.',o:[TRPD]},
+{c:'<b>trpR</b>가 발현되어 <b>trp repressor</b>가 만들어진다. 이 repressor는 혼자서는 <b>inactive</b>(operator에 결합 못 함).',o:[TRPD,O('rep',repr_18(false,'inactive trp repressor'),115,120,{from:[115,DY]})]},
+{c:'<b>tryptophan 없음</b> → repressor 불활성 → <b>RNA polymerase</b>가 promoter에 결합해 operon 전체를 <b>하나의 mRNA</b>로 전사한다.',o:[TRPD,O('rep',repr_18(false,'inactive trp repressor'),115,120),O('p',PV('RNA polymerase'),330,DY+8,{from:[330,60]}),O('rna',RN(10),330,DY+8,{z:2})]},
+{c:'전사가 진행되어 trpE~trpA가 모두 담긴 mRNA가 만들어진다 (<b>operon on</b>).',o:[TRPD,O('rep',repr_18(false,'inactive trp repressor'),115,120),O('p',PV('RNA polymerase'),700,DY+8),O('rna',RN(420),700,DY+8,{z:2})]},
+{c:'mRNA가 번역되어 <b>tryptophan 합성 효소</b>를 이루는 폴리펩타이드 E·D·C·B·A가 만들어진다 → tryptophan 합성.',o:[TRPD,O('rep',repr_18(false,'inactive trp repressor'),115,120),O('p',PV('RNA polymerase',0),760,110,{o:0}),...trpE5_18,O('t1',T(0,0,'tryptophan 합성 효소',{size:12,w:700,c:'#4b3b8f'}),390,108)]},
+{c:'<b>tryptophan이 축적</b>되면 tryptophan이 repressor에 결합 = <b>corepressor</b>(보조억제자) → repressor가 <b>active</b> 모양으로 바뀐다.',o:[TRPD,O('rep',repr_18(true,'active trp repressor'),115,120),O('w1',hexm_18('#f4a261'),115,138,{from:[300,90]}),O('w2',hexm_18('#f4a261'),330,90,{from:[360,60]}),O('w3',hexm_18('#f4a261'),520,80,{from:[560,60]}),O('w4',hexm_18('#f4a261'),660,100,{from:[700,60]}),...trpE5_18.map(o=>Object.assign({},o,{o:.35,from:null})),O('t2',T(0,0,'tryptophan (corepressor)',{size:12,w:700,c:'#b5651d'}),130,180)]},
+{c:'<b>active repressor</b>가 <b>operator</b>에 결합 → RNA polymerase가 전사하지 못함 → <b>No RNA made</b> → 효소 생산 중단 (<b>operon off</b>).',o:[TRPD,O('rep',repr_18(true,''),330,DY-14),O('w1',hexm_18('#f4a261'),330,DY+4),O('px',PV('RNA polymerase',0),230,120,{from:[230,60]}),O('x',xmark_18+T(0,-18,'No RNA made',{size:12,w:800,c:'#c1121f'}),300,110),...trpE5_18.map(o=>Object.assign({},o,{o:0,from:null}))]}]};
+
+/* ---------- lac operon (negative) ---------- */
+const lacDNA_18=dna(700)+gz_18(20,70,'#8e6cbf','lacI',true)+gz_18(190,62,'#3fae5a','lac promoter',true)+gz_18(252,36,'#f2c84b','operator',false,'#8a6d00')
+ +gz_18(300,180,'#5b8fd6','lacZ',true,'#1d3557')+gz_18(480,120,'#4ea3c9','lacY',true,'#1d3557')+gz_18(600,98,'#3c8fb0','lacA',true,'#1d3557');
+const LACD=O('dna',lacDNA_18,60,DY);
+M.lacNeg={kp:'<b>lac operon = inducible operon</b>(유도성). 조절 유전자 <b>lacI</b>가 만드는 <b>lac repressor는 스스로 active</b> → 젖당이 없으면 operator에 결합해 operon <b>off</b>. 젖당이 있으면 <b>allolactose</b>가 <b>inducer</b>(유도자)로 repressor에 결합 → repressor <b>불활성</b> → operon <b>on</b> → 젖당 분해 효소(β-galactosidase, permease, transacetylase). 이화 경로.',steps:[
+{c:'lac operon: <b>lacI</b>(regulatory gene, operon 밖) / promoter / <b>operator</b> / structural gene <b>lacZ·lacY·lacA</b>.',o:[LACD]},
+{c:'lacI에서 만들어진 <b>lac repressor</b>는 <b>처음부터 active</b>.',o:[LACD,O('rep',repr_18(true,'active lac repressor'),115,120,{from:[115,DY]})]},
+{c:'<b>젖당(lactose) 없음</b>: active repressor가 <b>operator</b>에 결합 → RNA polymerase가 전사 못 함 → <b>operon off</b>.',o:[LACD,O('rep',repr_18(true,''),330,DY-14),O('px',PV('RNA polymerase',0),230,120,{from:[230,40]}),O('x',xmark_18+T(0,-18,'No RNA made',{size:12,w:800,c:'#c1121f'}),300,110)]},
+{c:'<b>젖당 있음</b>: 젖당의 이성질체 <b>allolactose</b>가 생겨 repressor에 결합 = <b>inducer</b>(유도자).',o:[LACD,O('rep',repr_18(true,''),330,DY-14),O('al',ball_18('#43aa8b',9)+T(0,24,'allolactose (inducer)',{size:11,w:700,c:'#2e7d5b'}),336,DY-40,{from:[520,90]}),O('px',PV('RNA polymerase',0),230,120)]},
+{c:'allolactose가 붙은 repressor는 <b>inactive</b> 모양으로 바뀌어 operator에서 <b>떨어진다</b>.',o:[LACD,O('rep',repr_18(false,'inactive lac repressor'),330,110),O('al',ball_18('#43aa8b',9),338,126),O('px',PV('RNA polymerase',0),180,110)]},
+{c:'RNA polymerase가 promoter에 결합해 lacZ·lacY·lacA를 <b>하나의 mRNA</b>로 전사 (<b>operon on</b>).',o:[LACD,O('rep',repr_18(false,'inactive lac repressor'),130,110),O('al',ball_18('#43aa8b',9),138,126),O('px',PV('RNA polymerase'),700,DY+8),O('rna',RN(420),700,DY+8,{z:2})]},
+{c:'번역 → <b>β-galactosidase</b>(젖당 → 포도당 + 갈락토스), <b>permease</b>(젖당 유입), <b>transacetylase</b> = 젖당 이용에 필요한 효소.',o:[LACD,O('rep',repr_18(false,'inactive lac repressor'),130,110),O('al',ball_18('#43aa8b',9),138,126),O('px',PV('RNA polymerase',0),760,110,{o:0}),O('z',enz_18('β-gal','#7b6cc4'),360,140,{from:[360,DY]}),O('y',enz_18('permease','#9b5de5'),510,140,{from:[510,DY]}),O('a',enz_18('transacetylase','#5e60ce'),650,140,{from:[650,DY]})]}]};
+
+/* ---------- lac positive (CRP) ---------- */
+const lacDNA2_18=dna(700)+gz_18(20,70,'#8e6cbf','lacI',true)+gz_18(150,46,'#e9a03b','CRP-binding site',false,'#8a5a00')+gz_18(196,56,'#3fae5a','promoter',true)+gz_18(252,36,'#f2c84b','operator',true,'#8a6d00')+gz_18(300,398,'#5b8fd6','lacZ',true,'#1d3557');
+const LACD2=O('dna',lacDNA2_18,60,DY);
+const crp_18=(act_18)=>`<path d="M-24,0 C-26,-22 -6,-26 0,-14 C6,-26 26,-22 24,0 C22,18 -22,18 -24,0 Z" fill="${gid(act_18?'#2ab7a9':'#7fb8b2')}" stroke="${dk('#2ab7a9',.35)}"/>`+(act_18?`<ellipse rx="34" ry="28" fill="#ffe066" opacity=".35"/>`:'');
+const camp_18=(x,y,f)=>O('cp'+x,dia_18('#e9a03b'),x,y,{from:f});
+M.lacPos={kp:'<b>양성 조절</b>(positive control): 포도당이 부족 → <b>cAMP 증가</b>(포도당이 없으면 adenylyl cyclase(아데닐산 고리화 효소)가 활성화 → cAMP↑) → cAMP + <b>CRP</b>(cAMP receptor protein, <b>activator</b>) → active CRP가 promoter 상류 <b>CRP-binding site</b>에 결합 → RNA polymerase 결합 촉진 → lac mRNA 많이 합성. 포도당이 있으면 cAMP↓ → CRP 불활성 → 젖당이 있어도 전사 적음. lac operon = <b>allolactose 기준 음성 조절 + cAMP 기준 양성 조절</b>(이중 조절).',steps:[
+{c:'젖당 있음 + <b>포도당 있음</b>: repressor는 allolactose 때문에 불활성이지만, <b>cAMP가 적어</b> CRP가 <b>inactive</b> → RNA polymerase가 promoter에 잘 결합하지 못함 → <b>lac mRNA 조금</b>.',o:[LACD2,O('rep',repr_18(false,'inactive lac repressor'),640,110),O('al',ball_18('#43aa8b',9),648,126),O('crp',crp_18(false)+T(0,34,'inactive CRP',{size:11,w:700,c:'#2a7f78'}),210,110),O('p',PV('RNA polymerase',0),390,110),O('t',T(0,0,'less likely to bind',{size:11,c:'#666'}),390,160)]},
+{c:'<b>포도당 부족</b> → 아데닐산 고리화 효소 활성화 → 세포 안 <b>cAMP 농도 증가</b>.',o:[LACD2,O('rep',repr_18(false,'inactive lac repressor'),640,110),O('al',ball_18('#43aa8b',9),648,126),O('crp',crp_18(false)+T(0,34,'inactive CRP',{size:11,w:700,c:'#2a7f78'}),210,110),O('p',PV('RNA polymerase',0),390,110),camp_18(120,70,[40,40]),camp_18(170,60,[60,20]),camp_18(260,75,[300,20]),camp_18(310,50,[340,10]),O('ct',T(0,0,'cAMP ↑',{size:14,w:800,c:'#b5651d'}),90,110)]},
+{c:'<b>cAMP가 CRP에 결합</b> → <b>active CRP</b> (activator).',o:[LACD2,O('rep',repr_18(false,'inactive lac repressor'),640,110),O('al',ball_18('#43aa8b',9),648,126),O('crp',crp_18(true)+T(0,40,'active CRP',{size:11,w:700,c:'#1f7a71'}),210,110),O('cp120',dia_18('#e9a03b'),210,92),O('p',PV('RNA polymerase',0),390,110)]},
+{c:'active CRP가 <b>CRP-binding site</b>에 결합 → RNA polymerase가 promoter에 <b>강하게 결합</b>.',o:[LACD2,O('rep',repr_18(false,''),640,110),O('al',ball_18('#43aa8b',9),648,126),O('crp',crp_18(true),233,DY-14),O('cp120',dia_18('#e9a03b'),233,DY-34),O('p',PV('RNA polymerase'),320,DY+8)]},
+{c:'전사가 활발히 일어나 <b>lac mRNA가 많이</b> 합성된다 → 젖당 분해 효소 다량 생산.',o:[LACD2,O('rep',repr_18(false,''),640,110),O('al',ball_18('#43aa8b',9),648,126),O('crp',crp_18(true),233,DY-14),O('cp120',dia_18('#e9a03b'),233,DY-34),O('p',PV('RNA polymerase'),700,DY+8),O('rna',RN(370),700,DY+8,{z:2}),O('p2',PV('RNA polymerase'),400,DY+8,{from:[320,DY+8]}),O('rna2',RN(80),400,DY+8,{z:2,from:[320,DY+8]})]}]};
+
+/* ---------- eukaryotic stages ---------- */
+const STG_18=[['chromatin modification: DNA unpacking','전사 조절',0],['transcription','전사 조절',0],['RNA processing','전사 후 조절',1],['transport to cytoplasm','전사 후 조절',1],['translation  ·  mRNA degradation','번역 조절',2],['protein processing  ·  degradation','번역 후 조절',3],['transport to cellular destination','번역 후 조절',3]];
+const stCol_18=['#3d5a80','#c2185b','#6d5a8a','#2a9d8f'];
+const flow_18=STG_18.map(([a,b,g],i)=>`<g transform="translate(0,${i*44})"><rect x="-150" y="-15" width="300" height="30" rx="7" fill="${mix(stCol_18[g],'#ffffff',.78)}" stroke="${stCol_18[g]}"/>`+T(0,5,a,{size:12,w:700,c:dk(stCol_18[g],.2)})+(i<6?`<path d="M0,15 L0,29" stroke="#666" stroke-width="2"/>`:'')+'</g>').join('')
+ +`<rect x="-175" y="-28" width="350" height="${44*4-4}" rx="12" fill="none" stroke="#7a6aa8" stroke-dasharray="5 4"/>`+T(-165,-34,'NUCLEUS',{size:11,w:800,c:'#5b4687',a:'start'})+T(-165,44*4-20,'CYTOPLASM',{size:11,w:800,c:'#8a6d2d',a:'start'});
+const hl_18=(i0,i1,g)=>`<rect x="-158" y="${i0*44-20}" width="316" height="${(i1-i0+1)*44-4}" rx="9" fill="none" stroke="${stCol_18[g]}" stroke-width="4"/>`;
+const stL_18=(t,g)=>T(0,0,t,{size:17,w:800,c:stCol_18[g]});
+M.stages={kp:'진핵생물은 같은 genome을 가진 세포라도 <b>differential gene expression</b>(서로 다른 유전자 발현)으로 다른 세포가 된다. 조절 단계: ① <b>전사 조절</b>(염색질 구조, 전사 개시) ② <b>전사 후 조절</b>(RNA processing — alternative RNA splicing, 운반) ③ <b>번역 조절</b>(번역 개시, mRNA 분해) ④ <b>번역 후 조절</b>(단백질 가공·분해). 가장 중요한 조절 지점 = <b>전사</b>.',steps:[
+{c:'진핵생물 유전자 발현의 전체 흐름. 각 단계가 조절 지점이 될 수 있다.',o:[O('f',flow_18,300,58)]},
+{c:'① <b>전사 조절</b>: 염색질 구조 변형(DNA unpacking) + 전사 개시 조절.',o:[O('f',flow_18,300,58),O('h',hl_18(0,1,0),300,58),O('l',stL_18('① 전사 조절',0),620,90)]},
+{c:'② <b>전사 후 조절</b>: RNA processing(alternative RNA splicing 등), 세포질로 운반.',o:[O('f',flow_18,300,58),O('h',hl_18(2,3,1),300,58),O('l',stL_18('② 전사 후 조절',1),620,170)]},
+{c:'③ <b>번역 조절</b>: 번역 개시 차단, mRNA 분해(수명 조절).',o:[O('f',flow_18,300,58),O('h',hl_18(4,4,2),300,58),O('l',stL_18('③ 번역 조절',2),620,240)]},
+{c:'④ <b>번역 후 조절</b>: 단백질 가공(절단, 화학적 변형), 선택적 분해, 목적지로 운반.',o:[O('f',flow_18,300,58),O('h',hl_18(5,6,3),300,58),O('l',stL_18('④ 번역 후 조절',3),620,300)]}]};
+
+/* ---------- chromatin ---------- */
+function nuc_18(tl,ac,me){let s='';const tails=[[-20,-16,-44,-40],[20,-16,44,-42],[-20,16,-46,38],[20,16,42,44]];
+ tails.forEach(([a,b,c,d],i)=>{s+=`<path d="M${a},${b} Q${(a+c)/2+(i%2?8:-8)},${(b+d)/2} ${c*tl+a*(1-tl)},${d*tl+b*(1-tl)}" stroke="#9b7cc2" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+  const ex=c*tl+a*(1-tl),ey=d*tl+b*(1-tl);if(ac>0)s+=op(`<circle cx="${ex}" cy="${ey}" r="5" fill="${gid('#52b788')}" stroke="#2d6a4f"/>`,ac);if(me>0)s+=op(`<circle cx="${ex}" cy="${ey}" r="5" fill="${gid('#e63946')}" stroke="#9d0208"/>`,me);});
+ s+=[[-9,-9],[9,-9],[-9,9],[9,9]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="11" fill="${gid('#b392d6')}" stroke="#6b4f99"/>`).join('');
+ s+=`<circle r="25" fill="none" stroke="${dk(C.tpl,.2)}" stroke-width="5"/><circle r="25" fill="none" stroke="${C.ntpl}" stroke-width="2.5"/>`;return s;}
+const NU_18=(tl,ac,me)=>({k:'nu',p:{tl,ac,me},f:q=>nuc_18(q.tl,q.ac,q.me)});
+function linker_18(xs,y){let d='';xs.forEach((x,i)=>{if(i)d+=` Q${(xs[i-1]+x)/2},${y+(i%2?24:-24)} ${x-25},${y}`;d+=(i?'':`M${x-25-40},${y}`)+` M${x+25},${y}`;});return `<path d="${d} L${xs[xs.length-1]+70},${y}" stroke="${dk(C.tpl,.2)}" stroke-width="5" fill="none"/>`;}
+const xsC_18=[300,345,390,435,480],xsL_18=[140,270,400,530,660];
+const NUs_18=(xs,tl,ac,me,y=200)=>xs.map((x,i)=>O('n'+i,NU_18(tl,ac,me),x,y));
+const LK_18=(xs,y=200)=>({k:'lk',p:{a:xs[0],b:xs[1],c:xs[2],d:xs[3],e:xs[4],y},f:q=>linker_18([q.a,q.b,q.c,q.d,q.e],0)});
+const ch3_18=(xs)=>xs.map(x=>`<g transform="translate(${x},0)"><circle r="6" fill="${gid('#e63946')}" stroke="#9d0208"/>`+T(0,-11,'CH₃',{size:9,w:700,c:'#9d0208'})+'</g>').join('');
+M.chromatin={kp:'<b>heterochromatin</b>(고도로 응축) 내 유전자는 보통 발현 X. <b>histone acetylation</b>: histone tail의 아미노산에 <b>acetyl group</b> 부착 → 염색질이 <b>느슨해져</b>(탈응축) 전사 개시 <b>촉진</b>. <b>histone methylation</b>: 염색질 <b>응축</b> → 전사 감소. <b>DNA methylation</b>: DNA 특정 염기에 <b>메틸기</b> → 전사 감소, 세포 분화에서 <b>장기적 불활성화</b>. 정리: acetylation 은 히스톤에만(DNA X) = 전사 촉진 / methylation 은 DNA · 히스톤 모두 = 전사 억제. 이런 변형은 서열을 바꾸지 않고 다음 세대 세포로 전달 = <b>epigenetic inheritance</b>.',steps:[
+{c:'<b>nucleosome</b> = histone 8개에 DNA가 감긴 단위. 각 histone의 <b>tail</b>이 바깥으로 튀어나와 화학적 변형을 받을 수 있다.',o:[...NUs_18(xsC_18,1,0,0),O('lk',LK_18(xsC_18),0,200),O('t',LBL_18('compact: DNA not accessible for transcription','#555',12),390,300)]},
+{c:'응축된 상태: RNA polymerase·전사인자가 DNA에 <b>접근하지 못함</b>.',o:[...NUs_18(xsC_18,1,0,0),O('lk',LK_18(xsC_18),0,200),O('t',LBL_18('compact: DNA not accessible for transcription','#555',12),390,300),O('p',PV('RNA polymerase',0),640,110),O('x',xmark_18,560,150)]},
+{c:'<b>histone acetylation</b>: tail 아미노산에 <b>acetyl group</b>(초록)이 붙는다.',o:[...NUs_18(xsC_18,1,1,0),O('lk',LK_18(xsC_18),0,200),O('t',LBL_18('acetylated histone tails','#2d6a4f',12),390,300),O('p',PV('RNA polymerase',0),640,110)]},
+{c:'acetylation → 염색질이 <b>느슨해짐</b>(탈응축) → DNA가 노출되어 <b>전사 가능</b>.',o:[...NUs_18(xsL_18,1,1,0),O('lk',LK_18(xsL_18),0,200),O('t',LBL_18('looser: DNA accessible for transcription','#2d6a4f',12),400,300),O('p',PV('RNA polymerase',1),335,208)]},
+{c:'반대로 <b>histone methylation</b>(빨강)은 염색질을 <b>응축</b>시켜 전사를 <b>감소</b>시킨다.',o:[...NUs_18(xsC_18,1,0,1),O('lk',LK_18(xsC_18),0,200),O('t',LBL_18('methylated: condensed, transcription ↓','#9d0208',12),390,300),O('p',PV('RNA polymerase',0),640,110,{o:.4})]},
+{c:'<b>DNA methylation</b>: DNA 특정 염기에 <b>메틸기(CH₃)</b>가 붙음 → 전사 감소, 세포 분화에서 유전자의 <b>장기적 불활성화</b>.',o:[O('dd',dna(560,false),130,170),O('m',ch3_18([60,170,250,390,470]),130,165,{from:[130,60]}),O('t',LBL_18('DNA methylation → long-term inactivation','#9d0208',12),410,240)]},
+{c:'복제된 딸 DNA에도 메틸화 패턴이 그대로 전달 → DNA 서열은 그대로인데 형질이 전달 = <b>epigenetic inheritance</b>.',o:[O('dd',dna(560,false),130,120),O('m',ch3_18([60,170,250,390,470]),130,115),O('dd2',dna(560,false),130,250,{from:[130,120]}),O('m2',ch3_18([60,170,250,390,470]),130,245,{from:[130,115]}),O('t',LBL_18('epigenetic inheritance: 서열 변화 없이 다음 세대 세포로','#5e3a70',12),410,330)]}]};
+
+/* ---------- enhancer / activator / DNA bending ---------- */
+const ENH_18=[[70,92,'#e76f51'],[100,122,'#f4a261'],[130,152,'#e9c46a']],PROX_18=[380,415],PROM_18=[430,500],GENE_18=[500,740];
+function bentPts_18(b){const N=180,pts=[];const Ls=740,L1=170,La=Math.PI*75,L2=480,Lb=L1+La+L2;
+ for(let i=0;i<=N;i++){const u=i/N,sx=40+u*Ls,sy=0;let s=u*Lb,bx,by;
+  if(s<L1){bx=470-s;by=-150;}else if(s<L1+La){const th=(s-L1)/75;bx=300-75*Math.sin(th);by=-75-75*Math.cos(th);}else{bx=300+(s-L1-La);by=0;}
+  pts.push([lp(sx,bx,b),lp(sy,by,b)]);}return pts;}
+const ptAt_18=(b,x)=>{const P=bentPts_18(b);const i=Math.round((x-40)/740*180);return P[Math.max(0,Math.min(180,i))];};
+function bentSvg_18(p){const P=bentPts_18(p.b);const seg=(x0,x1)=>{const i0=Math.round((x0-40)/740*180),i1=Math.round((x1-40)/740*180);return P.slice(i0,i1+1).map((q,k)=>(k?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1)).join('');};
+ const all=P.map((q,k)=>(k?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1)).join('');
+ let s=`<path d="${all}" stroke="${dk(C.tpl,.3)}" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${all}" stroke="${C.ntpl}" stroke-width="11" fill="none" stroke-linejoin="round"/>`;
+ ENH_18.forEach(([a,b2,c])=>s+=`<path d="${seg(a,b2)}" stroke="${c}" stroke-width="12" fill="none"/>`);
+ s+=`<path d="${seg(PROX_18[0],PROX_18[1])}" stroke="#c77dff" stroke-width="12" fill="none"/><path d="${seg(PROM_18[0],PROM_18[1])}" stroke="#3fae5a" stroke-width="12" fill="none"/><path d="${seg(PROM_18[0]+20,PROM_18[0]+42)}" stroke="#ffd166" stroke-width="12" fill="none"/><path d="${seg(GENE_18[0],GENE_18[1])}" stroke="#1f4e8c" stroke-width="12" fill="none"/>`;
+ const lab=(x,t,c,dy=26)=>{const q=ptAt_18(p.b,x);return T(q[0],q[1]+dy,t,{size:11.5,w:800,c});};
+ s+=lab(111,'enhancer (distal control elements)','#b5651d',p.b>.5?-16:30)+lab(397,'proximal','#7b2cbf',30)+lab(452,'TATA box','#8a6d00',30)+lab(620,'gene','#1f4e8c',30)+lab(470,'promoter','#2e7d32',46);
+ return s;}
+const BD_18=b=>O('bd',{k:'bd',p:{b},f:bentSvg_18},0,300);
+const act_18=(c)=>`<path d="M-11,10 L-11,-4 Q-11,-14 0,-14 Q11,-14 11,-4 L11,10 Z" fill="${gid(c)}" stroke="${dk(c,.35)}"/><circle cy="-20" r="6" fill="${gid(c)}" stroke="${dk(c,.35)}"/>`;
+const ACT_18=(b,yo,f)=>ENH_18.map(([a,b2,c],i)=>{const q=ptAt_18(b,(a+b2)/2);return O('a'+i,act_18(c),q[0],300+q[1]+(b>.5?24:-26)+yo,f?{from:[q[0],120]}:{});});
+const gtf_18=(i)=>blob(13,11,['#9ad1d4','#f4a6a6','#a8d48f','#f1cf6a'][i%4],'#555','',9);
+const medi_18=[[0,0],[16,-8],[30,2],[12,12],[-14,10],[-4,-14]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="11" fill="${gid('#7b5ea7')}" stroke="#4a2f73"/>`).join('');
+M.enhancer={kp:'<b>general transcription factors</b>(보편 전사인자): 모든 단백질 코딩 유전자 전사에 필수, 일부는 promoter의 <b>TATA box</b>에 결합, 다른 전사인자·<b>RNA polymerase Ⅱ</b>와 결합. <b>specific transcription factors</b>(특수 전사인자): <b>proximal control elements</b>(promoter 가까이) / <b>enhancer</b> = distal control elements(유전자에서 멀리 떨어져 있거나 <b>intron</b>에 있을 수도 있음, 보통 한 유전자에만 연관). <b>activator</b>: enhancer에 결합해 전사 촉진(domain 2개: bind DNA, activates transcription) ↔ <b>repressor</b>(silencer와 결합, 발현 억제). <b>DNA-bending protein</b>이 DNA를 구부려 activator를 promoter 쪽 <b>mediator proteins</b>·보편 전사인자와 만나게 함 → <b>transcription initiation complex</b>.',steps:[
+{c:'진핵 유전자: 멀리 상류의 <b>enhancer</b>(distal control elements 여러 개), promoter 가까이의 <b>proximal control elements</b>, <b>promoter(TATA box)</b>, 유전자.',o:[BD_18(0)]},
+{c:'<b>activator</b>들이 enhancer의 각 control element에 결합한다 (특수 전사인자).',o:[BD_18(0),...ACT_18(0,0,true)]},
+{c:'<b>DNA-bending protein</b>이 결합해 DNA를 <b>구부린다</b> → 멀리 있던 enhancer와 activator가 promoter 가까이로 온다.',o:[BD_18(1),...ACT_18(1,0),O('bp',blob(20,15,'#ffb4a2','#b5651d','',9)+T(-30,4,'DNA-bending protein',{size:11,w:700,c:'#b5651d',a:'end'}),222,225,{from:[120,300]})]},
+{c:'promoter에는 <b>general transcription factors</b>와 <b>mediator proteins</b>, <b>RNA polymerase Ⅱ</b>가 모인다.',o:[BD_18(1),...ACT_18(1,0),O('bp',blob(20,15,'#ffb4a2','#b5651d','',9),222,225),O('g0',gtf_18(0),400,282,{from:[420,60]}),O('g1',gtf_18(1),425,280,{from:[470,40]}),O('g2',gtf_18(2),450,282,{from:[520,60]}),O('md',medi_18+T(60,0,'mediator proteins',{size:11,w:700,c:'#4a2f73',a:'start'}),400,228,{from:[650,120]}),O('p2',PV('RNA polymerase Ⅱ',0),470,306,{from:[700,200]})]},
+{c:'activator가 mediator·보편 전사인자와 상호작용 → <b>transcription initiation complex</b> 완성 → <b>RNA synthesis</b>.',o:[BD_18(1),...ACT_18(1,0),O('bp',blob(20,15,'#ffb4a2','#b5651d','',9),222,225),O('g0',gtf_18(0),400,282),O('g1',gtf_18(1),425,280),O('g2',gtf_18(2),450,282),O('md',medi_18,400,228),O('p2',PV('RNA polymerase Ⅱ',1),640,306),O('rna',RN(140),640,306,{z:2}),O('t',LBL_18('transcription initiation complex','#5a3f10',12),430,360)]}]};
+
+/* ---------- combinatorial control ---------- */
+const CE_18={A:'#e76f51',B:'#2a9d8f',C:'#e9c46a',D:'#8e6cbf',E:'#4ea3c9'};
+const gline_18=(els,gname,gc)=>`<line x1="0" y1="0" x2="330" y2="0" stroke="${dk(C.tpl,.2)}" stroke-width="9" stroke-linecap="round"/><line x1="0" y1="0" x2="330" y2="0" stroke="${C.ntpl}" stroke-width="5"/>`+els.split('').map((k,i)=>`<rect x="${20+i*24}" y="-7" width="20" height="14" rx="3" fill="${CE_18[k]}"/>`).join('')+`<rect x="150" y="-7" width="40" height="14" rx="3" fill="#3fae5a"/><rect x="190" y="-7" width="130" height="14" rx="3" fill="${gc}"/>`+T(255,4,gname,{size:11,w:800,c:'#fff'})+T(56,-14,'enhancer',{size:10,c:'#555'})+T(170,-14,'promoter',{size:10,c:'#555'});
+const cAct_18=(k)=>act_18(CE_18[k]);
+const cell_18=(t)=>`<rect x="-195" y="-150" width="390" height="300" rx="22" fill="#f7f1ff" stroke="#b39ddb"/>`+T(0,-128,t,{size:13,w:800,c:'#5e3a70'});
+function combo_18(stage){const o=[O('c1',cell_18('liver cell (간세포) nucleus'),205,200),O('c2',cell_18('lens cell (수정체 세포) nucleus'),615,200),
+ O('l1',gline_18('ABC','albumin','#1f4e8c'),40,150),O('l2',gline_18('ADE','crystallin','#c2185b'),40,270),O('r1',gline_18('ABC','albumin','#1f4e8c'),450,150),O('r2',gline_18('ADE','crystallin','#c2185b'),450,270)];
+ const liver=['A','B','C'],lens=['A','D','E'];
+ const place=(set,ox,pre)=>set.forEach((k,i)=>{const tgtA='ABC'.indexOf(k),tgtB='ADE'.indexOf(k);
+  let x=ox+40+i*40,y=95;
+  if(stage>=2){if(pre==='L'){x=ox+30+tgtA*24;y=128;}else{x=ox+30+tgtB*24;y=248;}}
+  o.push(O(pre+k,cAct_18(k),x,y,stage===1?{from:[x,30]}:{}));});
+ if(stage>=1){place(liver,40,'L');place(lens,450,'R');}
+ if(stage>=3){o.push(O('e1',arrow(0,0,70,0,'#1f4e8c')+T(35,-8,'albumin 발현',{size:11,w:800,c:'#1f4e8c'}),260,180));o.push(O('n1',T(0,0,'crystallin 발현 X',{size:11,w:700,c:'#999'}),300,300));
+  o.push(O('e2',arrow(0,0,70,0,'#c2185b')+T(35,-8,'crystallin 발현',{size:11,w:800,c:'#c2185b'}),670,300));o.push(O('n2',T(0,0,'albumin 발현 X',{size:11,w:700,c:'#999'}),710,180));}
+ return o;}
+M.combo={kp:'<b>combinatorial control</b>(조합 조절): 조절 요소의 종류는 적지만 enhancer마다 조절 요소의 <b>조합</b>이 다르다. 간세포와 수정체 세포는 <b>같은 DNA</b>를 가지지만, 세포마다 가진 <b>activator의 조합</b>이 달라 간세포는 albumin, 수정체 세포는 crystallin만 발현.',steps:[
+{c:'<b>간세포와 수정체 세포의 DNA는 같다</b>: albumin 유전자와 crystallin 유전자 모두 있고, 각 enhancer는 서로 다른 <b>조절 요소 3개의 조합</b>(색깔).',o:combo_18(0)},
+{c:'세포마다 <b>이용 가능한 activator</b>가 다르다: 간세포 = 빨강·청록·노랑 / 수정체 세포 = 빨강·보라·하늘.',o:combo_18(1)},
+{c:'activator는 자기와 맞는 조절 요소에 결합. 간세포는 <b>albumin enhancer</b>를, 수정체 세포는 <b>crystallin enhancer</b>를 모두 채운다.',o:combo_18(2)},
+{c:'조절 요소가 모두 채워진 유전자만 발현 → 간세포는 <b>albumin</b>, 수정체 세포는 <b>crystallin</b> = 세포 유형 특이적 전사.',o:combo_18(3)}]};
+
+/* ---------- miRNA ---------- */
+const hairpin_18=`<path d="M-90,0 L-10,0 C10,0 12,-24 -10,-24 L-90,-24" stroke="${C.rna}" stroke-width="5" fill="none" stroke-linecap="round"/>`+[...Array(8)].map((_,i)=>`<line x1="${-82+i*9}" y1="-3" x2="${-82+i*9}" y2="-21" stroke="#555" stroke-width="1.3"/>`).join('')+T(-50,22,'miRNA precursor (hairpin)',{size:11,w:700,c:C.rna});
+const dicer_18=blob(26,20,'#ffb4a2','#b5651d','Dicer',10);
+const ds_18=`<path d="M0,0 L60,0 M0,-12 L60,-12" stroke="${C.rna}" stroke-width="5"/>`+[...Array(6)].map((_,i)=>`<line x1="${6+i*10}" y1="-3" x2="${6+i*10}" y2="-9" stroke="#555"/>`).join('');
+const ss_18=(c=C.rna)=>`<path d="M0,0 L60,0" stroke="${c}" stroke-width="5" stroke-linecap="round"/>`;
+const misc_18=`<ellipse rx="70" ry="22" fill="${gid('#8e6cbf')}" stroke="#4a2f73"/><path d="M-40,8 L40,8" stroke="#ffb703" stroke-width="5"/>`+T(0,-30,'miRNA-protein complex',{size:11,w:800,c:'#4a2f73'});
+const tgt_18=(w=420)=>`<path d="M0,0 L${w},0" stroke="${C.rna}" stroke-width="6" stroke-linecap="round"/>`+T(-8,4,"5′",{size:11,c:C.rna,a:'end'})+T(w+8,4,"3′",{size:11,c:C.rna,a:'start'})+T(w/2,24,'target mRNA',{size:11,w:700,c:C.rna});
+const frag_18=[...Array(9)].map((_,i)=>`<path d="M${(i%3)*26},${Math.floor(i/3)*16} l14,${i%2?6:-6}" stroke="${C.rna}" stroke-width="4" stroke-linecap="round"/>`).join('');
+M.mirna={kp:'<b>microRNA(miRNA)</b>: 자기 유전체(게놈)에서 만들어져 짧은 <b>hairpin_18</b>을 형성하는 RNA → <b>Dicer</b>가 잘라 약 22 nt → <b>miRNA-protein complex</b> → 표적 mRNA와 염기쌍(≥7 nt). 염기가 <b>완전히 상보적이면 mRNA 분해</b>, <b>덜 맞으면 번역 차단</b>. <b>siRNA</b>(small interfering RNA): 외인성(ex. 바이러스) <b>dsRNA</b>에서 유래, 같은 방식. 이렇게 소형 RNA로 발현을 억제 = <b>RNA interference(RNAi)</b>.',steps:[
+{c:'miRNA 유전자가 전사되어 RNA가 스스로 접혀 <b>hairpin_18</b>(miRNA precursor)을 만든다.',o:[O('hp',hairpin_18,230,150)]},
+{c:'<b>Dicer</b>가 hairpin을 잘라 약 22 nt의 짧은 이중가닥 RNA를 만든다.',o:[O('hp',hairpin_18,230,150,{o:.3}),O('dc',dicer_18,250,110,{from:[420,60]}),O('ds',ds_18,420,150,{from:[160,150]})]},
+{c:'한 가닥은 분해되고, 남은 단일가닥 <b>miRNA</b>가 단백질과 결합 → <b>miRNA-protein complex</b>.',o:[O('dc',dicer_18,250,110,{o:0}),O('ds',ss_18(),420,150,{o:0}),O('mc',misc_18,410,120,{from:[450,150]})]},
+{c:'miRNA-protein complex가 miRNA와 상보적인 서열(최소 7 nt)을 가진 <b>target mRNA</b>에 결합한다.',o:[O('mc',misc_18,410,232),O('tm',tgt_18(),200,240,{from:[200,330]})]},
+{c:'염기가 <b>완전히 상보적</b>이면 → <b>mRNA degraded</b> (분해).',o:[O('mc',misc_18,410,232,{o:.3}),O('fr',frag_18+T(26,62,'mRNA degraded',{size:12,w:800,c:'#c1121f'}),380,240,{from:[400,240]})]},
+{c:'상보성이 <b>덜 완전</b>하면 → <b>translation blocked</b> (리보솜이 번역하지 못함).',o:[O('mc',misc_18,410,232),O('tm',tgt_18(),200,240),O('rb',blob(30,22,'#b9a6d1','#6d5a8a','ribosome',10),280,180,{from:[280,120]}),O('x',xmark_18+T(0,-18,'translation blocked',{size:12,w:800,c:'#c1121f'}),330,170)]}]};
+
+/* ---------- protein degradation ---------- */
+const prot_18=`<path d="M-40,0 C-30,-30 0,-34 10,-10 C20,14 40,10 44,-6 C50,-26 30,-40 18,-30" stroke="${C.prot}" stroke-width="7" fill="none" stroke-linecap="round"/>`;
+const ub_18=ball_18('#ffd166',7);
+const pr_18=`<rect x="-40" y="-46" width="80" height="92" rx="16" fill="${gid('#90a4ae')}" stroke="#455a64"/><ellipse cy="-46" rx="40" ry="10" fill="#cfd8dc" stroke="#455a64"/><ellipse cy="-46" rx="16" ry="5" fill="#455a64"/>`+T(0,70,'proteasome',{size:12,w:800,c:'#455a64'});
+const pieces_18=[...Array(6)].map((_,i)=>`<path d="M${(i%3)*22},${Math.floor(i/3)*18} l12,0" stroke="${C.prot}" stroke-width="6" stroke-linecap="round"/>`).join('');
+M.protdeg={kp:'번역 후 폴리펩타이드는 <b>절단·화학적 변형</b>을 포함한 처리 과정을 거침(접힘은 chaperone 이 도움). 단백질이 작동하는 기간은 <b>selective degradation</b>으로 조절: 세포는 <b>ubiquitin</b>을 단백질에 붙여 분해 대상임을 표시 → <b>proteasome</b>이 표시를 인식하고 단백질을 분해.',steps:[
+{c:'분해되어야 할 단백질이 있다.',o:[O('p',prot_18,200,200)]},
+{c:'효소가 단백질에 <b>ubiquitin</b>(노랑)을 여러 개 붙여 분해 대상으로 <b>표시</b>한다.',o:[O('p',prot_18,200,200),O('u1',ub_18,218,166,{from:[100,80]}),O('u2',ub_18,226,152,{from:[120,60]}),O('u3',ub_18,236,140,{from:[140,40]}),O('t',LBL_18('ubiquitin','#b08800',12),270,130)]},
+{c:'<b>proteasome</b>이 ubiquitin 표시를 인식해 단백질을 안으로 들인다.',o:[O('p',prot_18,470,200,{s:.6}),O('u1',ub_18,470,150),O('u2',ub_18,482,142),O('u3',ub_18,494,134),O('ps',pr_18,480,220,{from:[680,220]})]},
+{c:'단백질은 작은 펩타이드 조각으로 <b>분해</b>되고, ubiquitin은 재사용된다.',o:[O('ps',pr_18,480,220),O('pc',pieces_18,600,250,{from:[480,230]}),O('u1',ub_18,380,120),O('u2',ub_18,400,110),O('u3',ub_18,420,120)]}]};
+
+/* ---------- cytoplasmic determinants & induction ---------- */
+function egg_18(p){let s=`<circle r="62" fill="${gid('#fde2c4')}" stroke="#c08552"/>`;for(let i=0;i<14;i++){const a=-Math.PI*0.95+i*0.135*Math.PI/1.0;s+=`<path d="M${(48*Math.cos(a)).toFixed(1)},${(-Math.abs(40*Math.sin(a))-8).toFixed(1)} l5,-8 l5,8 Z" fill="#2a9d8f"/>`;}
+ for(let i=0;i<12;i++){const a=Math.PI*0.1+i*0.07*Math.PI;s+=`<circle cx="${(44*Math.cos(a)-10).toFixed(1)}" cy="${(30+10*Math.sin(i)).toFixed(1)}" r="4" fill="#e76f51"/>`;}
+ return s+`<circle r="12" fill="${gid('#9b7cc2')}" stroke="#5e3a70"/>`;}
+const half_18=(top)=>{let s=`<circle r="44" fill="${gid('#fde2c4')}" stroke="#c08552"/>`;for(let i=0;i<8;i++)s+=top?`<path d="M${-30+i*8},${-10-((i*7)%10)} l5,-8 l5,8 Z" fill="#2a9d8f"/>`:`<circle cx="${-26+i*8}" cy="${(i*5)%14}" r="4" fill="#e76f51"/>`;return s+`<circle r="10" fill="${gid('#9b7cc2')}" stroke="#5e3a70"/>`;};
+const sperm_18=`<ellipse rx="9" ry="6" fill="#ddd" stroke="#888"/><path d="M9,0 C30,-10 40,10 70,0" stroke="#999" stroke-width="2" fill="none"/>`;
+const sigCell_18=`<rect x="-120" y="-70" width="240" height="140" rx="14" fill="#fff6e8" stroke="#e9b44c"/><path d="M-120,30 L120,30" stroke="#e9b44c" stroke-width="3"/>`+T(-110,-52,'target cell',{size:11,w:700,c:'#8a5a00',a:'start'})+`<ellipse cx="0" cy="-28" rx="40" ry="22" fill="#e6d7f5" stroke="#8e6cbf"/>`+T(0,-24,'NUCLEUS',{size:10,w:800,c:'#5e3a70'})+[-60,0,60].map(x=>`<path d="M${x-6},30 l0,-10 l12,0 l0,10" fill="#2a9d8f"/>`).join('');
+M.determ={kp:'<b>cytoplasmic determinant</b>: 초기 발생에 영향을 주는 난자의 <b>모계 기원 물질</b>(RNA, 단백질 등). 미수정란 세포질에 <b>불균등하게 분포</b> → zygote가 mitosis로 분열하면 세포마다 다른 cytoplasmic determinant → <b>서로 다른 유전자 발현</b>. <b>induction</b>(유도): 인근 배아 세포의 신호가 표적세포에 변화를 유발해 운명에 영향 → 세포 간 상호작용이 특화된 세포의 differentiation을 유도.',steps:[
+{c:'<b>unfertilized egg_18</b>: 세포질에 두 종류의 <b>cytoplasmic determinant</b>(삼각형·점)가 <b>불균등하게</b> 분포.',o:[O('eg',egg_18(),220,190)]},
+{c:'<b>fertilization</b>: 정자가 들어와 <b>zygote</b>(수정란)가 된다.',o:[O('eg',egg_18(),220,190),O('sp',sperm_18,300,190,{from:[420,190]}),O('t',LBL_18('zygote (fertilized egg)','#8a5a00',12),220,290)]},
+{c:'<b>mitotic cell division</b> → 2세포기 배아: 각 세포가 <b>서로 다른 determinant</b>를 받아 다른 유전자를 발현.',o:[O('h1',half_18(true),220,135,{from:[220,190]}),O('h2',half_18(false),220,235,{from:[220,190]}),O('t',LBL_18('two-celled embryo','#8a5a00',12),220,315)]},
+{c:'<b>induction</b>: 인근 세포의 <b>signaling molecule</b>이 표적세포의 <b>receptor</b>에 결합.',o:[O('h1',half_18(true),120,135,{s:.7}),O('h2',half_18(false),120,235,{s:.7}),O('sc',sigCell_18,540,190),O('s1',ball_18('#e76f51',6),480,250,{from:[480,340]}),O('s2',ball_18('#e76f51',6),540,250,{from:[560,350]}),O('s3',ball_18('#e76f51',6),600,250,{from:[620,340]})]},
+{c:'<b>signal transduction pathway</b> → 핵 안의 유전자 발현이 바뀌어 세포 운명이 결정된다.',o:[O('h1',half_18(true),120,135,{s:.7}),O('h2',half_18(false),120,235,{s:.7}),O('sc',sigCell_18,540,190),O('s1',ball_18('#e76f51',6),480,214),O('s2',ball_18('#e76f51',6),540,214),O('s3',ball_18('#e76f51',6),600,214),O('ar',arrow(480,205,525,170,'#c1121f')+arrow(540,205,540,172,'#c1121f')+arrow(600,205,555,170,'#c1121f'),0,0),O('t',LBL_18('gene expression 변화','#c1121f',12),540,95)]}]};
+
+/* ---------- myoD sequential ---------- */
+const gbar_18=(on,lab,c='#1f4e8c')=>`<rect x="0" y="-9" width="110" height="18" rx="4" fill="${on?gid(c):'#c9cfd6'}" stroke="${on?dk(c,.3):'#9aa3ad'}"/>`+T(55,4,lab,{size:10.5,w:800,c:on?'#fff':'#555'})+T(55,-16,on?'ON':'OFF',{size:10,w:800,c:on?'#2e7d32':'#999'});
+const myodP_18=`<path d="M-9,12 L-9,-2 Q-9,-12 0,-12 Q9,-12 9,-2 L9,12" stroke="#5e3a70" stroke-width="3" fill="${gid('#e0c3fc')}"/>`;
+const cellS_18=(t,c)=>`<path d="M-50,0 C-30,-26 30,-26 50,0 C30,26 -30,26 -50,0 Z" fill="${gid(c)}" stroke="${dk(c,.3)}"/><circle r="10" fill="#7b5ea7"/>`+T(0,40,t,{size:11,w:800,c:'#333'});
+const fiber_18=`<rect x="-60" y="-20" width="120" height="40" rx="18" fill="${gid('#e76f51')}" stroke="#9d3b25"/>`+[...Array(9)].map((_,i)=>`<line x1="${-52+i*13}" y1="-16" x2="${-52+i*13}" y2="16" stroke="#9d3b25" stroke-width="1"/>`).join('')+T(0,40,'muscle fiber (fully differentiated)',{size:11,w:800,c:'#333'});
+const MYO_18=(s)=>{const o=[O('g1',gbar_18(s>=1,'myoD (master)','#5e3a70'),260,90),O('g2',gbar_18(s>=3,'muscle gene','#1f4e8c'),420,90),O('g3',gbar_18(s>=3,'muscle gene','#1f4e8c'),560,90)];
+ o.push(O('cl',s<2?cellS_18('embryonic precursor cell','#c7e9c0'):s<4?cellS_18('myoblast (determined)','#a8dadc'):fiber_18,110,200));
+ if(s>=1)o.push(O('mm',mline_18(80,'mRNA'),275,150,{from:[275,100]}));
+ if(s>=2)o.push(O('mp',myodP_18+T(0,30,'MyoD protein (transcription factor)',{size:11,w:700,c:'#5e3a70'}),315,210,{from:[315,160]}));
+ if(s>=3){o.push(O('fb',`<path d="M0,0 C0,-40 -40,-40 -50,-70" stroke="#5e3a70" stroke-width="2" fill="none" stroke-dasharray="4 3"/>`+`<path d="M0,0 C40,-50 120,-50 150,-70 M0,0 C80,-60 240,-50 290,-70" stroke="#5e3a70" stroke-width="2" fill="none" stroke-dasharray="4 3"/>`,315,190));o.push(O('m2',mline_18(70,'mRNA'),440,150,{from:[440,100]}));o.push(O('m3',mline_18(70,'mRNA'),580,150,{from:[580,100]}));}
+ if(s>=4)o.push(O('pp',T(0,0,'myosin, 다른 근육 단백질, 세포 주기 차단 단백질',{size:12,w:800,c:'#9d3b25'}),520,250,{from:[520,160]}));
+ return o;};
+M.myod={kp:'<b>determination</b>: 배아세포가 <b>비가역적</b>으로 특정 세포 유형으로 운명이 정해짐 → determination이 differentiation보다 <b>먼저</b>. <b>cell_18 differentiation</b>은 <b>tissue-specific protein</b>을 암호화하는 유전자의 발현에 기인. 근육: <b>master regulatory gene myoD</b> 발현 → <b>MyoD protein</b>(전사인자) → myoblast로 결정 → MyoD가 자기 자신(myoD)과 다른 근육 특이적 유전자·다른 전사인자를 활성화 → myosin 등 근육 단백질 → 근섬유(완전히 분화된 세포).',steps:[
+{c:'<b>embryonic precursor cell_18</b>: 핵 안의 <b>master regulatory gene myoD</b>와 다른 근육 특이적 유전자가 모두 <b>OFF</b>.',o:MYO_18(0)},
+{c:'신호에 의해 <b>myoD</b>가 켜져 mRNA가 만들어진다.',o:MYO_18(1)},
+{c:'mRNA가 번역되어 <b>MyoD protein</b>(전사인자) 생성 → 세포가 <b>myoblast</b>로 운명이 정해짐 = <b>determination</b>.',o:MYO_18(2)},
+{c:'MyoD가 <b>myoD 자신</b>과 <b>다른 근육 특이적 유전자</b>(다른 전사인자 포함)의 발현을 차례로 켠다 = 순차적 조절.',o:MYO_18(3)},
+{c:'근육 단백질이 만들어져 <b>muscle fiber_18</b>(완전히 분화된 세포)가 된다 = <b>differentiation</b>.',o:MYO_18(4)}]};
+
+/* ---------- bicoid ---------- */
+function embryo_18(p){const id='bcd'+Math.round(p.g*100)+'_'+Math.round(p.m*100);let s=`<defs><linearGradient id="${id}" x1="0" x2="1"><stop offset="0" stop-color="#c1121f" stop-opacity="${(.9*p.g).toFixed(2)}"/><stop offset="${(.15+.45*p.g).toFixed(2)}" stop-color="#c1121f" stop-opacity="${(.25*p.g).toFixed(2)}"/><stop offset="1" stop-color="#c1121f" stop-opacity="0"/></linearGradient></defs>`;
+ s+=`<ellipse rx="170" ry="66" fill="#fff8e6" stroke="#c08552" stroke-width="2"/><ellipse rx="170" ry="66" fill="url(#${id})"/>`;
+ if(p.m>0)s+=op(`<ellipse cx="-150" cy="0" rx="16" ry="22" fill="#1d3557" opacity=".8"/>`,p.m);
+ if(p.seg>0)s+=op([...Array(9)].map((_,i)=>`<line x1="${-120+i*30}" y1="-58" x2="${-120+i*30}" y2="58" stroke="#8a6d2d" stroke-width="1.5"/>`).join(''),p.seg);
+ return s+T(-190,4,'anterior',{size:11,w:800,c:'#555',a:'end'})+T(190,4,'posterior',{size:11,w:800,c:'#555',a:'start'});}
+const EMB_18=(g,m,seg)=>({k:'emb',p:{g,m,seg},f:embryo_18});
+M.bicoid={kp:'<b>pattern formation</b>: 조직·기관의 공간적 배열 형성, <b>major axes</b> 확립으로 시작. <b>positional information</b>: cytoplasmic determinant와 inductive signal이 제공하는 분자 신호. 초파리는 미수정란의 cytoplasmic determinant가 수정 전에 체축 결정. <b>maternal effect gene</b>(egg_18-polarity gene): 자손 유전자형과 상관없이 <b>어미 유전자</b>에 이상이 있으면 자손에 돌연변이 표현형, 수정 전에는 주로 <b>mRNA</b> 형태로 난자에 존재. <b>bicoid</b>는 몸 <b>앞쪽 절반</b>에 영향. <b>morphogen gradient hypothesis</b>: 형태형성물질(morphogen)의 분포가 배아의 축과 형태적 특성을 결정.',steps:[
+{c:'성숙한 <b>미수정란</b>: 어미(nurse cell)가 넣어 준 <b>bicoid mRNA</b>가 <b>앞쪽 끝(anterior end)</b>에 몰려 있다 (maternal effect gene).',o:[O('e',EMB_18(0,1,0),410,190),O('t',LBL_18('bicoid mRNA in mature unfertilized egg','#1d3557',12),410,300)]},
+{c:'<b>수정</b> 후 bicoid mRNA가 <b>번역</b> → Bicoid protein이 만들어져 뒤쪽으로 퍼진다.',o:[O('e',EMB_18(.5,.5,0),410,190),O('t',LBL_18('fertilization, translation of bicoid mRNA','#c1121f',12),410,300)]},
+{c:'앞쪽이 진하고 뒤로 갈수록 옅은 <b>Bicoid protein 농도 기울기</b>(gradient) 형성 = <b>morphogen</b>.',o:[O('e',EMB_18(1,0,0),410,190),O('t',LBL_18('Bicoid protein gradient in early embryo','#c1121f',12),410,300)]},
+{c:'농도가 높은 쪽에 <b>머리·가슴</b>, 낮은 쪽에 배·꼬리 구조 → <b>head-tail axis</b>, 체절 형성 = <b>positional information</b>.',o:[O('e',EMB_18(1,0,1),410,190),O('h',LBL_18('head','#c1121f',13),280,110),O('tl',LBL_18('tail','#555',13),560,110)]},
+{c:'어미가 bicoid 돌연변이면 Bicoid가 없어 <b>앞쪽 구조가 없고 양쪽 끝이 모두 꼬리</b> 구조 → morphogen gradient hypothesis의 증거.',o:[O('e',EMB_18(0,0,1),410,190),O('h',LBL_18('tail','#555',13),280,110),O('tl',LBL_18('tail','#555',13),560,110),O('t',LBL_18('bicoid mutant: 머리 없음','#9d0208',12),410,300)]}]};
 
 /* ---------- tree ---------- */
 const TREE=[{t:'전사',e:'transcription',c:'#1f4e8c',k:[
@@ -417,6 +637,10 @@ const TREE_ORG=[{t:'원핵',e:'prokaryote',c:'#2a7f62',k:[
   {t:'가공',e:'RNA processing',k:[{t:'5′ cap / poly-A tail',m:'capTail'},{t:'splicing',tag:'intron 제거',m:'splice'},{t:'alternative RNA splicing / exon shuffling',m:'alt'}]},
   {t:'번역',e:'translation',k:[{t:'개시',tag:'5′ cap ~ AUG',m:'tlInitE'},{t:'신장',tag:'A·P·E site · 공통',m:'tlElong'},{t:'종결',tag:'종결 코돈 · 공통',m:'tlTerm'},{t:'Targeting',tag:'SRP 경로',m:'srp'}]}]},
  {t:'돌연변이',e:'mutation',c:'#2a9d8f',k:[{t:'silent / missense / nonsense / frameshift',m:'mut'},{t:'CRISPR-Cas9',m:'crispr'}]}];
+/* Ch18 유전자 발현 조절 (손희창T) */
+const TREE18=[{t:'원핵 조절',e:'operon',c:'#e76f51',k:[{t:'trp operon',tag:'repressible · corepressor',m:'trp'},{t:'lac operon 음성 조절',tag:'inducible · allolactose',m:'lacNeg'},{t:'lac operon 양성 조절',tag:'cAMP · CRP',m:'lacPos'}]},
+ {t:'진핵 조절',e:'regulated at many stages',c:'#3d5a80',k:[{t:'조절 단계 개요',tag:'전사 · 전사 후 · 번역 · 번역 후',m:'stages'},{t:'1. 염색질 구조',tag:'acetylation · methylation',m:'chromatin'},{t:'2. 전사 개시',tag:'enhancer · activator',m:'enhancer'},{t:'2. 조합 조절',tag:'간세포 vs 수정체 세포',m:'combo'},{t:'3·4. miRNA / siRNA',tag:'mRNA 분해 · 번역 차단',m:'mirna'},{t:'5. 단백질 분해',tag:'ubiquitin · proteasome',m:'protdeg'}]},
+ {t:'발생과 분화',e:'differential gene expression',c:'#2a9d8f',k:[{t:'cytoplasmic determinant · induction',m:'determ'},{t:'순차적 유전자 발현',tag:'myoD',m:'myod'},{t:'축 형성',tag:'bicoid · morphogen',m:'bicoid'}]}];
 function node(n,lv,path=''){const pt=path?path+' › '+n.t:n.t;if(n.m)return `<details class="leaf" data-m="${n.m}" data-path="${pt}"><summary>${n.t}${n.e?` <span class="en">${n.e}</span>`:''}${n.tag?` <span class="tag">${n.tag}</span>`:''}</summary><div class="vh"></div></details>`;
  return `<details class="${lv===1?'lv1':''}" ${lv===1?`style="--c:${n.c}"`:''} open><summary>${n.t} <span class="en">${n.e||''}</span></summary>${n.k.map(c=>node(c,lv+1,pt)).join('')}</details>`;}
 const tree=document.getElementById('tree');
@@ -479,14 +703,18 @@ function fitCols(row){if(!row||row.children.length<2)return;row.style.gridTempla
 // 맨 아래 갈래(돌연변이)는 따로 한 줄, 나머지(전사 · 가공 · 번역 / 원핵 · 진핵)는 한 줄에 나란히
 function drawTree(view){
  tree.querySelectorAll('.vh').forEach(h=>h._v&&h._v.pause());active=null;
- const list=view==='org'?TREE_ORG:TREE,rows=[list.slice(0,-1),list.slice(-1)];
- tree.innerHTML=`<details class="lv1" open style="--c:#16181c"><summary>핵심 기작</summary>${rows.map(r=>`<div class="cols n${r.length}">${r.map(n=>node(n,1)).join('')}</div>`).join('')}</details>`;
+ const list=curCh==='18'?TREE18:view==='org'?TREE_ORG:TREE,rows=[list.slice(0,-1),list.slice(-1)];
+ tree.innerHTML=`<details class="lv1" open style="--c:#16181c"><summary>${curCh==='18'?'Ch 18 유전자 발현 조절 <span class="en">Control of gene expression</span>':'Ch 17 유전자 발현 <span class="en">Expression of genes</span>'}</summary>${rows.map(r=>`<div class="cols n${r.length}">${r.map(n=>node(n,1)).join('')}</div>`).join('')}</details>`;
  tree.querySelectorAll('details.leaf').forEach(d=>{const h=d.querySelector('.vh');h._leaf=d;d.addEventListener('toggle',()=>{
   if(d.open){if(!h._v)makeViewer(h,d.dataset.m);else h._v.play();active=h;}else if(h._v)h._v.pause();
   fitCols(d.closest('.cols'));});});
 document.querySelectorAll('.seg [data-view]').forEach(b=>{b.classList.toggle('on',b.dataset.view===view);b.setAttribute('aria-pressed',b.dataset.view===view);});
+ document.querySelector('.seg').hidden=curCh==='18';
+ document.querySelectorAll('.chs [data-ch]').forEach(b=>{b.classList.toggle('on',b.dataset.ch===curCh);b.setAttribute('aria-pressed',b.dataset.ch===curCh);});
 }
 let curView='step';try{if(localStorage.getItem(VIEW_KEY)==='org')curView='org';}catch(e){}
+let curCh='17';try{if(localStorage.getItem('bio-ch')==='18')curCh='18';}catch(e){}
+document.querySelectorAll('.chs [data-ch]').forEach(b=>b.onclick=()=>{if(b.dataset.ch===curCh)return;curCh=b.dataset.ch;try{localStorage.setItem('bio-ch',curCh);}catch(e){}drawTree(curView);});
 document.querySelectorAll('.seg [data-view]').forEach(b=>b.onclick=()=>{if(b.dataset.view===curView)return;curView=b.dataset.view;try{localStorage.setItem(VIEW_KEY,curView);}catch(e){}drawTree(curView);});
 wide.addEventListener('change',()=>tree.querySelectorAll('.cols').forEach(fitCols));   // 가로 ↔ 세로 배치가 바뀌면 열 너비 다시
 drawTree(curView);

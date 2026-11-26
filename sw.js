@@ -1,6 +1,6 @@
 // 나의 시간표 — 서비스 워커
 // 시간표 내용을 바꾼 뒤에는 아래 CACHE 버전 숫자를 꼭 올려주세요.
-const CACHE = 'dshs-study-v235';
+const CACHE = 'dshs-study-v236';
 
 const SHELL = [
   './',
@@ -12,6 +12,7 @@ const SHELL = [
   './learn-track.js',
   './vocab.html',
   './bio.html',
+  './bio2.html',
   './algograph.html',
   './icon-144.png',
   './icon-192.png',
@@ -25,7 +26,7 @@ const SHELL = [
 ];
 
 // index.html 이 아닌 따로 된 페이지 (navigate 요청에 그 파일을 줌)
-const PAGES = ['vocab', 'bio', 'calc', 'calc2', 'phys', 'phys2', 'algo', 'algograph'];
+const PAGES = ['vocab', 'bio', 'bio2', 'calc', 'calc2', 'phys', 'phys2', 'algo', 'algograph'];
 
 // 캐시해도 되는 외부 정적 파일 서버 (버전이 URL 에 박혀 있어 내용이 바뀌지 않음)
 const STATIC_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net', 'esm.sh'];

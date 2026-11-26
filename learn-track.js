@@ -7,7 +7,7 @@
   'use strict';
   var file = (location.pathname.split('/').pop() || '').replace(/\.html$/, '');
   var EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
-  var PART = { bio: 'bio', calc: 'calc', calc2: 'calc2', phys: 'phys', phys2: 'phys2', algo: 'algo', algograph: 'algograph' };   // 파일 → LEARN_SUBJECTS 의 파트 id (단어장은 주소의 #과목)
+  var PART = { bio: 'bio', bio2: 'bio2', calc: 'calc', calc2: 'calc2', phys: 'phys', phys2: 'phys2', algo: 'algo', algograph: 'algograph' };   // 파일 → LEARN_SUBJECTS 의 파트 id (단어장은 주소의 #과목)
   var NAME = /^[a-z][a-z0-9_]{0,23}$/;
   var IDLE = 120000, TICK = 5000, SEND = 30000, REOPEN = 300000;
   var top = window;
@@ -24,6 +24,7 @@
     try {
       if (file === 'vocab') { e = document.querySelector('.nav-tab.active'); if (e) s = e.dataset.tab; }
       else if (file === 'bio') { if (bioLeaf && bioLeaf.open) s = bioLeaf.dataset.m; }
+      else if (file === 'bio2') { s = document.documentElement.dataset.ch || 'home'; }   // 단원 ch21 · ch22 · ch23
       else if (file === 'algo') { s = document.documentElement.dataset.p || 'home'; }   // 코드 빈칸: 푸는 문제 id
       else { e = document.querySelector('section.view:not([hidden])'); if (e) s = e.id.replace(/^v-/, ''); }
     } catch (x) {}

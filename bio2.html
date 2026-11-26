@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>일반생물학 · 장은영T 진화 · 계통발생 · 개체군의 진화</title>
+<script>
+// dshs42.app '공부' 탭 → 일반생물학 → 장은영T (bio2.html?embed=1). Ch21 진화 · Ch22 계통발생 · Ch23 개체군의 진화.
+// 공부 탭 안에서는 사이트 밝기(data-tone)를 따르고 높이를 내용에 맞춘다 (bio.html 과 같은 방식). 따로 열면 기기 설정을 따른다.
+window.BIO_EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+window.vocabTheme = function () {
+  if (!window.BIO_EMBED) return;
+  try {
+    const tone = window.parent.document.documentElement.dataset.tone === 'light' ? 'light' : 'dark';
+    const r = document.documentElement;
+    r.dataset.theme = tone; r.style.colorScheme = tone;
+    if (window.frameElement) window.frameElement.style.colorScheme = tone;
+  } catch (e) {}
+};
+if (window.BIO_EMBED) { document.documentElement.classList.add('embed'); window.vocabTheme(); }
+</script>
+<style>
+:root{--bg:#f7f8fb;--ink:#1b1e25;--sub:#5d6474;--line:rgba(20,26,40,.13);--card:#fff;--soft:rgba(20,26,40,.045);
+  --acc:#2a7f62;--acc-bg:rgba(42,127,98,.13);--warn:#b7791f;--warn-bg:rgba(220,150,30,.15);--bad:#c2334f;--bad-bg:rgba(194,51,79,.12);--ok:#178a55;--ok-bg:rgba(23,138,85,.13);
+  --c21:#c0532d;--c22:#3d5a80;--c23:#7b4fa0;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121418;--ink:#e8eaef;--sub:#a2a9b8;--line:rgba(255,255,255,.13);--card:#1b1e25;--soft:rgba(255,255,255,.05);
+  --acc:#56c49b;--acc-bg:rgba(86,196,155,.16);--warn:#f2c46b;--warn-bg:rgba(242,196,107,.14);--bad:#ff8a9e;--bad-bg:rgba(255,138,158,.14);--ok:#5fd59a;--ok-bg:rgba(95,213,154,.15);
+  --c21:#f08a5d;--c22:#8fb3e6;--c23:#c3a1ea;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#121418;--ink:#e8eaef;--sub:#a2a9b8;--line:rgba(255,255,255,.13);--card:#1b1e25;--soft:rgba(255,255,255,.05);
+  --acc:#56c49b;--acc-bg:rgba(86,196,155,.16);--warn:#f2c46b;--warn-bg:rgba(242,196,107,.14);--bad:#ff8a9e;--bad-bg:rgba(255,138,158,.14);--ok:#5fd59a;--ok-bg:rgba(95,213,154,.15);
+  --c21:#f08a5d;--c22:#8fb3e6;--c23:#c3a1ea;color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15.5px/1.65 "Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;padding:24px 16px 48px}
+html.embed body{background:transparent;padding:4px 0 16px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:clamp(24px,3.6vw,34px);margin:0 0 6px;letter-spacing:-.4px;line-height:1.2}
+h1 .en{font-size:.55em;color:var(--sub);font-weight:600;margin-left:6px}
+.lead{color:var(--sub);margin:0 0 14px;font-size:14.5px}
+.home{display:inline-block;margin-bottom:10px;text-decoration:none;color:var(--acc);font-weight:700}
+button{font:inherit;color:inherit;cursor:pointer}
+.chs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;position:sticky;top:0;z-index:3;padding:8px 0;background:var(--bg)}
+html.embed .chs{position:static;background:transparent}
+.chs button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 15px;font-weight:700;font-size:14.5px}
+.chs button.on{color:#fff;border-color:transparent}
+.chs button[data-ch="21"].on{background:var(--c21)}.chs button[data-ch="22"].on{background:var(--c22)}.chs button[data-ch="23"].on{background:var(--c23)}
+section.ch{--c:var(--acc)}
+#c21{--c:var(--c21)}#c22{--c:var(--c22)}#c23{--c:var(--c23)}
+.chhead{border-left:5px solid var(--c);padding:2px 0 2px 14px;margin:4px 0 14px}
+.chhead h2{margin:0;font-size:22px}
+.chhead p{margin:2px 0 0;color:var(--sub);font-size:14px}
+details.sec{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 0 12px;overflow:hidden}
+details.sec>summary{list-style:none;cursor:pointer;padding:12px 16px;font-weight:800;font-size:16.5px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::before{content:"▸";color:var(--c);transition:transform .2s;display:inline-block}
+details.sec[open]>summary::before{transform:rotate(90deg)}
+details.sec>summary .en{font-weight:500;color:var(--sub);font-size:13.5px}
+.body{padding:0 16px 14px}
+.body h4{margin:14px 0 6px;font-size:15px;color:var(--c)}
+.body ul{margin:4px 0;padding-left:20px}
+.body li{margin:3px 0}
+.key{background:var(--acc-bg);border-radius:10px;padding:9px 12px;margin:8px 0}
+.trap{background:var(--bad-bg);border-radius:10px;padding:9px 12px;margin:8px 0}
+.trap b:first-child{color:var(--bad)}
+.star{color:var(--warn);font-weight:800}
+.en2{color:var(--sub);font-size:.9em}
+.tw{overflow-x:auto}
+table.t{border-collapse:collapse;font-size:14px;margin:6px 0 8px;width:100%}
+table.t th,table.t td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+table.t th{background:var(--soft);color:var(--sub);font-weight:700;white-space:nowrap}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+.box{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--soft)}
+.box h5{margin:0 0 6px;font-size:14.5px}
+/* 직접 해 보기 */
+.lab{border:1.5px dashed var(--c);border-radius:14px;padding:12px;margin:12px 0;background:var(--card)}
+.lab>.lt{font-weight:800;margin:0 0 4px}
+.lab>.lt::before{content:"🧪 "}
+.lab .hint{color:var(--sub);font-size:13.5px;margin:0 0 8px}
+.btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.btn{border:1px solid var(--line);background:var(--soft);border-radius:9px;padding:6px 12px;font-size:14px;font-weight:700}
+.btn.on,.btn.pri{background:var(--c);border-color:var(--c);color:#fff}
+svg.fig{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+svg.fig text{fill:var(--ink);font-family:inherit}
+.out{font-variant-numeric:tabular-nums;background:var(--soft);border-radius:9px;padding:8px 10px;margin-top:6px;font-size:14px}
+input[type=number],input[type=text]{font:inherit;width:90px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+input[type=range]{accent-color:var(--c)}
+/* O/X */
+.ox{list-style:none;padding:0;margin:6px 0}
+.ox li{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0;background:var(--card)}
+.ox .q{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.ox .q span{flex:1 1 240px}
+.ox .q button{border:1px solid var(--line);background:var(--soft);border-radius:8px;width:38px;height:32px;font-weight:800}
+.ox .a{display:none;margin-top:6px;font-size:14px;color:var(--sub)}
+.ox li.done .a{display:block}
+.ox li.right{border-color:var(--ok);background:var(--ok-bg)}
+.ox li.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;font-size:14px}
+.terms div{border:1px solid var(--line);border-radius:8px;padding:5px 9px;background:var(--card)}
+.terms i{font-style:normal;color:var(--sub);font-size:.88em;display:block}
+.pick{display:flex;gap:6px;flex-wrap:wrap}
+.pick button{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:5px 10px;font-weight:700}
+.pick button.right{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.pick button.wrong{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style></head><body><div class="wrap">
+<a class="home" id="bioHome" href="./" hidden>← dshs42.app</a>
+<script>if (!window.BIO_EMBED) document.getElementById("bioHome").hidden = false;</script>
+<h1>진화 · 계통발생 · 개체군의 진화 <span class="en">장은영T</span></h1>
+<p class="lead">캠벨 Ch 21 · 22 · 23 핵심 개념을 절마다 정리했어요. 🧪 칸은 값을 바꾸거나 눌러서 직접 확인해 보는 곳이고, 단원 끝에 자주 틀리는 O/X 가 있어요. <span class="star">★</span> = 수업에서 강조한 부분.</p>
+<div class="chs" role="group" aria-label="단원"><button data-ch="21">Ch 21 진화</button><button data-ch="22">Ch 22 계통발생</button><button data-ch="23">Ch 23 개체군의 진화</button></div>
+
+<!-- ═══════════════ Ch 21 ═══════════════ -->
+<section class="ch" id="c21" hidden>
+<div class="chhead"><h2>Ch 21 진화는 어떻게 작용하는가?</h2><p>How evolution works — "생물은 왜 변하나?" · 답: 진화 = 변형을 통한 계승 (descent with modification)</p></div>
+
+<details class="sec" open><summary>21.0 생명에 대한 세 가지 핵심 관찰 <span class="en">three key observations</span></summary><div class="body">
+<div class="tw"><table class="t"><tr><th>관찰</th><th>뜻 · 예</th><th>진화로 설명하면</th></tr>
+<tr><td><b>적응</b> adaptation</td><td>환경에 정교하게 맞춰진 특징 (보호색, 나뭇잎 닮은 나방)</td><td>서로 다른 환경에 적응하며 차이가 축적</td></tr>
+<tr><td><b>통일성</b> unity</td><td>모든 생물이 DNA 를 유전물질로, 같은 유전암호 사용</td><td>공통 조상에게서 물려받음</td></tr>
+<tr><td><b>다양성</b> diversity</td><td>형태 · 생활 방식이 매우 다양</td><td>공통 조상에서 갈라져 각기 다른 환경에 적응</td></tr></table></div>
+<div class="key">예) <b>꿀단지 개미</b>(honeypot ant): 적응 = 불어나는 배에 액체 음식 저장(먹이 부족기 대비) · 통일성 = 다른 개미와 같은 기본 몸 구조(머리 · 가슴 · 배, 다리 6개) · 다양성 = 배가 부푼 독특한 형태</div>
+</div></details>
+
+<details class="sec"><summary>21.1 다윈 혁명 — 전통적 견해에 대한 도전 <span class="en">The Darwinian Revolution</span></summary><div class="body">
+<ul><li><span class="star">★</span> <b>1859년</b> 다윈 『종의 기원』(On the Origin of Species) → 생물학의 새 시대</li>
+<li>좁은 의미의 진화 = 세대를 거치며 <b>개체군 내 유전적 구성이 변하는 것</b> · 다윈의 표현 = <b>변형을 통한 계승</b>(변화를 수반한 계승 · 같은 말) — 변형 → 자연선택 / 계승 → 공통 조상</li>
+<li>진화는 <b>패턴</b>(자료로 관찰된 사실)이자 <b>과정</b>(그 패턴을 만든 메커니즘)</li></ul>
+<h4>인물과 주장 (짝짓기 단골)</h4>
+<div class="tw"><table class="t"><tr><th>인물</th><th>주장</th><th>진화와의 관계</th></tr>
+<tr><td>아리스토텔레스</td><td>종은 고정 → <b>자연의 척도</b>(scala naturae)</td><td>진화 X</td></tr>
+<tr><td>린네</td><td><b>분류학</b>(taxonomy) 창시 · <b>이명법</b> · 포괄적 계층 분류</td><td>적응 = 창조주의 설계로 봄</td></tr>
+<tr><td><span class="star">★</span> 퀴비에</td><td><b>고생물학</b> · <b>대격변설</b>(catastrophism): 지층 경계 = 격변 → 멸종 → 다른 지역 종이 이주</td><td><b>멸종 O, 진화 X</b></td></tr>
+<tr><td><span class="star">★</span> 허턴 · 라이엘</td><td><b>점진주의</b>(gradualism) · 라이엘: 그 작용이 오늘도 같은 속도(<b>동일과정설</b>)</td><td>지구는 매우 오래됨 → 다윈에게 큰 영향</td></tr>
+<tr><td><span class="star">★</span> 라마르크</td><td><b>용불용설</b> + <b>획득 형질의 유전</b></td><td>증거 없어 기각 (적응을 점진적 변화로 본 점은 의미)</td></tr>
+<tr><td><span class="star">★</span> 맬서스</td><td><b>인구론</b>: 인구는 기하급수, 식량은 산술급수 → 결핍 → 생존투쟁</td><td>다윈: 자손 과잉 생산은 모든 종의 특징</td></tr>
+<tr><td>월리스</td><td>1858년 비슷한 자연선택설 원고를 다윈에게 보냄</td><td>→ 공동 발표, 1859 『종의 기원』</td></tr></table></div>
+<div class="grid2">
+<div class="box"><h5>대격변설 (퀴비에)</h5>지층 경계마다 갑작스런 격변 → 많은 종 멸종 → 다른 곳의 종이 이주해 옴. <b>멸종은 인정, 진화는 반대.</b></div>
+<div class="box"><h5>점진주의 (허턴 · 라이엘)</h5>아주 작은 변화가 오랜 시간 쌓여 큰 변화 · 지구는 아주 오래됨 → 다윈: <b>작은 변이도 오래 쌓이면 큰 변화</b>.</div></div>
+<h4>연표</h4>
+<div class="tw"><table class="t"><tr><th>연도</th><th>사건</th></tr>
+<tr><td>1795</td><td>허턴 — 점진주의</td></tr><tr><td>1798</td><td><span class="star">★</span> 맬서스 『인구론』</td></tr><tr><td>1809</td><td>라마르크 진화 가설 / 다윈 출생</td></tr>
+<tr><td>1812</td><td>퀴비에 척추동물 화석 연구</td></tr><tr><td>1830</td><td><span class="star">★</span> 라이엘 『지질학 원리』</td></tr><tr><td>1831–1836</td><td>다윈 비글호 항해</td></tr>
+<tr><td>1844</td><td>다윈 '변형을 통한 계승' 에세이 (발표 X)</td></tr><tr><td>1858</td><td>월리스 원고 → 공동 발표</td></tr><tr><td>1859</td><td><span class="star">★</span> 『종의 기원』</td></tr></table></div>
+</div></details>
+
+<details class="sec"><summary>21.2 자연선택에 의한 변형된 혈통 <span class="en">descent with modification by natural selection</span></summary><div class="body">
+<ul><li>비글호: 화석이 같은 지역 현존종과 비슷, 현존종은 인근 지역 다른 종과 비슷 → <b>갈라파고스 핀치</b>: 선인장땅핀치(길고 뾰족 · 선인장) · 초록휘파람새핀치(가늘고 뾰족 · 곤충) · 큰땅핀치(크고 두꺼움 · 씨앗)</li>
+<li><span class="star">★</span> <b>자연선택</b> = 유리한 유전적 특성을 가진 개체가 생존 · 번식할 가능성이 더 높은 경향</li>
+<li>『종의 기원』 초판에는 '진화'라는 단어가 없음 · 생명의 역사 = 가지를 가진 나무 (분기 + 멸종)</li>
+<li><b>인위선택</b>: 야생 겨자에서 꼭대기눈 → 양배추, 곁눈 → 방울양배추, 꽃 · 줄기 → 브로콜리, 줄기 → 콜라비, 잎 → 케일</li></ul>
+<h4><span class="star">★</span> 두 관찰 → 두 추론 (서술형 단골)</h4>
+<div class="tw"><table class="t">
+<tr><th>관찰 1</th><td>집단 구성원은 유전된 형질에서 다양한 <b>변이</b>(variation)를 가짐</td></tr>
+<tr><th>관찰 2</th><td>모든 종은 환경이 부양할 수 있는 것보다 훨씬 많은 자손을 만듦 = <b>과잉 생산</b> → 많은 수가 살아남지 못함</td></tr>
+<tr><th>추론 1</th><td>그 환경에서 생존 · 번식에 유리한 유전 형질을 가진 개체 → 더 많은 자손</td></tr>
+<tr><th>추론 2</th><td>차별적 생존 · 번식이 여러 세대 반복 → 유리한 형질이 <b>축적</b></td></tr></table></div>
+<div class="lab" id="lab-ns"><div class="lt">자연선택 — 세대를 넘겨 보기</div>
+<p class="hint">딱정벌레 20마리의 몸 색에 변이가 있고(유전됨), 새는 배경과 대비되는 개체를 더 잘 잡아요. '다음 세대'를 누르면 잡아먹힘 → 살아남은 개체만 번식. 도중에 배경을 바꿔 보세요.</p>
+<svg class="fig" id="nsSvg" viewBox="0 0 640 230"></svg>
+<div class="btns"><button class="btn pri" id="nsNext">다음 세대 ▶</button><button class="btn" id="nsEnv">배경 바꾸기 (어두운 흙 ↔ 밝은 모래)</button><button class="btn" id="nsReset">처음부터</button></div>
+<div class="out" id="nsOut"></div></div>
+<div class="key"><span class="star">★</span> 자연선택 3문장: ① 새 형질을 <b>만드는</b> 것이 아니라 이미 있는 형질을 <b>편집</b>(창조 X, 편집 O) ② 세대가 짧은 종에서 빠르게 일어남 ③ 어떤 형질이 선택될지는 <b>현재의 지역 환경</b>이 결정</div>
+<div class="trap"><b>서술형 함정</b> "개체가 환경에 맞게 변한다" = 라마르크식 ✗ → "변이가 있는 개체군 중 ○○ 형질을 가진 개체가 더 많이 살아남아 자손을 남겨 그 형질의 <b>빈도가 증가</b>했다" 로 쓴다.<br>기린 목 — 라마르크: 높은 잎을 먹으려 목을 늘림 → 늘어난 목이 유전 ✗ / 다윈: 목 길이에 변이 → 목이 긴 개체가 먹이 경쟁에서 유리 → 더 많이 살아남아 자손 → 긴 목 빈도 ↑</div>
+<ul><li><b>개체가 아니라 개체군이 진화</b> · 자연선택은 <b>유전되는 변이</b>만 늘리거나 줄임 · 적응은 환경에 따라 달라짐</li></ul>
+</div></details>
+
+<details class="sec"><summary>21.3 진화의 증거 <span class="en">direct observation · homology · fossil · biogeography</span></summary><div class="body">
+<h4>① 직접 관찰</h4>
+<div class="grid2">
+<div class="box"><h5><span class="star">★</span> 무환자나무 벌레 (soapberry bug)</h5>부리 길이 ≈ 씨앗까지 깊이일 때 가장 잘 먹음. 남부 플로리다(토착 <b>풍선덩굴</b>: 열매 큼, 씨앗 깊음) → 부리 김 / 중부(도입 <b>모감주나무</b>: 열매 납작) → 부리 짧아짐. 비교 기준 = 도입 전 <b>박물관 표본</b>. ⇒ 먹이가 바뀌면 선택이 바뀜, 수십 년 만에 진화.</div>
+<div class="box"><h5>MRSA</h5>페니실린 사용 2년 후 내성, 메티실린(세포벽 합성 효소 억제) 사용 2년 후 내성. MRSA 는 <b>다른 효소로 세포벽</b>을 만듦. 원래 있던 내성균이 살아남아 늘어남 (세대 짧음). 2015 새 항생제 테익소박틴.</div>
+<div class="box"><h5>구피의 몸 색</h5>암컷은 화려한 수컷 선호, 화려함은 포식자 눈에도 잘 띔. 강한 포식자(pike-cichlid) 하천 → 수수한 수컷 ↑ / 치어를 먹는 약한 포식자(killifish) 하천 → 성선택 우세, 화려한 수컷 ↑. A 의 구피를 B 로 옮기면 여러 세대 뒤 반점 수 · 면적 증가.</div>
+<div class="box"><h5>DDT 내성 모기</h5>내성 비율 4% → 45% → 77% (0 · 8 · 12개월). 살포 → 감수성 모기 죽음 → <b>원래 있던</b> 소수 내성 모기만 생존 → 경쟁자 적어 번식 유리 + 세대 약 1개월 → 내성 빈도 급증. 전 세계 확산: 여러 나라 장기 살포, 사람 · 화물 이동, 교차 내성.</div></div>
+<h4>② 상동성 homology — 공통 조상에서 기인하는 유사성</h4>
+<ul><li><b>상동기관</b>: 사람 팔 · 고양이 앞다리 · 고래 가슴지느러미 · 박쥐 날개 (같은 뼈 배열, 기능은 다름)</li>
+<li><b>비교 발생학</b>: 모든 척추동물 배아에 항문 뒤 꼬리 + <b>인두궁</b>(사람: 귀 · 목 구조, 어류: 아가미)</li>
+<li><b>흔적기관</b>: 사람 꼬리뼈 · <b>분자 상동성</b>: 같은 유전암호, 사람과 세균도 공유하는 유전자</li>
+<li>계통수적 사고: 상동성은 <b>중첩된 패턴</b>(nested pattern) — 손가락 있는 팔다리 → 양막 → 깃털</li></ul>
+<div class="key">Q. 포유류와 조류 중 양서류와 더 가까운 것은? → <b>둘 다 같다</b>. 둘 다 '손가락 있는 팔다리' 조상을 양서류와 같은 시점에 공유하고, 그 뒤 양막 조상을 서로 공유.</div>
+<div class="tw"><table class="t"><tr><th></th><th>상동성 homology</th><th>상사성 analogy</th></tr>
+<tr><th>원인</th><td>공통 조상</td><td><b>수렴 진화</b>: 멀리 떨어진 집단이 비슷한 환경에 독립 적응</td></tr>
+<tr><th>기능</th><td>다를 수 있음</td><td>비슷함</td></tr>
+<tr><th>예</th><td>사람 팔 – 박쥐 날개</td><td>슈가글라이더(유대류) – 날다람쥐(태반류)의 활강막</td></tr>
+<tr><th>계통수에</th><td>사용 O</td><td>사용하면 ✗</td></tr></table></div>
+<h4>③ 화석 기록</h4>
+<ul><li>아래 지층(오래됨) → 위로 갈수록 복잡도 ↑, 현생과 유사도 ↑</li>
+<li><b>발목뼈</b>: 파키세투스 · 돼지 · 사슴은 양쪽 끝 모두 두 개의 혹 → 고래류는 <b>우제류와 근연</b></li>
+<li>파키세투스 → 로도세투스 → 도루돈: 유선형 ↑, 크기 ↑, <b>뒷다리 축소</b></li></ul>
+<h4>④ 생물지리학</h4>
+<ul><li>대륙들은 <b>판게아</b>로 합쳐져 있다가 대륙 이동으로 분리 · <b>고유종</b>(endemic species)은 섬에 많고 가까운 본토 종과 밀접</li>
+<li>과학에서 <b>이론</b> = 수많은 관찰을 설명 · 통합하는 것</li></ul>
+</div></details>
+
+<details class="sec"><summary>Ch 21 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="21"></ul></div></details>
+<details class="sec"><summary>Ch 21 영어 용어</summary><div class="body"><div class="terms" data-terms="21"></div></div></details>
+</section>
+
+<!-- ═══════════════ Ch 22 ═══════════════ -->
+<section class="ch" id="c22" hidden>
+<div class="chhead"><h2>Ch 22 계통발생의 재구성</h2><p>Phylogeny — "누가 누구와 가까운가?" · 계통발생 = 종(또는 종 그룹)의 진화 역사 · 계통분류학 systematics</p></div>
+
+<details class="sec" open><summary>22.1 계통발생은 진화적 관계를 나타낸다 <span class="en">classification · reading trees</span></summary><div class="body">
+<ul><li><b>이명법</b>: 학명 = <b>속명</b> + <b>종소명</b>, 속명 첫 글자 대문자 · 전체 이탤릭 (예: <i>Panthera pardus</i> 표범)</li>
+<li><b>역 → 계 → 문 → 강 → 목 → 과 → 속 → 종</b> (역계문강목과속종) · 각 단계 단위 = <b>분류군</b>(taxon, taxa)</li>
+<li>다른 계통의 같은 단계(목, 과 …)는 비교할 수 없음 — 사람이 편의상 만든 기준</li>
+<li><span class="star">★</span> 계통분류학자는 <b>공통 조상과 그 모든 후손</b>을 포함하는 그룹만 인정하자고 제안</li></ul>
+<div class="tw"><table class="t"><tr><th>용어</th><th>뜻</th></tr>
+<tr><td>분기점 branch point</td><td>공통 조상에서 두 계통이 갈라진 지점</td></tr>
+<tr><td>자매 분류군 sister taxa</td><td>다른 어떤 분류군과도 공유하지 않는 <b>직계 공통 조상</b>을 공유 (침팬지–사람)</td></tr>
+<tr><td>뿌리 있는 계통수 rooted tree</td><td>모든 분류군의 가장 최근 공통 조상을 나타내는 가지 포함</td></tr>
+<tr><td>기저 분류군 basal taxon</td><td>집단 역사 초기에 갈라져 나온 가지</td></tr></table></div>
+<p>분기점을 중심으로 <b>회전</b>해도 같은 계통수 → 가지 끝 순서는 의미 없음.</p>
+<div class="key"><span class="star">★</span> 계통수 해석 3가지: ① 표현형 유사성이 아닌 <b>혈통</b>의 패턴 ② 언제 진화했는지 · 얼마나 변했는지는 <b>안 보여 줌</b>(가지 길이 비례 계통수 제외) ③ <b>바로 옆 분류군에서 진화했다고 보면 안 됨</b></div>
+<p>적용 — 고래 고기 판별(mtDNA): 일본 어시장 표본 13개를 알려진 고래 종 서열과 비교 → 판매 가능한 남반구 밍크고래 외에 혹등고래 · 참고래 등 불법 종이 섞여 있음.</p>
+</div></details>
+
+<details class="sec"><summary>22.2 형태 · 분자 자료로 추론 <span class="en">homology vs analogy · alignment</span></summary><div class="body">
+<ul><li>형태 · DNA 가 비슷할수록 가까울 가능성 ↑ — 단 <b>상동</b>(공통 조상)과 <b>상사</b>(수렴 진화)를 구분해야 함</li></ul>
+<div class="tw"><table class="t"><tr><th>구별 방법</th><th>내용</th></tr><tr><td>화석</td><td>조상의 형태를 직접 확인</td></tr><tr><td>복잡성</td><td>복잡한 구조에서 비슷한 요소가 많을수록 상동일 가능성 ↑</td></tr><tr><td>유전자 서열</td><td>서열을 많이 공유할수록 상동일 가능성 ↑</td></tr></table></div>
+<p>수렴 진화 예: 호주 유대류 "두더지" vs 아프리카 황금두더지 — 길쭉한 몸, 큰 앞발, 작은 눈이 <b>독립적으로</b> 진화 (유전자 차이가 많음 → 상동 X)</p>
+<p>분자 상동 평가: 두 서열을 <b>정렬</b>(alignment) → 삽입 · 결실로 어긋나면 <b>틈(gap)</b>을 넣어 재정렬 · 수학적 도구로 우연한 유사성과 구분.</p>
+<pre class="out" style="white-space:pre-wrap">CCATCAGAGTCC → (결실) CCATCAAGTCC → 재정렬 CCAT---CA-AGTCC
+CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
+</div></details>
+
+<details class="sec"><summary>22.3 공유 형질로 계통수 만들기 <span class="en">cladistics · outgroup · parsimony</span></summary><div class="body">
+<div class="tw"><table class="t"><tr><th>종류</th><th>포함하는 것</th><th>분기군?</th></tr>
+<tr><td><b>단계통군</b> monophyletic</td><td>조상 종 + <b>모든</b> 후손</td><td>O (= clade)</td></tr>
+<tr><td><b>측계통군</b> paraphyletic</td><td>조상 종 + <b>일부</b> 후손</td><td>X</td></tr>
+<tr><td><b>다계통군</b> polyphyletic</td><td>가장 최근 공통 조상이 <b>포함 안 됨</b></td><td>X</td></tr></table></div>
+<div class="key">판별법: ① 묶음의 가장 최근 공통 조상(분기점)을 찾는다 ② 그 후손이 모두 있으면 <b>단계통</b> ③ 조상은 있는데 후손 일부가 빠지면 <b>측계통</b> ④ 그 공통 조상이 묶음에 없으면 <b>다계통</b> (예: 우제류에서 고래만 뺀 그룹 = 측계통 / 고래 + 물범 = 다계통)</div>
+<div class="lab" id="lab-clade"><div class="lt">분기군 판별하기</div>
+<p class="hint">진하게 표시된 종만 묶었을 때 어떤 그룹인지 골라 보세요. 빨간 점 = 묶음의 가장 최근 공통 조상.</p>
+<svg class="fig" id="cladeSvg" viewBox="0 0 560 250"></svg>
+<div class="btns"><span id="cladeQ" style="font-weight:700"></span></div>
+<div class="pick" id="cladePick"><button data-k="mono">단계통군</button><button data-k="para">측계통군</button><button data-k="poly">다계통군</button><button class="btn" id="cladeNext" style="margin-left:auto">다음 문제 ▶</button></div>
+<div class="out" id="cladeOut">문제를 골라 보세요.</div></div>
+<h4>공유 조상 형질 vs 공유 파생 형질</h4>
+<div class="tw"><table class="t"><tr><th></th><th>공유 조상 형질 shared ancestral</th><th>공유 파생 형질 shared derived</th></tr>
+<tr><th>뜻</th><td>분류군의 조상에서 유래한 특징</td><td>특정 계통군에서 <b>새로 생긴</b> 특징</td></tr>
+<tr><th>쓰임</th><td>분기군 정의 못 함</td><td><b>분기군을 정의</b></td></tr>
+<tr><th>예 (척추)</th><td>포유류끼리 비교할 때</td><td>척추동물 vs 무척추동물 비교할 때</td></tr></table></div>
+<p>→ 같은 특징도 <b>비교 대상(맥락)</b>에 따라 조상 형질도, 파생 형질도 된다.</p>
+<ul><li><b>외군</b>(outgroup): 내군과 가깝지만 먼저 갈라진 집단 → 내군 · 외군이 함께 가진 형질 = 조상 형질 / 외군엔 없고 내군 일부만 = 공유 파생 형질</li>
+<li>형질 표: 창고기(외군) · 칠성장어 · 배스 · 개구리 · 거북 · 표범 — 척추 → 경첩 턱 → 네 다리 → 양막 → 털 (1 이 많을수록 나중에 갈라짐)</li></ul>
+<div class="tw"><table class="t"><tr><th>계통수</th><th>가지 길이의 의미</th></tr><tr><td>분기도 cladogram</td><td>의미 없음 · 분기 순서만</td></tr><tr><td>계통도 phylogram</td><td>DNA 서열의 <b>유전적 변화량</b> (끝이 들쭉날쭉)</td></tr><tr><td>시간 계통도 chronogram</td><td><b>시간</b>에 비례 · 끝이 모두 현재에 맞춤</td></tr></table></div>
+<h4>최대 단순성 · 최대 개연성</h4>
+<ul><li><b>최대 단순성</b>(maximum parsimony): 진화적 사건(염기 변화 · 파생 형질 출현)이 <b>가장 적게</b> 필요한 계통수</li>
+<li><b>최대 개연성</b>(maximum likelihood): DNA 변화의 확률 규칙에 따라 가장 가능성 높은 계통수</li></ul>
+<div class="lab" id="lab-pars"><div class="lt">최대 단순성 — 변화 수 세기</div>
+<p class="hint">세 종(Ⅰ · Ⅱ · Ⅲ)의 4개 자리와 조상 서열이에요. 가설을 골라 자리마다 필요한 최소 변화 수를 확인해 보세요.</p>
+<div class="tw"><table class="t" style="width:auto"><tr><th>자리</th><th>1</th><th>2</th><th>3</th><th>4</th></tr><tr><td>종 Ⅰ</td><td>C</td><td>T</td><td>A</td><td>T</td></tr><tr><td>종 Ⅱ</td><td>C</td><td>T</td><td>T</td><td>C</td></tr><tr><td>종 Ⅲ</td><td>A</td><td>G</td><td>A</td><td>C</td></tr><tr><td>조상</td><td>A</td><td>G</td><td>T</td><td>T</td></tr></table></div>
+<div class="btns" id="parsBtns"></div>
+<svg class="fig" id="parsSvg" viewBox="0 0 520 200" style="max-width:520px"></svg>
+<div class="out" id="parsOut"></div></div>
+<p>예: 서열 차이(사람–버섯 30%, 사람–튤립 40%, 버섯–튤립 40%) → 변화 속도가 모든 생물에서 같다면 '튤립이 먼저 갈라짐'의 개연성이 높고, 튤립 계통에서 더 빠르면 다른 계통수가 더 그럴듯하다.</p>
+<p><b>계통학적 괄호묶기</b>(phylogenetic bracketing): 새와 악어가 4심실 심장 · 둥지 짓기 · 알 품기를 공유 → 공룡도 공유했을 것 → 알 위에 앉은 <b>오비랍토르</b> 화석이 뒷받침.</p>
+</div></details>
+
+<details class="sec"><summary>22.4 – 22.5 유전체와 분자시계 <span class="en">rRNA · mtDNA · ortholog · paralog · molecular clock</span></summary><div class="body">
+<div class="tw"><table class="t"><tr><th>DNA</th><th>변화 속도</th><th>쓰임</th></tr><tr><td>rRNA 를 코딩하는 DNA</td><td>느림</td><td>수억 년 전 분기 (먼 관계, 3역)</td></tr><tr><td>미토콘드리아 DNA (mtDNA)</td><td>빠름</td><td>최근 사건 (고래 고기 판별)</td></tr></table></div>
+<div class="tw"><table class="t"><tr><th></th><th>이종상동 orthologous</th><th>동종유사 paralogous</th></tr><tr><th>원인</th><td><b>종분화</b></td><td><b>유전자 중복</b></td></tr><tr><th>위치</th><td>서로 다른 종</td><td>한 종 안에 여러 개</td></tr><tr><th>특징</th><td>종 분화 후에만 분화</td><td>하나는 원래 기능, 다른 하나는 새 기능 가능</td></tr></table></div>
+<ul><li><b>분자시계</b>: 일부 유전자의 일정한 진화 속도로 분기 시간을 추정 · 치환 수 ∝ 갈라진 뒤 시간 (이종상동) / 복제된 뒤 시간 (동종유사)</li>
+<li><b>보정</b>(calibration): 화석으로 연대가 알려진 분기점 기준 · 중립 가정 — 중요한 유전자일수록 느리게 변함</li>
+<li>한계: 자연선택 때문에 불규칙 · 화석보다 오래된 분기는 불확실 · 유전자마다 속도 다름 → 여러 유전자를 쓰면 개선</li>
+<li>HIV: 침팬지 등 영장류 바이러스에서 유래 · 분자시계로 사람 전파 시점 1930년대 → 더 정교한 분석으로 <b>1910년경</b> (최적선을 과거로 연장해 변화량 0 인 시점)</li></ul>
+</div></details>
+
+<details class="sec"><summary>22.6 생명의 계통수 수정 <span class="en">3 domains · HGT</span></summary><div class="body">
+<ul><li>2계(식물 · 동물) → 5계(모네라 · 원생생물 · 식물 · 균 · 동물) → <b>3역</b>(세균 · 고세균 · 진핵생물)</li>
+<li>미토콘드리아 = 프로테오박테리아, 엽록체 = 남세균에서 유래</li>
+<li><span class="star">★</span> rRNA 기준: <b>진핵생물은 세균보다 고세균과 더 가깝다</b></li>
+<li><span class="star">★</span> <b>수평적 유전자 전달</b>(HGT): 부모 → 자손(수직)이 아니라 한 게놈에서 다른 게놈으로 · 경로 = 전이성 요소 · 플라스미드 교환 · 바이러스 감염 · 생물체 융합 → 유전자마다 계통수가 달라짐, 초기 생명은 '얽힌 네트워크'로 보자는 주장도 있음 (예: 홍조류 갈디에리아는 유전자 약 5% 를 세균 · 고세균에서 획득)</li></ul>
+<div class="key">탐구: 진딧물의 카로티노이드 합성 유전자 — 동물은 보통 카로티노이드를 못 만드는데 진딧물 서열이 <b>균류</b>와 가장 비슷 → 균류에서 HGT 로 얻었다는 가설을 지지. 세균 · 식물과도 비슷한 이유 = 이 효소 유전자가 먼 공통 조상에서 유래한 상동 유전자라서 보존된 부분이 있음.</div>
+</div></details>
+
+<details class="sec"><summary>Ch 22 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="22"></ul></div></details>
+<details class="sec"><summary>Ch 22 영어 용어</summary><div class="body"><div class="terms" data-terms="22"></div></div></details>
+</section>
+
+<!-- ═══════════════ Ch 23 ═══════════════ -->
+<section class="ch" id="c23" hidden>
+<div class="chhead"><h2>Ch 23 개체군의 진화</h2><p>The Evolution of Populations — "대립유전자 빈도가 어떻게 변하나?"</p></div>
+
+<details class="sec" open><summary>23.0 소진화 <span class="en">microevolution</span></summary><div class="body">
+<div class="trap"><b>흔한 오해</b> "개체가 진화한다" ✗ — 자연선택은 개체에 작용하지만 <b>진화하는 것은 개체군</b>. 예) 다프네 메이저 섬 중간땅핀치: 가뭄 때 부리 큰 새가 큰 씨앗을 깨 먹고 살아남음 → 1978년 자손 세대 평균 부리 깊이 ↑</div>
+<ul><li><b>소진화</b> = 여러 세대에 걸쳐 개체군의 <b>대립유전자 빈도</b>가 변하는 현상</li>
+<li>빈도를 바꾸는 3가지: <b>자연선택</b> · <b>유전적 부동</b> · <b>유전자 흐름</b> — 일관되게 <b>적응</b> 진화를 일으키는 것은 자연선택뿐</li></ul>
+</div></details>
+
+<details class="sec"><summary>23.1 유전적 변이 <span class="en">genetic variation</span></summary><div class="body">
+<ul><li>유전 형질의 변이 = 자연선택의 필수 조건 · 표현형 = 유전자형 + 환경 → 자연선택은 <b>유전되는 변이</b>에만 작용 (먹이에 따라 꽃 모양 · 가지 모양이 되는 애벌레 = 유전 X)</li>
+<li>단일 유전자좌 → 뚜렷이 구분(완두 꽃 색) / 여러 유전자 → 연속적인 스펙트럼</li></ul>
+<div class="tw"><table class="t"><tr><th>측정</th><th>방법</th><th>특징</th></tr><tr><td>유전자 변이성</td><td><b>이형접합성</b> = 이형접합인 유전자좌의 평균 비율</td><td>유전자 수준 (10개 중 3개 → 30%)</td></tr><tr><td>뉴클레오타이드 변이성</td><td>두 명 이상의 DNA 서열 비교</td><td>대부분 인트론(비코딩), 엑손 차이도 아미노산은 대개 그대로</td></tr></table></div>
+<h4>변이의 근원 4가지</h4>
+<div class="tw"><table class="t"><tr><th>근원</th><th>핵심</th></tr>
+<tr><td>① 새 대립유전자 (점 돌연변이)</td><td>생식세포를 만드는 세포의 돌연변이만 자손에 전달 · 해로운 열성은 이형접합에 숨음 · 비코딩 · 유전암호 <b>중복성</b> → 중립일 수 있음</td></tr>
+<tr><td>② 유전자 수 · 위치 변경</td><td>큰 염색체 돌연변이는 해로움 · 작은 조각 중복은 덜 해로움 (불균등 교차 · 복제 미끄러짐 · 전이인자) → 중복 유전자가 새 기능</td></tr>
+<tr><td>③ 빠른 번식</td><td>동식물: 세대당 유전자 10만 개당 약 1개 · 원핵: 세대가 짧아 빨리 축적 · 바이러스: 높은 돌연변이율 + 짧은 세대</td></tr>
+<tr><td>④ 유성생식</td><td>대부분의 변이 = 기존 대립유전자의 <b>재조합</b> (교차 · 독립적 분리 · 수정)</td></tr></table></div>
+</div></details>
+
+<details class="sec"><summary>23.2 하디-바인베르크 평형 <span class="en">Hardy-Weinberg equilibrium</span></summary><div class="body">
+<ul><li><b>유전자 풀</b>(gene pool) = 한 개체군의 모든 대립유전자 (순록 두 무리 — 범위가 겹치는 곳에서 교배하면 대립유전자 이동)</li>
+<li>이배체: 대립유전자 총수 = 개체 수 × 2 · 우성 대립유전자 수 = 동형 우성 × 2 + 이형 × 1</li></ul>
+<div class="key"><span class="star">★</span> <b>p + q = 1</b> · <b>p² + 2pq + q² = 1</b> — p², q² = 동형접합 빈도 / <b>2pq = 이형접합</b> 빈도</div>
+<div class="lab" id="lab-hw"><div class="lt">하디-바인베르크 계산기</div>
+<p class="hint">유전자형별 개체 수를 넣으면 p, q 와 평형일 때 기대되는 수를 계산해요. (처음 값 = 꽃 500개: 붉은 320 · 분홍 160 · 흰 20)</p>
+<div class="btns">AA <input type="number" id="hwAA" value="320" min="0"> Aa <input type="number" id="hwAa" value="160" min="0"> aa <input type="number" id="hwaa" value="20" min="0"></div>
+<div class="out" id="hwOut"></div>
+<h5 style="margin:12px 0 4px">열성 형질 빈도로 보인자 구하기 (PKU 등)</h5>
+<div class="btns">열성 동형접합 1 / <input type="number" id="hwInv" value="1000" min="2"> 명</div>
+<div class="out" id="hwOut2"></div></div>
+<h4>평형의 5가지 조건</h4>
+<div class="tw"><table class="t"><tr><th>조건</th><th>깨지면</th></tr>
+<tr><td>1. 돌연변이 없음</td><td>유전자 풀이 바뀜</td></tr><tr><td>2. 무작위 교배</td><td>근친 · 이웃끼리 교배하면 유전자형 빈도 변함</td></tr>
+<tr><td>3. 자연선택 없음</td><td>유전자형에 따라 생존 · 번식이 다르면 빈도 변함</td></tr><tr><td>4. 매우 큰 개체군</td><td>작으면 빈도가 우연히 요동 (= 유전적 부동)</td></tr>
+<tr><td>5. 유전자 흐름 없음</td><td>대립유전자가 드나들면 빈도 변함</td></tr></table></div>
+<p>자연 개체군은 어떤 유전자좌에서는 진화하고 다른 유전자좌에서는 평형일 수 있다. PKU 유전자좌를 평형으로 볼 수 있는 이유: 돌연변이율 낮음 · 짝짓기는 보인자와 무관 · 선택은 드문 동형접합에만 · 개체군이 큼 · 다른 개체군과 빈도가 비슷해 이주 영향 없음.</p>
+</div></details>
+
+<details class="sec"><summary>23.3 대립유전자 빈도를 바꾸는 힘 <span class="en">selection · drift · gene flow</span></summary><div class="body">
+<ul><li><b>유전적 부동</b>: 표본이 작을수록 예측에서 무작위로 벗어남 → 빈도가 세대마다 예측할 수 없이 변동, 대립유전자가 우연히 사라짐</li>
+<li><b>창시자 효과</b>: 소수가 큰 집단에서 고립 → 새 집단 빈도가 모집단과 다름 · <b>병목 현상</b>: 환경 급변으로 개체군이 급감 → 남은 유전자 풀이 원래를 반영 못 함</li>
+<li>부동의 효과: ① 작은 집단에서 중요 ② 빈도가 무작위로 변함 ③ 유전적 다양성 손실 ④ <b>해로운 대립유전자도 고정</b>될 수 있음</li>
+<li><b>유전자 흐름</b>: 개체 · 배우자(꽃가루) 이동 → 개체군 간 차이를 <b>줄임</b>, 지역 적응에 영향</li></ul>
+<div class="lab" id="lab-drift"><div class="lt">유전적 부동 — 개체군 크기에 따라</div>
+<p class="hint">대립유전자 A 의 빈도가 0.5 인 개체군 6개를 50세대 동안 무작위로만 번식시켜요(선택 없음). 개체 수를 바꿔 다시 돌려 보세요.</p>
+<div class="btns">개체 수 <button class="btn" data-n="10">10</button><button class="btn on" data-n="50">50</button><button class="btn" data-n="500">500</button><button class="btn pri" id="driftRun">다시 돌리기 ▶</button></div>
+<svg class="fig" id="driftSvg" viewBox="0 0 560 230"></svg>
+<div class="out" id="driftOut"></div></div>
+</div></details>
+
+<details class="sec"><summary>23.4 자연선택만이 일관되게 적응을 일으킨다 <span class="en">modes of selection · sexual · balancing</span></summary><div class="body">
+<ul><li>새 변이는 <b>우연히</b> 생기고, 유익한 것을 자연선택이 <b>가려냄</b> · 오직 자연선택만 번식에 유리한 대립유전자 빈도를 지속적으로 높임</li>
+<li><b>상대적 적합도</b>(relative fitness) = 다음 세대 유전자 풀에 기여하는 정도를 다른 개체에 대한 비율로 · "적자생존"은 직접 싸움을 떠올리게 해 오해 소지</li></ul>
+<div class="lab" id="lab-sel"><div class="lt">선택의 세 가지 양식</div>
+<p class="hint">회색 = 원래 분포, 색 = 선택 뒤 분포 (가로축: 표현형, 예: 몸 색 밝기)</p>
+<div class="btns"><button class="btn on" data-m="dir">방향성 선택</button><button class="btn" data-m="dis">분기성 선택</button><button class="btn" data-m="sta">안정화 선택</button></div>
+<svg class="fig" id="selSvg" viewBox="0 0 560 220"></svg>
+<div class="out" id="selOut"></div></div>
+<h4>성선택 sexual selection</h4>
+<ul><li>특정 형질을 가진 개체가 같은 성의 다른 개체보다 짝을 얻기 쉬움 → <b>성적 이형성</b>(이차 성징 차이)</li>
+<li><b>동성 선택</b>(intrasexual): 같은 성(대개 수컷)끼리 직접 경쟁 · <b>이성 선택</b>(intersexual) = 짝 선택: 대개 암컷이 고름 → 화려함은 짝 얻을 확률 ↑, 생존 확률 ↓ 일 수도</li>
+<li>"good genes" 가설: 형질이 유전적 자질과 관련 있으면 수컷 형질과 암컷 선호가 함께 빈도 ↑</li></ul>
+<h4>균형선택 balancing selection</h4>
+<ul><li>두 개 이상의 표현형 빈도를 안정적으로 유지 · 이배체는 이형접합 안에 열성 대립유전자를 숨겨 변이를 유지</li>
+<li>① <b>빈도 의존적 선택</b>: 드문 표현형이 유리 → 비늘 먹는 물고기 '오른쪽 입' 비율이 0.5 근처에서 진동</li>
+<li>② <b>이형접합체 우위</b>: Aa 의 적합도 &gt; AA, aa → 두 대립유전자 유지</li></ul>
+<div class="key">자연선택이 <b>완벽한 생물</b>을 못 만드는 이유 4가지: ① 이미 있는 변이에만 작용 ② 역사적 제약 ③ 적응은 종종 타협 ④ 우연 · 자연선택 · 환경의 상호작용</div>
+</div></details>
+
+<details class="sec"><summary>Ch 23 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="23"></ul></div></details>
+<details class="sec"><summary>Ch 23 영어 용어</summary><div class="body"><div class="terms" data-terms="23"></div></div></details>
+</section>
+</div>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const rnd = (() => { let x = 20261217; return () => ((x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff); })();
+
+// ───────── 단원 고르기 (이 기기에 bio2-ch 로 기억) ─────────
+{
+  let at = '21';
+  try { const v = localStorage.getItem('bio2-ch'); if (['21', '22', '23'].includes(v)) at = v; } catch (e) {}
+  const open = (k) => {
+    at = k;
+    document.querySelectorAll('.chs [data-ch]').forEach((b) => { b.classList.toggle('on', b.dataset.ch === k); b.setAttribute('aria-pressed', b.dataset.ch === k); });
+    document.querySelectorAll('section.ch').forEach((s) => (s.hidden = s.id !== 'c' + k));
+    document.documentElement.dataset.ch = 'ch' + k;   // 공부 페이지 사용 기록의 안쪽 화면
+    try { localStorage.setItem('bio2-ch', k); } catch (e) {}
+  };
+  document.querySelectorAll('.chs [data-ch]').forEach((b) => (b.onclick = () => { open(b.dataset.ch); if (window.BIO_EMBED) try { window.frameElement.scrollIntoView({ block: 'start' }); } catch (x) {} else scrollTo({ top: 0 }); }));
+  open(at);
+}
+
+// ───────── O/X (자주 틀리는 것) ─────────
+const OX = {
+  21: [
+    ['라마르크가 멸종 · 고생물학을 연구했다.', 0, '퀴비에. 라마르크는 용불용설 · 획득 형질의 유전.'],
+    ['개체가 환경에 적응해 진화한다.', 0, '개체군이 진화한다. 자연선택은 개체에 작용하지만 진화하는 것은 개체군.'],
+    ['항생제 · DDT 가 내성을 만들어 낸다.', 0, '원래 있던 내성 개체가 선택되어 늘어난 것.'],
+    ['상동기관은 기능이 같다.', 0, '기본 구조가 같고, 기능은 다를 수 있다 (사람 팔 · 박쥐 날개).'],
+    ['자연선택은 이미 개체군에 있는 형질을 편집하는 과정이다.', 1, '새 형질을 창조하지 않는다 (창조 X, 편집 O).'],
+    ['퀴비에는 멸종은 인정했지만 진화는 반대했다.', 1, '대격변설: 격변으로 멸종 → 다른 지역 종이 이주.'],
+  ],
+  22: [
+    ['계통수에서 가지 끝이 바로 옆에 있으면 자매 분류군이다.', 0, '직계 공통 조상을 공유해야 한다. 분기점을 돌리면 순서는 바뀐다.'],
+    ['계통수는 종이 언제 진화했는지 보여 준다.', 0, '시간 계통도(chronogram)가 아니면 알 수 없다.'],
+    ['측계통군은 공통 조상을 포함하지 않는다.', 0, '측계통군은 조상은 포함하고 후손 일부가 빠진 것. 조상이 빠진 것은 다계통군.'],
+    ['mtDNA 는 수억 년 전 관계를 조사하는 데 알맞다.', 0, 'mtDNA 는 빠르게 변해 최근 사건용. 먼 관계는 rRNA DNA.'],
+    ['분자시계는 모든 유전자에서 같은 속도로 간다.', 0, '유전자마다 속도가 다르다 (중요한 유전자일수록 느림).'],
+    ['rRNA 계통수에서 진핵생물은 세균과 가장 가깝다.', 0, '고세균과 더 가깝다.'],
+    ['같은 형질도 비교 대상에 따라 조상 형질도, 파생 형질도 될 수 있다.', 1, '예) 척추: 포유류끼리는 조상 형질, 척추동물 vs 무척추동물에서는 파생 형질.'],
+  ],
+  23: [
+    ['가뭄 때 핀치 개체가 부리를 키웠다.', 0, '부리 큰 개체가 살아남아 개체군의 평균이 변한 것.'],
+    ['유전적 다양성이 있으면 반드시 진화한다.', 0, '진화를 일으키는 요인(선택 · 부동 · 흐름 등)이 작용해야 한다.'],
+    ['2pq 는 우성 동형접합 빈도다.', 0, '2pq = 이형접합 빈도. 우성 동형접합 = p².'],
+    ['유전적 부동은 적응을 일으킨다.', 0, '부동은 무작위라 해로운 대립유전자도 고정될 수 있다. 적응 진화는 자연선택뿐.'],
+    ['유전자 흐름은 개체군 간 차이를 키운다.', 0, '차이를 줄인다.'],
+    ['분기성 선택은 중간 표현형을 선호한다.', 0, '양쪽 극단을 선호한다. 중간 선호 = 안정화 선택.'],
+    ['작은 개체군일수록 유전적 부동의 영향이 크다.', 1, '표본이 작을수록 무작위로 벗어나기 쉽다.'],
+  ],
+};
+document.querySelectorAll('[data-ox]').forEach((ul) => {
+  ul.innerHTML = OX[ul.dataset.ox].map(([q, a, why], i) => `<li data-a="${a}"><div class="q"><span>${q}</span><button data-v="1">O</button><button data-v="0">X</button></div><div class="a"><b>${a ? 'O' : 'X'}</b> — ${why}</div></li>`).join('');
+  ul.onclick = (e) => {
+    const b = e.target.closest('button[data-v]'); if (!b) return;
+    const li = b.closest('li'); const ok = b.dataset.v === li.dataset.a;
+    li.classList.add('done'); li.classList.toggle('right', ok); li.classList.toggle('wrong', !ok);
+  };
+});
+
+// ───────── 영어 용어 ─────────
+const TERMS = {
+  21: [['적응', 'adaptation'], ['통일성', 'unity'], ['다양성', 'diversity'], ['변형을 통한 계승', 'descent with modification'], ['자연선택', 'natural selection'], ['인위선택', 'artificial selection'], ['변이', 'variation'], ['과잉 생산', 'overproduction'], ['대격변설', 'catastrophism'], ['점진주의', 'gradualism'], ['용불용설', 'use and disuse'], ['획득 형질의 유전', 'inheritance of acquired characteristics'], ['상동성', 'homology'], ['상동기관', 'homologous structure'], ['흔적기관', 'vestigial structure'], ['상사성', 'analogy'], ['수렴 진화', 'convergent evolution'], ['생물지리학', 'biogeography'], ['고유종', 'endemic species'], ['화석 기록', 'fossil record']],
+  22: [['계통발생', 'phylogeny'], ['계통분류학', 'systematics'], ['분류학', 'taxonomy'], ['이명법', 'binomial'], ['분류군', 'taxon / taxa'], ['분기점', 'branch point'], ['자매 분류군', 'sister taxa'], ['기저 분류군', 'basal taxon'], ['분기학', 'cladistics'], ['분기군', 'clade'], ['단계통군', 'monophyletic'], ['측계통군', 'paraphyletic'], ['다계통군', 'polyphyletic'], ['공유 조상 형질', 'shared ancestral character'], ['공유 파생 형질', 'shared derived character'], ['외군 / 내군', 'outgroup / ingroup'], ['최대 단순성', 'maximum parsimony'], ['최대 개연성', 'maximum likelihood'], ['계통학적 괄호묶기', 'phylogenetic bracketing'], ['분자시계', 'molecular clock'], ['이종상동 유전자', 'orthologous genes'], ['동종유사 유전자', 'paralogous genes'], ['유전자 중복', 'gene duplication'], ['수평적 유전자 전달', 'horizontal gene transfer (HGT)']],
+  23: [['소진화', 'microevolution'], ['유전적 부동', 'genetic drift'], ['유전자 흐름', 'gene flow'], ['유전자 풀', 'gene pool'], ['유전적 변이', 'genetic variation'], ['이형접합성', 'heterozygosity'], ['점 돌연변이', 'point mutation'], ['중복성', 'redundancy'], ['하디-바인베르크 평형', 'Hardy-Weinberg equilibrium'], ['창시자 효과', 'founder effect'], ['병목 현상', 'bottleneck effect'], ['상대적 적합도', 'relative fitness'], ['방향성 / 분기성 / 안정화 선택', 'directional / disruptive / stabilizing'], ['성선택', 'sexual selection (intra / inter)'], ['균형선택', 'balancing selection'], ['빈도 의존적 선택', 'frequency-dependent selection'], ['이형접합체 우위', 'heterozygote advantage']],
+};
+document.querySelectorAll('[data-terms]').forEach((el) => { el.innerHTML = TERMS[el.dataset.terms].map(([k, e]) => `<div>${k}<i>${e}</i></div>`).join(''); });
+
+// ───────── 🧪 자연선택 세대 진행 ─────────
+{
+  const svg = $('#nsSvg'), out = $('#nsOut');
+  const SH = ['#efe2c4', '#d4b98a', '#a8855a', '#6f5434', '#3e2c1b'];   // 몸 색 0(밝음) ~ 4(어두움)
+  let pop, gen, dark, hist;
+  const reset = () => { pop = Array.from({ length: 20 }, (_, i) => i % 5); gen = 0; dark = true; hist = [mean()]; draw('처음 개체군: 몸 색이 골고루 섞여 있어요 (변이).'); };
+  function mean() { return pop.reduce((a, b) => a + b, 0) / pop.length; }
+  function draw(msg, eaten = []) {
+    const bg = dark ? '#5a4632' : '#ead9b0';
+    let h = `<rect x="10" y="10" width="400" height="210" rx="10" fill="${bg}"/>`;
+    pop.forEach((s, i) => {
+      const x = 40 + (i % 5) * 80, y = 40 + Math.floor(i / 5) * 48;
+      const gone = eaten.includes(i);
+      h += `<g transform="translate(${x} ${y})" opacity="${gone ? .25 : 1}"><ellipse rx="17" ry="12" fill="${SH[s]}" stroke="#222" stroke-width="1"/><line x1="0" y1="-12" x2="0" y2="12" stroke="#222" stroke-width="1"/>${gone ? '<path d="M-12,-12 L12,12 M12,-12 L-12,12" stroke="#c1121f" stroke-width="3"/>' : ''}</g>`;
+    });
+    // 평균 몸 색 그래프
+    h += `<text x="430" y="26" font-size="12" font-weight="700">세대별 평균 몸 색</text><line x1="440" y1="200" x2="630" y2="200" stroke="${css('--sub')}"/><text x="430" y="60" font-size="10">어둡다</text><text x="430" y="200" font-size="10">밝다</text>`;
+    const pts = hist.map((m, i) => `${445 + i * (180 / Math.max(8, hist.length - 1))},${200 - m / 4 * 140}`).join(' ');
+    h += `<polyline points="${pts}" fill="none" stroke="${css('--c21')}" stroke-width="3"/>`;
+    hist.forEach((m, i) => (h += `<circle cx="${445 + i * (180 / Math.max(8, hist.length - 1))}" cy="${200 - m / 4 * 140}" r="3.5" fill="${css('--c21')}"/>`));
+    svg.innerHTML = h;
+    out.innerHTML = `<b>${gen}세대</b> · 배경: ${dark ? '어두운 흙' : '밝은 모래'} · 평균 몸 색 ${mean().toFixed(2)} (0 밝음 ~ 4 어두움)<br>${msg}`;
+  }
+  $('#nsNext').onclick = () => {
+    // 배경과 대비가 클수록 잡아먹힐 확률 ↑ (8마리 잡힘)
+    const target = dark ? 4 : 0;
+    const order = pop.map((s, i) => ({ i, w: Math.abs(s - target) + rnd() * 1.2 })).sort((a, b) => b.w - a.w);
+    const eaten = order.slice(0, 8).map((o) => o.i);
+    draw('새가 배경에서 잘 보이는 개체를 더 많이 잡아먹었어요 (✕).', eaten);
+    setTimeout(() => {
+      const surv = pop.filter((_, i) => !eaten.includes(i));
+      // 살아남은 개체가 번식: 자손은 부모 몸 색을 물려받음 (가끔 한 칸 변이)
+      const kids = [];
+      while (surv.length + kids.length < 20) { const p = surv[Math.floor(rnd() * surv.length)]; const m = rnd() < .12 ? Math.max(0, Math.min(4, p + (rnd() < .5 ? -1 : 1))) : p; kids.push(m); }
+      pop = surv.concat(kids).sort(() => rnd() - .5); gen++; hist.push(mean());
+      draw('살아남은 개체만 번식 → 다음 세대에서 배경과 비슷한 몸 색의 <b>빈도가 증가</b>했어요. 개체가 변한 게 아니라 개체군의 구성이 변한 것!');
+    }, 650);
+  };
+  $('#nsEnv').onclick = () => { dark = !dark; draw('환경(배경)이 바뀌었어요 → 이제 반대쪽 몸 색이 유리해요. 몇 세대 넘겨 보세요.'); };
+  $('#nsReset').onclick = reset;
+  reset();
+}
+
+// ───────── 🧪 분기군 판별 ─────────
+{
+  // 계통수: (((A,B),(C,(D,E))),(F,G)) — 잎 x 좌표 · 안쪽 마디
+  const L = { A: 60, B: 130, C: 220, D: 290, E: 360, F: 450, G: 520 }, YL = 220;
+  const N = { ab: [95, 175, ['A', 'B']], de: [325, 175, ['D', 'E']], cde: [272, 135, ['C', 'D', 'E']], abcde: [184, 85, ['A', 'B', 'C', 'D', 'E']], fg: [485, 165, ['F', 'G']], root: [334, 40, ['A', 'B', 'C', 'D', 'E', 'F', 'G']] };
+  const EDGES = [['ab', 'A'], ['ab', 'B'], ['de', 'D'], ['de', 'E'], ['cde', 'C'], ['cde', 'de'], ['abcde', 'ab'], ['abcde', 'cde'], ['fg', 'F'], ['fg', 'G'], ['root', 'abcde'], ['root', 'fg']];
+  const pos = (k) => (N[k] ? [N[k][0], N[k][1]] : [L[k], YL]);
+  const Q = [
+    { set: ['D', 'E'], k: 'mono', why: '가장 최근 공통 조상의 후손(D, E)이 모두 들어 있어요.' },
+    { set: ['A', 'B', 'C'], k: 'para', why: '가장 최근 공통 조상(빨간 점)은 들어 있지만 그 후손 D, E 가 빠졌어요.' },
+    { set: ['B', 'E', 'G'], k: 'poly', why: '서로 멀리 떨어진 종들이라 가장 최근 공통 조상(뿌리)이 묶음에 들어 있지 않아요 — 수렴 진화로 비슷한 형질끼리 묶은 경우.' },
+    { set: ['C', 'D', 'E'], k: 'mono', why: '공통 조상과 그 모든 후손(C, D, E)이 들어 있어요.' },
+    { set: ['A', 'B', 'C', 'D'], k: 'para', why: '공통 조상은 들어 있지만 후손 E 가 빠졌어요.' },
+    { set: ['A', 'F'], k: 'poly', why: 'A 와 F 의 가장 최근 공통 조상은 뿌리인데 묶음에 없어요.' },
+  ];
+  const mrca = (set) => Object.keys(N).filter((k) => set.every((x) => N[k][2].includes(x))).sort((a, b) => N[a][2].length - N[b][2].length)[0];
+  let qi = 0, done = false;
+  const draw = () => {
+    const q = Q[qi], m = mrca(q.set);
+    let h = '';
+    for (const [a, b] of EDGES) { const [x1, y1] = pos(a), [x2, y2] = pos(b); h += `<path d="M${x1},${y1} L${x2},${y1} L${x2},${y2}" fill="none" stroke="${css('--sub')}" stroke-width="2.5"/>`; }
+    const [mx, my] = pos(m); h += `<circle cx="${mx}" cy="${my}" r="7" fill="#e5383b"/>`;
+    for (const k in L) { const on = q.set.includes(k); h += `<circle cx="${L[k]}" cy="${YL}" r="15" fill="${on ? css('--c22') : css('--card')}" stroke="${css('--c22')}" stroke-width="2.5"/><text x="${L[k]}" y="${YL + 5}" text-anchor="middle" font-size="14" font-weight="800" style="fill:${on ? '#fff' : css('--ink')}">${k}</text>`; }
+    $('#cladeSvg').innerHTML = h;
+    $('#cladeQ').textContent = `문제 ${qi + 1} / ${Q.length}: { ${q.set.join(', ')} } 는?`;
+    document.querySelectorAll('#cladePick [data-k]').forEach((b) => (b.className = ''));
+    $('#cladeOut').textContent = '분기군인지 골라 보세요.'; done = false;
+  };
+  $('#cladePick').onclick = (e) => {
+    const b = e.target.closest('[data-k]'); if (!b || done) return;
+    const q = Q[qi]; done = true;
+    document.querySelectorAll('#cladePick [data-k]').forEach((x) => { if (x.dataset.k === q.k) x.className = 'right'; else if (x === b) x.className = 'wrong'; });
+    $('#cladeOut').innerHTML = `${b.dataset.k === q.k ? '⭕ 맞아요!' : '❌ 아쉬워요.'} 정답: <b>${{ mono: '단계통군', para: '측계통군', poly: '다계통군' }[q.k]}</b> — ${q.why}`;
+  };
+  $('#cladeNext').onclick = () => { qi = (qi + 1) % Q.length; draw(); };
+  draw();
+}
+
+// ───────── 🧪 최대 단순성 ─────────
+{
+  const SEQ = { 'Ⅰ': 'CTAT', 'Ⅱ': 'CTTC', 'Ⅲ': 'AGAC' }, ANC = 'AGTT';
+  const TREES = [['Ⅰ', 'Ⅱ', 'Ⅲ'], ['Ⅰ', 'Ⅲ', 'Ⅱ'], ['Ⅱ', 'Ⅲ', 'Ⅰ']];   // ((a,b),c)
+  // 자리마다 최소 변화 수 (Fitch, 뿌리 = 조상 서열)
+  const fitch = (t, i) => {
+    const [a, b, c] = t.map((k) => SEQ[k][i]);
+    let n = 0; let ab = a === b ? new Set([a]) : (n++, new Set([a, b]));
+    let top = ab.has(c) ? new Set([c]) : (n++, new Set([...ab, c]));
+    if (!top.has(ANC[i])) n++;
+    return n;
+  };
+  const sum = (t) => [0, 1, 2, 3].reduce((s, i) => s + fitch(t, i), 0);
+  const totals = TREES.map(sum), best = Math.min(...totals);
+  let cur = 0;
+  const draw = () => {
+    const t = TREES[cur];
+    let h = `<path d="M260,30 L260,55 M110,55 L410,55 M110,55 L110,110 M410,55 L410,170 M60,110 L160,110 M60,110 L60,170 M160,110 L160,170" fill="none" stroke="${css('--sub')}" stroke-width="3"/>`;
+    h += `<text x="260" y="22" text-anchor="middle" font-size="13" font-weight="700">조상 ${ANC}</text>`;
+    [[60, t[0]], [160, t[1]], [410, t[2]]].forEach(([x, k]) => (h += `<text x="${x}" y="192" text-anchor="middle" font-size="15" font-weight="800">종 ${k} ${SEQ[k]}</text>`));
+    $('#parsSvg').innerHTML = h;
+    const per = [0, 1, 2, 3].map((i) => fitch(t, i));
+    $('#parsOut').innerHTML = `가설 <b>(${t[0]}, ${t[1]}), ${t[2]}</b> — 자리별 최소 변화 ${per.join(' + ')} = <b>${totals[cur]}번</b>${totals[cur] === best ? ' ✔ 가장 적음 → 최대 단순성으로 이 계통수를 고른다' : ` (가장 적은 것은 ${best}번)`}`;
+    $('#parsBtns').innerHTML = TREES.map((tr, k) => `<button class="btn${k === cur ? ' on' : ''}" data-t="${k}">(${tr[0]}, ${tr[1]}), ${tr[2]} — ${totals[k]}번</button>`).join('');
+  };
+  $('#parsBtns').onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) { cur = +b.dataset.t; draw(); } };
+  draw();
+}
+
+// ───────── 🧪 하디-바인베르크 ─────────
+{
+  const f = (x, d = 3) => (Math.round(x * 10 ** d) / 10 ** d).toString();
+  const calc = () => {
+    const AA = Math.max(0, +$('#hwAA').value || 0), Aa = Math.max(0, +$('#hwAa').value || 0), aa = Math.max(0, +$('#hwaa').value || 0), n = AA + Aa + aa;
+    if (!n) { $('#hwOut').textContent = '개체 수를 넣어 주세요.'; return; }
+    const A = 2 * AA + Aa, a = 2 * aa + Aa, p = A / (2 * n), q = a / (2 * n);
+    const e = [p * p * n, 2 * p * q * n, q * q * n];
+    const dev = Math.abs(AA - e[0]) + Math.abs(Aa - e[1]) + Math.abs(aa - e[2]);
+    $('#hwOut').innerHTML = `대립유전자 총수 = ${n} × 2 = <b>${2 * n}</b> · A = ${AA}×2 + ${Aa} = ${A} · a = ${aa}×2 + ${Aa} = ${a}<br>
+      <b>p = ${A}/${2 * n} = ${f(p)}</b> · <b>q = 1 − p = ${f(q)}</b><br>
+      평형일 때 기대: AA = p²·N = ${f(e[0], 1)} · Aa = 2pq·N = ${f(e[1], 1)} · aa = q²·N = ${f(e[2], 1)}<br>
+      ${dev <= Math.max(1, n * 0.02) ? '✔ 관찰값이 기대값과 거의 같아요 → 이 유전자좌는 평형으로 볼 수 있어요.' : '⚠ 관찰값이 기대값과 달라요 → 평형 조건 중 하나 이상이 깨져 <b>진화하고 있을 가능성</b>이 있어요.'}`;
+  };
+  const calc2 = () => {
+    const inv = Math.max(2, +$('#hwInv').value || 1000), q2 = 1 / inv, q = Math.sqrt(q2), p = 1 - q;
+    $('#hwOut2').innerHTML = `q² = 1/${inv} = ${f(q2, 5)} → <b>q = √q² ≈ ${f(q)}</b> → p = 1 − q ≈ ${f(p)}<br>보인자(이형접합) <b>2pq ≈ ${f(2 * p * q, 4)}</b> (약 ${f(200 * p * q, 1)}%) — 열성 대립유전자는 대부분 보인자 안에 숨어 있어요.`;
+  };
+  ['#hwAA', '#hwAa', '#hwaa'].forEach((s) => ($(s).oninput = calc));
+  $('#hwInv').oninput = calc2;
+  calc(); calc2();
+}
+
+// ───────── 🧪 유전적 부동 ─────────
+{
+  let N = 50;
+  const run = () => {
+    const G = 50, lines = [];
+    let fixed = 0, lost = 0;
+    for (let r = 0; r < 6; r++) {
+      let p = 0.5; const pts = [p];
+      for (let g = 0; g < G; g++) { let k = 0; for (let i = 0; i < 2 * N; i++) if (Math.random() < p) k++; p = k / (2 * N); pts.push(p); }
+      if (p === 1) fixed++; if (p === 0) lost++;
+      lines.push(pts);
+    }
+    const X = (g) => 40 + g * (500 / G), Y = (p) => 200 - p * 170;
+    const cols = ['#e76f51', '#2a9d8f', '#e9c46a', '#8e6cbf', '#4ea3c9', '#d1495b'];
+    let h = `<line x1="40" y1="200" x2="540" y2="200" stroke="${css('--sub')}"/><line x1="40" y1="30" x2="40" y2="200" stroke="${css('--sub')}"/>
+      <text x="6" y="34" font-size="11">1.0</text><text x="6" y="119" font-size="11">0.5</text><text x="12" y="204" font-size="11">0</text><text x="290" y="222" font-size="11" text-anchor="middle">세대 (0 → 50)</text>
+      <line x1="40" y1="115" x2="540" y2="115" stroke="${css('--line')}" stroke-dasharray="4 4"/>`;
+    lines.forEach((pts, r) => (h += `<polyline points="${pts.map((p, g) => `${X(g).toFixed(1)},${Y(p).toFixed(1)}`).join(' ')}" fill="none" stroke="${cols[r]}" stroke-width="2.2"/>`));
+    $('#driftSvg').innerHTML = h;
+    $('#driftOut').innerHTML = `개체 수 <b>${N}</b> · 50세대 뒤 A 가 <b>고정(1.0)</b> ${fixed}개 · <b>사라짐(0)</b> ${lost}개 / 6개 — ${N <= 10 ? '작은 개체군은 빈도가 크게 요동치고 금방 고정 · 소실돼요 (유전적 다양성 손실).' : N >= 500 ? '큰 개체군은 빈도가 0.5 근처에서 거의 그대로예요 → 하디-바인베르크 조건 4.' : '선택이 없어도 우연만으로 빈도가 바뀌어요.'}`;
+  };
+  document.querySelectorAll('#lab-drift [data-n]').forEach((b) => (b.onclick = () => { N = +b.dataset.n; document.querySelectorAll('#lab-drift [data-n]').forEach((x) => x.classList.toggle('on', x === b)); run(); }));
+  $('#driftRun').onclick = run;
+  run();
+}
+
+// ───────── 🧪 선택의 세 양식 ─────────
+{
+  const W = 560, H = 220, X = (x) => 30 + x * 500, base = (x) => Math.exp(-((x - 0.5) ** 2) / 0.02);
+  const AFTER = {
+    dir: (x) => Math.exp(-((x - 0.68) ** 2) / 0.018),
+    dis: (x) => 0.85 * Math.exp(-((x - 0.25) ** 2) / 0.008) + 0.85 * Math.exp(-((x - 0.75) ** 2) / 0.008),
+    sta: (x) => 1.25 * Math.exp(-((x - 0.5) ** 2) / 0.007),
+  };
+  const TXT = { dir: '<b>방향성 선택</b>: 한쪽 극단을 선호 → 분포 전체가 한쪽으로 이동 (예: 어두운 환경에서 어두운 개체)', dis: '<b>분기성 선택</b>: 양쪽 극단을 선호, 중간이 불리 → 봉우리가 둘로 갈라짐', sta: '<b>안정화 선택</b>: 중간을 선호, 극단이 불리 → 분포가 좁아지고 변이가 줄어듦' };
+  let cur = 'dir', from = base, raf = 0;
+  const path = (fn) => { let d = ''; for (let i = 0; i <= 100; i++) { const x = i / 100; d += `${i ? 'L' : 'M'}${X(x).toFixed(1)},${(190 - fn(x) * 140).toFixed(1)}`; } return d + `L${X(1)},190 L${X(0)},190Z`; };
+  const draw = (fn) => {
+    $('#selSvg').innerHTML = `<line x1="30" y1="190" x2="530" y2="190" stroke="${css('--sub')}"/><text x="30" y="210" font-size="11">밝다</text><text x="530" y="210" font-size="11" text-anchor="end">어둡다</text>
+      <path d="${path(base)}" fill="${css('--sub')}" opacity=".22"/><path d="${path(fn)}" fill="${css('--c23')}" opacity=".55" stroke="${css('--c23')}" stroke-width="2"/>`;
+  };
+  const show = (m) => {
+    const to = AFTER[m], start = from, t0 = performance.now();
+    cancelAnimationFrame(raf);
+    const step = (now) => { const k = Math.min(1, (now - t0) / 600), e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2; draw((x) => start(x) + (to(x) - start(x)) * e); if (k < 1) raf = requestAnimationFrame(step); else from = to; };
+    raf = requestAnimationFrame(step);
+    setTimeout(() => { draw(to); from = to; }, 700);   // 탭이 가려져도 마지막 모양은 꼭
+    $('#selOut').innerHTML = TXT[m];
+  };
+  document.querySelectorAll('#lab-sel [data-m]').forEach((b) => (b.onclick = () => { cur = b.dataset.m; document.querySelectorAll('#lab-sel [data-m]').forEach((x) => x.classList.toggle('on', x === b)); show(cur); }));
+  draw(base); show('dir');
+}
+
+// 사이트 테마가 바뀌면 그림 색도 다시 (단원 버튼은 CSS 변수라 그대로)
+const _vt = window.vocabTheme;
+window.vocabTheme = function () { _vt && _vt(); };
+</script>
+<script>
+// ===== 공부 탭 안에서: 높이를 내용에 맞춰 부모의 iframe 을 늘립니다 (스크롤은 사이트 하나로) =====
+if (window.BIO_EMBED) {
+  const frame = window.frameElement;
+  const root = document.scrollingElement || document.documentElement;
+  const fit = () => {
+    if (!frame) return;
+    const b = document.body, r = b.getBoundingClientRect();
+    const h = Math.ceil(r.bottom + root.scrollTop + (parseFloat(getComputedStyle(b).marginBottom) || 0)) + 'px';
+    if (frame.style.height !== h) frame.style.height = h;
+    if (root.scrollTop) root.scrollTop = 0;
+  };
+  new ResizeObserver(fit).observe(document.body);
+  document.addEventListener('toggle', () => setTimeout(fit), true);
+  window.addEventListener('load', fit);
+  setInterval(fit, 1000);
+  fit();
+}
+</script>
+<!-- 공부 페이지 사용 기록 (learnuse.sql) -->
+<script src="learn-track.js" defer></script>
+</body></html>

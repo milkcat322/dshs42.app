@@ -1543,7 +1543,8 @@ function openExam() {
 const LEARN_SUBJECTS = [
   // 영어(단어장 vocab.html, 파트 atc · crit)는 2026-11-25 에 공부 탭에서 뺐다. vocab.html · learnBookmarks 는 남아 있어 이 줄을 되살리면 다시 보인다.
   { id: "bio", name: "일반생물학", parts: [
-    { id: "bio", name: "손희창T", sub: "Ch17 전사 · 가공 · 번역 · 돌연변이 핵심 기작 애니메이션", page: "bio.html" },
+    { id: "bio", name: "손희창T", sub: "Ch17 유전자 발현 · Ch18 유전자 발현 조절 핵심 기작 애니메이션", page: "bio.html" },
+    { id: "bio2", name: "장은영T", sub: "Ch21 진화 · Ch22 계통발생 · Ch23 개체군의 진화 정리 · 직접 해 보기", page: "bio2.html" },
   ] },
   { id: "calc", name: "미적분학Ⅱ", wide: true, parts: [
     { id: "calc", name: "문세현T", sub: "미분에서 야코비안까지 · 개념의 흐름 노트", page: "calc.html" },
