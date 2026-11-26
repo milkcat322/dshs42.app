@@ -69,6 +69,18 @@ table.t th{background:var(--soft);color:var(--sub);font-weight:700;white-space:n
 @media(max-width:760px){.grid2{grid-template-columns:1fr}}
 .box{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--soft)}
 .box h5{margin:0 0 6px;font-size:14.5px}
+/* 구조로 정리: 항목(dl.st) · 흐름(.flow) · 번호(ol.nums) */
+dl.st{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:5px 14px;margin:7px 0 4px;align-items:baseline}
+dl.st>dt{font-weight:800;color:var(--c);font-size:.94em}
+dl.st>dd{margin:0}
+@media(max-width:520px){dl.st{grid-template-columns:1fr;gap:1px}dl.st>dd{margin:0 0 6px 10px}}
+.flow{display:flex;flex-direction:column;align-items:flex-start;margin:7px 0 6px}
+.flow>span{border-left:3px solid var(--c);padding:1px 0 1px 10px}
+.flow>span+span::before{content:"↓";display:block;color:var(--c);font-weight:800;margin:0 0 1px -8px;line-height:1.2}
+ol.nums{margin:6px 0 4px;padding-left:24px}
+ol.nums li{margin:3px 0}
+.key>b.h,.trap>b.h{display:block}
+.box dl.st{grid-template-columns:minmax(72px,max-content) minmax(0,1fr)}
 /* 직접 해 보기 */
 .lab{border:1.5px dashed var(--c);border-radius:14px;padding:12px;margin:12px 0;background:var(--card)}
 .lab>.lt{font-weight:800;margin:0 0 4px}
@@ -117,12 +129,12 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <tr><td><b>적응</b> adaptation</td><td>환경에 정교하게 맞춰진 특징 (보호색, 나뭇잎 닮은 나방)</td><td>서로 다른 환경에 적응하며 차이가 축적</td></tr>
 <tr><td><b>통일성</b> unity</td><td>모든 생물이 DNA 를 유전물질로, 같은 유전암호 사용</td><td>공통 조상에게서 물려받음</td></tr>
 <tr><td><b>다양성</b> diversity</td><td>형태 · 생활 방식이 매우 다양</td><td>공통 조상에서 갈라져 각기 다른 환경에 적응</td></tr></table></div>
-<div class="key">예) <b>꿀단지 개미</b>(honeypot ant): 적응 = 불어나는 배에 액체 음식 저장(먹이 부족기 대비) · 통일성 = 다른 개미와 같은 기본 몸 구조(머리 · 가슴 · 배, 다리 6개) · 다양성 = 배가 부푼 독특한 형태</div>
+<div class="key"><b class="h">예) 꿀단지 개미</b> <span class="en2">honeypot ant</span><dl class="st"><dt>적응</dt><dd>불어나는 배에 액체 음식 저장 (먹이 부족기 대비)</dd><dt>통일성</dt><dd>다른 개미와 같은 기본 몸 구조 (머리 · 가슴 · 배, 다리 6개)</dd><dt>다양성</dt><dd>배가 부푼 독특한 형태</dd></dl></div>
 </div></details>
 
 <details class="sec"><summary>21.1 다윈 혁명 — 전통적 견해에 대한 도전 <span class="en">The Darwinian Revolution</span></summary><div class="body">
 <ul><li><span class="star">★</span> <b>1859년</b> 다윈 『종의 기원』(On the Origin of Species) → 생물학의 새 시대</li>
-<li>좁은 의미의 진화 = 세대를 거치며 <b>개체군 내 유전적 구성이 변하는 것</b> · 다윈의 표현 = <b>변형을 통한 계승</b>(변화를 수반한 계승 · 같은 말) — 변형 → 자연선택 / 계승 → 공통 조상</li>
+<li>진화란?<dl class="st"><dt>좁은 의미</dt><dd>세대를 거치며 <b>개체군 내 유전적 구성이 변하는 것</b></dd><dt>다윈의 표현</dt><dd><b>변형을 통한 계승</b> (= 변화를 수반한 계승)</dd><dt>변형</dt><dd>→ 자연선택</dd><dt>계승</dt><dd>→ 공통 조상</dd></dl></li>
 <li>진화는 <b>패턴</b>(자료로 관찰된 사실)이자 <b>과정</b>(그 패턴을 만든 메커니즘)</li></ul>
 <h4>인물과 주장 (짝짓기 단골)</h4>
 <div class="tw"><table class="t"><tr><th>인물</th><th>주장</th><th>진화와의 관계</th></tr>
@@ -134,8 +146,8 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <tr><td><span class="star">★</span> 맬서스</td><td><b>인구론</b>: 인구는 기하급수, 식량은 산술급수 → 결핍 → 생존투쟁</td><td>다윈: 자손 과잉 생산은 모든 종의 특징</td></tr>
 <tr><td>월리스</td><td>1858년 비슷한 자연선택설 원고를 다윈에게 보냄</td><td>→ 공동 발표, 1859 『종의 기원』</td></tr></table></div>
 <div class="grid2">
-<div class="box"><h5>대격변설 (퀴비에)</h5>지층 경계마다 갑작스런 격변 → 많은 종 멸종 → 다른 곳의 종이 이주해 옴. <b>멸종은 인정, 진화는 반대.</b></div>
-<div class="box"><h5>점진주의 (허턴 · 라이엘)</h5>아주 작은 변화가 오랜 시간 쌓여 큰 변화 · 지구는 아주 오래됨 → 다윈: <b>작은 변이도 오래 쌓이면 큰 변화</b>.</div></div>
+<div class="box"><h5>대격변설 (퀴비에)</h5><div class="flow"><span>지층 경계마다 갑작스런 격변</span><span>많은 종 멸종</span><span>다른 곳의 종이 이주해 옴</span></div><b>멸종은 인정, 진화는 반대.</b></div>
+<div class="box"><h5>점진주의 (허턴 · 라이엘)</h5><div class="flow"><span>아주 작은 변화</span><span>오랜 시간 쌓임</span><span>큰 변화</span></div>지구는 아주 오래됨 → 다윈: <b>작은 변이도 오래 쌓이면 큰 변화</b></div></div>
 <h4>연표</h4>
 <div class="tw"><table class="t"><tr><th>연도</th><th>사건</th></tr>
 <tr><td>1795</td><td>허턴 — 점진주의</td></tr><tr><td>1798</td><td><span class="star">★</span> 맬서스 『인구론』</td></tr><tr><td>1809</td><td>라마르크 진화 가설 / 다윈 출생</td></tr>
@@ -144,38 +156,38 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 </div></details>
 
 <details class="sec"><summary>21.2 자연선택에 의한 변형된 혈통 <span class="en">descent with modification by natural selection</span></summary><div class="body">
-<ul><li>비글호: 화석이 같은 지역 현존종과 비슷, 현존종은 인근 지역 다른 종과 비슷 → <b>갈라파고스 핀치</b>: 선인장땅핀치(길고 뾰족 · 선인장) · 초록휘파람새핀치(가늘고 뾰족 · 곤충) · 큰땅핀치(크고 두꺼움 · 씨앗)</li>
+<ul><li>비글호 관찰: 화석은 같은 지역 현존종과 비슷 / 현존종은 인근 지역 다른 종과 비슷 → <b>갈라파고스 핀치</b><dl class="st"><dt>선인장땅핀치</dt><dd>부리 길고 뾰족 · 선인장</dd><dt>초록휘파람새핀치</dt><dd>부리 가늘고 뾰족 · 곤충</dd><dt>큰땅핀치</dt><dd>부리 크고 두꺼움 · 씨앗</dd></dl></li>
 <li><span class="star">★</span> <b>자연선택</b> = 유리한 유전적 특성을 가진 개체가 생존 · 번식할 가능성이 더 높은 경향</li>
-<li>『종의 기원』 초판에는 '진화'라는 단어가 없음 · 생명의 역사 = 가지를 가진 나무 (분기 + 멸종)</li>
-<li><b>인위선택</b>: 야생 겨자에서 꼭대기눈 → 양배추, 곁눈 → 방울양배추, 꽃 · 줄기 → 브로콜리, 줄기 → 콜라비, 잎 → 케일</li></ul>
+<li>『종의 기원』 초판에는 '진화'라는 단어가 없음</li>
+<li>생명의 역사 = 가지를 가진 나무 (분기 + 멸종)</li>
+<li><b>인위선택</b> — 야생 겨자에서 어느 부분을 골랐나<dl class="st"><dt>꼭대기눈</dt><dd>양배추</dd><dt>곁눈</dt><dd>방울양배추</dd><dt>꽃 · 줄기</dt><dd>브로콜리</dd><dt>줄기</dt><dd>콜라비</dd><dt>잎</dt><dd>케일</dd></dl></li></ul>
 <h4><span class="star">★</span> 두 관찰 → 두 추론 (서술형 단골)</h4>
 <div class="tw"><table class="t">
 <tr><th>관찰 1</th><td>집단 구성원은 유전된 형질에서 다양한 <b>변이</b>(variation)를 가짐</td></tr>
 <tr><th>관찰 2</th><td>모든 종은 환경이 부양할 수 있는 것보다 훨씬 많은 자손을 만듦 = <b>과잉 생산</b> → 많은 수가 살아남지 못함</td></tr>
 <tr><th>추론 1</th><td>그 환경에서 생존 · 번식에 유리한 유전 형질을 가진 개체 → 더 많은 자손</td></tr>
 <tr><th>추론 2</th><td>차별적 생존 · 번식이 여러 세대 반복 → 유리한 형질이 <b>축적</b></td></tr></table></div>
-<div class="lab" id="lab-ns"><div class="lt">자연선택 — 세대를 넘겨 보기</div>
-<p class="hint">딱정벌레 20마리의 몸 색에 변이가 있고(유전됨), 새는 배경과 대비되는 개체를 더 잘 잡아요. '다음 세대'를 누르면 잡아먹힘 → 살아남은 개체만 번식. 도중에 배경을 바꿔 보세요.</p>
-<svg class="fig" id="nsSvg" viewBox="0 0 640 230"></svg>
-<div class="btns"><button class="btn pri" id="nsNext">다음 세대 ▶</button><button class="btn" id="nsEnv">배경 바꾸기 (어두운 흙 ↔ 밝은 모래)</button><button class="btn" id="nsReset">처음부터</button></div>
-<div class="out" id="nsOut"></div></div>
-<div class="key"><span class="star">★</span> 자연선택 3문장: ① 새 형질을 <b>만드는</b> 것이 아니라 이미 있는 형질을 <b>편집</b>(창조 X, 편집 O) ② 세대가 짧은 종에서 빠르게 일어남 ③ 어떤 형질이 선택될지는 <b>현재의 지역 환경</b>이 결정</div>
-<div class="trap"><b>서술형 함정</b> "개체가 환경에 맞게 변한다" = 라마르크식 ✗ → "변이가 있는 개체군 중 ○○ 형질을 가진 개체가 더 많이 살아남아 자손을 남겨 그 형질의 <b>빈도가 증가</b>했다" 로 쓴다.<br>기린 목 — 라마르크: 높은 잎을 먹으려 목을 늘림 → 늘어난 목이 유전 ✗ / 다윈: 목 길이에 변이 → 목이 긴 개체가 먹이 경쟁에서 유리 → 더 많이 살아남아 자손 → 긴 목 빈도 ↑</div>
-<ul><li><b>개체가 아니라 개체군이 진화</b> · 자연선택은 <b>유전되는 변이</b>만 늘리거나 줄임 · 적응은 환경에 따라 달라짐</li></ul>
+
+<div class="key"><b class="h"><span class="star">★</span> 자연선택 3문장</b><ol class="nums"><li>새 형질을 <b>만드는</b> 것이 아니라 이미 있는 형질을 <b>편집</b> (창조 X, 편집 O)</li><li>세대가 짧은 종에서 빠르게 일어남</li><li>어떤 형질이 선택될지는 <b>현재의 지역 환경</b>이 결정</li></ol></div>
+<div class="trap"><b class="h">서술형 함정</b><dl class="st"><dt>✗ 라마르크식</dt><dd>"개체가 환경에 맞게 변한다"</dd><dt>✓ 이렇게 쓴다</dt><dd>"변이가 있는 개체군 중 ○○ 형질을 가진 개체가 더 많이 살아남아 자손을 남겨 그 형질의 <b>빈도가 증가</b>했다"</dd></dl>
+<b>예) 기린 목</b><dl class="st"><dt>라마르크 ✗</dt><dd><div class="flow"><span>높은 잎을 먹으려 목을 늘림</span><span>늘어난 목이 유전</span></div></dd><dt>다윈 ✓</dt><dd><div class="flow"><span>목 길이에 변이</span><span>목이 긴 개체가 먹이 경쟁에서 유리</span><span>더 많이 살아남아 자손</span><span>긴 목 빈도 ↑</span></div></dd></dl></div>
+<ul><li><b>개체가 아니라 개체군이 진화</b></li><li>자연선택은 <b>유전되는 변이</b>만 늘리거나 줄임</li><li>적응은 환경에 따라 달라짐</li></ul>
 </div></details>
 
 <details class="sec"><summary>21.3 진화의 증거 <span class="en">direct observation · homology · fossil · biogeography</span></summary><div class="body">
 <h4>① 직접 관찰</h4>
 <div class="grid2">
-<div class="box"><h5><span class="star">★</span> 무환자나무 벌레 (soapberry bug)</h5>부리 길이 ≈ 씨앗까지 깊이일 때 가장 잘 먹음. 남부 플로리다(토착 <b>풍선덩굴</b>: 열매 큼, 씨앗 깊음) → 부리 김 / 중부(도입 <b>모감주나무</b>: 열매 납작) → 부리 짧아짐. 비교 기준 = 도입 전 <b>박물관 표본</b>. ⇒ 먹이가 바뀌면 선택이 바뀜, 수십 년 만에 진화.</div>
-<div class="box"><h5>MRSA</h5>페니실린 사용 2년 후 내성, 메티실린(세포벽 합성 효소 억제) 사용 2년 후 내성. MRSA 는 <b>다른 효소로 세포벽</b>을 만듦. 원래 있던 내성균이 살아남아 늘어남 (세대 짧음). 2015 새 항생제 테익소박틴.</div>
-<div class="box"><h5>구피의 몸 색</h5>암컷은 화려한 수컷 선호, 화려함은 포식자 눈에도 잘 띔. 강한 포식자(pike-cichlid) 하천 → 수수한 수컷 ↑ / 치어를 먹는 약한 포식자(killifish) 하천 → 성선택 우세, 화려한 수컷 ↑. A 의 구피를 B 로 옮기면 여러 세대 뒤 반점 수 · 면적 증가.</div>
-<div class="box"><h5>DDT 내성 모기</h5>내성 비율 4% → 45% → 77% (0 · 8 · 12개월). 살포 → 감수성 모기 죽음 → <b>원래 있던</b> 소수 내성 모기만 생존 → 경쟁자 적어 번식 유리 + 세대 약 1개월 → 내성 빈도 급증. 전 세계 확산: 여러 나라 장기 살포, 사람 · 화물 이동, 교차 내성.</div></div>
+<div class="box"><h5><span class="star">★</span> 무환자나무 벌레 <span class="en2">soapberry bug</span></h5><dl class="st"><dt>원리</dt><dd>부리 길이 ≈ 씨앗까지의 깊이일 때 가장 잘 먹음</dd><dt>남부 플로리다</dt><dd>토착 <b>풍선덩굴</b> (열매 큼, 씨앗 깊음) → <b>부리 김</b></dd><dt>중부 플로리다</dt><dd>도입된 <b>모감주나무</b> (열매 납작) → <b>부리 짧아짐</b></dd><dt>비교 기준</dt><dd>도입 전 <b>박물관 표본</b></dd><dt>핵심</dt><dd>먹이(환경)가 바뀌면 선택이 바뀜 → 수십 년 만에 진화</dd></dl></div>
+<div class="box"><h5>MRSA <span class="en2">메티실린 내성 황색포도상구균</span></h5><dl class="st"><dt>페니실린</dt><dd>사용 2년 후 내성균 등장</dd><dt>메티실린</dt><dd>세포벽 합성 효소 억제 → 사용 2년 후 내성균 등장</dd><dt>내성 원리</dt><dd>MRSA 는 <b>다른 효소로 세포벽</b>을 만듦</dd><dt>핵심</dt><dd><b>원래 있던</b> 내성균이 살아남아 늘어남 (세대가 짧아 빠름)</dd><dt>이후</dt><dd>2015 새 항생제 테익소박틴</dd></dl></div>
+<div class="box"><h5>구피의 몸 색 <span class="en2">guppy</span></h5><dl class="st"><dt>성선택</dt><dd>암컷은 화려한 수컷을 선호</dd><dt>자연선택</dt><dd>화려하면 포식자 눈에도 잘 띔</dd><dt>강한 포식자 하천</dt><dd>pike-cichlid (어른 구피를 먹음) → <b>수수한</b> 수컷 ↑</dd><dt>약한 포식자 하천</dt><dd>killifish (치어만 먹음) → 성선택 우세 → <b>화려한</b> 수컷 ↑</dd><dt>옮기기 실험</dt><dd>강한 포식자 하천 구피 → 약한 포식자 하천으로 → 여러 세대 뒤 반점 수 · 면적 ↑</dd><dt>핵심</dt><dd>환경(포식자)에 따라 어느 선택이 이기는지가 달라짐</dd></dl></div>
+<div class="box"><h5>DDT 내성 모기</h5><dl class="st"><dt>내성 비율</dt><dd>4% → 45% → 77% (0 · 8 · 12개월)</dd><dt>과정</dt><dd><div class="flow"><span>DDT 살포</span><span>감수성 모기 죽음</span><span><b>원래 있던</b> 소수 내성 모기만 생존</span><span>경쟁자가 적어 번식 유리 → 내성 빈도 급증</span></div></dd><dt>빠른 이유</dt><dd>세대가 약 1개월로 짧음</dd><dt>전 세계 확산</dt><dd>여러 나라 장기 살포 · 사람 · 화물 이동 · 교차 내성</dd></dl></div></div>
+<div class="key"><b class="h">네 사례의 공통점</b><div class="flow"><span>변이(내성 · 부리 길이 · 몸 색)는 원래 있었음</span><span>환경(선택압)이 바뀜</span><span>유리한 형질을 가진 개체가 더 많이 살아남아 번식</span><span>개체군에서 그 형질의 <b>빈도 ↑</b> (개체가 변한 것 X)</span></div></div>
 <h4>② 상동성 homology — 공통 조상에서 기인하는 유사성</h4>
 <ul><li><b>상동기관</b>: 사람 팔 · 고양이 앞다리 · 고래 가슴지느러미 · 박쥐 날개 (같은 뼈 배열, 기능은 다름)</li>
 <li><b>비교 발생학</b>: 모든 척추동물 배아에 항문 뒤 꼬리 + <b>인두궁</b>(사람: 귀 · 목 구조, 어류: 아가미)</li>
-<li><b>흔적기관</b>: 사람 꼬리뼈 · <b>분자 상동성</b>: 같은 유전암호, 사람과 세균도 공유하는 유전자</li>
-<li>계통수적 사고: 상동성은 <b>중첩된 패턴</b>(nested pattern) — 손가락 있는 팔다리 → 양막 → 깃털</li></ul>
+<li><b>흔적기관</b>: 사람 꼬리뼈</li>
+<li><b>분자 상동성</b>: 같은 유전암호, 사람과 세균도 공유하는 유전자</li>
+<li>계통수적 사고: 상동성은 <b>중첩된 패턴</b>(nested pattern)<div class="flow"><span>손가락 있는 팔다리 (사지류)</span><span>양막 (양막류)</span><span>깃털 (조류)</span></div></li></ul>
 <div class="key">Q. 포유류와 조류 중 양서류와 더 가까운 것은? → <b>둘 다 같다</b>. 둘 다 '손가락 있는 팔다리' 조상을 양서류와 같은 시점에 공유하고, 그 뒤 양막 조상을 서로 공유.</div>
 <div class="tw"><table class="t"><tr><th></th><th>상동성 homology</th><th>상사성 analogy</th></tr>
 <tr><th>원인</th><td>공통 조상</td><td><b>수렴 진화</b>: 멀리 떨어진 집단이 비슷한 환경에 독립 적응</td></tr>
@@ -184,10 +196,11 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <tr><th>계통수에</th><td>사용 O</td><td>사용하면 ✗</td></tr></table></div>
 <h4>③ 화석 기록</h4>
 <ul><li>아래 지층(오래됨) → 위로 갈수록 복잡도 ↑, 현생과 유사도 ↑</li>
-<li><b>발목뼈</b>: 파키세투스 · 돼지 · 사슴은 양쪽 끝 모두 두 개의 혹 → 고래류는 <b>우제류와 근연</b></li>
-<li>파키세투스 → 로도세투스 → 도루돈: 유선형 ↑, 크기 ↑, <b>뒷다리 축소</b></li></ul>
+<li><b>발목뼈</b>: 파키세투스 · 돼지 · 사슴 모두 양쪽 끝에 두 개의 혹 → 고래류는 <b>우제류와 근연</b></li>
+<li>고래의 조상 화석<div class="flow"><span>파키세투스</span><span>로도세투스</span><span>도루돈</span></div>유선형 ↑ · 크기 ↑ · <b>뒷다리 축소</b></li></ul>
 <h4>④ 생물지리학</h4>
-<ul><li>대륙들은 <b>판게아</b>로 합쳐져 있다가 대륙 이동으로 분리 · <b>고유종</b>(endemic species)은 섬에 많고 가까운 본토 종과 밀접</li>
+<ul><li>대륙들은 <b>판게아</b>로 합쳐져 있다가 대륙 이동으로 분리</li>
+<li><b>고유종</b>(endemic species)은 섬에 많고, 가까운 본토 종과 밀접</li>
 <li>과학에서 <b>이론</b> = 수많은 관찰을 설명 · 통합하는 것</li></ul>
 </div></details>
 
@@ -201,7 +214,8 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 
 <details class="sec" open><summary>22.1 계통발생은 진화적 관계를 나타낸다 <span class="en">classification · reading trees</span></summary><div class="body">
 <ul><li><b>이명법</b>: 학명 = <b>속명</b> + <b>종소명</b>, 속명 첫 글자 대문자 · 전체 이탤릭 (예: <i>Panthera pardus</i> 표범)</li>
-<li><b>역 → 계 → 문 → 강 → 목 → 과 → 속 → 종</b> (역계문강목과속종) · 각 단계 단위 = <b>분류군</b>(taxon, taxa)</li>
+<li><b>역 → 계 → 문 → 강 → 목 → 과 → 속 → 종</b> (역계문강목과속종)</li>
+<li>각 단계의 단위 = <b>분류군</b>(taxon, 복수 taxa)</li>
 <li>다른 계통의 같은 단계(목, 과 …)는 비교할 수 없음 — 사람이 편의상 만든 기준</li>
 <li><span class="star">★</span> 계통분류학자는 <b>공통 조상과 그 모든 후손</b>을 포함하는 그룹만 인정하자고 제안</li></ul>
 <div class="tw"><table class="t"><tr><th>용어</th><th>뜻</th></tr>
@@ -210,17 +224,19 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <tr><td>뿌리 있는 계통수 rooted tree</td><td>모든 분류군의 가장 최근 공통 조상을 나타내는 가지 포함</td></tr>
 <tr><td>기저 분류군 basal taxon</td><td>집단 역사 초기에 갈라져 나온 가지</td></tr></table></div>
 <p>분기점을 중심으로 <b>회전</b>해도 같은 계통수 → 가지 끝 순서는 의미 없음.</p>
-<div class="key"><span class="star">★</span> 계통수 해석 3가지: ① 표현형 유사성이 아닌 <b>혈통</b>의 패턴 ② 언제 진화했는지 · 얼마나 변했는지는 <b>안 보여 줌</b>(가지 길이 비례 계통수 제외) ③ <b>바로 옆 분류군에서 진화했다고 보면 안 됨</b></div>
-<p>적용 — 고래 고기 판별(mtDNA): 일본 어시장 표본 13개를 알려진 고래 종 서열과 비교 → 판매 가능한 남반구 밍크고래 외에 혹등고래 · 참고래 등 불법 종이 섞여 있음.</p>
+<div class="key"><b class="h"><span class="star">★</span> 계통수 해석 3가지</b><ol class="nums"><li>표현형 유사성이 아닌 <b>혈통</b>의 패턴</li><li>언제 진화했는지 · 얼마나 변했는지는 <b>안 보여 줌</b> (가지 길이 비례 계통수 제외)</li><li><b>바로 옆 분류군에서 진화했다고 보면 안 됨</b></li></ol></div>
+<p><b>적용 — 고래 고기 판별 (mtDNA)</b></p><div class="flow"><span>일본 어시장 표본 13개</span><span>알려진 고래 종 서열과 비교</span><span>판매 가능한 남반구 밍크고래 외에 혹등고래 · 참고래 등 불법 종이 섞여 있음</span></div>
 </div></details>
 
 <details class="sec"><summary>22.2 형태 · 분자 자료로 추론 <span class="en">homology vs analogy · alignment</span></summary><div class="body">
 <ul><li>형태 · DNA 가 비슷할수록 가까울 가능성 ↑ — 단 <b>상동</b>(공통 조상)과 <b>상사</b>(수렴 진화)를 구분해야 함</li></ul>
 <div class="tw"><table class="t"><tr><th>구별 방법</th><th>내용</th></tr><tr><td>화석</td><td>조상의 형태를 직접 확인</td></tr><tr><td>복잡성</td><td>복잡한 구조에서 비슷한 요소가 많을수록 상동일 가능성 ↑</td></tr><tr><td>유전자 서열</td><td>서열을 많이 공유할수록 상동일 가능성 ↑</td></tr></table></div>
 <p>수렴 진화 예: 호주 유대류 "두더지" vs 아프리카 황금두더지 — 길쭉한 몸, 큰 앞발, 작은 눈이 <b>독립적으로</b> 진화 (유전자 차이가 많음 → 상동 X)</p>
-<p>분자 상동 평가: 두 서열을 <b>정렬</b>(alignment) → 삽입 · 결실로 어긋나면 <b>틈(gap)</b>을 넣어 재정렬 · 수학적 도구로 우연한 유사성과 구분.</p>
-<pre class="out" style="white-space:pre-wrap">CCATCAGAGTCC → (결실) CCATCAAGTCC → 재정렬 CCAT---CA-AGTCC
-CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
+<p><b>분자 상동 평가</b></p><div class="flow"><span>두 서열을 <b>정렬</b>(alignment)</span><span>삽입 · 결실로 어긋나면 <b>틈(gap)</b>을 넣어 재정렬</span><span>수학적 도구로 우연한 유사성과 구분</span></div>
+<pre class="out" style="white-space:pre-wrap">결실   CCATCAGAGTCC → CCATCAAGTCC
+재정렬 CCATCAGAGTCC
+       CCAT---CA-AGTCC
+삽입   CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
 </div></details>
 
 <details class="sec"><summary>22.3 공유 형질로 계통수 만들기 <span class="en">cladistics · outgroup · parsimony</span></summary><div class="body">
@@ -228,7 +244,7 @@ CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
 <tr><td><b>단계통군</b> monophyletic</td><td>조상 종 + <b>모든</b> 후손</td><td>O (= clade)</td></tr>
 <tr><td><b>측계통군</b> paraphyletic</td><td>조상 종 + <b>일부</b> 후손</td><td>X</td></tr>
 <tr><td><b>다계통군</b> polyphyletic</td><td>가장 최근 공통 조상이 <b>포함 안 됨</b></td><td>X</td></tr></table></div>
-<div class="key">판별법: ① 묶음의 가장 최근 공통 조상(분기점)을 찾는다 ② 그 후손이 모두 있으면 <b>단계통</b> ③ 조상은 있는데 후손 일부가 빠지면 <b>측계통</b> ④ 그 공통 조상이 묶음에 없으면 <b>다계통</b> (예: 우제류에서 고래만 뺀 그룹 = 측계통 / 고래 + 물범 = 다계통)</div>
+<div class="key"><b class="h">판별법</b><ol class="nums"><li>묶음의 가장 최근 공통 조상(분기점)을 찾는다</li><li>그 후손이 모두 있으면 → <b>단계통</b></li><li>조상은 있는데 후손 일부가 빠지면 → <b>측계통</b></li><li>그 공통 조상이 묶음에 없으면 → <b>다계통</b></li></ol><dl class="st"><dt>측계통 예</dt><dd>우제류에서 고래만 뺀 그룹</dd><dt>다계통 예</dt><dd>고래 + 물범</dd></dl></div>
 <div class="lab" id="lab-clade"><div class="lt">분기군 판별하기</div>
 <p class="hint">진하게 표시된 종만 묶었을 때 어떤 그룹인지 골라 보세요. 빨간 점 = 묶음의 가장 최근 공통 조상.</p>
 <svg class="fig" id="cladeSvg" viewBox="0 0 560 250"></svg>
@@ -241,8 +257,8 @@ CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
 <tr><th>쓰임</th><td>분기군 정의 못 함</td><td><b>분기군을 정의</b></td></tr>
 <tr><th>예 (척추)</th><td>포유류끼리 비교할 때</td><td>척추동물 vs 무척추동물 비교할 때</td></tr></table></div>
 <p>→ 같은 특징도 <b>비교 대상(맥락)</b>에 따라 조상 형질도, 파생 형질도 된다.</p>
-<ul><li><b>외군</b>(outgroup): 내군과 가깝지만 먼저 갈라진 집단 → 내군 · 외군이 함께 가진 형질 = 조상 형질 / 외군엔 없고 내군 일부만 = 공유 파생 형질</li>
-<li>형질 표: 창고기(외군) · 칠성장어 · 배스 · 개구리 · 거북 · 표범 — 척추 → 경첩 턱 → 네 다리 → 양막 → 털 (1 이 많을수록 나중에 갈라짐)</li></ul>
+<ul><li><b>외군</b>(outgroup): 내군과 가깝지만 먼저 갈라진 집단<dl class="st"><dt>공유 조상 형질</dt><dd>내군 · 외군이 함께 가진 형질</dd><dt>공유 파생 형질</dt><dd>외군엔 없고 내군 일부만 가진 형질</dd></dl></li>
+<li>형질 표 예: 창고기(외군) · 칠성장어 · 배스 · 개구리 · 거북 · 표범 — 새로 생긴 형질 순서<div class="flow"><span>척추</span><span>경첩 턱</span><span>네 다리</span><span>양막</span><span>털</span></div>1 이 많을수록 나중에 갈라짐</li></ul>
 <div class="tw"><table class="t"><tr><th>계통수</th><th>가지 길이의 의미</th></tr><tr><td>분기도 cladogram</td><td>의미 없음 · 분기 순서만</td></tr><tr><td>계통도 phylogram</td><td>DNA 서열의 <b>유전적 변화량</b> (끝이 들쭉날쭉)</td></tr><tr><td>시간 계통도 chronogram</td><td><b>시간</b>에 비례 · 끝이 모두 현재에 맞춤</td></tr></table></div>
 <h4>최대 단순성 · 최대 개연성</h4>
 <ul><li><b>최대 단순성</b>(maximum parsimony): 진화적 사건(염기 변화 · 파생 형질 출현)이 <b>가장 적게</b> 필요한 계통수</li>
@@ -253,25 +269,26 @@ CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
 <div class="btns" id="parsBtns"></div>
 <svg class="fig" id="parsSvg" viewBox="0 0 520 200" style="max-width:520px"></svg>
 <div class="out" id="parsOut"></div></div>
-<p>예: 서열 차이(사람–버섯 30%, 사람–튤립 40%, 버섯–튤립 40%) → 변화 속도가 모든 생물에서 같다면 '튤립이 먼저 갈라짐'의 개연성이 높고, 튤립 계통에서 더 빠르면 다른 계통수가 더 그럴듯하다.</p>
-<p><b>계통학적 괄호묶기</b>(phylogenetic bracketing): 새와 악어가 4심실 심장 · 둥지 짓기 · 알 품기를 공유 → 공룡도 공유했을 것 → 알 위에 앉은 <b>오비랍토르</b> 화석이 뒷받침.</p>
+<p><b>최대 개연성 예</b> — 서열 차이: 사람–버섯 30% · 사람–튤립 40% · 버섯–튤립 40%</p><dl class="st"><dt>변화 속도가 모든 생물에서 같다면</dt><dd>'튤립이 먼저 갈라짐'의 개연성이 높음</dd><dt>튤립 계통에서 더 빠르다면</dt><dd>다른 계통수가 더 그럴듯함</dd></dl>
+<p><b>계통학적 괄호묶기</b>(phylogenetic bracketing)</p><div class="flow"><span>새와 악어가 4심실 심장 · 둥지 짓기 · 알 품기를 공유</span><span>둘의 공통 조상 후손인 공룡도 공유했을 것</span><span>알 위에 앉은 <b>오비랍토르</b> 화석이 뒷받침</span></div>
 </div></details>
 
 <details class="sec"><summary>22.4 – 22.5 유전체와 분자시계 <span class="en">rRNA · mtDNA · ortholog · paralog · molecular clock</span></summary><div class="body">
 <div class="tw"><table class="t"><tr><th>DNA</th><th>변화 속도</th><th>쓰임</th></tr><tr><td>rRNA 를 코딩하는 DNA</td><td>느림</td><td>수억 년 전 분기 (먼 관계, 3역)</td></tr><tr><td>미토콘드리아 DNA (mtDNA)</td><td>빠름</td><td>최근 사건 (고래 고기 판별)</td></tr></table></div>
 <div class="tw"><table class="t"><tr><th></th><th>이종상동 orthologous</th><th>동종유사 paralogous</th></tr><tr><th>원인</th><td><b>종분화</b></td><td><b>유전자 중복</b></td></tr><tr><th>위치</th><td>서로 다른 종</td><td>한 종 안에 여러 개</td></tr><tr><th>특징</th><td>종 분화 후에만 분화</td><td>하나는 원래 기능, 다른 하나는 새 기능 가능</td></tr></table></div>
-<ul><li><b>분자시계</b>: 일부 유전자의 일정한 진화 속도로 분기 시간을 추정 · 치환 수 ∝ 갈라진 뒤 시간 (이종상동) / 복제된 뒤 시간 (동종유사)</li>
-<li><b>보정</b>(calibration): 화석으로 연대가 알려진 분기점 기준 · 중립 가정 — 중요한 유전자일수록 느리게 변함</li>
-<li>한계: 자연선택 때문에 불규칙 · 화석보다 오래된 분기는 불확실 · 유전자마다 속도 다름 → 여러 유전자를 쓰면 개선</li>
-<li>HIV: 침팬지 등 영장류 바이러스에서 유래 · 분자시계로 사람 전파 시점 1930년대 → 더 정교한 분석으로 <b>1910년경</b> (최적선을 과거로 연장해 변화량 0 인 시점)</li></ul>
+<ul><li><b>분자시계</b>: 일부 유전자의 일정한 진화 속도로 분기 시간을 추정<dl class="st"><dt>이종상동</dt><dd>치환 수 ∝ 종이 갈라진 뒤 시간</dd><dt>동종유사</dt><dd>치환 수 ∝ 유전자가 복제된 뒤 시간</dd></dl></li>
+<li><b>보정</b>(calibration): 화석으로 연대가 알려진 분기점을 기준으로</li>
+<li>중립 가정 — 중요한 유전자일수록 느리게 변함</li>
+<li>한계<ol class="nums"><li>자연선택 때문에 불규칙</li><li>화석보다 오래된 분기는 불확실</li><li>유전자마다 속도가 다름</li></ol>→ 여러 유전자를 함께 쓰면 개선</li>
+<li><b>HIV</b>: 침팬지 등 영장류 바이러스에서 유래<div class="flow"><span>분자시계로 사람 전파 시점 추정: 1930년대</span><span>더 정교한 분석: <b>1910년경</b></span></div>(최적선을 과거로 연장해 변화량이 0 인 시점)</li></ul>
 </div></details>
 
 <details class="sec"><summary>22.6 생명의 계통수 수정 <span class="en">3 domains · HGT</span></summary><div class="body">
-<ul><li>2계(식물 · 동물) → 5계(모네라 · 원생생물 · 식물 · 균 · 동물) → <b>3역</b>(세균 · 고세균 · 진핵생물)</li>
+<ul><li>분류 체계의 변화<div class="flow"><span>2계 (식물 · 동물)</span><span>5계 (모네라 · 원생생물 · 식물 · 균 · 동물)</span><span><b>3역</b> (세균 · 고세균 · 진핵생물)</span></div></li>
 <li>미토콘드리아 = 프로테오박테리아, 엽록체 = 남세균에서 유래</li>
 <li><span class="star">★</span> rRNA 기준: <b>진핵생물은 세균보다 고세균과 더 가깝다</b></li>
-<li><span class="star">★</span> <b>수평적 유전자 전달</b>(HGT): 부모 → 자손(수직)이 아니라 한 게놈에서 다른 게놈으로 · 경로 = 전이성 요소 · 플라스미드 교환 · 바이러스 감염 · 생물체 융합 → 유전자마다 계통수가 달라짐, 초기 생명은 '얽힌 네트워크'로 보자는 주장도 있음 (예: 홍조류 갈디에리아는 유전자 약 5% 를 세균 · 고세균에서 획득)</li></ul>
-<div class="key">탐구: 진딧물의 카로티노이드 합성 유전자 — 동물은 보통 카로티노이드를 못 만드는데 진딧물 서열이 <b>균류</b>와 가장 비슷 → 균류에서 HGT 로 얻었다는 가설을 지지. 세균 · 식물과도 비슷한 이유 = 이 효소 유전자가 먼 공통 조상에서 유래한 상동 유전자라서 보존된 부분이 있음.</div>
+<li><span class="star">★</span> <b>수평적 유전자 전달</b>(HGT): 부모 → 자손(수직)이 아니라 한 게놈에서 다른 게놈으로<dl class="st"><dt>경로</dt><dd>전이성 요소 · 플라스미드 교환 · 바이러스 감염 · 생물체 융합</dd><dt>결과</dt><dd>유전자마다 계통수가 달라짐 → 초기 생명은 '얽힌 네트워크'로 보자는 주장도 있음</dd><dt>예</dt><dd>홍조류 갈디에리아: 유전자 약 5% 를 세균 · 고세균에서 획득</dd></dl></li></ul>
+<div class="key"><b class="h">탐구: 진딧물의 카로티노이드 합성 유전자</b><div class="flow"><span>동물은 보통 카로티노이드를 못 만듦</span><span>그런데 진딧물 서열이 <b>균류</b>와 가장 비슷</span><span>균류에서 HGT 로 얻었다는 가설을 지지</span></div>세균 · 식물과도 비슷한 이유: 이 효소 유전자가 먼 공통 조상에서 유래한 상동 유전자라 보존된 부분이 있음</div>
 </div></details>
 
 <details class="sec"><summary>Ch 22 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="22"></ul></div></details>
@@ -283,27 +300,29 @@ CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
 <div class="chhead"><h2>Ch 23 개체군의 진화</h2><p>The Evolution of Populations — "대립유전자 빈도가 어떻게 변하나?"</p></div>
 
 <details class="sec" open><summary>23.0 소진화 <span class="en">microevolution</span></summary><div class="body">
-<div class="trap"><b>흔한 오해</b> "개체가 진화한다" ✗ — 자연선택은 개체에 작용하지만 <b>진화하는 것은 개체군</b>. 예) 다프네 메이저 섬 중간땅핀치: 가뭄 때 부리 큰 새가 큰 씨앗을 깨 먹고 살아남음 → 1978년 자손 세대 평균 부리 깊이 ↑</div>
+<div class="trap"><b class="h">흔한 오해</b> "개체가 진화한다" ✗ → 자연선택은 개체에 작용하지만 <b>진화하는 것은 개체군</b>
+<b>예) 다프네 메이저 섬 중간땅핀치</b><div class="flow"><span>가뭄 → 작은 씨앗 부족</span><span>부리 큰 새가 큰 씨앗을 깨 먹고 살아남음</span><span>1978년 자손 세대의 평균 부리 깊이 ↑</span></div></div>
 <ul><li><b>소진화</b> = 여러 세대에 걸쳐 개체군의 <b>대립유전자 빈도</b>가 변하는 현상</li>
-<li>빈도를 바꾸는 3가지: <b>자연선택</b> · <b>유전적 부동</b> · <b>유전자 흐름</b> — 일관되게 <b>적응</b> 진화를 일으키는 것은 자연선택뿐</li></ul>
+<li>빈도를 바꾸는 3가지: <b>자연선택</b> · <b>유전적 부동</b> · <b>유전자 흐름</b></li>
+<li>그중 일관되게 <b>적응</b> 진화를 일으키는 것은 자연선택뿐</li></ul>
 </div></details>
 
 <details class="sec"><summary>23.1 유전적 변이 <span class="en">genetic variation</span></summary><div class="body">
-<ul><li>유전 형질의 변이 = 자연선택의 필수 조건 · 표현형 = 유전자형 + 환경 → 자연선택은 <b>유전되는 변이</b>에만 작용 (먹이에 따라 꽃 모양 · 가지 모양이 되는 애벌레 = 유전 X)</li>
+<ul><li>유전 형질의 변이 = 자연선택의 필수 조건</li><li>표현형 = 유전자형 + 환경 → 자연선택은 <b>유전되는 변이</b>에만 작용 (먹이에 따라 꽃 모양 · 가지 모양이 되는 애벌레 = 유전 X)</li>
 <li>단일 유전자좌 → 뚜렷이 구분(완두 꽃 색) / 여러 유전자 → 연속적인 스펙트럼</li></ul>
 <div class="tw"><table class="t"><tr><th>측정</th><th>방법</th><th>특징</th></tr><tr><td>유전자 변이성</td><td><b>이형접합성</b> = 이형접합인 유전자좌의 평균 비율</td><td>유전자 수준 (10개 중 3개 → 30%)</td></tr><tr><td>뉴클레오타이드 변이성</td><td>두 명 이상의 DNA 서열 비교</td><td>대부분 인트론(비코딩), 엑손 차이도 아미노산은 대개 그대로</td></tr></table></div>
 <h4>변이의 근원 4가지</h4>
 <div class="tw"><table class="t"><tr><th>근원</th><th>핵심</th></tr>
-<tr><td>① 새 대립유전자 (점 돌연변이)</td><td>생식세포를 만드는 세포의 돌연변이만 자손에 전달 · 해로운 열성은 이형접합에 숨음 · 비코딩 · 유전암호 <b>중복성</b> → 중립일 수 있음</td></tr>
-<tr><td>② 유전자 수 · 위치 변경</td><td>큰 염색체 돌연변이는 해로움 · 작은 조각 중복은 덜 해로움 (불균등 교차 · 복제 미끄러짐 · 전이인자) → 중복 유전자가 새 기능</td></tr>
-<tr><td>③ 빠른 번식</td><td>동식물: 세대당 유전자 10만 개당 약 1개 · 원핵: 세대가 짧아 빨리 축적 · 바이러스: 높은 돌연변이율 + 짧은 세대</td></tr>
+<tr><td>① 새 대립유전자 (점 돌연변이)</td><td><ul><li>생식세포를 만드는 세포의 돌연변이만 자손에 전달</li><li>해로운 열성은 이형접합에 숨음</li><li>비코딩 부위 · 유전암호 <b>중복성</b> → 중립일 수 있음</li></ul></td></tr>
+<tr><td>② 유전자 수 · 위치 변경</td><td><ul><li>큰 염색체 돌연변이는 해로움</li><li>작은 조각 중복은 덜 해로움 (불균등 교차 · 복제 미끄러짐 · 전이인자)</li><li>중복된 유전자가 새 기능을 가질 수 있음</li></ul></td></tr>
+<tr><td>③ 빠른 번식</td><td><dl class="st"><dt>동식물</dt><dd>세대당 유전자 10만 개당 약 1개</dd><dt>원핵생물</dt><dd>세대가 짧아 빨리 축적</dd><dt>바이러스</dt><dd>높은 돌연변이율 + 짧은 세대</dd></dl></td></tr>
 <tr><td>④ 유성생식</td><td>대부분의 변이 = 기존 대립유전자의 <b>재조합</b> (교차 · 독립적 분리 · 수정)</td></tr></table></div>
 </div></details>
 
 <details class="sec"><summary>23.2 하디-바인베르크 평형 <span class="en">Hardy-Weinberg equilibrium</span></summary><div class="body">
 <ul><li><b>유전자 풀</b>(gene pool) = 한 개체군의 모든 대립유전자 (순록 두 무리 — 범위가 겹치는 곳에서 교배하면 대립유전자 이동)</li>
-<li>이배체: 대립유전자 총수 = 개체 수 × 2 · 우성 대립유전자 수 = 동형 우성 × 2 + 이형 × 1</li></ul>
-<div class="key"><span class="star">★</span> <b>p + q = 1</b> · <b>p² + 2pq + q² = 1</b> — p², q² = 동형접합 빈도 / <b>2pq = 이형접합</b> 빈도</div>
+<li>이배체에서 세기<dl class="st"><dt>대립유전자 총수</dt><dd>개체 수 × 2</dd><dt>우성 대립유전자 수</dt><dd>동형 우성 × 2 + 이형 × 1</dd></dl></li></ul>
+<div class="key"><b class="h"><span class="star">★</span> 하디-바인베르크 식</b><dl class="st"><dt>대립유전자</dt><dd><b>p + q = 1</b></dd><dt>유전자형</dt><dd><b>p² + 2pq + q² = 1</b></dd><dt>p², q²</dt><dd>동형접합 빈도</dd><dt>2pq</dt><dd><b>이형접합</b> 빈도</dd></dl></div>
 <div class="lab" id="lab-hw"><div class="lt">하디-바인베르크 계산기</div>
 <p class="hint">유전자형별 개체 수를 넣으면 p, q 와 평형일 때 기대되는 수를 계산해요. (처음 값 = 꽃 500개: 붉은 320 · 분홍 160 · 흰 20)</p>
 <div class="btns">AA <input type="number" id="hwAA" value="320" min="0"> Aa <input type="number" id="hwAa" value="160" min="0"> aa <input type="number" id="hwaa" value="20" min="0"></div>
@@ -316,14 +335,16 @@ CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
 <tr><td>1. 돌연변이 없음</td><td>유전자 풀이 바뀜</td></tr><tr><td>2. 무작위 교배</td><td>근친 · 이웃끼리 교배하면 유전자형 빈도 변함</td></tr>
 <tr><td>3. 자연선택 없음</td><td>유전자형에 따라 생존 · 번식이 다르면 빈도 변함</td></tr><tr><td>4. 매우 큰 개체군</td><td>작으면 빈도가 우연히 요동 (= 유전적 부동)</td></tr>
 <tr><td>5. 유전자 흐름 없음</td><td>대립유전자가 드나들면 빈도 변함</td></tr></table></div>
-<p>자연 개체군은 어떤 유전자좌에서는 진화하고 다른 유전자좌에서는 평형일 수 있다. PKU 유전자좌를 평형으로 볼 수 있는 이유: 돌연변이율 낮음 · 짝짓기는 보인자와 무관 · 선택은 드문 동형접합에만 · 개체군이 큼 · 다른 개체군과 빈도가 비슷해 이주 영향 없음.</p>
+<p>자연 개체군은 어떤 유전자좌에서는 진화하고, 다른 유전자좌에서는 평형일 수 있다.</p>
+<p><b>PKU 유전자좌를 평형으로 볼 수 있는 이유</b></p><dl class="st"><dt>돌연변이</dt><dd>돌연변이율이 낮음</dd><dt>교배</dt><dd>짝짓기는 보인자인지와 무관</dd><dt>선택</dt><dd>드문 동형접합에만 작용</dd><dt>크기</dt><dd>개체군이 큼</dd><dt>흐름</dt><dd>다른 개체군과 빈도가 비슷해 이주 영향 없음</dd></dl>
 </div></details>
 
 <details class="sec"><summary>23.3 대립유전자 빈도를 바꾸는 힘 <span class="en">selection · drift · gene flow</span></summary><div class="body">
-<ul><li><b>유전적 부동</b>: 표본이 작을수록 예측에서 무작위로 벗어남 → 빈도가 세대마다 예측할 수 없이 변동, 대립유전자가 우연히 사라짐</li>
-<li><b>창시자 효과</b>: 소수가 큰 집단에서 고립 → 새 집단 빈도가 모집단과 다름 · <b>병목 현상</b>: 환경 급변으로 개체군이 급감 → 남은 유전자 풀이 원래를 반영 못 함</li>
-<li>부동의 효과: ① 작은 집단에서 중요 ② 빈도가 무작위로 변함 ③ 유전적 다양성 손실 ④ <b>해로운 대립유전자도 고정</b>될 수 있음</li>
-<li><b>유전자 흐름</b>: 개체 · 배우자(꽃가루) 이동 → 개체군 간 차이를 <b>줄임</b>, 지역 적응에 영향</li></ul>
+<ul><li><b>유전적 부동</b><div class="flow"><span>표본(개체군)이 작을수록 예측에서 무작위로 벗어남</span><span>빈도가 세대마다 예측할 수 없이 변동</span><span>대립유전자가 우연히 사라지기도 함</span></div></li>
+<li><b>창시자 효과</b><div class="flow"><span>소수가 큰 집단에서 떨어져 나와 고립</span><span>새 집단의 빈도가 모집단과 다름</span></div></li>
+<li><b>병목 현상</b><div class="flow"><span>환경 급변으로 개체군이 급감</span><span>남은 유전자 풀이 원래 집단을 반영하지 못함</span></div></li>
+<li>부동의 효과<ol class="nums"><li>작은 집단에서 중요</li><li>빈도가 무작위로 변함</li><li>유전적 다양성 손실</li><li><b>해로운 대립유전자도 고정</b>될 수 있음</li></ol></li>
+<li><b>유전자 흐름</b><div class="flow"><span>개체 · 배우자(꽃가루) 이동</span><span>개체군 간 차이를 <b>줄임</b></span><span>지역 적응에 영향</span></div></li></ul>
 <div class="lab" id="lab-drift"><div class="lt">유전적 부동 — 개체군 크기에 따라</div>
 <p class="hint">대립유전자 A 의 빈도가 0.5 인 개체군 6개를 50세대 동안 무작위로만 번식시켜요(선택 없음). 개체 수를 바꿔 다시 돌려 보세요.</p>
 <div class="btns">개체 수 <button class="btn" data-n="10">10</button><button class="btn on" data-n="50">50</button><button class="btn" data-n="500">500</button><button class="btn pri" id="driftRun">다시 돌리기 ▶</button></div>
@@ -332,8 +353,10 @@ CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
 </div></details>
 
 <details class="sec"><summary>23.4 자연선택만이 일관되게 적응을 일으킨다 <span class="en">modes of selection · sexual · balancing</span></summary><div class="body">
-<ul><li>새 변이는 <b>우연히</b> 생기고, 유익한 것을 자연선택이 <b>가려냄</b> · 오직 자연선택만 번식에 유리한 대립유전자 빈도를 지속적으로 높임</li>
-<li><b>상대적 적합도</b>(relative fitness) = 다음 세대 유전자 풀에 기여하는 정도를 다른 개체에 대한 비율로 · "적자생존"은 직접 싸움을 떠올리게 해 오해 소지</li></ul>
+<ul><li>새 변이는 <b>우연히</b> 생기고, 유익한 것을 자연선택이 <b>가려냄</b></li>
+<li>오직 자연선택만 번식에 유리한 대립유전자 빈도를 지속적으로 높임</li>
+<li><b>상대적 적합도</b>(relative fitness) = 다음 세대 유전자 풀에 기여하는 정도를 다른 개체에 대한 비율로</li>
+<li>"적자생존"은 직접 싸움을 떠올리게 해 오해 소지</li></ul>
 <div class="lab" id="lab-sel"><div class="lt">선택의 세 가지 양식</div>
 <p class="hint">회색 = 원래 분포, 색 = 선택 뒤 분포 (가로축: 표현형, 예: 몸 색 밝기)</p>
 <div class="btns"><button class="btn on" data-m="dir">방향성 선택</button><button class="btn" data-m="dis">분기성 선택</button><button class="btn" data-m="sta">안정화 선택</button></div>
@@ -341,13 +364,14 @@ CCATCAGAGTCC → (GTA 삽입) CCATGTACAGAGTCC</pre>
 <div class="out" id="selOut"></div></div>
 <h4>성선택 sexual selection</h4>
 <ul><li>특정 형질을 가진 개체가 같은 성의 다른 개체보다 짝을 얻기 쉬움 → <b>성적 이형성</b>(이차 성징 차이)</li>
-<li><b>동성 선택</b>(intrasexual): 같은 성(대개 수컷)끼리 직접 경쟁 · <b>이성 선택</b>(intersexual) = 짝 선택: 대개 암컷이 고름 → 화려함은 짝 얻을 확률 ↑, 생존 확률 ↓ 일 수도</li>
+<li>성선택의 두 종류<dl class="st"><dt>동성 선택<br><span class="en2">intrasexual</span></dt><dd>같은 성(대개 수컷)끼리 직접 경쟁</dd><dt>이성 선택<br><span class="en2">intersexual</span></dt><dd>= 짝 선택: 대개 암컷이 고름 → 화려함은 짝 얻을 확률 ↑, 생존 확률 ↓ 일 수도</dd></dl></li>
 <li>"good genes" 가설: 형질이 유전적 자질과 관련 있으면 수컷 형질과 암컷 선호가 함께 빈도 ↑</li></ul>
 <h4>균형선택 balancing selection</h4>
-<ul><li>두 개 이상의 표현형 빈도를 안정적으로 유지 · 이배체는 이형접합 안에 열성 대립유전자를 숨겨 변이를 유지</li>
+<ul><li>두 개 이상의 표현형 빈도를 안정적으로 유지</li>
+<li>이배체는 이형접합 안에 열성 대립유전자를 숨겨 변이를 유지</li>
 <li>① <b>빈도 의존적 선택</b>: 드문 표현형이 유리 → 비늘 먹는 물고기 '오른쪽 입' 비율이 0.5 근처에서 진동</li>
 <li>② <b>이형접합체 우위</b>: Aa 의 적합도 &gt; AA, aa → 두 대립유전자 유지</li></ul>
-<div class="key">자연선택이 <b>완벽한 생물</b>을 못 만드는 이유 4가지: ① 이미 있는 변이에만 작용 ② 역사적 제약 ③ 적응은 종종 타협 ④ 우연 · 자연선택 · 환경의 상호작용</div>
+<div class="key"><b class="h">자연선택이 완벽한 생물을 못 만드는 이유 4가지</b><ol class="nums"><li>이미 있는 변이에만 작용</li><li>역사적 제약</li><li>적응은 종종 타협</li><li>우연 · 자연선택 · 환경의 상호작용</li></ol></div>
 </div></details>
 
 <details class="sec"><summary>Ch 23 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="23"></ul></div></details>
@@ -422,49 +446,6 @@ const TERMS = {
   23: [['소진화', 'microevolution'], ['유전적 부동', 'genetic drift'], ['유전자 흐름', 'gene flow'], ['유전자 풀', 'gene pool'], ['유전적 변이', 'genetic variation'], ['이형접합성', 'heterozygosity'], ['점 돌연변이', 'point mutation'], ['중복성', 'redundancy'], ['하디-바인베르크 평형', 'Hardy-Weinberg equilibrium'], ['창시자 효과', 'founder effect'], ['병목 현상', 'bottleneck effect'], ['상대적 적합도', 'relative fitness'], ['방향성 / 분기성 / 안정화 선택', 'directional / disruptive / stabilizing'], ['성선택', 'sexual selection (intra / inter)'], ['균형선택', 'balancing selection'], ['빈도 의존적 선택', 'frequency-dependent selection'], ['이형접합체 우위', 'heterozygote advantage']],
 };
 document.querySelectorAll('[data-terms]').forEach((el) => { el.innerHTML = TERMS[el.dataset.terms].map(([k, e]) => `<div>${k}<i>${e}</i></div>`).join(''); });
-
-// ───────── 🧪 자연선택 세대 진행 ─────────
-{
-  const svg = $('#nsSvg'), out = $('#nsOut');
-  const SH = ['#efe2c4', '#d4b98a', '#a8855a', '#6f5434', '#3e2c1b'];   // 몸 색 0(밝음) ~ 4(어두움)
-  let pop, gen, dark, hist;
-  const reset = () => { pop = Array.from({ length: 20 }, (_, i) => i % 5); gen = 0; dark = true; hist = [mean()]; draw('처음 개체군: 몸 색이 골고루 섞여 있어요 (변이).'); };
-  function mean() { return pop.reduce((a, b) => a + b, 0) / pop.length; }
-  function draw(msg, eaten = []) {
-    const bg = dark ? '#5a4632' : '#ead9b0';
-    let h = `<rect x="10" y="10" width="400" height="210" rx="10" fill="${bg}"/>`;
-    pop.forEach((s, i) => {
-      const x = 40 + (i % 5) * 80, y = 40 + Math.floor(i / 5) * 48;
-      const gone = eaten.includes(i);
-      h += `<g transform="translate(${x} ${y})" opacity="${gone ? .25 : 1}"><ellipse rx="17" ry="12" fill="${SH[s]}" stroke="#222" stroke-width="1"/><line x1="0" y1="-12" x2="0" y2="12" stroke="#222" stroke-width="1"/>${gone ? '<path d="M-12,-12 L12,12 M12,-12 L-12,12" stroke="#c1121f" stroke-width="3"/>' : ''}</g>`;
-    });
-    // 평균 몸 색 그래프
-    h += `<text x="430" y="26" font-size="12" font-weight="700">세대별 평균 몸 색</text><line x1="440" y1="200" x2="630" y2="200" stroke="${css('--sub')}"/><text x="430" y="60" font-size="10">어둡다</text><text x="430" y="200" font-size="10">밝다</text>`;
-    const pts = hist.map((m, i) => `${445 + i * (180 / Math.max(8, hist.length - 1))},${200 - m / 4 * 140}`).join(' ');
-    h += `<polyline points="${pts}" fill="none" stroke="${css('--c21')}" stroke-width="3"/>`;
-    hist.forEach((m, i) => (h += `<circle cx="${445 + i * (180 / Math.max(8, hist.length - 1))}" cy="${200 - m / 4 * 140}" r="3.5" fill="${css('--c21')}"/>`));
-    svg.innerHTML = h;
-    out.innerHTML = `<b>${gen}세대</b> · 배경: ${dark ? '어두운 흙' : '밝은 모래'} · 평균 몸 색 ${mean().toFixed(2)} (0 밝음 ~ 4 어두움)<br>${msg}`;
-  }
-  $('#nsNext').onclick = () => {
-    // 배경과 대비가 클수록 잡아먹힐 확률 ↑ (8마리 잡힘)
-    const target = dark ? 4 : 0;
-    const order = pop.map((s, i) => ({ i, w: Math.abs(s - target) + rnd() * 1.2 })).sort((a, b) => b.w - a.w);
-    const eaten = order.slice(0, 8).map((o) => o.i);
-    draw('새가 배경에서 잘 보이는 개체를 더 많이 잡아먹었어요 (✕).', eaten);
-    setTimeout(() => {
-      const surv = pop.filter((_, i) => !eaten.includes(i));
-      // 살아남은 개체가 번식: 자손은 부모 몸 색을 물려받음 (가끔 한 칸 변이)
-      const kids = [];
-      while (surv.length + kids.length < 20) { const p = surv[Math.floor(rnd() * surv.length)]; const m = rnd() < .12 ? Math.max(0, Math.min(4, p + (rnd() < .5 ? -1 : 1))) : p; kids.push(m); }
-      pop = surv.concat(kids).sort(() => rnd() - .5); gen++; hist.push(mean());
-      draw('살아남은 개체만 번식 → 다음 세대에서 배경과 비슷한 몸 색의 <b>빈도가 증가</b>했어요. 개체가 변한 게 아니라 개체군의 구성이 변한 것!');
-    }, 650);
-  };
-  $('#nsEnv').onclick = () => { dark = !dark; draw('환경(배경)이 바뀌었어요 → 이제 반대쪽 몸 색이 유리해요. 몇 세대 넘겨 보세요.'); };
-  $('#nsReset').onclick = reset;
-  reset();
-}
 
 // ───────── 🧪 분기군 판별 ─────────
 {
