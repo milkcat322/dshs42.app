@@ -93,6 +93,11 @@ figure.viz figcaption{color:var(--sub);font-size:13.5px;margin-top:6px}
 .legend{display:flex;gap:6px 14px;flex-wrap:wrap;justify-content:center;font-size:13px;margin-top:6px}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 table.mat td:not(:first-child),table.mat th:not(:first-child){text-align:center}
+/* 마인드맵 */
+.mm-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+svg.mm{min-width:720px;max-width:1000px;background:transparent}
+svg.mm .br{cursor:pointer}
+svg.mm .br:hover rect{filter:brightness(1.12)}
 /* 직접 해 보기 */
 .lab{border:1.5px dashed var(--c);border-radius:14px;padding:12px;margin:12px 0;background:var(--card)}
 .lab>.lt{font-weight:800;margin:0 0 4px}
@@ -217,6 +222,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <li>과학에서 <b>이론</b> = 수많은 관찰을 설명 · 통합하는 것</li></ul>
 </div></details>
 
+<details class="sec" open><summary>Ch 21 한눈에 보기 — 마인드맵 <span class="en">가지를 누르면 그 절로 가요</span></summary><div class="body"><div class="mm-wrap"><svg class="viz mm" data-mm="21" role="img" aria-label="Ch 21 마인드맵"></svg></div></div></details>
 <details class="sec"><summary>Ch 21 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="21"></ul></div></details>
 <details class="sec"><summary>Ch 21 영어 용어</summary><div class="body"><div class="terms" data-terms="21"></div></div></details>
 </section>
@@ -317,6 +323,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <div class="key"><b class="h">탐구: 진딧물의 카로티노이드 합성 유전자</b><div class="flow"><span>동물은 보통 카로티노이드를 못 만듦</span><span>그런데 진딧물 서열이 <b>균류</b>와 가장 비슷</span><span>균류에서 HGT 로 얻었다는 가설을 지지</span></div>세균 · 식물과도 비슷한 이유: 이 효소 유전자가 먼 공통 조상에서 유래한 상동 유전자라 보존된 부분이 있음</div>
 </div></details>
 
+<details class="sec" open><summary>Ch 22 한눈에 보기 — 마인드맵 <span class="en">가지를 누르면 그 절로 가요</span></summary><div class="body"><div class="mm-wrap"><svg class="viz mm" data-mm="22" role="img" aria-label="Ch 22 마인드맵"></svg></div></div></details>
 <details class="sec"><summary>Ch 22 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="22"></ul></div></details>
 <details class="sec"><summary>Ch 22 영어 용어</summary><div class="body"><div class="terms" data-terms="22"></div></div></details>
 </section>
@@ -402,6 +409,7 @@ html.embed #nl-badge-frame,html.embed #nl-hud-frame{display:none!important}
 <div class="key"><b class="h">자연선택이 완벽한 생물을 못 만드는 이유 4가지</b><ol class="nums"><li>이미 있는 변이에만 작용</li><li>역사적 제약</li><li>적응은 종종 타협</li><li>우연 · 자연선택 · 환경의 상호작용</li></ol></div>
 </div></details>
 
+<details class="sec" open><summary>Ch 23 한눈에 보기 — 마인드맵 <span class="en">가지를 누르면 그 절로 가요</span></summary><div class="body"><div class="mm-wrap"><svg class="viz mm" data-mm="23" role="img" aria-label="Ch 23 마인드맵"></svg></div></div></details>
 <details class="sec"><summary>Ch 23 자주 틀리는 것 O/X</summary><div class="body"><ul class="ox" data-ox="23"></ul></div></details>
 <details class="sec"><summary>Ch 23 영어 용어</summary><div class="body"><div class="terms" data-terms="23"></div></div></details>
 </section>
@@ -754,6 +762,89 @@ const L = (pts) => '<path class="ln" d="M' + pts.map((p) => p.join(',')).join(' 
   g += pop(90, 200, 40, [['r', 12], ['b', 10], ['y', 8]]) + arrow(146, 250, 200, '소수가 새 섬으로') + pop(300, 200, 14, [['r', 3], ['y', 1]]) + arrow(330, 444, 200, '새 개체군') + pop(510, 200, 38, [['r', 21], ['y', 7]]);
   g += T(90, 128, '원래: 빨강 · 파랑 · 노랑', 'text-anchor="middle" font-size="11.5" class="mut"') + T(510, 128, '빨강이 사라짐', 'text-anchor="middle" font-size="11.5" class="mut"') + T(510, 256, '파랑이 사라짐 · 빨강 ↑', 'text-anchor="middle" font-size="11.5" class="mut"');
   $('#vNeck').innerHTML = g;
+}
+
+// ───────── 마인드맵 (단원 끝) ─────────
+{
+  // [가지 이름, 갈 절(summary 앞부분), [잎 …]]
+  const MM = {
+    21: ['Ch21 진화', [
+      ['세 가지 관찰', '21.0', ['적응 adaptation', '통일성 unity', '다양성 diversity', '→ 변형을 통한 계승']],
+      ['다윈 이전', '21.1', ['아리스토텔레스 · 린네: 종 고정', '퀴비에 대격변설 (멸종 O 진화 X)', '허턴 · 라이엘 점진주의', '라마르크 용불용설 ✗', '맬서스 인구론 → 생존투쟁']],
+      ['자연선택', '21.2', ['관찰: 유전되는 변이', '관찰: 과잉 생산', '추론: 유리한 형질 → 자손 ↑', '추론: 여러 세대 → 축적', '개체군이 진화 · 편집 O 창조 X']],
+      ['직접 관찰', '21.3', ['무환자나무 벌레 부리', 'MRSA 내성', '구피 몸 색', 'DDT 내성 모기']],
+      ['상동성', '21.3', ['상동기관 · 흔적기관', '비교 발생학 (인두궁)', '분자 상동성 (유전암호)', '↔ 상사성 = 수렴 진화']],
+      ['화석 · 생물지리', '21.3', ['고래 발목뼈 → 우제류', '뒷다리 축소 화석', '판게아 · 대륙 이동', '섬의 고유종']],
+    ]],
+    22: ['Ch22 계통발생', [
+      ['분류', '22.1', ['이명법 (속명 + 종소명)', '역계문강목과속종', '분류군 taxon']],
+      ['계통수 읽기', '22.1', ['분기점 · 자매 분류군', '기저 분류군', '돌려도 같은 나무', '혈통 패턴 (시간 X)']],
+      ['상동 vs 상사', '22.2', ['화석 · 복잡성 · 서열', '수렴 진화 주의', '서열 정렬 (gap)']],
+      ['분기학', '22.3', ['단계통군 = clade', '측계통 · 다계통 ✗', '공유 파생 형질로 정의', '외군으로 조상 형질 판단', '분기도 · 계통도 · 시간 계통도']],
+      ['계통수 고르기', '22.3', ['최대 단순성 (변화 최소)', '최대 개연성 (확률)', '계통학적 괄호묶기']],
+      ['유전체 · 분자시계', '22.4', ['rRNA 느림 / mtDNA 빠름', '이종상동 (종분화)', '동종유사 (유전자 중복)', '분자시계 · HIV 1910년경']],
+      ['생명의 계통수', '22.6', ['3역: 세균 · 고세균 · 진핵', '진핵 ↔ 고세균 더 가까움', '수평적 유전자 전달 HGT']],
+    ]],
+    23: ['Ch23 개체군의 진화', [
+      ['소진화', '23.0', ['대립유전자 빈도 변화', '개체군이 진화', '선택 · 부동 · 흐름']],
+      ['유전적 변이', '23.1', ['이형접합성 · 뉴클레오타이드', '점 돌연변이', '유전자 중복', '유성생식 재조합']],
+      ['하디-바인베르크', '23.2', ['p + q = 1', 'p² + 2pq + q² = 1', '평형 5조건', 'PKU 보인자 2pq']],
+      ['유전적 부동', '23.3', ['작은 개체군에서 큼', '창시자 효과', '병목 현상', '다양성 손실 · 해로운 것도 고정']],
+      ['유전자 흐름', '23.3', ['개체 · 꽃가루 이동', '개체군 간 차이 ↓']],
+      ['자연선택', '23.4', ['상대적 적합도', '방향성 · 분기성 · 안정화', '성선택 (동성 · 이성)', '균형선택 (빈도 의존 · 이형 우위)', '완벽하지 못한 이유 4가지']],
+    ]],
+  };
+  const COLS = ['var(--b1)', 'var(--b2)', 'var(--b3)', 'var(--b4)', '#9b7bd1', '#d1607e', '#4fb0b8'];
+  const cv = document.createElement('canvas').getContext('2d');
+  const tw = (t, f) => { cv.font = f; return cv.measureText(t).width; };
+  const FONT = '"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif';
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const draw = (svg) => {
+    const [title, branches] = MM[svg.dataset.mm];
+    const W = 1000, cx = W / 2, ROW = 25, GAP = 16;
+    // 잎 수로 좌우 균형
+    const side = { L: [], R: [] }, cnt = { L: 0, R: 0 };
+    branches.forEach((b, i) => { const k = cnt.R <= cnt.L ? 'R' : 'L'; side[k].push([b, i]); cnt[k] += b[2].length + 0.7; });
+    const hOf = (list) => list.reduce((a, [b]) => a + b[2].length * ROW + GAP, -GAP);
+    const H = Math.max(hOf(side.L), hOf(side.R)) + 40, cy = H / 2;
+    let g = '';
+    const tW = tw(title, '800 17px ' + FONT) + 34;
+    for (const k of ['L', 'R']) {
+      const dir = k === 'R' ? 1 : -1;
+      let y = cy - hOf(side[k]) / 2;
+      for (const [[name, to, leaves], i] of side[k]) {
+        const col = COLS[i % COLS.length], bh = leaves.length * ROW, by = y + bh / 2;
+        const bw = tw(name, '800 14px ' + FONT) + 24, bx = cx + dir * 205;          // 가지 상자 가운데
+        const x0 = cx + dir * tW / 2, x1 = bx - dir * bw / 2;
+        g += '<path d="M' + x0 + ',' + cy + ' C' + (x0 + dir * 60) + ',' + cy + ' ' + (x1 - dir * 60) + ',' + by + ' ' + x1 + ',' + by + '" fill="none" stroke="' + col + '" stroke-width="3.2"/>';
+        const lx = bx + dir * (bw / 2), lt = bx + dir * (bw / 2 + 44);
+        leaves.forEach((t, j) => {
+          const ly = y + j * ROW + ROW / 2;
+          g += '<path d="M' + lx + ',' + by + ' C' + (lx + dir * 24) + ',' + by + ' ' + (lt - dir * 24) + ',' + ly + ' ' + (lt - dir * 6) + ',' + ly + '" fill="none" stroke="' + col + '" stroke-width="1.6" opacity=".8"/>';
+          g += '<circle cx="' + (lt - dir * 6) + '" cy="' + ly + '" r="2.6" fill="' + col + '"/>';
+          g += '<text x="' + (lt + dir * 2) + '" y="' + (ly + 4.5) + '" font-size="13.5"' + (dir < 0 ? ' text-anchor="end"' : '') + '>' + esc(t) + '</text>';
+        });
+        g += '<g class="br" data-to="' + to + '"><rect x="' + (bx - bw / 2) + '" y="' + (by - 15) + '" width="' + bw + '" height="30" rx="15" fill="' + col + '"/><text x="' + bx + '" y="' + (by + 5) + '" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff">' + esc(name) + '</text></g>';
+        y += bh + GAP;
+      }
+    }
+    g += '<rect x="' + (cx - tW / 2) + '" y="' + (cy - 22) + '" width="' + tW + '" height="44" rx="12" style="fill:var(--c)"/><text x="' + cx + '" y="' + (cy + 6) + '" text-anchor="middle" font-size="17" font-weight="800" style="fill:#fff">' + esc(title) + '</text>';
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.innerHTML = g;
+  };
+  document.querySelectorAll('svg.mm').forEach((svg) => {
+    draw(svg);
+    svg.addEventListener('click', (e) => {
+      const b = e.target.closest('.br'); if (!b) return;
+      const sec = svg.closest('section.ch');
+      const d = [...sec.querySelectorAll('details.sec')].find((x) => x.querySelector('summary').textContent.trim().startsWith(b.dataset.to));
+      if (!d) return;
+      d.open = true;
+      setTimeout(() => d.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+    });
+  });
+  // 글꼴이 늦게 오면 글자 너비가 바뀌므로 한 번 더
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => document.querySelectorAll('svg.mm').forEach(draw));
 }
 // 사이트 테마가 바뀌면 그림 색도 다시 (단원 버튼은 CSS 변수라 그대로)
 const _vt = window.vocabTheme;
