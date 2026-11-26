@@ -733,7 +733,7 @@ p.mmhint{color:var(--sub);font-size:14px;margin:0 0 10px}
 <tr data-c="손47"><td><b>Repressible</b> 억제성 operon<br><span style="font-size:8.6pt">평소 켜져 있음 · 억제성 물질 관여 · <b>동화</b></span></td><td><b>trp operon</b></td><td>자연계에서 발견되지 X</td></tr>
 <tr data-c="손47"><td><b>Inducible</b> 유도성 operon<br><span style="font-size:8.6pt">평소 꺼져 있음 · 유도성 물질 관여 · <b>이화</b></span></td><td><b>lac operon</b> (allolactose)</td><td><b>lac operon</b> (cAMP) ← activator: <b>CRP</b></td></tr>
 </tbody></table>
-<p data-c="손47" style="font-size:9pt">★ 필기: activator는 operator 쪽에 결합하면 발현이 활성화됨 · repressor ↔ activator</p>
+<p data-c="손47" style="font-size:9pt">★ repressor 는 operator 에 붙어 발현을 막고, activator(CRP)는 promoter 상류에 붙어 발현을 활성화 · repressor ↔ activator</p>
 <h4 data-c="손48"><span class="star">★</span> trp operon — 트립토판 오페론 / 동화의 역할 <span class="en">repressible</span></h4>
 <div class="viz" data-c="손48"><img src="bio-img/Mtrp_0.jpg" loading="lazy" alt="" style="width:80%"><div class="pcap">trp operon 구조</div></div>
 
@@ -791,7 +791,7 @@ chromatin modification은 DNA 서열을 바꾸지 않지만 <b>다음 세대 세
 <ul>
 <li data-c="손55">진핵 유전자: 상류의 <b>enhancer</b>(distal control elements) — <b>proximal control elements</b> — <b>promoter</b>(TATA box) — exon/intron — poly-A signal sequence — transcription termination region.</li>
 <li data-c="손54"><b>General transcription factors</b> <span class="en">(★ 보편 전사인자)</span>: RNA polymerase는 전사를 시작하려면 transcription factor의 도움 필요 · <b>모든 단백질 코딩 유전자의 전사에 필수</b> · 일부는 promoter 내 <b>TATA box</b>에 결합 · 많은 것들이 다른 전사인자·<b>RNA polymerase Ⅱ</b>를 포함한 단백질에 결합.</li>
-<li data-c="손54"><b>Specific transcription factors</b> <span class="en">(★ 특수 전사인자)</span>: control element에 결합. <b>proximal control elements</b>는 promoter 가까이 / <b>enhancer</b> = distal control elements는 <u>유전자에서 멀리 떨어져 있거나 intron에 위치할 수도 있음</u>(★ 수만 단위 떨어져 있을 수도) · 각 enhancer는 일반적으로 <b>하나의 유전자에만</b> 연관. ★ 필기: enhancer는 하나 또는 여러 개의 조절 요소를 포함하는 부위 / 원거리 조절 요소, 근거리 조절 요소 / 특수 전사인자들이 enhancer에 붙으면 발현이 조절됨.</li>
+<li data-c="손54"><b>Specific transcription factors</b> <span class="en">(★ 특수 전사인자)</span>: control element에 결합. <b>proximal control elements</b>는 promoter 가까이 / <b>enhancer</b> = distal control elements는 <u>유전자에서 멀리 떨어져 있거나 intron에 위치할 수도 있음</u>(★ 수천 nt 떨어져 있을 수도) · 각 enhancer는 일반적으로 <b>하나의 유전자에만</b> 연관. ★ 필기: enhancer는 하나 또는 여러 개의 조절 요소를 포함하는 부위 / 원거리 조절 요소, 근거리 조절 요소 / 특수 전사인자들이 enhancer에 붙으면 발현이 조절됨.</li>
 <li data-c="손54"><b>Activator</b>: ★ <b>enhancer에 결합</b>하여 유전자 전사를 촉진하는 단백질 · <b>두 개의 domain</b>(bind DNA, activates transcription).</li>
 <li data-c="손54"><b>Repressor</b>: ★ <b>silencer와 결합</b> · 특정 유전자의 발현을 억제하는 단백질. (★ enhancer ↔ silencer)</li>
 </ul>
@@ -1620,12 +1620,11 @@ if (window.BioBook) {
       }
     };
     walk(src);
-    // 2) 문항은 한 곳에만: 본문에서 가장 많이 나오는 제목 아래 (같으면 먼저 나온 곳, 본문에 없으면 그 번호가 달린 제목 아래)
+    // 2) 문항 배치: 내용을 검토해 직접 정함 (제목 글자 일부 → 문항 번호). 원본 교재의 번호 표시는 어긋난 곳이 있어 쓰지 않음
+    const MAP = [["가로드의 제안",[1]],["비들과 테이텀",[2,3]],["스르브와 호로위츠",[4]],["가설의 발전",[5]],["기본 원리",[6]],["유전암호",[7,8,9,10,11,12]],["전사에 참여하는 분자",[13,14,15]],["전사의 3단계",[16]],["개시: 진핵세포",[17]],["Elongation of the RNA strand",[18]],["종결 — 세균과",[19]],["17.3 진핵세포는",[20]],["mRNA 양 끝의 변형",[21,22]],["분할 유전자와",[23,24]],["Ribozymes",[25]],["인트론의 기능적",[26]],["tRNA의 구조와 기능",[27]],["아미노아실-tRNA 합성효소",[28]],["Wobble",[29]],["리보솜의 구조와 기능",[30]],["폴리펩타이드 합성 3단계",[31,32,33,37]],["기능을 갖는 단백질",[34,35,36]],["17.5 뉴클레오타이드",[38,39,40,41,42]],["유전자·유전체 편집",[43,44]],["Operon의 구성",[45,46]],["Repressible and Inducible",[47]],["trp operon —",[48]],["lac operon —",[49]],["양성 조절 —",[50]],["18.2 진핵생물의",[51]],["Regulation of Chromatin Structure",[52,53]],["Regulation of Transcription Initiation",[54,55]],["Combinatorial Control",[56]],["Post-Transcriptional Regulation",[57]],["Initiation of Translation and mRNA",[58]],["Protein Processing and Degradation",[59]],["18.3 비번역 RNA",[60,61]],["Effects on mRNAs by MicroRNAs",[62]],["Chromatin Remodeling and Effects",[63]],["18.4 차등적",[64]],["Cytoplasmic Determinants",[65]],["Sequential Regulation",[66]],["Pattern Formation",[67]],["Axis Establishment",[68]]];
     const home = {};
-    const best = {};
-    secs.forEach((s, i) => s.ks.forEach((k) => { if (best[k] === undefined || s.n[k] > best[k]) { best[k] = s.n[k]; home[k] = i; } }));
-    secs.forEach((s, i) => { if (s.own && s.own[0] === '손' && BioBook.has(s.own) && home[s.own] === undefined) home[s.own] = i; });
-    // 본문에 번호가 안 달린 문항은 바로 앞 번호 문항과 같은 제목 아래로
+    MAP.forEach(([t, ns]) => { const i = secs.findIndex((s) => s.h.textContent.includes(t)); ns.forEach((n) => { if (i >= 0) home['손' + n] = i; }); });
+    // 제목을 못 찾은 문항은 바로 앞 번호 문항과 같은 제목 아래로 (원본 제목이 바뀌었을 때 대비)
     SON.forEach((k, j) => { if (home[k] === undefined) home[k] = j ? home[SON[j - 1]] : 0; });
     const name = (k) => BioBook.title(k).replace(/^손[0-9]+ · /, '');
     // 개념마다: 번호 · 제목 · 핵심 정리(문항의 '핵심 정리' 칸) · 대표 그림 (원본 '기작 한눈에' 표처럼). 누르면 팝업으로 자세히
