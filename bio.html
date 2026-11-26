@@ -133,8 +133,9 @@ html.embed #ccView{padding:4px 0 16px}
 @media (max-width:700px){#ccView .orig{padding:5mm 4mm}}
 #ccView .orig img{max-width:100%}
 #ccOutline .cc-rows{border:1.5px solid #c9d4e0;border-radius:2mm;overflow:hidden;margin:2mm 0 4mm}
-#ccOutline .cc-row{display:grid;grid-template-columns:44px minmax(0,1fr) 240px;border-top:1px solid #d5dde8;cursor:pointer;transition:background .15s}
+#ccOutline .cc-row{display:grid;grid-template-columns:minmax(0,1fr) 240px;border-top:1px solid #d5dde8;cursor:pointer;transition:background .15s}
 #ccOutline .cc-row:first-child{border-top:0}
+#ccOutline .cc-row:not(:has(.cc-pic)){grid-template-columns:minmax(0,1fr)}
 #ccOutline .cc-row:hover,#ccOutline .cc-row:focus-visible{background:#fffbe6;outline:none}
 #ccOutline .cc-no{display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15pt;color:#1d3557;border-right:1px solid #d5dde8;background:#f6f9fc}
 #ccOutline .cc-main{padding:2.4mm 3mm;min-width:0}
@@ -146,7 +147,7 @@ html.embed #ccView{padding:4px 0 16px}
 #ccOutline .cc-s table{font-size:8.6pt;margin:1.5mm 0}
 #ccOutline .cc-pic{border-left:1px solid #d5dde8;padding:2mm;display:flex;align-items:center;justify-content:center}
 #ccOutline .cc-pic img{width:100%;border-radius:1.5mm;background:#fff}
-@media (max-width:700px){#ccOutline .cc-row{grid-template-columns:34px minmax(0,1fr)}#ccOutline .cc-pic{grid-column:2;border-left:0;padding:0 3mm 3mm}#ccOutline .cc-no{font-size:12pt;grid-row:span 2}}
+@media (max-width:700px){#ccOutline .cc-row{grid-template-columns:minmax(0,1fr)}#ccOutline .cc-pic{border-left:0;padding:0 3mm 3mm}}
 #ccView .orig h1{font-size: 20pt; margin: 0 0 2mm; color: #1d3557;}
 #ccView .orig .sub{color: #555; margin-bottom: 4mm;}
 #ccView .orig h2{font-size: 14pt; color: #fff; background: #1d3557; padding: 2mm 3mm; margin: 6mm 0 3mm; border-radius: 2mm; page-break-after: avoid;}
@@ -1636,7 +1637,7 @@ if (window.BioBook) {
       const notStep = imgs.find((x) => !x.closest('.c-steps'));
       const steps = imgs.filter((x) => x.closest('.c-steps'));
       const pic = notStep || steps[steps.length - 1];
-      return '<div class="cc-row" data-c="' + k + '" role="button" tabindex="0"><div class="cc-no">' + n + '</div><div class="cc-main"><div class="cc-t">' + name(k) + (BioBook.mechs(k).length ? ' <span class="cc-mech">▶ 기작</span>' : '') + ' <span class="cc-more">자세히 ▸</span></div>' +
+      return '<div class="cc-row" data-c="' + k + '" role="button" tabindex="0"><div class="cc-main"><div class="cc-t">' + name(k) + (BioBook.mechs(k).length ? ' <span class="cc-mech">▶ 기작</span>' : '') + ' <span class="cc-more">자세히 ▸</span></div>' +
         (ans ? '<div class="cc-s">' + ans.innerHTML + '</div>' : '') + '</div>' + (pic ? '<div class="cc-pic"><img src="' + pic.getAttribute('src') + '" loading="lazy" alt=""></div>' : '') + '</div>';
     };
     outl.innerHTML = secs.map((s, i) => {
